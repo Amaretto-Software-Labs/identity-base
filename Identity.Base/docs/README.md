@@ -21,6 +21,46 @@ Identity Base is a .NET 9 minimal API that centralises authentication, user mana
 - `Data/` provides the `AppDbContext` for EF Core and future entity configurations.
 - `Options/` contains configuration bindings such as `DatabaseOptions`.
 
+## Identity & Registration
+- ASP.NET Core Identity is configured with GUID keys, strict password policy (12+ characters, upper/lower/digit), and enforced email confirmation.
+- `Registration` options drive dynamic profile metadata. Configure fields under `Registration:ProfileFields` and the confirmation URL template with `{token}` and `{email}` placeholders.
+- `/auth/register` accepts payloads `{ email, password, metadata }`; metadata keys must match configured fields. Successful requests return `202 Accepted` with a correlation identifier and trigger a confirmation email.
+- `IdentitySeed` options allow optional super-admin creation. Set `IdentitySeed:Enabled` to `true` and provide credentials (disabled by default).
+- MailJet delivery requires valid API credentials and template id; replace the placeholders in configuration before running the service and, if desired, enable `MailJet:ErrorReporting` to route failures to an operational inbox.
+
+## Database & Migrations
+- The `AppDbContext` extends `IdentityDbContext` and stores user metadata as JSONB (`Identity_Users.ProfileMetadata`). Tables use PascalCase with `Identity_` prefixes.
+- Apply migrations locally: `dotnet ef database update --project Identity.Base/Identity.Base.csproj`.
+- Add new schema changes with `dotnet ef migrations add <Name> --project Identity.Base/Identity.Base.csproj --output-dir Data/Migrations`.
+- Test projects set `ConnectionStrings:Primary` to `InMemory:<Name>` to run against EF Core InMemory provider.
+
+## Configuration Reference
+```json
+{
+  "ConnectionStrings": {
+    "Primary": "Host=localhost;Port=5432;Database=identity;Username=identity;Password=identity"
+  },
+  "Registration": {
+    "ConfirmationUrlTemplate": "https://localhost:5001/account/confirm?token={token}&email={email}",
+    "ProfileFields": [
+      { "Name": "displayName", "DisplayName": "Display Name", "Required": true, "MaxLength": 128 },
+      { "Name": "company", "DisplayName": "Company", "Required": false, "MaxLength": 128 }
+    ]
+  },
+  "MailJet": {
+    "FromEmail": "noreply@example.com",
+    "FromName": "Identity Base",
+    "ApiKey": "YOUR_MAILJET_API_KEY",
+    "ApiSecret": "YOUR_MAILJET_API_SECRET",
+    "Templates": { "Confirmation": 1000000 },
+    "ErrorReporting": {
+      "Enabled": true,
+      "Email": "identity-alerts@example.com"
+    }
+  }
+}
+```
+
 ## Next Steps
 - Flesh out feature folders with real endpoints and contracts per sprint scope.
 - Introduce database migrations and entities inside `Data/Configurations`.

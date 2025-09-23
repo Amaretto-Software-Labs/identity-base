@@ -4,6 +4,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
 using Identity.Base.Data;
+using Identity.Base.Features.Email;
+using Identity.Base.Options;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -39,15 +41,20 @@ public class HealthzEndpointTests : IClassFixture<IdentityApiFactory>
 
 public class IdentityApiFactory : WebApplicationFactory<Program>
 {
+    public FakeEmailSender EmailSender { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureServices(services =>
         {
-            services.RemoveAll(typeof(DbContextOptions<AppDbContext>));
-            services.RemoveAll(typeof(AppDbContext));
+            services.RemoveAll(typeof(ITemplatedEmailSender));
+            services.AddSingleton<FakeEmailSender>(_ => EmailSender);
+            services.AddSingleton<ITemplatedEmailSender>(provider => provider.GetRequiredService<FakeEmailSender>());
 
-            services.AddDbContext<AppDbContext>(options =>
-                options.UseInMemoryDatabase("IdentityBaseTests"));
+            services.PostConfigure<DatabaseOptions>(options =>
+            {
+                options.Primary = "InMemory:IdentityBaseTests";
+            });
 
             services.PostConfigure<HealthCheckServiceOptions>(options =>
             {
@@ -63,6 +70,25 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                     null,
                     null));
             });
+
+            services.PostConfigure<RegistrationOptions>(options =>
+            {
+                options.ConfirmationUrlTemplate = "https://tests.example.com/confirm?token={token}&email={email}";
+                options.ProfileFields = new List<RegistrationProfileFieldOptions>
+                {
+                    new() { Name = "displayName", DisplayName = "Display Name", Required = true, MaxLength = 128, Pattern = null! },
+                    new() { Name = "company", DisplayName = "Company", Required = false, MaxLength = 128, Pattern = null! }
+                };
+            });
+
+            services.PostConfigure<MailJetOptions>(options =>
+            {
+                options.ApiKey = "test";
+                options.ApiSecret = "secret";
+                options.FromEmail = "noreply@example.com";
+                options.FromName = "Identity Base";
+                options.Templates.Confirmation = 1234;
+            });
         });
     }
 
@@ -70,5 +96,18 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
     {
         public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
             => Task.FromResult(HealthCheckResult.Healthy());
+    }
+}
+
+public sealed class FakeEmailSender : ITemplatedEmailSender
+{
+    private readonly List<TemplatedEmail> _sent = new();
+
+    public IReadOnlyCollection<TemplatedEmail> Sent => _sent.AsReadOnly();
+
+    public Task SendAsync(TemplatedEmail email, CancellationToken cancellationToken = default)
+    {
+        _sent.Add(email);
+        return Task.CompletedTask;
     }
 }

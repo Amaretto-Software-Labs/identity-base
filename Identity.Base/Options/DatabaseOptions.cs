@@ -7,5 +7,5 @@ public sealed class DatabaseOptions
     public const string SectionName = "ConnectionStrings";
 
     [Required]
-    public string? Primary { get; init; }
+    public string? Primary { get; set; }
 }

@@ -1,3 +1,4 @@
+using Identity.Base.Features.Authentication.Register;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 
@@ -7,6 +8,10 @@ public static class AuthenticationEndpoints
 {
     public static RouteGroupBuilder MapAuthenticationEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        return endpoints.MapGroup("/auth");
+        var group = endpoints.MapGroup("/auth");
+
+        group.MapRegisterUserEndpoint();
+
+        return group;
     }
 }

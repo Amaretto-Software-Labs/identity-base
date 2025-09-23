@@ -53,6 +53,8 @@ volumes:
 ```
 
 - Update the `Primary` connection string or environment variables if your local credentials differ while preserving PascalCase table naming.
+- Configure registration metadata via the `Registration` section (profile fields, confirmation URL template) and optional seed accounts under `IdentitySeed`.
+- MailJet integration is always active—replace the placeholder API credentials, sender details, template id, and (optionally) configure `MailJet:ErrorReporting` with a monitoring inbox before running the service.
 
 ## Contributing
 - Read [Engineering Principles](docs/Engineering_Principles.md) and [Database Design Guidelines](docs/Database_Design_Guidelines.md).
