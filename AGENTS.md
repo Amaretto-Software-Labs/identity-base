@@ -25,7 +25,7 @@ The following guides will be authored in later sprints:
 - `docs/docker.md`
 
 ## Key Conventions
-- Source code lives under `apps/` with `apps/api` as the primary service (minimal API, Identity, OpenIddict).
+- Source code lives in project-named folders (primary service: `Identity.Base/` beneath the repo root alongside `Identity.sln`).
 - Tests and infrastructure scripts are colocated with their projects following the engineering principles.
 - All configuration-driven features (OpenIddict, registration metadata, MailJet) are defined in `appsettings` sections and validated via options.
 

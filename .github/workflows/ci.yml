@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore
+        run: dotnet restore Identity.sln
+
+      - name: Build
+        run: dotnet build Identity.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Identity.sln --configuration Release --no-build --verbosity normal

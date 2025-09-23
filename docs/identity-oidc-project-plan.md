@@ -16,24 +16,24 @@
 - Enforce the Unit of Work pattern: endpoint handlers depend on coordinators/repositories rather than raw `DbContext` access.
 - Centralise error handling with ProblemDetails responses and named authorization policies driven by `ICurrentUserService`.
 - Keep classes/methods small (≤200/40 lines) and colocate request/response contracts with their feature folders.
-- Record ERD sketches under `/apps/api/docs/erd/` before introducing entities; update documentation with every schema change.
+- Record ERD sketches under `Identity.Base/docs/erd/` before introducing entities; update documentation with every schema change.
 - Tests accompany features (unit + integration/service tests). Mock only external boundaries such as MailJet or external identity providers.
 
 ## Solution Structure
 ```
-/apps
-  /api
-    /src
-      Program.cs
-      /Extensions (service + pipeline wiring)
-      /Features
-        /Authentication
-        /Users
-        /Email
-      /Data (DbContext, configurations, Unit of Work, repositories)
-      /Identity (Identity models, token providers)
-      /OpenIddict (server config, seeders)
-    /tests (unit + integration with Testcontainers PostgreSQL)
+Identity.sln
+/Identity.Base
+  Program.cs
+  /Extensions (service + pipeline wiring)
+  /Features
+    /Authentication
+    /Users
+    /Email
+  /Data (DbContext, configurations, Unit of Work, repositories)
+  /Options (configuration objects, validation)
+  appsettings.json
+  appsettings.Development.json
+  /docs (service-specific onboarding, ERDs)
 /docs
   identity-oidc-project-plan.md
   Engineering_Principles.md
@@ -43,7 +43,7 @@
 - Optionally add `/apps/shared` for reusable contracts if/when other services need them; keep this plan within a single API project until reuse demands separation.
 
 ## Deployment & Integration Modes
-- `Source drop-in`: deliver the codebase as a ready-made folder (`/apps/api`) that can be copied into an existing solution; expose configuration-first extensibility (custom user fields, policies, event hooks) via partial classes and options-based registration so teams can tune behaviour without forking.
+- `Source drop-in`: deliver the codebase as a ready-made folder (`Identity.Base`) that can be copied into an existing solution; expose configuration-first extensibility (custom user fields, policies, event hooks) via partial classes and options-based registration so teams can tune behaviour without forking.
 - `Docker self-hosted`: ship a Dockerfile and compose samples that run the service alongside PostgreSQL and optional MailJet stubs; document required environment variables, exposed ports, and health checks for platform onboarding.
 - Keep secrets and client registrations in configuration so both modes align with environment provisioning pipelines and Infrastructure-as-Code templates.
 - Provide extension points (`IIdentityEventHandler`, webhook emitters, or message bus integration) so downstream services can react to identity lifecycle events without diverging from upstream; include hooks for MFA and external login lifecycle events.
@@ -80,15 +80,15 @@
 
 ## Database & Persistence Strategy
 - Implement `AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>`; include OpenIddict entity sets via `builder.UseOpenIddict()`.
-- Configure EF Core with `UseNpgsql` and snake_case naming convention. Set `AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", false)` if required.
+- Configure EF Core with `UseNpgsql` and retain PascalCase table names. If a prefix improves clarity, apply `Identity_` (e.g., `Identity_UserProfile`). Set `AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", false)` if required.
 - Follow database guidelines:
   - All primary keys are `Guid` with `ValueGeneratedNever()`; migrations default to `uuid_generate_v4()`.
   - Add `CreatedAt/UpdatedAt` via interceptors; consider `IsDeleted` for soft deletes if requirements emerge.
-- Keep entity configurations in `/apps/api/src/Data/Configurations` implementing `IEntityTypeConfiguration<>`.
+- Keep entity configurations in `Identity.Base/Data/Configurations` implementing `IEntityTypeConfiguration<>`.
 - Create `UnitOfWork` abstraction coordinating repositories; add transactional helpers for multi-step operations (registration + email send).
 - Store extended user profile metadata using a strongly-typed value object backed by JSONB column(s) so integrators can add arbitrary fields (e.g., company, position) without schema churn; expose typed accessors and claim mapping helpers.
-- Auto-apply migrations on startup (`Database.Migrate()` inside scoped service). Ensure migrations live under `/apps/api/src/Migrations` and are reviewed before merge.
-- Document each migration in `/apps/api/README.md` per checklist.
+- Auto-apply migrations on startup (`Database.Migrate()` inside scoped service). Ensure migrations live under `Identity.Base/Migrations` and are reviewed before merge.
+- Document each migration in `Identity.Base/docs/README.md` per checklist.
 
 ## Identity & User Management
 - Require confirmed email before sign-in (`SignInOptions.RequireConfirmedEmail = true`).
@@ -127,7 +127,7 @@
 - Apply FluentValidation for request DTOs; leverage `Results<Ok, ValidationProblem>` responses with consistent ProblemDetails.
 
 ## Email Delivery (MailJet)
-- Implement `MailJetEmailSender` per guide in `/apps/api/src/Features/Email`:
+- Implement `MailJetEmailSender` per guide in `Identity.Base/Features/Email`:
   - Bind `MailJetOptions` from configuration and enforce template-only sends.
   - Support template variables for confirmation/reset flows (e.g., `verificationLink`, `displayName`).
 - Register as both `IEmailSender` and a custom `ITemplatedEmailSender`; injection into registration/password services.
@@ -140,7 +140,7 @@
 - Integrate health checks (`/health`) covering database connectivity and background workers.
 
 ## Test Harness & Sample Client
-- Build `/apps/sample-client` as a Vite + React + Tailwind web app that demonstrates OIDC flows (register, login, refresh, password reset) against the API.
+- Build `Identity.SampleClient` as a Vite + React + Tailwind web app that demonstrates OIDC flows (register, login, refresh, password reset) against the API.
 - Implement environment-driven configuration for issuer URL, client ID, and redirect URIs so the harness can target local Docker or drop-in deployments.
 - Include reusable hooks/services for PKCE authorization code flow and token storage to help adopters bootstrap their own clients.
 - Add coverage for MFA enrollment/verification and external provider sign-in; include device fallback UX.

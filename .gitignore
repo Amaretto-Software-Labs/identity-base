@@ -1,0 +1,92 @@
+# === .NET build artifacts ===
+[Bb]in/
+[Oo]bj/
+[Aa]rtifacts/
+[Tt]est[Rr]esult*/
+*.nupkg
+*.snupkg
+*.vsp
+*.vspx
+*.vspscc
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.psess
+*.psess?
+
+# IDE and tooling
+.vs/
+.idea/
+*.DotSettings.user
+_ReSharper*/
+*.sln.iml
+*.swp
+
+# Visual Studio Code workspace files (allow shared configs)
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
+
+# NuGet
+packages/
+project.lock.json
+project.fragment.lock.json
+.nuget/
+
+# Node.js dependencies
+node_modules/
+jspm_packages/
+web_modules/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Tooling caches
+.eslintcache
+.turbo/
+.cache/
+.parcel-cache/
+.rollup.cache/
+.sass-cache/
+.nyc_output/
+coverage/
+
+# Build outputs
+build/
+dist/
+out/
+.next/
+.nuxt/
+storybook-static/
+.svelte-kit/
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.testing
+
+# System files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Temporary files
+~*
+*.tmp
+*.temp

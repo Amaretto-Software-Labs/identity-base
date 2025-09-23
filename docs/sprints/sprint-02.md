@@ -37,7 +37,7 @@ Finalize `AppDbContext` to extend `IdentityDbContext<ApplicationUser, Applicatio
 **Acceptance Criteria**
 - DbContext configured with Identity and OpenIddict entity sets (placeholders) and `OnModelCreating` applying configurations.
 - `UserProfileMetadata` value object mapped to JSONB column on `AspNetUsers` table with indexes for search.
-- `InitialIdentity` migration created, reviewed, and documented in `/apps/api/README.md`.
+- `InitialIdentity` migration created, reviewed, and documented in `Identity.Base/docs/README.md`.
 
 **Tasks**
 - [ ] Update `AppDbContext` to inherit `IdentityDbContext` and include DbSet placeholders for OpenIddict.
@@ -88,7 +88,7 @@ Implement MailJet templated email sender for confirmation/reset flows following 
 Ensure docs cover Identity setup, migrations, metadata configuration, and email requirements.
 
 **Acceptance Criteria**
-- `/apps/api/docs/README.md` updated with migration instructions and metadata configuration examples.
+- `Identity.Base/docs/README.md` updated with migration instructions and metadata configuration examples.
 - `/docs/getting-started.md` includes prerequisites to configure registration fields.
 - Changelog entry describing sprint deliverables created.
 

@@ -14,7 +14,8 @@
 
 ### S1-API-001: Scaffold .NET 9 Minimal API Baseline (Priority: High, Stream: API Core)
 **Description**
-Create the `apps/api` solution with minimal API pattern, feature folders, and shared extension modules as mandated by engineering principles.
+Create the `Identity.Base` project with minimal API pattern, feature folders, and shared extension modules as mandated by engineering principles.
+**Status:** Completed
 
 **Acceptance Criteria**
 - Solution builds with `dotnet build` and exposes a `/healthz` placeholder endpoint.
@@ -22,10 +23,10 @@ Create the `apps/api` solution with minimal API pattern, feature folders, and sh
 - Feature folders for `Authentication`, `Users`, `Email` exist with placeholder endpoint files.
 
 **Tasks**
-- [ ] Run `dotnet new webapi --use-controllers false` in `apps/api/src`; remove controller remnants and enable minimal API pattern.
-- [ ] Create solution (`identity.sln`) and add `apps/api/src` project; set default namespace conventions.
-- [ ] Add extension classes (e.g., `ServiceCollectionExtensions`, `EndpointRouteBuilderExtensions`) that expose empty registration methods.
-- [ ] Configure `Program.cs` to call extension methods, enable swagger in development, and map `/healthz` endpoint.
+- [x] Run `dotnet new webapi --use-controllers false` in `Identity.Base`; remove controller remnants and enable minimal API pattern.
+- [x] Create solution (`Identity.sln`) and add `Identity.Base/Identity.Base.csproj`; set default namespace conventions.
+- [x] Add extension classes (e.g., `ServiceCollectionExtensions`, `EndpointRouteBuilderExtensions`) that expose empty registration methods.
+- [x] Configure `Program.cs` to call extension methods, enable swagger in development, and map `/healthz` endpoint.
 
 **Dependencies**
 - None.
@@ -33,6 +34,7 @@ Create the `apps/api` solution with minimal API pattern, feature folders, and sh
 ### S1-INFRA-002: Establish EF Core & PostgreSQL Infrastructure (Priority: High, Stream: Data & Persistence)
 **Description**
 Introduce PostgreSQL provider, connection configuration, and initial DbContext placeholder.
+**Status:** Completed
 
 **Acceptance Criteria**
 - `AppDbContext` class exists extending `DbContext` with placeholder `ApplyConfigurationsFromAssembly` call.
@@ -40,10 +42,10 @@ Introduce PostgreSQL provider, connection configuration, and initial DbContext p
 - Database connection validated on startup via scoped health check.
 
 **Tasks**
-- [ ] Add packages `Microsoft.EntityFrameworkCore`, `Npgsql.EntityFrameworkCore.PostgreSQL` to API project.
-- [ ] Implement configuration class `DatabaseOptions`; bind from `ConnectionStrings:Primary` with validation.
-- [ ] Register `AppDbContext` in DI using `UseNpgsql` (snake_case, retry on failure) and add database health check.
-- [ ] Document local Postgres setup steps in README stub (credentials, docker compose snippet).
+- [x] Add packages `Microsoft.EntityFrameworkCore`, `Npgsql.EntityFrameworkCore.PostgreSQL` to API project.
+- [x] Implement configuration class `DatabaseOptions`; bind from `ConnectionStrings:Primary` with validation.
+- [x] Register `AppDbContext` in DI using `UseNpgsql` (PascalCase tables with optional `Identity_` prefix, retry on failure) and add database health check.
+- [x] Document local Postgres setup steps in README stub (credentials, docker compose snippet).
 
 **Dependencies**
 - S1-API-001.
@@ -51,16 +53,17 @@ Introduce PostgreSQL provider, connection configuration, and initial DbContext p
 ### S1-DOCS-003: Documentation & ERD Scaffolding (Priority: Medium, Stream: Documentation & Enablement)
 **Description**
 Lay down documentation structure to support future work, consistent with engineering principles.
+**Status:** Completed
 
 **Acceptance Criteria**
-- `/apps/api/docs/README.md` created with architecture overview, prerequisites, and link to engineering principles.
-- ERD placeholder directory `/apps/api/docs/erd/` with template Mermaid file.
+- `Identity.Base/docs/README.md` created with architecture overview, prerequisites, and link to engineering principles.
+- ERD placeholder directory `Identity.Base/docs/erd/` with template Mermaid file.
 - Contribution guidelines stub referencing coding standards.
 
 **Tasks**
-- [ ] Create README with sections: Overview, Getting Started, Project Structure, Next Steps.
-- [ ] Add `erd-template.md` under `/apps/api/docs/erd/` describing how to document aggregates.
-- [ ] Draft `/CONTRIBUTING.md` linking to docs and outlining code review expectations.
+- [x] Create README with sections: Overview, Getting Started, Project Structure, Next Steps.
+- [x] Add `erd-template.md` under `Identity.Base/docs/erd/` describing how to document aggregates.
+- [x] Draft `/CONTRIBUTING.md` linking to docs and outlining code review expectations.
 
 **Dependencies**
 - None.
@@ -68,16 +71,17 @@ Lay down documentation structure to support future work, consistent with enginee
 ### S1-DEVOPS-004: Logging & Test Scaffolds (Priority: Medium, Stream: DevOps & Tooling)
 **Description**
 Introduce Serilog logging baseline and initial test project.
+**Status:** Completed
 
 **Acceptance Criteria**
 - Serilog configured with console sink and request logging.
-- `apps/api/tests` project created with xUnit + FluentAssertions references and sample test verifying `/healthz`.
+- `Identity.Base.Tests` project created with xUnit + FluentAssertions references and sample test verifying `/healthz`.
 - CI placeholder workflow documented (GitHub Actions or equivalent) describing build/test steps.
 
 **Tasks**
-- [ ] Add Serilog packages; configure in `Program.cs` using `UseSerilog()` with JSON console output and enrichment for environment/service name.
-- [ ] Scaffold test project referencing API project; add `WebApplicationFactory` based smoke test.
-- [ ] Draft `.github/workflows/ci.yml` (or docs instructions) outlining build/test commands and caching strategy.
+- [x] Add Serilog packages; configure in `Program.cs` using `UseSerilog()` with JSON console output and enrichment for environment/service name.
+- [x] Scaffold test project referencing API project; add `WebApplicationFactory` based smoke test.
+- [x] Draft `.github/workflows/ci.yml` (or docs instructions) outlining build/test commands and caching strategy.
 
 **Dependencies**
 - S1-API-001.

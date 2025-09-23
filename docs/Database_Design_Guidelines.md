@@ -4,7 +4,7 @@
 ---
 
 ## 1. Core Principles
-- **Domain-first modeling:** start with explicit aggregates (Communities, Memberships, Incidents) and map them to EF Core entities with clear ownership and navigation properties.
+- **Domain-first modeling:** start with explicit aggregates and map them to EF Core entities with clear ownership and navigation properties.
 - **Consistency over cleverness:** prefer explicit property definitions, avoid magic conventions, and document every schema decision next to the model.
 - **Structured logging:** use Serilog enrichers for database-related events (migrations, transactions) to aid observability.
 - **Immutable identifiers:** use UUID (`uuid`/`Guid`) primary keys for all tables; generate them application-side to avoid round trips.
@@ -14,12 +14,12 @@
 ---
 
 ## 2. Tools & Workflow
-1. **Design:** capture ERD sketches (Mermaid/Draw.io) in `/apps/api/docs/erd/` before implementing.
-2. **Model:** define EF Core entities and `DbContext` configuration in `/apps/api/src/Data` (use `IEntityTypeConfiguration` per aggregate).
-3. **Migration:** generate migrations via EF Core CLI (`dotnet ef migrations add <Name> -p apps/api/src -s apps/api/src`). Store them in `/apps/api/src/Migrations`.
+1. **Design:** capture ERD sketches (Mermaid/Draw.io) in `Identity.Base/docs/erd/` before implementing.
+2. **Model:** define EF Core entities and `DbContext` configuration in `Identity.Base/Data` (use `IEntityTypeConfiguration` per aggregate).
+3. **Migration:** generate migrations via EF Core CLI (`dotnet ef migrations add <Name> -p Identity.Base/Identity.Base.csproj -s Identity.Base/Identity.Base.csproj`). Store them in `Identity.Base/Migrations`.
 4. **Review:** migrations must be human-reviewed; ensure column types, default values, constraints, and index names are intentional.
 5. **Apply:** the API automatically applies migrations on startup (`using var scope = app.Services.CreateScope(); scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();`). CLI `dotnet ef database update` is reserved for local troubleshooting only.
-6. **Document:** update `/apps/api/README.md` with migration name, purpose, and rollback steps.
+6. **Document:** update `Identity.Base/docs/README.md` with migration name, purpose, and rollback steps.
 
 ---
 
@@ -32,6 +32,7 @@
 ---
 
 ## 4. Schema Best Practices
+- **Table naming:** ensure tables remain PascalCase (e.g., `UserProfile`). When a prefix is required, apply `Identity_` (e.g., `Identity_UserProfile`).
 - **Primary keys:** `Guid` with `ValueGeneratedNever()`; configure default `uuid_generate_v4()` in migrations for direct SQL usage.
 - **Foreign keys:** cascade delete only where business rules allow; otherwise restrict and enforce via service layer.
 - **Timestamps:** use `CreatedAt`/`UpdatedAt` columns with UTC `timestamptz`; set via EF Core interceptors.
