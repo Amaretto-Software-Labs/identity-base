@@ -19,18 +19,19 @@ This guide walks through configuring and running Identity Base in a local enviro
    - `Required`: Whether the field must be supplied
    - `MaxLength`: Maximum character length
    - `Pattern`: Optional regular expression for server-side validation
-4. Replace the MailJet placeholders (`MailJet:ApiKey`, `MailJet:ApiSecret`, `MailJet:FromEmail`, `MailJet:Templates:Confirmation`, `MailJet:Templates:PasswordReset`) with valid values and, if you want operational alerts, enable `MailJet:ErrorReporting` with a monitored inbox. The service will fail to start without these credentials.
+4. Replace the MailJet placeholders (`MailJet:ApiKey`, `MailJet:ApiSecret`, `MailJet:FromEmail`, `MailJet:Templates:Confirmation`, `MailJet:Templates:PasswordReset`, `MailJet:Templates:MfaChallenge`) with valid values and, if you want operational alerts, enable `MailJet:ErrorReporting` with a monitored inbox. The service will fail to start without these credentials.
 5. Configure OpenIddict applications/scopes under the `OpenIddict` section (client IDs, redirect URIs, permissions, resources). The default sample client targets a local SPA.
-6. (Optional) Enable the seed administrator account by setting `IdentitySeed:Enabled` to `true` and providing `Email`, `Password`, and `Roles`.
-7. Apply database migrations:
+6. Provide the MFA issuer name via `Mfa:Issuer` (this is the label shown in authenticator apps when users enrol). Use the nested `Mfa:Email:Enabled` and `Mfa:Sms` settings to decide which challenge methods are available; when SMS is enabled, populate the Twilio credentials inside `Mfa:Sms` (`AccountSid`, `AuthToken`, `FromPhoneNumber`).
+7. (Optional) Enable the seed administrator account by setting `IdentitySeed:Enabled` to `true` and providing `Email`, `Password`, and `Roles`.
+8. Apply database migrations:
    ```bash
    dotnet ef database update --project Identity.Base/Identity.Base.csproj
    ```
-8. Run the service:
+9. Run the service:
    ```bash
    dotnet run --project Identity.Base/Identity.Base.csproj
    ```
-9. Submit a registration request with metadata:
+10. Submit a registration request with metadata:
    ```bash
    curl -X POST https://localhost:5001/auth/register \
      -H "Content-Type: application/json" \
@@ -45,11 +46,13 @@ This guide walks through configuring and running Identity Base in a local enviro
    ```
 
 ## Email Templates
-- MailJet integration is always on. Populate `MailJet` API credentials, sender details, confirmation template id, and (optionally) enable `MailJet:ErrorReporting` to receive delivery failures.
+- MailJet integration is always on. Populate `MailJet` API credentials, sender details, template ids (confirmation, password reset, MFA challenge), and (optionally) enable `MailJet:ErrorReporting` to receive delivery failures.
 - When enabled, `/auth/register` sends the confirmation template with the following variables:
   - `email`
   - `displayName`
   - `confirmationUrl`
+- `/auth/forgot-password` leverages the password reset template with variables `email`, `displayName`, and `resetUrl`.
+- `/auth/mfa/challenge` (email method) uses the MFA challenge template with variables `email`, `displayName`, and `code`.
 
 ## Running Tests
 - Integration tests run against the EF Core in-memory provider. Execute `dotnet test Identity.sln` before opening a pull request.
@@ -80,3 +83,11 @@ Single-page applications interact with the identity service in two phases:
 This mirrors the hosted-provider experience (e.g., Auth0 Universal Login) while keeping all credential UX inside the SPA.
 
 4. **Logout** – to clear the Identity session, POST to `/auth/logout`. A subsequent `/connect/authorize` call will again yield `401 Unauthorized` until the SPA signs the user back in.
+
+### MFA Flow (Optional)
+
+If multi-factor authentication is enabled for an account:
+
+1. **Enroll** – authenticated users call `/auth/mfa/enroll` to retrieve the shared key and `otpauth` URI (render as QR in the SPA). They verify the initial code via `/auth/mfa/verify` which enables MFA and returns recovery codes.
+2. **Step-Up During Login** – when `/auth/login` responds with `{ "requiresTwoFactor": true, "methods": [ ... ] }`, prompt for the desired method (authenticator, SMS, recovery). Use `/auth/mfa/challenge` to send an SMS code when supported, then POST the code to `/auth/mfa/verify`. A successful response completes the sign-in.
+3. **Recovery & Disable** – authenticated users can regenerate recovery codes (`/auth/mfa/recovery-codes`) or disable MFA (`/auth/mfa/disable`).

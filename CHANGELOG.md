@@ -13,3 +13,7 @@
 - Hardened `/connect/authorize` to emit `401 Unauthorized` with `login_required` when the SPA lacks a session, eliminating server-side login redirects.
 - Added `/auth/logout` plus email-management endpoints (`/auth/confirm-email`, `/auth/resend-confirmation`, `/auth/forgot-password`, `/auth/reset-password`) and widened test coverage to include refresh-token grants, prompt=consent, and logout edge cases.
 - Documented the SPA authentication steps (login → authorize → token exchange → logout) and refreshed configuration guidance for OpenIddict clients and CORS origins.
+
+## Sprint 04 – MFA & Security Enhancements
+- Introduced authenticator-based MFA endpoints (`/auth/mfa/enroll`, `/auth/mfa/verify`, `/auth/mfa/disable`, `/auth/mfa/recovery-codes`), wired into the login flow (step-up, remember-machine, recovery codes) with dedicated DI + options (`Mfa:Issuer`).
+- Added configurable SMS and email MFA challenges (`Mfa:Sms`, `Mfa:Email`, MailJet `Templates.MfaChallenge`) with `/auth/mfa/challenge`, plus comprehensive integration tests covering enrollment, login step-up (authenticator/SMS/email), recovery codes, and disablement.

@@ -3,6 +3,7 @@ using FluentValidation;
 using Identity.Base.Data;
 using Identity.Base.Features.Authentication.EmailManagement;
 using Identity.Base.Features.Authentication.Login;
+using Identity.Base.Features.Authentication.Mfa;
 using Identity.Base.Features.Authentication.Register;
 using Identity.Base.Features.Email;
 using Identity.Base.Identity;
@@ -56,12 +57,19 @@ public static class ServiceCollectionExtensions
             .ValidateOnStart();
 
         services
+            .AddOptions<MfaOptions>()
+            .BindConfiguration(MfaOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services
             .AddOptions<MailJetOptions>()
             .BindConfiguration(MailJetOptions.SectionName)
             .ValidateDataAnnotations();
 
         services.AddSingleton<IValidateOptions<RegistrationOptions>, RegistrationOptionsValidator>();
         services.AddSingleton<IValidateOptions<MailJetOptions>, MailJetOptionsValidator>();
+        services.AddSingleton<IValidateOptions<MfaOptions>, MfaOptionsValidator>();
         services
             .AddOptions<OpenIddictOptions>()
             .BindConfiguration(OpenIddictOptions.SectionName)
@@ -206,7 +214,9 @@ public static class ServiceCollectionExtensions
                     return Task.CompletedTask;
                 }
             };
-        });
+        })
+        .AddCookie(IdentityConstants.TwoFactorUserIdScheme)
+        .AddCookie(IdentityConstants.TwoFactorRememberMeScheme);
 
         services.AddAuthorization();
 
@@ -215,10 +225,32 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IValidator<ResendConfirmationRequest>, ResendConfirmationRequestValidator>();
         services.AddScoped<IValidator<ForgotPasswordRequest>, ForgotPasswordRequestValidator>();
         services.AddScoped<IValidator<ResetPasswordRequest>, ResetPasswordRequestValidator>();
+        services.AddScoped<IValidator<MfaVerifyRequest>, MfaVerifyRequestValidator>();
         services.AddScoped<IValidator<RegisterUserRequest>, RegisterUserRequestValidator>();
+        services.AddScoped<IValidator<MfaChallengeRequest>, MfaChallengeRequestValidator>();
 
         services.AddScoped<ITemplatedEmailSender, MailJetEmailSender>();
         services.AddScoped<IAccountEmailService, AccountEmailService>();
+        services.AddScoped<IMfaChallengeSender>(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<MfaOptions>>().Value;
+            return options.Email.Enabled
+                ? ActivatorUtilities.CreateInstance<EmailMfaChallengeSender>(provider)
+                : ActivatorUtilities.CreateInstance<DisabledMfaChallengeSender>(
+                    provider,
+                    "email",
+                    "Email MFA challenge is disabled.");
+        });
+        services.AddScoped<IMfaChallengeSender>(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<MfaOptions>>().Value;
+            return options.Sms.Enabled
+                ? ActivatorUtilities.CreateInstance<TwilioMfaChallengeSender>(provider)
+                : ActivatorUtilities.CreateInstance<DisabledMfaChallengeSender>(
+                    provider,
+                    "sms",
+                    "SMS MFA challenge is disabled.");
+        });
 
         services
             .AddHealthChecks()

@@ -4,8 +4,10 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
 using Identity.Base.Data;
+using Identity.Base.Features.Authentication.Mfa;
 using Identity.Base.Features.Email;
 using Identity.Base.Options;
+using Identity.Base.Identity;
 using OpenIddict.Abstractions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -44,6 +46,7 @@ public class HealthzEndpointTests : IClassFixture<IdentityApiFactory>
 public class IdentityApiFactory : WebApplicationFactory<Program>
 {
     public FakeEmailSender EmailSender { get; } = new();
+    public FakeMfaChallengeSender SmsChallengeSender { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -55,6 +58,10 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
             services.RemoveAll(typeof(ITemplatedEmailSender));
             services.AddSingleton<FakeEmailSender>(_ => EmailSender);
             services.AddSingleton<ITemplatedEmailSender>(provider => provider.GetRequiredService<FakeEmailSender>());
+            services.RemoveAll(typeof(IMfaChallengeSender));
+            services.AddScoped<IMfaChallengeSender, EmailMfaChallengeSender>();
+            services.AddSingleton<FakeMfaChallengeSender>(_ => SmsChallengeSender);
+            services.AddSingleton<IMfaChallengeSender>(provider => provider.GetRequiredService<FakeMfaChallengeSender>());
 
             services.PostConfigure<DatabaseOptions>(options =>
             {
@@ -95,7 +102,17 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                 options.FromName = "Identity Base";
                 options.Templates.Confirmation = 1234;
                 options.Templates.PasswordReset = 5678;
+                options.Templates.MfaChallenge = 6789;
                 options.ErrorReporting.Enabled = false;
+            });
+
+            services.PostConfigure<MfaOptions>(options =>
+            {
+                options.Email.Enabled = true;
+                options.Sms.Enabled = true;
+                options.Sms.AccountSid = "test";
+                options.Sms.AuthToken = "test";
+                options.Sms.FromPhoneNumber = "+15005550006";
             });
 
             services.PostConfigure<CorsSettings>(options =>
@@ -177,4 +194,23 @@ public sealed class FakeEmailSender : ITemplatedEmailSender
         _sent.Add(email);
         return Task.CompletedTask;
     }
+
+    public void Clear() => _sent.Clear();
+}
+
+public sealed class FakeMfaChallengeSender : IMfaChallengeSender
+{
+    private readonly List<(string PhoneNumber, string Code)> _challenges = new();
+
+    public IReadOnlyList<(string PhoneNumber, string Code)> Challenges => _challenges;
+
+    public string Method => "sms";
+
+    public Task SendChallengeAsync(ApplicationUser user, string code, CancellationToken cancellationToken = default)
+    {
+        _challenges.Add((user.PhoneNumber ?? string.Empty, code));
+        return Task.CompletedTask;
+    }
+
+    public void Clear() => _challenges.Clear();
 }

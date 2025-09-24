@@ -16,16 +16,18 @@
 **Description**
 Provide endpoints and UI hooks for enabling authenticator-based MFA with recovery codes.
 
+**Status:** Completed
+
 **Acceptance Criteria**
 - Endpoints `/auth/mfa/enroll`, `/auth/mfa/verify`, `/auth/mfa/disable`, `/auth/mfa/recovery-codes` implemented.
 - Users can retrieve authenticator key + QR payload, verify code, and receive recovery codes.
 - Login flow enforces MFA when enabled; tokens issued only after MFA success.
 
 **Tasks**
-- [ ] Configure Identity `TotpSecurityStampBasedTokenProvider` and register MFA services.
-- [ ] Implement controller-less endpoints and command handlers for enrol/verify/disable flows with audit logs.
-- [ ] Update login flow to enforce MFA (step-up) and return appropriate errors/responses for pending verification.
-- [ ] Add integration tests for enrolment, verification, recovery code usage, disablement.
+- [x] Configure Identity `TotpSecurityStampBasedTokenProvider`, dedicated cookies, and register MFA services/options.
+- [x] Implement minimal `/auth/mfa/*` endpoints handling enrollment, verification (including step-up), disablement, and recovery codes.
+- [x] Update `/auth/login` to surface the two-factor requirement and rely on `/auth/mfa/verify` for step-up.
+- [x] Add integration tests covering enrollment, login step-up, disablement, and recovery code regeneration.
 
 **Dependencies**
 - S3-AUTH-203.
@@ -34,15 +36,17 @@ Provide endpoints and UI hooks for enabling authenticator-based MFA with recover
 **Description**
 Provide extension points for email/SMS second factors to be configured by adopters.
 
+**Status:** Completed
+
 **Acceptance Criteria**
-- Abstract `IMfaChallengeSender` interface with email implementation leveraging MailJet.
-- Configuration toggles allow enabling/disabling additional factors per environment.
-- Documentation outlines how to plug in SMS provider.
+- `IMfaChallengeSender` abstraction with Twilio-backed SMS implementation, email delivery via MailJet, and disabled fallback.
+- Configuration toggles (`Mfa:Email`, `Mfa:Sms`) allow enabling/disabling additional factors per environment; MailJet templating covers MFA challenges.
+- MFA endpoints accept `method` hints, expose `/auth/mfa/challenge` for SMS/email delivery, and documentation outlines integration steps for both.
 
 **Tasks**
-- [ ] Implement `IMfaChallengeSender` with email default; add DI registration.
-- [ ] Update MFA endpoints to support selecting challenge type with validation.
-- [ ] Document SMS integration checklist and extension points.
+- [x] Implement `IMfaChallengeSender` with Twilio SMS support, MailJet email delivery, and DI configuration.
+- [x] Update MFA endpoints and validators to support challenge/verification method selection (authenticator, sms, email, recovery).
+- [x] Document SMS/email configuration and SPA usage in getting-started guide.
 
 **Dependencies**
 - S4-MFA-301.

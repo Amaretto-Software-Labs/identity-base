@@ -28,6 +28,8 @@ public sealed class MailJetTemplateOptions
     public long Confirmation { get; set; }
 
     public long PasswordReset { get; set; }
+
+    public long MfaChallenge { get; set; }
 }
 
 public sealed class MailJetErrorReportingOptions
@@ -61,6 +63,7 @@ public sealed class MailJetOptionsValidator : IValidateOptions<MailJetOptions>
         {
             missing.Add("Templates.Confirmation");
             missing.Add("Templates.PasswordReset");
+            missing.Add("Templates.MfaChallenge");
         }
         else
         {
@@ -72,6 +75,11 @@ public sealed class MailJetOptionsValidator : IValidateOptions<MailJetOptions>
             if (options.Templates.PasswordReset <= 0)
             {
                 missing.Add("Templates.PasswordReset");
+            }
+
+            if (options.Templates.MfaChallenge <= 0)
+            {
+                missing.Add("Templates.MfaChallenge");
             }
         }
 
