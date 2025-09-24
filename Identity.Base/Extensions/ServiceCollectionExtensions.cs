@@ -218,6 +218,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IValidator<RegisterUserRequest>, RegisterUserRequestValidator>();
 
         services.AddScoped<ITemplatedEmailSender, MailJetEmailSender>();
+        services.AddScoped<IAccountEmailService, AccountEmailService>();
 
         services
             .AddHealthChecks()

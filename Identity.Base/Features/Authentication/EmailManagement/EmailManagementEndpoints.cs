@@ -1,16 +1,12 @@
-using System.Collections.Generic;
 using System.Text;
 using FluentValidation;
 using Identity.Base.Extensions;
-using Identity.Base.Features.Email;
 using Identity.Base.Identity;
-using Identity.Base.Options;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Features.Authentication.EmailManagement;
 
@@ -89,9 +85,7 @@ public static class EmailManagementEndpoints
         ResendConfirmationRequest request,
         IValidator<ResendConfirmationRequest> validator,
         UserManager<ApplicationUser> userManager,
-        ITemplatedEmailSender emailSender,
-        IOptions<RegistrationOptions> registrationOptions,
-        IOptions<MailJetOptions> mailJetOptions,
+        IAccountEmailService accountEmailService,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -112,38 +106,11 @@ public static class EmailManagementEndpoints
             return Results.Ok(new { message = "Email already confirmed." });
         }
 
-        var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
-        var encodedToken = EncodeToken(token);
-        var confirmationUrl = BuildUrl(
-            registrationOptions.Value.ConfirmationUrlTemplate,
-            encodedToken,
-            user.Email!);
-
-        var mailOptions = mailJetOptions.Value;
-        if (mailOptions.Templates.Confirmation <= 0)
-        {
-            return Results.Problem("Confirmation template is not configured.", statusCode: StatusCodes.Status500InternalServerError);
-        }
-
-        var variables = new Dictionary<string, object?>
-        {
-            ["email"] = user.Email,
-            ["displayName"] = user.DisplayName ?? user.Email,
-            ["confirmationUrl"] = confirmationUrl
-        };
-
-        var email = new TemplatedEmail(
-            user.Email!,
-            user.DisplayName ?? user.Email!,
-            mailOptions.Templates.Confirmation,
-            variables,
-            "Confirm your Identity Base account");
-
         var logger = loggerFactory.CreateLogger("EmailManagementEndpoints");
 
         try
         {
-            await emailSender.SendAsync(email, cancellationToken);
+            await accountEmailService.SendConfirmationEmailAsync(user, cancellationToken);
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
@@ -158,9 +125,7 @@ public static class EmailManagementEndpoints
         ForgotPasswordRequest request,
         IValidator<ForgotPasswordRequest> validator,
         UserManager<ApplicationUser> userManager,
-        ITemplatedEmailSender emailSender,
-        IOptions<RegistrationOptions> registrationOptions,
-        IOptions<MailJetOptions> mailJetOptions,
+        IAccountEmailService accountEmailService,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -176,38 +141,11 @@ public static class EmailManagementEndpoints
             return Results.Accepted();
         }
 
-        var token = await userManager.GeneratePasswordResetTokenAsync(user);
-        var encodedToken = EncodeToken(token);
-        var resetUrl = BuildUrl(
-            registrationOptions.Value.PasswordResetUrlTemplate,
-            encodedToken,
-            user.Email!);
-
-        var mailOptions = mailJetOptions.Value;
-        if (mailOptions.Templates.PasswordReset <= 0)
-        {
-            return Results.Problem("Password reset template is not configured.", statusCode: StatusCodes.Status500InternalServerError);
-        }
-
-        var variables = new Dictionary<string, object?>
-        {
-            ["email"] = user.Email,
-            ["displayName"] = user.DisplayName ?? user.Email,
-            ["resetUrl"] = resetUrl
-        };
-
-        var email = new TemplatedEmail(
-            user.Email!,
-            user.DisplayName ?? user.Email!,
-            mailOptions.Templates.PasswordReset,
-            variables,
-            "Reset your Identity Base password");
-
         var logger = loggerFactory.CreateLogger("EmailManagementEndpoints");
 
         try
         {
-            await emailSender.SendAsync(email, cancellationToken);
+            await accountEmailService.SendPasswordResetEmailAsync(user, cancellationToken);
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
@@ -250,14 +188,6 @@ public static class EmailManagementEndpoints
 
         return Results.Ok(new { message = "Password reset successful." });
     }
-
-    private static string EncodeToken(string token)
-        => WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-
-    private static string BuildUrl(string template, string token, string email)
-        => template
-            .Replace("{token}", token, StringComparison.Ordinal)
-            .Replace("{email}", WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(email)), StringComparison.Ordinal);
 
     private static string DecodeEmail(string value)
     {

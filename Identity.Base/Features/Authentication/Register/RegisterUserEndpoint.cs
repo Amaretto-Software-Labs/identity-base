@@ -1,14 +1,12 @@
 using System.Linq;
-using System.Text;
 using FluentValidation;
 using Identity.Base.Extensions;
 using Identity.Base.Identity;
+using Identity.Base.Features.Authentication.EmailManagement;
 using Identity.Base.Options;
-using Identity.Base.Features.Email;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -32,9 +30,8 @@ public static class RegisterUserEndpoint
         RegisterUserRequest request,
         IValidator<RegisterUserRequest> validator,
         UserManager<ApplicationUser> userManager,
-        ITemplatedEmailSender emailSender,
+        IAccountEmailService accountEmailService,
         IOptions<RegistrationOptions> registrationOptions,
-        IOptions<MailJetOptions> mailJetOptions,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -61,37 +58,14 @@ public static class RegisterUserEndpoint
             return Results.ValidationProblem(createResult.ToDictionary());
         }
 
-        var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
-        var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-        var confirmationUrl = BuildConfirmationUrl(options.ConfirmationUrlTemplate, encodedToken, user.Email!);
-
-        var mailOptions = mailJetOptions.Value;
-        if (mailOptions.Templates.Confirmation <= 0)
-        {
-            return Results.Problem("Confirmation template is not configured.", statusCode: StatusCodes.Status500InternalServerError);
-        }
-
-        var variables = new Dictionary<string, object?>
-        {
-            ["email"] = user.Email,
-            ["displayName"] = user.DisplayName ?? user.Email,
-            ["confirmationUrl"] = confirmationUrl
-        };
-
-        var templatedEmail = new TemplatedEmail(
-            user.Email!,
-            user.DisplayName ?? user.Email!,
-            mailOptions.Templates.Confirmation,
-            variables,
-            "Confirm your Identity Base account");
+        var logger = loggerFactory.CreateLogger("RegisterUserEndpoint");
 
         try
         {
-            await emailSender.SendAsync(templatedEmail, cancellationToken);
+            await accountEmailService.SendConfirmationEmailAsync(user, cancellationToken);
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
-            var logger = loggerFactory.CreateLogger("RegisterUserEndpoint");
             logger.LogError(exception, "Failed to send confirmation email for {Email}", user.Email);
             return Results.Problem("Failed to dispatch confirmation email.", statusCode: StatusCodes.Status500InternalServerError);
         }
@@ -110,9 +84,4 @@ public static class RegisterUserEndpoint
 
         return null;
     }
-
-    private static string BuildConfirmationUrl(string template, string token, string email)
-        => template
-            .Replace("{token}", token, StringComparison.Ordinal)
-            .Replace("{email}", WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(email)), StringComparison.Ordinal);
 }
