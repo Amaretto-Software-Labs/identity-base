@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using Identity.Base.Identity;
+using Identity.Base.Logging;
 using Identity.Base.Options;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
@@ -21,17 +22,20 @@ public sealed class ExternalAuthenticationService
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ILogger<ExternalAuthenticationService> _logger;
+    private readonly IAuditLogger _auditLogger;
 
     public ExternalAuthenticationService(
         IOptions<ExternalProviderOptions> providerOptions,
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
-        ILogger<ExternalAuthenticationService> logger)
+        ILogger<ExternalAuthenticationService> logger,
+        IAuditLogger auditLogger)
     {
         _providerOptions = providerOptions;
         _signInManager = signInManager;
         _userManager = userManager;
         _logger = logger;
+        _auditLogger = auditLogger;
     }
 
     public async Task<IResult> StartAsync(HttpContext httpContext, string provider, string? returnUrl, string mode, CancellationToken cancellationToken)
@@ -134,7 +138,7 @@ public sealed class ExternalAuthenticationService
 
         if (string.Equals(mode, ExternalAuthenticationConstants.ModeLink, StringComparison.OrdinalIgnoreCase))
         {
-            return await HandleLinkAsync(httpContext, currentUser, info, returnUrl);
+            return await HandleLinkAsync(httpContext, currentUser, info, returnUrl, cancellationToken);
         }
 
         return await HandleSignInAsync(httpContext, info, returnUrl, cancellationToken);
@@ -170,10 +174,11 @@ public sealed class ExternalAuthenticationService
         }
 
         await _signInManager.RefreshSignInAsync(user);
+        await _auditLogger.LogAsync(AuditEventTypes.ExternalUnlinked, user.Id, new { Provider = login.LoginProvider }, cancellationToken);
         return Results.Ok(new { message = $"Provider '{provider}' unlinked." });
     }
 
-    private async Task<IResult> HandleLinkAsync(HttpContext httpContext, ApplicationUser? currentUser, ExternalLoginInfo info, string? returnUrl)
+    private async Task<IResult> HandleLinkAsync(HttpContext httpContext, ApplicationUser? currentUser, ExternalLoginInfo info, string? returnUrl, CancellationToken cancellationToken)
     {
         if (currentUser is null)
         {
@@ -193,6 +198,7 @@ public sealed class ExternalAuthenticationService
 
         await _signInManager.RefreshSignInAsync(currentUser);
         _logger.LogInformation("Linked provider {Provider} for user {UserId}", info.LoginProvider, currentUser.Id);
+        await _auditLogger.LogAsync(AuditEventTypes.ExternalLinked, currentUser.Id, new { Provider = info.LoginProvider }, cancellationToken);
         return CreateLinkResponse(returnUrl, "linked", null);
     }
 
@@ -203,6 +209,11 @@ public sealed class ExternalAuthenticationService
         {
             await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
             _logger.LogInformation("User signed in with {Provider}", info.LoginProvider);
+            var existing = await _userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
+            if (existing is not null)
+            {
+                await _auditLogger.LogAsync(AuditEventTypes.ExternalLogin, existing.Id, new { Provider = info.LoginProvider }, cancellationToken);
+            }
             return CreateLoginResponse(returnUrl, "success", null, requiresTwoFactor: false, methods: null);
         }
 
@@ -253,6 +264,7 @@ public sealed class ExternalAuthenticationService
         await _signInManager.SignInAsync(user, isPersistent: false);
         await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
         _logger.LogInformation("User {UserId} created via {Provider} external login", user.Id, info.LoginProvider);
+        await _auditLogger.LogAsync(AuditEventTypes.ExternalLogin, user.Id, new { Provider = info.LoginProvider, Created = true }, cancellationToken);
         return CreateLoginResponse(returnUrl, "success", null, requiresTwoFactor: false, methods: null);
     }
 

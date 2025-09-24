@@ -40,6 +40,11 @@ public class HealthzEndpointTests : IClassFixture<IdentityApiFactory>
         using var payload = await response.Content.ReadFromJsonAsync<JsonDocument>();
         payload.Should().NotBeNull();
         payload!.RootElement.GetProperty("status").GetString().Should().Be("Healthy");
+
+        var checks = payload.RootElement.GetProperty("checks").EnumerateArray().Select(element => element.GetProperty("name").GetString()).ToList();
+        checks.Should().Contain("database");
+        checks.Should().Contain("mailjet");
+        checks.Should().Contain("externalProviders");
     }
 }
 

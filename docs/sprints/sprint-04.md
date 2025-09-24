@@ -61,9 +61,9 @@ Enable social login providers with configuration-driven setup and account linkin
 - Users can link/unlink providers from profile; metadata persisted and audited.
 
 **Tasks**
-- [ ] Add provider packages and configuration classes mapping secrets/redirect URIs.
-- [ ] Implement external login service orchestrating sign-in, account creation (if allowed), and token issuance.
-- [ ] Create linking endpoints requiring existing authentication; handle duplicate account scenarios.
+- [x] Add provider packages and configuration classes mapping secrets/redirect URIs.
+- [x] Implement external login service orchestrating sign-in, account creation (if allowed), and token issuance.
+- [x] Create linking endpoints requiring existing authentication; handle duplicate account scenarios.
 - [ ] Add integration tests using provider stubs/fakes to simulate OAuth flows.
 
 **Dependencies**
@@ -79,10 +79,10 @@ Expose metadata schema and allow authenticated users to update profile data with
 - Metadata changes reflected in tokens and returned from `GET /users/me`.
 
 **Tasks**
-- [ ] Implement schema DTO builder reading from `Registration:ProfileFields` configuration.
-- [ ] Create handler for profile updates with concurrency control (`ConcurrencyStamp`).
-- [ ] Update `IUserClaimsPrincipalFactory` or token pipeline to include metadata claims.
-- [ ] Add integration tests verifying schema endpoint and update behaviour (valid/invalid inputs, concurrency failure).
+- [x] Implement schema DTO builder reading from `Registration:ProfileFields` configuration.
+- [x] Create handler for profile updates with concurrency control (`ConcurrencyStamp`).
+- [x] Update `IUserClaimsPrincipalFactory` or token pipeline to include metadata claims.
+- [x] Add integration tests verifying schema endpoint and update behaviour (valid/invalid inputs, concurrency failure).
 
 **Dependencies**
 - S2-DATA-102, S2-API-103.
@@ -97,9 +97,9 @@ Emit structured logs/metrics for security events and integrate health endpoints.
 - Alerts/logging guidance documented.
 
 **Tasks**
-- [ ] Add Serilog enrichers for user id, correlation id, event type.
-- [ ] Implement audit service writing to logs (and optional future sinks) for key actions.
-- [ ] Update `/health` endpoint grouping and document how to monitor results.
+- [x] Add Serilog enrichers for user id, correlation id, event type.
+- [x] Implement audit service writing to logs (and optional future sinks) for key actions.
+- [x] Update `/health` endpoint grouping and document how to monitor results.
 
 **Dependencies**
 - Dependent on relevant feature stories.

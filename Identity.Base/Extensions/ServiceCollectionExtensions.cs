@@ -8,10 +8,13 @@ using Identity.Base.Features.Authentication.Mfa;
 using Identity.Base.Features.Authentication.Register;
 using Identity.Base.Features.Email;
 using Identity.Base.Identity;
+using Identity.Base.Health;
 using Identity.Base.OpenIddict;
 using Identity.Base.OpenIddict.Handlers;
 using Identity.Base.Options;
 using Identity.Base.Seeders;
+using Identity.Base.Logging;
+using Identity.Base.Features.Users;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
@@ -229,6 +232,7 @@ public static class ServiceCollectionExtensions
             })
             .AddRoles<ApplicationRole>()
             .AddEntityFrameworkStores<AppDbContext>()
+            .AddClaimsPrincipalFactory<ApplicationUserClaimsPrincipalFactory>()
             .AddSignInManager()
             .AddDefaultTokenProviders();
 
@@ -371,10 +375,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IValidator<MfaVerifyRequest>, MfaVerifyRequestValidator>();
         services.AddScoped<IValidator<RegisterUserRequest>, RegisterUserRequestValidator>();
         services.AddScoped<IValidator<MfaChallengeRequest>, MfaChallengeRequestValidator>();
+        services.AddScoped<IValidator<UpdateProfileRequest>, UpdateProfileRequestValidator>();
 
         services.AddScoped<ITemplatedEmailSender, MailJetEmailSender>();
         services.AddScoped<IAccountEmailService, AccountEmailService>();
         services.AddScoped<ExternalAuthenticationService>();
+        services.AddScoped<IAuditLogger, AuditLogger>();
         services.AddScoped<IMfaChallengeSender>(provider =>
         {
             var options = provider.GetRequiredService<IOptions<MfaOptions>>().Value;
@@ -398,7 +404,9 @@ public static class ServiceCollectionExtensions
 
         services
             .AddHealthChecks()
-            .AddDbContextCheck<AppDbContext>("database");
+            .AddDbContextCheck<AppDbContext>("database")
+            .AddCheck<MailJetOptionsHealthCheck>("mailjet")
+            .AddCheck<ExternalProvidersHealthCheck>("externalProviders");
 
         return services;
     }

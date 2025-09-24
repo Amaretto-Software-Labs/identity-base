@@ -99,3 +99,14 @@ If multi-factor authentication is enabled for an account:
 - Add `mode=link` to the start request while authenticated to attach the external identity to the current user (e.g., `/auth/external/google/start?mode=link&returnUrl=/account/connections`).
 - Provider callbacks are handled at `/auth/external/{provider}/callback`; the server issues the Identity cookie before redirecting.
 - Remove a linked provider with `DELETE /auth/external/{provider}` (requires authentication).
+
+## Profile Metadata API
+
+- Retrieve the configured profile fields with `GET /auth/profile-schema` to build registration/profile forms dynamically.
+- Fetch the signed-in user's profile via `GET /users/me` (requires the Identity cookie) to obtain metadata values and the `concurrencyStamp`.
+- Persist changes with `PUT /users/me/profile`, passing the full metadata map and the current `concurrencyStamp`. Validation follows the schema (required, max length, optional regex), and the response includes the updated stamp for subsequent edits.
+
+## Observability & Health
+
+- Every request pushes `CorrelationId` (ASP.NET trace identifier) and `UserId` (if authenticated) into Serilog's scope. Audit actions are emitted via the `IAuditLogger` for MFA operations, profile updates, and external-provider link/unlink events.
+- `/healthz` now reports database, MailJet configuration, and external-provider readiness in the `checks` payload. Use it for container liveness/readiness probes.

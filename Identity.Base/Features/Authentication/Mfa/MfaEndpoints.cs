@@ -5,6 +5,7 @@ using System.Text;
 using FluentValidation;
 using Identity.Base.Extensions;
 using Identity.Base.Identity;
+using Identity.Base.Logging;
 using Identity.Base.Options;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
@@ -67,6 +68,7 @@ public static class MfaEndpoints
         HttpContext context,
         UserManager<ApplicationUser> userManager,
         IOptions<MfaOptions> mfaOptions,
+        IAuditLogger auditLogger,
         CancellationToken cancellationToken)
     {
         var user = await userManager.GetUserAsync(context.User);
@@ -94,6 +96,7 @@ public static class MfaEndpoints
         IValidator<MfaVerifyRequest> validator,
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
+        IAuditLogger auditLogger,
         IOptions<MfaOptions> mfaOptions,
         CancellationToken cancellationToken)
     {
@@ -148,6 +151,8 @@ public static class MfaEndpoints
             await userManager.UpdateSecurityStampAsync(user);
             var recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
 
+            await auditLogger.LogAsync(AuditEventTypes.MfaEnabled, user.Id, new { Method = "authenticator" }, cancellationToken);
+
             return Results.Ok(new
             {
                 message = "MFA enabled.",
@@ -181,6 +186,7 @@ public static class MfaEndpoints
 
         if (signInResult.Succeeded)
         {
+            await auditLogger.LogAsync(AuditEventTypes.MfaVerified, twoFactorUser.Id, new { Method = method }, cancellationToken);
             return Results.Ok(new { message = "MFA verification successful." });
         }
 
@@ -195,6 +201,7 @@ public static class MfaEndpoints
     private static async Task<IResult> DisableAsync(
         HttpContext context,
         UserManager<ApplicationUser> userManager,
+        IAuditLogger auditLogger,
         CancellationToken cancellationToken)
     {
         var user = await userManager.GetUserAsync(context.User);
@@ -212,12 +219,15 @@ public static class MfaEndpoints
         await userManager.ResetAuthenticatorKeyAsync(user);
         await userManager.UpdateSecurityStampAsync(user);
 
+        await auditLogger.LogAsync(AuditEventTypes.MfaDisabled, user.Id, null, cancellationToken);
+
         return Results.Ok(new { message = "MFA disabled." });
     }
 
     private static async Task<IResult> RegenerateRecoveryCodesAsync(
         HttpContext context,
         UserManager<ApplicationUser> userManager,
+        IAuditLogger auditLogger,
         CancellationToken cancellationToken)
     {
         var user = await userManager.GetUserAsync(context.User);
@@ -231,7 +241,8 @@ public static class MfaEndpoints
             return Results.Problem("MFA is not enabled for this user.", statusCode: StatusCodes.Status400BadRequest);
         }
 
-        var recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
+        var recoveryCodes = (await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10) ?? Array.Empty<string>()).ToArray();
+        await auditLogger.LogAsync(AuditEventTypes.MfaRecoveryCodesRegenerated, user.Id, new { Count = recoveryCodes.Length }, cancellationToken);
         return Results.Ok(new { recoveryCodes });
     }
 
@@ -244,6 +255,7 @@ public static class MfaEndpoints
         IEnumerable<IMfaChallengeSender> challengeSenders,
         ILoggerFactory loggerFactory,
         IOptions<MfaOptions> mfaOptions,
+        IAuditLogger auditLogger,
         CancellationToken cancellationToken)
     {
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
@@ -316,6 +328,7 @@ public static class MfaEndpoints
         {
             var token = await userManager.GenerateTwoFactorTokenAsync(user, provider);
             await challengeSender.SendChallengeAsync(user, token, cancellationToken);
+            await auditLogger.LogAsync(AuditEventTypes.MfaChallengeSent, user.Id, new { Method = method }, cancellationToken);
         }
         catch (InvalidOperationException ex)
         {
