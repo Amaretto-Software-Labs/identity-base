@@ -65,7 +65,15 @@ public sealed class ExternalAuthenticationService
         string? userId = null;
         if (normalizedMode == ExternalAuthenticationConstants.ModeLink)
         {
-            var user = await _userManager.GetUserAsync(httpContext.User);
+            var authenticateResult = await httpContext.AuthenticateAsync(IdentityConstants.ApplicationScheme);
+            if (!authenticateResult.Succeeded || authenticateResult.Principal is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            httpContext.User = authenticateResult.Principal;
+
+            var user = await _userManager.GetUserAsync(authenticateResult.Principal);
             if (user is null)
             {
                 return Results.Unauthorized();
@@ -138,6 +146,25 @@ public sealed class ExternalAuthenticationService
 
         if (string.Equals(mode, ExternalAuthenticationConstants.ModeLink, StringComparison.OrdinalIgnoreCase))
         {
+            var linkUserId = info.AuthenticationProperties?.Items.TryGetValue(ExternalAuthenticationConstants.LinkUserIdKey, out var storedUserId) == true
+                ? storedUserId
+                : null;
+
+            if (currentUser is null && !string.IsNullOrWhiteSpace(linkUserId))
+            {
+                currentUser = await _userManager.FindByIdAsync(linkUserId);
+            }
+
+            if (currentUser is null)
+            {
+                var authenticateResult = await httpContext.AuthenticateAsync(IdentityConstants.ApplicationScheme);
+                if (authenticateResult.Succeeded && authenticateResult.Principal is not null)
+                {
+                    currentUser = await _userManager.GetUserAsync(authenticateResult.Principal);
+                    httpContext.User = authenticateResult.Principal;
+                }
+            }
+
             return await HandleLinkAsync(httpContext, currentUser, info, returnUrl, cancellationToken);
         }
 

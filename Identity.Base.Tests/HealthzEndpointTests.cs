@@ -6,9 +6,12 @@ using FluentAssertions;
 using Identity.Base.Data;
 using Identity.Base.Features.Authentication.Mfa;
 using Identity.Base.Features.Email;
-using Identity.Base.Options;
 using Identity.Base.Identity;
+using Identity.Base.Options;
+using Identity.Base.Tests.Fakes;
 using OpenIddict.Abstractions;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -119,6 +122,21 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                 options.Sms.AuthToken = "test";
                 options.Sms.FromPhoneNumber = "+15005550006";
             });
+
+            services.PostConfigure<ExternalProviderOptions>(options =>
+            {
+                options.Google.Enabled = true;
+                options.Google.ClientId = "test";
+                options.Google.ClientSecret = "secret";
+                options.Google.CallbackPath = "/signin-google";
+                options.Google.Scopes.Clear();
+                options.Google.Scopes.Add("openid");
+                options.Google.Scopes.Add("profile");
+                options.Google.Scopes.Add("email");
+            });
+
+            services.AddAuthentication()
+                .AddScheme<AuthenticationSchemeOptions, FakeExternalAuthenticationHandler>(GoogleDefaults.AuthenticationScheme, _ => { });
 
             services.PostConfigure<CorsSettings>(options =>
             {

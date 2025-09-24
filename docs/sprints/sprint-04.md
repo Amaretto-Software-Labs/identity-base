@@ -64,7 +64,7 @@ Enable social login providers with configuration-driven setup and account linkin
 - [x] Add provider packages and configuration classes mapping secrets/redirect URIs.
 - [x] Implement external login service orchestrating sign-in, account creation (if allowed), and token issuance.
 - [x] Create linking endpoints requiring existing authentication; handle duplicate account scenarios.
-- [ ] Add integration tests using provider stubs/fakes to simulate OAuth flows.
+- [x] Add integration tests using provider stubs/fakes to simulate OAuth flows.
 
 **Dependencies**
 - S3-OIDC-201, S3-AUTH-203.
