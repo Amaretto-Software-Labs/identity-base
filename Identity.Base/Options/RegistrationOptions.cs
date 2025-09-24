@@ -10,6 +10,10 @@ public sealed class RegistrationOptions
     [MaxLength(512)]
     public string ConfirmationUrlTemplate { get; set; } = "https://localhost/confirm?token={token}&email={email}";
 
+    [Required]
+    [MaxLength(512)]
+    public string PasswordResetUrlTemplate { get; set; } = "https://localhost/reset-password?token={token}&email={email}";
+
     [MinLength(0)]
     public IList<RegistrationProfileFieldOptions> ProfileFields { get; set; } = new List<RegistrationProfileFieldOptions>();
 }

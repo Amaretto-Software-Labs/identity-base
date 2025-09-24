@@ -26,6 +26,8 @@ public sealed class MailJetOptions
 public sealed class MailJetTemplateOptions
 {
     public long Confirmation { get; set; }
+
+    public long PasswordReset { get; set; }
 }
 
 public sealed class MailJetErrorReportingOptions
@@ -55,9 +57,22 @@ public sealed class MailJetOptionsValidator : IValidateOptions<MailJetOptions>
             missing.Add(nameof(options.FromEmail));
         }
 
-        if (options.Templates is null || options.Templates.Confirmation <= 0)
+        if (options.Templates is null)
         {
             missing.Add("Templates.Confirmation");
+            missing.Add("Templates.PasswordReset");
+        }
+        else
+        {
+            if (options.Templates.Confirmation <= 0)
+            {
+                missing.Add("Templates.Confirmation");
+            }
+
+            if (options.Templates.PasswordReset <= 0)
+            {
+                missing.Add("Templates.PasswordReset");
+            }
         }
 
         if (options.ErrorReporting is { Enabled: true } reporting && string.IsNullOrWhiteSpace(reporting.Email))

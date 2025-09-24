@@ -19,7 +19,7 @@ This guide walks through configuring and running Identity Base in a local enviro
    - `Required`: Whether the field must be supplied
    - `MaxLength`: Maximum character length
    - `Pattern`: Optional regular expression for server-side validation
-4. Replace the MailJet placeholders (`MailJet:ApiKey`, `MailJet:ApiSecret`, `MailJet:FromEmail`, `MailJet:Templates:Confirmation`) with valid values and, if you want operational alerts, enable `MailJet:ErrorReporting` with a monitored inbox. The service will fail to start without these credentials.
+4. Replace the MailJet placeholders (`MailJet:ApiKey`, `MailJet:ApiSecret`, `MailJet:FromEmail`, `MailJet:Templates:Confirmation`, `MailJet:Templates:PasswordReset`) with valid values and, if you want operational alerts, enable `MailJet:ErrorReporting` with a monitored inbox. The service will fail to start without these credentials.
 5. Configure OpenIddict applications/scopes under the `OpenIddict` section (client IDs, redirect URIs, permissions, resources). The default sample client targets a local SPA.
 6. (Optional) Enable the seed administrator account by setting `IdentitySeed:Enabled` to `true` and providing `Email`, `Password`, and `Roles`.
 7. Apply database migrations:

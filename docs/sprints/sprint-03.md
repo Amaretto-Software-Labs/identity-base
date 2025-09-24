@@ -71,15 +71,17 @@ Deliver `/auth/login` for email/password sign-in, establish the Identity cookie,
 **Description**
 Implement endpoints for email confirmation, resend confirmation, forgot password, and reset password.
 
+**Status:** Completed
+
 **Acceptance Criteria**
-- Endpoints: `/auth/confirm-email`, `/auth/resend-confirmation`, `/auth/forgot-password`, `/auth/reset-password` implemented with consistent responses.
-- Tokens generated via Identity token providers; invalid/expired tokens return ProblemDetails.
-- Emails triggered using MailJet templates with appropriate variable payloads.
+- Endpoints: `/auth/confirm-email`, `/auth/resend-confirmation`, `/auth/forgot-password`, `/auth/reset-password` are implemented with consistent responses and validation.
+- Identity tokens (confirmation/reset) are generated and consumed; invalid/expired tokens return ProblemDetails without leaking account existence.
+- MailJet templates dispatch confirmation and password reset emails with the required variables.
 
 **Tasks**
-- [ ] Implement command handlers for each endpoint with validation + logging.
-- [ ] Update MailJet sender usage to include confirmation/reset templates and variables.
-- [ ] Add integration tests verifying token validation and email invocation (mocked).
+- [x] Implement endpoint handlers with FluentValidation and structured error handling.
+- [x] Extend MailJet options/templates to cover password reset emails and URL templates.
+- [x] Add integration tests covering confirmation, resend, forgot, and reset flows using the fake email sender.
 
 **Dependencies**
 - S2-EMAIL-104.

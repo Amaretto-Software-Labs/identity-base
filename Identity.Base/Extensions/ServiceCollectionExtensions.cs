@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using FluentValidation;
 using Identity.Base.Data;
+using Identity.Base.Features.Authentication.EmailManagement;
 using Identity.Base.Features.Authentication.Login;
 using Identity.Base.Features.Authentication.Register;
 using Identity.Base.Features.Email;
@@ -210,6 +211,10 @@ public static class ServiceCollectionExtensions
         services.AddAuthorization();
 
         services.AddScoped<IValidator<LoginRequest>, LoginRequestValidator>();
+        services.AddScoped<IValidator<ConfirmEmailRequest>, ConfirmEmailRequestValidator>();
+        services.AddScoped<IValidator<ResendConfirmationRequest>, ResendConfirmationRequestValidator>();
+        services.AddScoped<IValidator<ForgotPasswordRequest>, ForgotPasswordRequestValidator>();
+        services.AddScoped<IValidator<ResetPasswordRequest>, ResetPasswordRequestValidator>();
         services.AddScoped<IValidator<RegisterUserRequest>, RegisterUserRequestValidator>();
 
         services.AddScoped<ITemplatedEmailSender, MailJetEmailSender>();

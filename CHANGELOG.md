@@ -11,5 +11,5 @@
 ## Sprint 03 – Authorization Code PKCE Flow
 - Completed the username/password + authorization-code PKCE flow: `/auth/login` establishes the Identity cookie, `/connect/authorize` issues codes, and `/connect/token` exchanges them for tokens.
 - Hardened `/connect/authorize` to emit `401 Unauthorized` with `login_required` when the SPA lacks a session, eliminating server-side login redirects.
-- Added `/auth/logout` for SPA sign-out and widened test coverage to include refresh-token grants, prompt=consent, and logout edge cases.
+- Added `/auth/logout` plus email-management endpoints (`/auth/confirm-email`, `/auth/resend-confirmation`, `/auth/forgot-password`, `/auth/reset-password`) and widened test coverage to include refresh-token grants, prompt=consent, and logout edge cases.
 - Documented the SPA authentication steps (login → authorize → token exchange → logout) and refreshed configuration guidance for OpenIddict clients and CORS origins.

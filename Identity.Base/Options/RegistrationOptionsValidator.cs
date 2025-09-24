@@ -45,6 +45,12 @@ public sealed class RegistrationOptionsValidator : IValidateOptions<Registration
             return ValidateOptionsResult.Fail("Registration confirmation URL template must contain {token} and {email} placeholders.");
         }
 
+        if (!options.PasswordResetUrlTemplate.Contains("{token}", StringComparison.Ordinal) ||
+            !options.PasswordResetUrlTemplate.Contains("{email}", StringComparison.Ordinal))
+        {
+            return ValidateOptionsResult.Fail("Registration password reset URL template must contain {token} and {email} placeholders.");
+        }
+
         return ValidateOptionsResult.Success;
     }
 }

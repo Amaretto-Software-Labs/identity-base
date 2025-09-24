@@ -79,6 +79,7 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
             services.PostConfigure<RegistrationOptions>(options =>
             {
                 options.ConfirmationUrlTemplate = "https://tests.example.com/confirm?token={token}&email={email}";
+                options.PasswordResetUrlTemplate = "https://tests.example.com/reset?token={token}&email={email}";
                 options.ProfileFields = new List<RegistrationProfileFieldOptions>
                 {
                     new() { Name = "displayName", DisplayName = "Display Name", Required = true, MaxLength = 128, Pattern = null! },
@@ -93,6 +94,7 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                 options.FromEmail = "noreply@example.com";
                 options.FromName = "Identity Base";
                 options.Templates.Confirmation = 1234;
+                options.Templates.PasswordReset = 5678;
                 options.ErrorReporting.Enabled = false;
             });
 

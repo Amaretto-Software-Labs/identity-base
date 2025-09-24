@@ -1,4 +1,5 @@
 using Identity.Base.Features.Authentication.Login;
+using Identity.Base.Features.Authentication.EmailManagement;
 using Identity.Base.Features.Authentication.Logout;
 using Identity.Base.Features.Authentication.Register;
 using Microsoft.AspNetCore.Builder;
@@ -15,6 +16,7 @@ public static class AuthenticationEndpoints
         group.MapRegisterUserEndpoint();
         group.MapLoginEndpoint();
         group.MapLogoutEndpoint();
+        group.MapEmailManagementEndpoints();
 
         return group;
     }
