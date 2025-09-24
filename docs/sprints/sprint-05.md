@@ -16,6 +16,9 @@
 **Description**
 Create production-ready Dockerfile and docker-compose assets enabling one-command startup.
 
+**Status:** In Progress
+**Notes:** Dockerfile, compose stack, and docs are live; CI still lacks the container build + smoke test required by the acceptance criteria.
+
 **Acceptance Criteria**
 - Multi-stage Dockerfile built on .NET 9 image with non-root runtime user.
 - `docker-compose.local.yml` runs API + Postgres + optional MailJet stub; environment variables documented.
@@ -33,6 +36,8 @@ Create production-ready Dockerfile and docker-compose assets enabling one-comman
 ### S5-HARNESS-402: Build React/Tailwind Test Harness (Priority: High, Stream: Sample Client & QA)
 **Description**
 Deliver sample web app demonstrating registration, login (with MFA/social), profile updates, and metadata capture.
+
+**Status:** Completed
 
 **Acceptance Criteria**
 - Vite-based React app scaffolded under `/apps/sample-client` with Tailwind configured.
@@ -53,6 +58,9 @@ Deliver sample web app demonstrating registration, login (with MFA/social), prof
 **Description**
 Add Cypress/Playwright suites covering password, MFA, and social login flows end-to-end.
 
+**Status:** Not Started
+**Notes:** No Playwright/Cypress dependencies or test suites exist; CI has no E2E stage yet.
+
 **Acceptance Criteria**
 - Test suite runs locally and in CI against docker-compose environment.
 - Coverage includes register → confirm → login → MFA challenge → profile update → external login link/unlink.
@@ -70,6 +78,9 @@ Add Cypress/Playwright suites covering password, MFA, and social login flows end
 **Description**
 Prepare final documentation set for internal and external audiences.
 
+**Status:** Not Started
+**Notes:** LICENSE, CODE_OF_CONDUCT, release notes, and Postman collection remain unpublished.
+
 **Acceptance Criteria**
 - `/docs/getting-started.md`, `/docs/integration-guide.md`, `/docs/docker.md` completed with step-by-step instructions and screenshots where helpful.
 - `LICENSE`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, and issue/PR templates published.
@@ -86,6 +97,9 @@ Prepare final documentation set for internal and external audiences.
 ### S5-HARDEN-405: Performance, Security, and Release Checklist (Priority: Medium, Stream: Hardening & Verification)
 **Description**
 Run final hardening pass and ensure release checklist is satisfied.
+
+**Status:** Not Started
+**Notes:** No load-test scripts, dependency audit output, or release checklist evidence has been captured.
 
 **Acceptance Criteria**
 - Load test baseline executed (e.g., k6) covering token issuance and login flows.

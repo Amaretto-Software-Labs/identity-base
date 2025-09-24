@@ -55,6 +55,8 @@ Provide extension points for email/SMS second factors to be configured by adopte
 **Description**
 Enable social login providers with configuration-driven setup and account linking.
 
+**Status:** Completed
+
 **Acceptance Criteria**
 - Authentication schemes for Google, Apple (OpenIdConnect), and Microsoft configured via options binding.
 - Endpoints to start callback flow (`/auth/external/{provider}/start`, `/auth/external/{provider}/callback`) implemented returning tokens via OpenIddict.
@@ -73,6 +75,8 @@ Enable social login providers with configuration-driven setup and account linkin
 **Description**
 Expose metadata schema and allow authenticated users to update profile data with validation.
 
+**Status:** Completed
+
 **Acceptance Criteria**
 - Endpoint `/auth/profile-schema` returns metadata field definitions (type, label, validation rules).
 - Endpoint `PUT /users/me/profile` accepts metadata updates, validates per schema, persists to JSONB, and emits audit log.
@@ -90,6 +94,8 @@ Expose metadata schema and allow authenticated users to update profile data with
 ### S4-AUDIT-305: Enhanced Observability & Security Logging (Priority: Medium, Stream: Observability & Audit)
 **Description**
 Emit structured logs/metrics for security events and integrate health endpoints.
+
+**Status:** Completed
 
 **Acceptance Criteria**
 - Audit events emitted for MFA actions, external provider link/unlink, profile updates.
