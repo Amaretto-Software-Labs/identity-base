@@ -21,6 +21,12 @@
     <PackageReference Include="Mailjet.Api" Version="3.0.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.2" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.3.0" />
+    <PackageReference Include="OpenIddict.EntityFrameworkCore" Version="5.7.0" />
+    <PackageReference Include="OpenIddict.Server" Version="5.7.0" />
+    <PackageReference Include="OpenIddict.Server.AspNetCore" Version="5.7.0" />
+    <PackageReference Include="OpenIddict.Validation" Version="5.7.0" />
+    <PackageReference Include="OpenIddict.Validation.AspNetCore" Version="5.7.0" />
+    <PackageReference Include="OpenIddict.Validation.ServerIntegration" Version="5.7.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.2" />
     <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />

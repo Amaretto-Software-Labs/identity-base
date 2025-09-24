@@ -1,6 +1,7 @@
+using OpenIddict.EntityFrameworkCore.Models;
+
 namespace Identity.Base.OpenIddict;
 
-public class OpenIddictScope
+public class OpenIddictScope : OpenIddictEntityFrameworkCoreScope<Guid>
 {
-    public Guid Id { get; set; }
 }

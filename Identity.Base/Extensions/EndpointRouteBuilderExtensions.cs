@@ -1,4 +1,5 @@
 using Identity.Base.Features.Authentication;
+using Identity.Base.Features.Authentication.Authorize;
 using Identity.Base.Features.Email;
 using Identity.Base.Features.Users;
 using Microsoft.AspNetCore.Builder;
@@ -40,6 +41,7 @@ public static class EndpointRouteBuilderExtensions
             .WithTags("Diagnostics");
 
         endpoints.MapAuthenticationEndpoints();
+        endpoints.MapAuthorizeEndpoint();
         endpoints.MapUserEndpoints();
         endpoints.MapEmailEndpoints();
 

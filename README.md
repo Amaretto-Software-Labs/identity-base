@@ -25,7 +25,7 @@ This repository contains a .NET 9-based identity and OpenID Connect service desi
 ## Getting Started
 1. Review the [Project Plan](docs/identity-oidc-project-plan.md) for objectives, architecture guidance, and roadmap.
 2. Check the relevant sprint document to understand current priorities and tasks.
-3. Follow instructions in upcoming `/docs/getting-started.md` and `/docs/integration-guide.md` (to be authored in Sprint 05).
+3. Follow instructions in `/docs/getting-started.md` for environment setup and the SPA authentication walkthrough (login → authorize → token → logout).
 4. Run `dotnet build Identity.sln` from the repository root once scaffolded.
 
 ### Local PostgreSQL Setup
@@ -55,6 +55,8 @@ volumes:
 - Update the `Primary` connection string or environment variables if your local credentials differ while preserving PascalCase table naming.
 - Configure registration metadata via the `Registration` section (profile fields, confirmation URL template) and optional seed accounts under `IdentitySeed`.
 - MailJet integration is always active—replace the placeholder API credentials, sender details, template id, and (optionally) configure `MailJet:ErrorReporting` with a monitoring inbox before running the service.
+- Configure OpenIddict clients/scopes in `OpenIddict` settings; the default seed adds a SPA sample client and `identity.api` resource scope.
+- Set CORS origins in the `Cors:AllowedOrigins` array to match trusted frontends.
 
 ## Contributing
 - Read [Engineering Principles](docs/Engineering_Principles.md) and [Database Design Guidelines](docs/Database_Design_Guidelines.md).

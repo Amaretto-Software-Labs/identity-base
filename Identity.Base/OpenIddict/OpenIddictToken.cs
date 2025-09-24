@@ -1,6 +1,7 @@
+using OpenIddict.EntityFrameworkCore.Models;
+
 namespace Identity.Base.OpenIddict;
 
-public class OpenIddictToken
+public class OpenIddictToken : OpenIddictEntityFrameworkCoreToken<Guid, OpenIddictApplication, OpenIddictAuthorization>
 {
-    public Guid Id { get; set; }
 }

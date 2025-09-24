@@ -14,12 +14,13 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) =>
         .WriteTo.Console();
 });
 
-builder.Services.AddApiServices(builder.Configuration);
+builder.Services.AddApiServices(builder.Configuration, builder.Environment);
 
 var app = builder.Build();
 
 app.UseApiPipeline();
 
+app.MapControllers();
 app.MapApiEndpoints();
 
 app.Run();

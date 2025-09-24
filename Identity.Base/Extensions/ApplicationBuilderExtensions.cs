@@ -1,3 +1,4 @@
+using Identity.Base.Options;
 using Microsoft.AspNetCore.Builder;
 using Serilog;
 
@@ -14,6 +15,9 @@ public static class ApplicationBuilderExtensions
 
         app.UseHttpsRedirection();
         app.UseSerilogRequestLogging();
+        app.UseCors(CorsSettings.PolicyName);
+        app.UseAuthentication();
+        app.UseAuthorization();
 
         return app;
     }

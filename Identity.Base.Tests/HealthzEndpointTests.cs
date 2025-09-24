@@ -6,12 +6,14 @@ using FluentAssertions;
 using Identity.Base.Data;
 using Identity.Base.Features.Email;
 using Identity.Base.Options;
+using OpenIddict.Abstractions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Hosting;
 
 namespace Identity.Base.Tests;
 
@@ -45,6 +47,9 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.UseEnvironment("Development");
+        builder.UseSetting(WebHostDefaults.EnvironmentKey, Environments.Development);
+
         builder.ConfigureServices(services =>
         {
             services.RemoveAll(typeof(ITemplatedEmailSender));
@@ -88,6 +93,66 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                 options.FromEmail = "noreply@example.com";
                 options.FromName = "Identity Base";
                 options.Templates.Confirmation = 1234;
+                options.ErrorReporting.Enabled = false;
+            });
+
+            services.PostConfigure<CorsSettings>(options =>
+            {
+                options.AllowedOrigins.Clear();
+                options.AllowedOrigins.Add("https://tests.example.com");
+            });
+
+            services.PostConfigure<OpenIddictOptions>(options =>
+            {
+                options.Applications.Clear();
+                options.Applications.Add(new OpenIddictApplicationOptions
+                {
+                    ClientId = "test-client",
+                    ClientType = OpenIddictConstants.ClientTypes.Public,
+                    RedirectUris = { "https://localhost/callback" },
+                    Permissions =
+                    {
+                        OpenIddictConstants.Permissions.Endpoints.Token,
+                        OpenIddictConstants.Permissions.Endpoints.Authorization,
+                        OpenIddictConstants.Permissions.GrantTypes.AuthorizationCode,
+                        OpenIddictConstants.Permissions.ResponseTypes.Code,
+                        OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Email,
+                        OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Profile
+                    }
+                });
+
+                options.Applications.Add(new OpenIddictApplicationOptions
+                {
+                    ClientId = "spa-client",
+                    ClientType = OpenIddictConstants.ClientTypes.Public,
+                    RedirectUris = { "https://localhost:3000/auth/callback" },
+                    PostLogoutRedirectUris = { "https://localhost:3000" },
+                    Permissions =
+                    {
+                        OpenIddictConstants.Permissions.Endpoints.Authorization,
+                        OpenIddictConstants.Permissions.Endpoints.Token,
+                        OpenIddictConstants.Permissions.Prefixes.Endpoint + "userinfo",
+                        OpenIddictConstants.Permissions.GrantTypes.AuthorizationCode,
+                        OpenIddictConstants.Permissions.ResponseTypes.Code,
+                        OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.OpenId,
+                        OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Profile,
+                        OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Email,
+                        OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.OfflineAccess,
+                        OpenIddictConstants.Permissions.Prefixes.Scope + "identity.api"
+                    },
+                    Requirements =
+                    {
+                        OpenIddictConstants.Requirements.Features.ProofKeyForCodeExchange
+                    }
+                });
+
+                options.Scopes.Clear();
+                options.Scopes.Add(new OpenIddictScopeOptions
+                {
+                    Name = "identity.api",
+                    DisplayName = "Identity API",
+                    Resources = { "identity.api" }
+                });
             });
         });
     }
