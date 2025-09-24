@@ -20,3 +20,8 @@
 - Added Google, Microsoft, and Apple external sign-in support (`ExternalProviders` configuration, `/auth/external/{provider}/start`, `/auth/external/{provider}/callback`, `DELETE /auth/external/{provider}`) with linking flows and return-url redirects suitable for SPAs.
 - Surfaced dynamic profile metadata via `/auth/profile-schema` and `/users/me`, and added `PUT /users/me/profile` with schema-driven validation, concurrency control, refreshed claims, and test coverage.
 - Introduced structured audit logging (user/correlation enrichers, centralized `IAuditLogger`) covering MFA actions, profile updates, and external provider events, plus additional health checks for MailJet configuration and external providers.
+
+## Sprint 05 – Deployment, Harness, and Release Readiness
+- Added Docker production build artefacts (`Dockerfile`, `.dockerignore`) and a local compose stack with PostgreSQL + MailHog (`docker-compose.local.yml`, `.env.example`).
+- Authored Docker documentation covering environment configuration, compose usage, health checks, and troubleshooting (`docs/docker.md`).
+- Scaffolded the React/Tailwind sample client (`apps/sample-client`) implementing registration with dynamic metadata, login + MFA challenges, profile updates, external provider connectors, and PKCE authorization helpers.

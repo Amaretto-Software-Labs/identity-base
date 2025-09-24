@@ -40,11 +40,11 @@ Deliver sample web app demonstrating registration, login (with MFA/social), prof
 - Harness configurable via `.env` (issuer URL, clientId, redirect URIs) and uses PKCE authorization code flow.
 
 **Tasks**
-- [ ] Scaffold React app with TypeScript, Tailwind, React Router, Axios helpers.
-- [ ] Implement dynamic form renderer consuming `/auth/profile-schema` for registration & profile forms.
-- [ ] Implement PKCE helpers and token storage (secure httpOnly cookie or memory + refresh).
-- [ ] Provide reusable hook for checking MFA-required responses and orchestrating second factor challenge.
-- [ ] Document harness setup in `/docs/integration-guide.md`.
+- [x] Scaffold React app with TypeScript, Tailwind, React Router, Axios helpers.
+- [x] Implement dynamic form renderer consuming `/auth/profile-schema` for registration & profile forms.
+- [x] Implement PKCE helpers and token storage (secure httpOnly cookie or memory + refresh).
+- [x] Provide reusable hook for checking MFA-required responses and orchestrating second factor challenge.
+- [x] Document harness setup in `/docs/integration-guide.md`.
 
 **Dependencies**
 - Sprint 3 & 4 auth flows complete.

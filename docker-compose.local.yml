@@ -1,0 +1,60 @@
+version: "3.9"
+
+services:
+  identity-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Primary: ${CONNECTIONSTRINGS__PRIMARY}
+      MailJet__ApiKey: ${MAILJET__APIKEY}
+      MailJet__ApiSecret: ${MAILJET__APISECRET}
+      MailJet__FromEmail: ${MAILJET__FROMEMAIL}
+      MailJet__FromName: ${MAILJET__FROMNAME}
+      MailJet__Templates__Confirmation: ${MAILJET__TEMPLATES__CONFIRMATION}
+      MailJet__Templates__PasswordReset: ${MAILJET__TEMPLATES__PASSWORDRESET}
+      MailJet__Templates__MfaChallenge: ${MAILJET__TEMPLATES__MFACHALLENGE}
+      Mfa__Issuer: ${MFA__ISSUER:-Identity Base}
+      ExternalProviders__Google__Enabled: ${EXTERNALPROVIDERS__GOOGLE__ENABLED:-false}
+      ExternalProviders__Google__ClientId: ${EXTERNALPROVIDERS__GOOGLE__CLIENTID:-}
+      ExternalProviders__Google__ClientSecret: ${EXTERNALPROVIDERS__GOOGLE__CLIENTSECRET:-}
+      ExternalProviders__Google__CallbackPath: ${EXTERNALPROVIDERS__GOOGLE__CALLBACKPATH:-/signin-google}
+      ExternalProviders__Microsoft__Enabled: ${EXTERNALPROVIDERS__MICROSOFT__ENABLED:-false}
+      ExternalProviders__Microsoft__ClientId: ${EXTERNALPROVIDERS__MICROSOFT__CLIENTID:-}
+      ExternalProviders__Microsoft__ClientSecret: ${EXTERNALPROVIDERS__MICROSOFT__CLIENTSECRET:-}
+      ExternalProviders__Microsoft__CallbackPath: ${EXTERNALPROVIDERS__MICROSOFT__CALLBACKPATH:-/signin-microsoft}
+      ExternalProviders__Apple__Enabled: ${EXTERNALPROVIDERS__APPLE__ENABLED:-false}
+      ExternalProviders__Apple__ClientId: ${EXTERNALPROVIDERS__APPLE__CLIENTID:-}
+      ExternalProviders__Apple__ClientSecret: ${EXTERNALPROVIDERS__APPLE__CLIENTSECRET:-}
+      ExternalProviders__Apple__TeamId: ${EXTERNALPROVIDERS__APPLE__TEAMID:-}
+      ExternalProviders__Apple__KeyId: ${EXTERNALPROVIDERS__APPLE__KEYID:-}
+      ExternalProviders__Apple__PrivateKey: ${EXTERNALPROVIDERS__APPLE__PRIVATEKEY:-}
+      ExternalProviders__Apple__CallbackPath: ${EXTERNALPROVIDERS__APPLE__CALLBACKPATH:-/signin-apple}
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: identity
+      POSTGRES_USER: identity
+      POSTGRES_PASSWORD: identity
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    ports:
+      - "8025:8025"
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
