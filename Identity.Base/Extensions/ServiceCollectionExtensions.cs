@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using FluentValidation;
 using Identity.Base.Data;
 using Identity.Base.Features.Authentication.EmailManagement;
+using Identity.Base.Features.Authentication.External;
 using Identity.Base.Features.Authentication.Login;
 using Identity.Base.Features.Authentication.Mfa;
 using Identity.Base.Features.Authentication.Register;
@@ -11,8 +12,11 @@ using Identity.Base.OpenIddict;
 using Identity.Base.OpenIddict.Handlers;
 using Identity.Base.Options;
 using Identity.Base.Seeders;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Authentication.MicrosoftAccount;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -25,6 +29,7 @@ using OpenIddict.Validation;
 using OpenIddict.Validation.AspNetCore;
 using OpenIddict.Server.AspNetCore;
 using Microsoft.Net.Http.Headers;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 
 namespace Identity.Base.Extensions;
 
@@ -34,6 +39,11 @@ public static class ServiceCollectionExtensions
     {
         services.AddOpenApi();
         services.AddControllers();
+
+        var externalProvidersSection = configuration.GetSection(ExternalProviderOptions.SectionName);
+        var googleEnabled = externalProvidersSection.GetSection(nameof(ExternalProviderOptions.Google)).GetValue<bool?>(nameof(OAuthProviderOptions.Enabled)) ?? false;
+        var microsoftEnabled = externalProvidersSection.GetSection(nameof(ExternalProviderOptions.Microsoft)).GetValue<bool?>(nameof(OAuthProviderOptions.Enabled)) ?? false;
+        var appleEnabled = externalProvidersSection.GetSection(nameof(ExternalProviderOptions.Apple)).GetValue<bool?>(nameof(OAuthProviderOptions.Enabled)) ?? false;
 
         services
             .AddOptions<DatabaseOptions>()
@@ -63,6 +73,12 @@ public static class ServiceCollectionExtensions
             .ValidateOnStart();
 
         services
+            .AddOptions<ExternalProviderOptions>()
+            .BindConfiguration(ExternalProviderOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services
             .AddOptions<MailJetOptions>()
             .BindConfiguration(MailJetOptions.SectionName)
             .ValidateDataAnnotations();
@@ -70,6 +86,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IValidateOptions<RegistrationOptions>, RegistrationOptionsValidator>();
         services.AddSingleton<IValidateOptions<MailJetOptions>, MailJetOptionsValidator>();
         services.AddSingleton<IValidateOptions<MfaOptions>, MfaOptionsValidator>();
+        services.AddSingleton<IValidateOptions<ExternalProviderOptions>, ExternalProviderOptionsValidator>();
         services
             .AddOptions<OpenIddictOptions>()
             .BindConfiguration(OpenIddictOptions.SectionName)
@@ -82,6 +99,89 @@ public static class ServiceCollectionExtensions
             .ValidateDataAnnotations();
 
         services.AddSingleton<IValidateOptions<CorsSettings>, CorsSettingsValidator>();
+
+        if (googleEnabled)
+        {
+            services.AddOptions<GoogleOptions>().Configure<IOptions<ExternalProviderOptions>>((options, providerOptions) =>
+            {
+                var google = providerOptions.Value.Google;
+                options.ClientId = google.ClientId;
+                options.ClientSecret = google.ClientSecret;
+                if (!string.IsNullOrWhiteSpace(google.CallbackPath))
+                {
+                    options.CallbackPath = google.CallbackPath;
+                }
+
+                options.Scope.Clear();
+                if (google.Scopes.Count > 0)
+                {
+                    foreach (var scope in google.Scopes)
+                    {
+                        if (!string.IsNullOrWhiteSpace(scope))
+                        {
+                            options.Scope.Add(scope);
+                        }
+                    }
+                }
+            });
+        }
+
+        if (microsoftEnabled)
+        {
+            services.AddOptions<MicrosoftAccountOptions>().Configure<IOptions<ExternalProviderOptions>>((options, providerOptions) =>
+            {
+                var microsoft = providerOptions.Value.Microsoft;
+                options.ClientId = microsoft.ClientId;
+                options.ClientSecret = microsoft.ClientSecret;
+                if (!string.IsNullOrWhiteSpace(microsoft.CallbackPath))
+                {
+                    options.CallbackPath = microsoft.CallbackPath;
+                }
+
+                options.Scope.Clear();
+                if (microsoft.Scopes.Count > 0)
+                {
+                    foreach (var scope in microsoft.Scopes)
+                    {
+                        if (!string.IsNullOrWhiteSpace(scope))
+                        {
+                            options.Scope.Add(scope);
+                        }
+                    }
+                }
+            });
+        }
+
+        if (appleEnabled)
+        {
+            services.AddOptions<OpenIdConnectOptions>(ExternalAuthenticationConstants.AppleScheme)
+                .Configure<IOptions<ExternalProviderOptions>>((options, providerOptions) =>
+                {
+                    var apple = providerOptions.Value.Apple;
+                    options.ClientId = apple.ClientId;
+                    if (!string.IsNullOrWhiteSpace(apple.ClientSecret))
+                    {
+                        options.ClientSecret = apple.ClientSecret;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(apple.CallbackPath))
+                    {
+                        options.CallbackPath = apple.CallbackPath;
+                    }
+
+                    options.Scope.Clear();
+                    if (apple.Scopes.Count > 0)
+                    {
+                        foreach (var scope in apple.Scopes)
+                        {
+                            if (!string.IsNullOrWhiteSpace(scope))
+                            {
+                                options.Scope.Add(scope);
+                            }
+                        }
+                    }
+                });
+        }
 
         services.AddDbContext<AppDbContext>((provider, options) =>
         {
@@ -184,12 +284,13 @@ public static class ServiceCollectionExtensions
                 options.UseAspNetCore();
             });
 
-        services.AddAuthentication(options =>
+        var authenticationBuilder = services.AddAuthentication(options =>
         {
             options.DefaultScheme = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme;
             options.DefaultChallengeScheme = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme;
-        })
-        .AddCookie(IdentityConstants.ApplicationScheme, options =>
+        });
+
+        authenticationBuilder.AddCookie(IdentityConstants.ApplicationScheme, options =>
         {
             options.Cookie.HttpOnly = true;
             options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
@@ -214,9 +315,51 @@ public static class ServiceCollectionExtensions
                     return Task.CompletedTask;
                 }
             };
-        })
-        .AddCookie(IdentityConstants.TwoFactorUserIdScheme)
-        .AddCookie(IdentityConstants.TwoFactorRememberMeScheme);
+        });
+
+        authenticationBuilder.AddCookie(IdentityConstants.ExternalScheme, options =>
+        {
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax;
+            options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+        });
+
+        authenticationBuilder.AddCookie(IdentityConstants.TwoFactorUserIdScheme);
+        authenticationBuilder.AddCookie(IdentityConstants.TwoFactorRememberMeScheme);
+
+        if (googleEnabled)
+        {
+            authenticationBuilder.AddGoogle(GoogleDefaults.AuthenticationScheme, options =>
+            {
+                options.SignInScheme = IdentityConstants.ExternalScheme;
+                options.SaveTokens = true;
+            });
+        }
+
+        if (microsoftEnabled)
+        {
+            authenticationBuilder.AddMicrosoftAccount(MicrosoftAccountDefaults.AuthenticationScheme, options =>
+            {
+                options.SignInScheme = IdentityConstants.ExternalScheme;
+                options.SaveTokens = true;
+            });
+        }
+
+        if (appleEnabled)
+        {
+            authenticationBuilder.AddOpenIdConnect(ExternalAuthenticationConstants.AppleScheme, options =>
+            {
+                options.SignInScheme = IdentityConstants.ExternalScheme;
+                options.SaveTokens = true;
+                options.UsePkce = true;
+                options.Authority = "https://appleid.apple.com";
+                options.ResponseType = OpenIdConnectResponseType.Code;
+                options.ResponseMode = OpenIdConnectResponseMode.FormPost;
+                options.CallbackPath = "/signin-apple";
+                options.Scope.Clear();
+            });
+        }
 
         services.AddAuthorization();
 
@@ -231,6 +374,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<ITemplatedEmailSender, MailJetEmailSender>();
         services.AddScoped<IAccountEmailService, AccountEmailService>();
+        services.AddScoped<ExternalAuthenticationService>();
         services.AddScoped<IMfaChallengeSender>(provider =>
         {
             var options = provider.GetRequiredService<IOptions<MfaOptions>>().Value;

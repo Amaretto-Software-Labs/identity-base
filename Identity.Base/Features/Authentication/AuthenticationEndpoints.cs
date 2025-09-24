@@ -1,3 +1,4 @@
+using Identity.Base.Features.Authentication.External;
 using Identity.Base.Features.Authentication.Login;
 using Identity.Base.Features.Authentication.EmailManagement;
 using Identity.Base.Features.Authentication.Logout;
@@ -18,6 +19,7 @@ public static class AuthenticationEndpoints
         group.MapLoginEndpoint();
         group.MapLogoutEndpoint();
         group.MapMfaEndpoints();
+        group.MapExternalAuthenticationEndpoints();
         group.MapEmailManagementEndpoints();
 
         return group;

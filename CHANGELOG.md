@@ -17,3 +17,4 @@
 ## Sprint 04 – MFA & Security Enhancements
 - Introduced authenticator-based MFA endpoints (`/auth/mfa/enroll`, `/auth/mfa/verify`, `/auth/mfa/disable`, `/auth/mfa/recovery-codes`), wired into the login flow (step-up, remember-machine, recovery codes) with dedicated DI + options (`Mfa:Issuer`).
 - Added configurable SMS and email MFA challenges (`Mfa:Sms`, `Mfa:Email`, MailJet `Templates.MfaChallenge`) with `/auth/mfa/challenge`, plus comprehensive integration tests covering enrollment, login step-up (authenticator/SMS/email), recovery codes, and disablement.
+- Added Google, Microsoft, and Apple external sign-in support (`ExternalProviders` configuration, `/auth/external/{provider}/start`, `/auth/external/{provider}/callback`, `DELETE /auth/external/{provider}`) with linking flows and return-url redirects suitable for SPAs.

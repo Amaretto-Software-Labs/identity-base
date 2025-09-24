@@ -22,16 +22,17 @@ This guide walks through configuring and running Identity Base in a local enviro
 4. Replace the MailJet placeholders (`MailJet:ApiKey`, `MailJet:ApiSecret`, `MailJet:FromEmail`, `MailJet:Templates:Confirmation`, `MailJet:Templates:PasswordReset`, `MailJet:Templates:MfaChallenge`) with valid values and, if you want operational alerts, enable `MailJet:ErrorReporting` with a monitored inbox. The service will fail to start without these credentials.
 5. Configure OpenIddict applications/scopes under the `OpenIddict` section (client IDs, redirect URIs, permissions, resources). The default sample client targets a local SPA.
 6. Provide the MFA issuer name via `Mfa:Issuer` (this is the label shown in authenticator apps when users enrol). Use the nested `Mfa:Email:Enabled` and `Mfa:Sms` settings to decide which challenge methods are available; when SMS is enabled, populate the Twilio credentials inside `Mfa:Sms` (`AccountSid`, `AuthToken`, `FromPhoneNumber`).
-7. (Optional) Enable the seed administrator account by setting `IdentitySeed:Enabled` to `true` and providing `Email`, `Password`, and `Roles`.
-8. Apply database migrations:
+7. (Optional) Enable social sign-in by configuring the `ExternalProviders` section. Each provider exposes `Enabled`, `ClientId`, `ClientSecret`, `CallbackPath`, and `Scopes`; Apple additionally supports `TeamId`, `KeyId`, and an inline `PrivateKey` for JWT-based client secrets.
+8. (Optional) Enable the seed administrator account by setting `IdentitySeed:Enabled` to `true` and providing `Email`, `Password`, and `Roles`.
+9. Apply database migrations:
    ```bash
    dotnet ef database update --project Identity.Base/Identity.Base.csproj
    ```
-9. Run the service:
+10. Run the service:
    ```bash
    dotnet run --project Identity.Base/Identity.Base.csproj
    ```
-10. Submit a registration request with metadata:
+11. Submit a registration request with metadata:
    ```bash
    curl -X POST https://localhost:5001/auth/register \
      -H "Content-Type: application/json" \
@@ -91,3 +92,10 @@ If multi-factor authentication is enabled for an account:
 1. **Enroll** – authenticated users call `/auth/mfa/enroll` to retrieve the shared key and `otpauth` URI (render as QR in the SPA). They verify the initial code via `/auth/mfa/verify` which enables MFA and returns recovery codes.
 2. **Step-Up During Login** – when `/auth/login` responds with `{ "requiresTwoFactor": true, "methods": [ ... ] }`, prompt for the desired method (authenticator, SMS, recovery). Use `/auth/mfa/challenge` to send an SMS code when supported, then POST the code to `/auth/mfa/verify`. A successful response completes the sign-in.
 3. **Recovery & Disable** – authenticated users can regenerate recovery codes (`/auth/mfa/recovery-codes`) or disable MFA (`/auth/mfa/disable`).
+
+## External Sign-In
+
+- Initiate Google, Microsoft, or Apple sign-in by calling `GET /auth/external/{provider}/start?returnUrl=/app/auth/callback`. The `returnUrl` must be a relative path, and the backend redirects there after processing the provider callback with `status`, `requiresTwoFactor`, and optional `methods` query parameters.
+- Add `mode=link` to the start request while authenticated to attach the external identity to the current user (e.g., `/auth/external/google/start?mode=link&returnUrl=/account/connections`).
+- Provider callbacks are handled at `/auth/external/{provider}/callback`; the server issues the Identity cookie before redirecting.
+- Remove a linked provider with `DELETE /auth/external/{provider}` (requires authentication).
