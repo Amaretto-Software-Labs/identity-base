@@ -31,7 +31,6 @@ _ReSharper*/
 !.vscode/tasks.json
 
 # NuGet
-packages/
 project.lock.json
 project.fragment.lock.json
 .nuget/

@@ -1,11 +1,12 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useAuth, useLogin } from '@identity-base/react-client'
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `rounded-md px-3 py-2 text-sm font-medium ${isActive ? 'bg-slate-900 text-white' : 'text-slate-100 hover:bg-slate-800 hover:text-white'}`
 
 export default function Layout() {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
+  const { logout } = useLogin()
 
   return (
     <div className="min-h-screen bg-slate-50">

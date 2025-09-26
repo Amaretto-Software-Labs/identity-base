@@ -19,6 +19,7 @@
     "vite": "^7.1.7"
   },
   "dependencies": {
+    "@identity-base/react-client": "file:../../packages/identity-client",
     "axios": "^1.12.2",
     "clsx": "^2.1.1",
     "react": "^19.1.1",

@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { IdentityProvider } from '@identity-base/react-client'
 import Layout from './layout/Layout'
 import HomePage from './pages/HomePage'
 import RegisterPage from './pages/RegisterPage'
@@ -8,11 +9,19 @@ import ProfilePage from './pages/ProfilePage'
 import AuthorizePage from './pages/AuthorizePage'
 import AuthorizeCallbackPage from './pages/AuthorizeCallbackPage'
 import ExternalResultPage from './pages/ExternalResultPage'
-import { AuthProvider } from './context/AuthContext'
+import { CONFIG } from './config'
 
 export default function App() {
   return (
-    <AuthProvider>
+    <IdentityProvider
+      config={{
+        apiBase: CONFIG.apiBase,
+        clientId: CONFIG.clientId,
+        redirectUri: CONFIG.authorizeRedirectUri,
+        scope: CONFIG.authorizeScope,
+        tokenStorage: 'localStorage',
+      }}
+    >
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<HomePage />} />
@@ -26,6 +35,6 @@ export default function App() {
         <Route path="auth/callback" element={<AuthorizeCallbackPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </AuthProvider>
+    </IdentityProvider>
   )
 }

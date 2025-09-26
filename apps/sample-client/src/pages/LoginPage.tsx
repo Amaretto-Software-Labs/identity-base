@@ -1,52 +1,92 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { buildExternalStartUrl, login } from '../api/auth'
-import type { LoginResponse } from '../api/types'
+import { useLogin, useIdentityContext } from '@identity-base/react-client'
 import { CONFIG } from '../config'
-import { useAuth } from '../context/AuthContext'
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { refreshUser } = useAuth()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [clientId, setClientId] = useState(CONFIG.clientId)
-  const [clientSecret, setClientSecret] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setSubmitting(true)
-    setError(null)
-
-    try {
-      const response: LoginResponse = await login({
-        email,
-        password,
-        clientId,
-        clientSecret: clientSecret || undefined,
-      })
-
+  const { authManager } = useIdentityContext()
+  const { login, isLoading, error } = useLogin({
+    onSuccess: (response) => {
       if (response.requiresTwoFactor) {
         navigate('/mfa', {
           state: {
-            email,
             methods: response.methods ?? [],
           },
           replace: true,
         })
-        return
+      } else {
+        navigate('/', { replace: true })
       }
-
-      await refreshUser()
-      navigate('/', { replace: true })
-    } catch (err) {
-      setError(renderError(err))
-    } finally {
-      setSubmitting(false)
     }
+  })
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    await login({ email, password })
+  }
+
+  const renderExternalSection = () => {
+    const hasExternalProviders = CONFIG.externalProviders.google ||
+                                 CONFIG.externalProviders.microsoft ||
+                                 CONFIG.externalProviders.apple
+
+    if (!hasExternalProviders) {
+      return (
+        <p className="text-center text-sm text-slate-500">
+          No external providers are configured.
+        </p>
+      )
+    }
+
+    return (
+      <div className="space-y-3">
+        <div className="text-center">
+          <span className="bg-slate-50 px-2 text-sm text-slate-500">or continue with</span>
+        </div>
+        <div className="flex flex-col gap-2">
+          {CONFIG.externalProviders.google && (
+            <button
+              type="button"
+              onClick={() => {
+                const url = authManager.buildExternalStartUrl('google', 'login', window.location.origin)
+                window.location.href = url
+              }}
+              className="flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Google
+            </button>
+          )}
+          {CONFIG.externalProviders.microsoft && (
+            <button
+              type="button"
+              onClick={() => {
+                const url = authManager.buildExternalStartUrl('microsoft', 'login', window.location.origin)
+                window.location.href = url
+              }}
+              className="flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Microsoft
+            </button>
+          )}
+          {CONFIG.externalProviders.apple && (
+            <button
+              type="button"
+              onClick={() => {
+                const url = authManager.buildExternalStartUrl('apple', 'login', window.location.origin)
+                window.location.href = url
+              }}
+              className="flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Apple
+            </button>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -54,7 +94,7 @@ export default function LoginPage() {
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold text-slate-900">Sign in</h1>
         <p className="text-sm text-slate-600">
-          Submit your credentials to establish the Identity cookie. If the account requires MFA you’ll be redirected to the
+          Submit your credentials to establish authentication. If your account requires MFA you'll be redirected to the
           verification step.
         </p>
       </header>
@@ -68,9 +108,10 @@ export default function LoginPage() {
             id="email"
             type="email"
             required
-            autoComplete="username"
+            autoComplete="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
+            disabled={isLoading}
             className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
           />
         </div>
@@ -86,106 +127,23 @@ export default function LoginPage() {
             autoComplete="current-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
+            disabled={isLoading}
             className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
           />
         </div>
 
-        <div>
-          <label htmlFor="clientId" className="block text-sm font-medium text-slate-700">
-            Client ID
-          </label>
-          <input
-            id="clientId"
-            type="text"
-            required
-            value={clientId}
-            onChange={(event) => setClientId(event.target.value)}
-            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
-          />
-          <p className="mt-1 text-xs text-slate-500">Defaults to the SPA client seeded in the Identity Base API.</p>
-        </div>
-
-        <div>
-          <label htmlFor="clientSecret" className="block text-sm font-medium text-slate-700">
-            Client Secret (optional for public clients)
-          </label>
-          <input
-            id="clientSecret"
-            type="text"
-            value={clientSecret}
-            onChange={(event) => setClientSecret(event.target.value)}
-            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
-          />
-        </div>
-
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-red-600">{error.message}</p>}
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={isLoading}
           className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {submitting ? 'Signing in…' : 'Sign in'}
+          {isLoading ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
 
       {renderExternalSection()}
     </div>
-  )
-}
-
-function renderError(error: unknown) {
-  if (!error) return 'Unexpected error'
-  if (typeof error === 'string') return error
-  if (typeof error === 'object' && error !== null) {
-    const maybeProblem = error as { detail?: string; title?: string; errors?: Record<string, string[]> }
-    if (maybeProblem.errors) {
-      return Object.entries(maybeProblem.errors)
-        .map(([key, messages]) => `${key}: ${messages.join(', ')}`)
-        .join('\n')
-    }
-    return maybeProblem.detail ?? maybeProblem.title ?? 'Unexpected error'
-  }
-  return 'Unexpected error'
-}
-
-type ExternalProviderKey = 'google' | 'microsoft' | 'apple'
-
-function renderExternalSection() {
-  const candidates: ReadonlyArray<{ key: ExternalProviderKey; label: string }> = [
-    { key: 'google', label: 'Google' },
-    { key: 'microsoft', label: 'Microsoft' },
-    { key: 'apple', label: 'Apple' },
-  ]
-
-  const providers = candidates.filter((provider): provider is { key: ExternalProviderKey; label: string } =>
-    CONFIG.externalProviders[provider.key],
-  )
-
-  if (providers.length === 0) {
-    return null
-  }
-
-  const handleStart = (provider: ExternalProviderKey) => {
-    const url = buildExternalStartUrl(provider, 'login', `${window.location.origin}/external-result`)
-    window.location.assign(url)
-  }
-
-  return (
-    <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 className="text-sm font-semibold text-slate-800">Or sign in with an external provider</h2>
-      <div className="flex flex-wrap gap-2">
-        {providers.map((provider) => (
-          <button
-            key={provider.key}
-            type="button"
-            onClick={() => handleStart(provider.key)}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-100"
-          >
-            Continue with {provider.label}
-          </button>
-        ))}
-      </div>
-    </section>
   )
 }

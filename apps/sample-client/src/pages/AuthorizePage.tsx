@@ -1,34 +1,14 @@
 import { useState } from 'react'
-import { buildAuthorizationUrl } from '../api/auth'
+import { useAuthorization, PKCEManager } from '@identity-base/react-client'
 import { CONFIG } from '../config'
-import { generatePkce, persistPkce, randomState } from '../utils/pkce'
 
 export default function AuthorizePage() {
   const [status, setStatus] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [working, setWorking] = useState(false)
-
-  const startAuthorization = async () => {
-    setWorking(true)
-    setStatus(null)
-    setError(null)
-
-    try {
-      const { challenge, verifier } = await generatePkce()
-      const state = randomState()
-      persistPkce(verifier, state)
-      const url = buildAuthorizationUrl({ codeChallenge: challenge, state })
-      window.location.assign(url)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to construct authorization request')
-    } finally {
-      setWorking(false)
-    }
-  }
+  const { startAuthorization, isLoading, error } = useAuthorization()
 
   const clearPkce = () => {
-    sessionStorage.removeItem('pkce:verifier')
-    sessionStorage.removeItem('pkce:state')
+    const pkceManager = new PKCEManager()
+    pkceManager.clearPkce()
     setStatus('Cleared stored PKCE verifier.')
   }
 
@@ -63,10 +43,10 @@ export default function AuthorizePage() {
           <button
             type="button"
             onClick={startAuthorization}
-            disabled={working}
+            disabled={isLoading}
             className="inline-flex items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {working ? 'Preparing…' : 'Start authorization'}
+            {isLoading ? 'Preparing…' : 'Start authorization'}
           </button>
           <button
             type="button"
@@ -78,7 +58,7 @@ export default function AuthorizePage() {
         </div>
 
         {status && <p className="mt-3 text-sm text-green-600">{status}</p>}
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        {error && <p className="mt-3 text-sm text-red-600">{error.message}</p>}
       </div>
     </div>
   )
