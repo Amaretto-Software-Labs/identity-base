@@ -11,7 +11,8 @@
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean --external react --external react-dom",
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch --external react --external react-dom",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build && npm run typecheck"
   },
   "keywords": [
     "react",
@@ -34,6 +35,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/identity-base"
+    "url": "https://github.com/Amaretto-Software-Labs/identity-base"
   }
 }

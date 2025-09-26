@@ -55,6 +55,20 @@ jobs:
           name: nuget-packages
           path: artifacts/*
 
+      - name: Install npm dependencies
+        working-directory: packages/identity-client
+        run: npm ci
+
+      - name: Build React client package
+        working-directory: packages/identity-client
+        run: npm run build
+
+      - name: Upload React package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: identity-react-client
+          path: packages/identity-client/dist/**
+
   release:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -90,6 +104,29 @@ jobs:
         with:
           name: nuget-packages-${{ env.PACKAGE_VERSION }}
           path: artifacts/*
+
+      - name: Install npm dependencies
+        working-directory: packages/identity-client
+        run: npm ci
+
+      - name: Build React client package
+        working-directory: packages/identity-client
+        run: npm run build
+
+      - name: Upload React package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: identity-react-client-${{ env.PACKAGE_VERSION }}
+          path: packages/identity-client/dist/**
+
+      - name: Publish React client to npm
+        if: github.event.inputs.publish-to-nuget == 'true'
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        working-directory: packages/identity-client
+        run: |
+          npm version $PACKAGE_VERSION --no-git-tag-version
+          npm publish --access public
 
       - name: Publish packages to NuGet
         if: github.event.inputs.publish-to-nuget == 'true'
