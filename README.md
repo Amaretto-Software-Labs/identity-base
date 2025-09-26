@@ -1,6 +1,6 @@
 # Identity Service Repository
 
-This repository contains a .NET 9-based identity and OpenID Connect service designed to be dropped into existing projects or deployed as a self-hosted auth platform. It follows Amaretto Software Labs engineering principles, supports configurable user metadata, MFA, and social login integrations, and ships with detailed documentation and sprint plans.
+This repository contains a .NET 9-based identity and OpenID Connect service designed to be dropped into existing projects or deployed as a self-hosted auth platform. It follows Amaretto Software Labs engineering principles, supports configurable user metadata, MFA, and social login integrations, and ships with detailed documentation. The project is open source under the MIT License.
 
 ## Directory Structure
 - `Identity.Base/` – Reusable Identity/OpenIddict class library.
@@ -19,12 +19,29 @@ This repository contains a .NET 9-based identity and OpenID Connect service desi
 - [Database Design Guidelines](docs/Database_Design_Guidelines.md)
 - [MailJet Email Sender Guide](docs/mailjet-email-sender.md)
 - [Identity.Base Public API](docs/identity-base-public-api.md)
+- [Release Checklist](docs/release-checklist.md)
 - Sprint Backlog:
   - [Sprint 01](docs/sprints/sprint-01.md)
   - [Sprint 02](docs/sprints/sprint-02.md)
   - [Sprint 03](docs/sprints/sprint-03.md)
   - [Sprint 04](docs/sprints/sprint-04.md)
   - [Sprint 05](docs/sprints/sprint-05.md)
+
+## Packages
+
+| NuGet Package | Description |
+| --- | --- |
+| `Identity.Base` | Core Identity/OpenIddict services, EF Core context, MFA, external providers, and DI extensions for hosting the identity server. |
+| `Identity.Base.AspNet` | ASP.NET Core helpers for APIs that consume Identity.Base tokens via JWT bearer authentication. |
+
+Install with the .NET CLI (replace `<latest>` with the published version):
+
+```bash
+dotnet add package Identity.Base --version <latest>
+dotnet add package Identity.Base.AspNet --version <latest>
+```
+
+Manual release builds and NuGet artifacts can be generated via the GitHub Actions **CI** workflow (see [Release Checklist](docs/release-checklist.md)).
 
 ## Getting Started
 
@@ -82,10 +99,15 @@ volumes:
 - Set CORS origins in the `Cors:AllowedOrigins` array to match trusted frontends.
 
 ## Contributing
-- Read [Engineering Principles](docs/Engineering_Principles.md) and [Database Design Guidelines](docs/Database_Design_Guidelines.md).
-- Check the current sprint plan before starting new work.
-- Documentation updates should accompany feature work.
+- Read the [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) before opening an issue or pull request.
+- Follow the Engineering Principles and Database Design Guidelines for architectural context.
+- Please pair documentation updates with code changes.
 
 ## Contact & Support
-- For auth/integration questions, consult upcoming integration docs or reach out to the owning team.
+- Open questions and bug reports via [GitHub Issues](https://github.com/amaretto-labs/identity-base/issues).
+- For private or security-sensitive reports, email [opensource@identitybase.dev](mailto:opensource@identitybase.dev).
 - MailJet template setup guidance lives in [mailjet-email-sender.md](docs/mailjet-email-sender.md).
+
+## License
+
+Identity Base is released under the [MIT License](LICENSE).

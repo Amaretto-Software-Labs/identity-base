@@ -5,10 +5,26 @@ on:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
+    inputs:
+      package-version:
+        description: 'Semantic version to pack (e.g., 1.0.0-alpha.1)'
+        required: true
+        type: string
+      publish-to-nuget:
+        description: 'Push packed packages to NuGet using secrets.NUGET_API_KEY'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build:
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_NOLOGO: 1
+      PACKAGE_VERSION: 1.0.0-alpha.${{ github.run_number }}
 
     steps:
       - name: Checkout
@@ -27,3 +43,57 @@ jobs:
 
       - name: Test
         run: dotnet test Identity.sln --configuration Release --no-build --verbosity normal
+
+      - name: Pack Identity.Base libraries
+        run: |
+          dotnet pack Identity.Base/Identity.Base.csproj --configuration Release --no-build -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
+          dotnet pack Identity.Base.AspNet/Identity.Base.AspNet.csproj --configuration Release --no-build -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
+
+      - name: Upload NuGet artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts/*
+
+  release:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_NOLOGO: 1
+      PACKAGE_VERSION: ${{ github.event.inputs.package-version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore
+        run: dotnet restore Identity.sln
+
+      - name: Build
+        run: dotnet build Identity.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Identity.sln --configuration Release --no-build --verbosity normal
+
+      - name: Pack Identity.Base libraries
+        run: |
+          dotnet pack Identity.Base/Identity.Base.csproj --configuration Release --no-build -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
+          dotnet pack Identity.Base.AspNet/Identity.Base.AspNet.csproj --configuration Release --no-build -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages-${{ env.PACKAGE_VERSION }}
+          path: artifacts/*
+
+      - name: Publish packages to NuGet
+        if: github.event.inputs.publish-to-nuget == 'true'
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          dotnet nuget push artifacts/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate

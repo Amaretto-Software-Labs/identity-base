@@ -4,18 +4,16 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageId>Identity.Base.AspNet</PackageId>
     <Title>Identity.Base ASP.NET Core Integration</Title>
     <Description>Easy JWT Bearer authentication integration for ASP.NET Core APIs using Identity.Base. Includes pre-configured JWT Bearer authentication, scope-based authorization, request logging, and development-friendly SSL handling.</Description>
-    <Authors>Identity.Base</Authors>
+    <Authors>Identity Base Maintainers</Authors>
     <PackageTags>aspnetcore;jwt;authentication;identity;oauth2;authorization;scopes</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageProjectUrl>https://github.com/your-repo/identity-base</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/your-repo/identity-base</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/amaretto-labs/identity-base</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/amaretto-labs/identity-base</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Version>1.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="README.md" Pack="true" PackagePath="" />
   </ItemGroup>
 
 </Project>

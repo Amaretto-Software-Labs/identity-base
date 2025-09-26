@@ -50,6 +50,7 @@ Deliver Identity.Base as a reusable NuGet library that encapsulates authenticati
 ## Build & Packaging
 - Update project metadata for `Identity.Base` and `Identity.Base.AspNet` (authors, license, README, release notes).
 - Configure CI to restore, build, run tests, pack both libraries, and optionally publish prerelease packages.
+- Current GitHub Actions workflow packs both libraries and uploads artifacts; see `docs/release-checklist.md` for manual publish steps.
 - Provide symbol packages if desired; ensure deterministic builds and SourceLink are enabled.
 
 ## Documentation Updates
