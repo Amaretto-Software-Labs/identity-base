@@ -10,8 +10,8 @@
     <Authors>Identity Base Maintainers</Authors>
     <PackageTags>aspnetcore;jwt;authentication;identity;oauth2;authorization;scopes</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageProjectUrl>https://github.com/amaretto-labs/identity-base</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/amaretto-labs/identity-base</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Amaretto-Software-Labs/identity-base</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Amaretto-Software-Labs/identity-base</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>

@@ -353,8 +353,8 @@ app.UseIdentityBaseAuthentication();
 
 ## License
 
-Distributed under the [MIT License](https://github.com/amaretto-labs/identity-base/blob/main/LICENSE).
+Distributed under the [MIT License](https://github.com/Amaretto-Software-Labs/identity-base/blob/main/LICENSE).
 
 ## Contributing
 
-Please review the repository [Contributing Guide](https://github.com/amaretto-labs/identity-base/blob/main/CONTRIBUTING.md) and [Code of Conduct](https://github.com/amaretto-labs/identity-base/blob/main/CODE_OF_CONDUCT.md) before opening issues or pull requests.
+Please review the repository [Contributing Guide](https://github.com/Amaretto-Software-Labs/identity-base/blob/main/CONTRIBUTING.md) and [Code of Conduct](https://github.com/Amaretto-Software-Labs/identity-base/blob/main/CODE_OF_CONDUCT.md) before opening issues or pull requests.

@@ -58,7 +58,7 @@ representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported by contacting the maintainers at [opensource@identitybase.dev](mailto:opensource@identitybase.dev). All
+reported by contacting the maintainers at [opensource@amarettosoftware.com](mailto:opensource@amarettosoftware.com). All
 complaints will be reviewed and investigated promptly and fairly.
 
 All project maintainers are obligated to respect the privacy and security of the

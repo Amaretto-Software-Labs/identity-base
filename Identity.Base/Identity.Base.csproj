@@ -11,8 +11,8 @@
     <Description>Identity, OpenIddict, MFA, and external provider orchestration for ASP.NET Core hosts. Includes EF Core context, seeding, DI extensions, and security hardening helpers ready to self-host or embed as a NuGet package.</Description>
     <Authors>Identity Base Maintainers</Authors>
     <PackageTags>identity;openid;oauth2;aspnetcore;authentication;mfa</PackageTags>
-    <PackageProjectUrl>https://github.com/amaretto-labs/identity-base</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/amaretto-labs/identity-base</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Amaretto-Software-Labs/identity-base</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Amaretto-Software-Labs/identity-base</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

@@ -5,7 +5,7 @@ Thanks for your interest in contributing to Identity Base! We welcome bug report
 ## Before You Start
 - Review the [Code of Conduct](CODE_OF_CONDUCT.md). By participating in this project you agree to abide by it.
 - Skim the [Engineering Principles](docs/Engineering_Principles.md) and [Database Design Guidelines](docs/Database_Design_Guidelines.md) to understand the architectural approach.
-- Check existing [issues](https://github.com/amaretto-labs/identity-base/issues) to avoid duplicates and to find work that is ready for help.
+- Check existing [issues](https://github.com/Amaretto-Software-Labs/identity-base/issues) to avoid duplicates and to find work that is ready for help.
 
 ## How to Contribute
 
