@@ -20,7 +20,7 @@ This guide walks through configuring and running Identity Base in a local enviro
    - `MaxLength`: Maximum character length
    - `Pattern`: Optional regular expression for server-side validation
 4. Replace the MailJet placeholders (`MailJet:ApiKey`, `MailJet:ApiSecret`, `MailJet:FromEmail`, `MailJet:Templates:Confirmation`, `MailJet:Templates:PasswordReset`, `MailJet:Templates:MfaChallenge`) with valid values and, if you want operational alerts, enable `MailJet:ErrorReporting` with a monitored inbox. The service will fail to start without these credentials.
-5. Configure OpenIddict applications/scopes under the `OpenIddict` section (client IDs, redirect URIs, permissions, resources). The default sample client targets a local SPA.
+5. Configure OpenIddict applications/scopes under the `OpenIddict` section (client IDs, redirect URIs, permissions, resources). The default sample client targets a local SPA. Persist signing/encryption keys by setting `OpenIddict:ServerKeys` (see “Server Key Providers” below).
 6. Provide the MFA issuer name via `Mfa:Issuer` (this is the label shown in authenticator apps when users enrol). Use the nested `Mfa:Email:Enabled` and `Mfa:Sms` settings to decide which challenge methods are available; when SMS is enabled, populate the Twilio credentials inside `Mfa:Sms` (`AccountSid`, `AuthToken`, `FromPhoneNumber`).
 7. (Optional) Enable social sign-in by configuring the `ExternalProviders` section. Each provider exposes `Enabled`, `ClientId`, `ClientSecret`, `CallbackPath`, and `Scopes`; Apple additionally supports `TeamId`, `KeyId`, and an inline `PrivateKey` for JWT-based client secrets.
 8. (Optional) Enable the seed administrator account by setting `IdentitySeed:Enabled` to `true` and providing `Email`, `Password`, and `Roles`.
@@ -57,6 +57,56 @@ This guide walks through configuring and running Identity Base in a local enviro
 
 ## Running Tests
 - Integration tests run against the EF Core in-memory provider. Execute `dotnet test Identity.sln` before opening a pull request.
+
+## Server Key Providers
+
+OpenIddict uses configuration-driven providers to load signing and encryption certificates:
+
+- `OpenIddict:ServerKeys:Provider`
+  - `Development` *(default)* – uses development certificates (suitable only for local builds).
+  - `File` – loads `.pfx` certificates from disk.
+  - `AzureKeyVault` – retrieves base64-encoded PFX secrets from Azure Key Vault.
+
+### File Provider
+
+```json
+"OpenIddict": {
+  "ServerKeys": {
+    "Provider": "File",
+    "File": {
+      "Signing": {
+        "Path": "./certs/identity-signing.pfx",
+        "Password": "strong-password"
+      },
+      "Encryption": {
+        "Path": "./certs/identity-encryption.pfx",
+        "Password": "strong-password"
+      }
+    }
+  }
+}
+```
+
+Only the signing certificate is required; the encryption entry is optional.
+
+### Azure Key Vault Provider
+
+```json
+"OpenIddict": {
+  "ServerKeys": {
+    "Provider": "AzureKeyVault",
+    "AzureKeyVault": {
+      "VaultUri": "https://contoso-identity.vault.azure.net/",
+      "SigningSecretName": "identity-signing-cert",
+      "EncryptionSecretName": "identity-encryption-cert",
+      "ManagedIdentityClientId": "<optional-client-id>"
+    }
+  }
+}
+```
+
+- Store certificates as base64-encoded PFX secrets. Optionally specify secret versions or passwords with `SigningSecretVersion`, `SigningSecretPassword`, and the corresponding encryption fields.
+- The loader uses the default Azure credential chain; set `ManagedIdentityClientId` when targeting a specific managed identity.
 
 ## SPA Authentication Flow
 
@@ -116,6 +166,7 @@ If multi-factor authentication is enabled for an account:
 ### React SPA Client
 - A reference SPA lives under `apps/sample-client` (Vite + React + Tailwind). It exercises registration, login + MFA, profile updates, external connectors, and the PKCE authorization code flow.
 - Configure the harness by copying `.env.example` to `.env` and setting any overrides (API base URL, redirect URI, optional external providers).
+- The client enables token auto-refresh by default. Pass `autoRefresh: false` to `IdentityProvider` if you prefer to manage refresh flows manually.
 - Install dependencies and start the dev server:
   ```bash
   cd apps/sample-client

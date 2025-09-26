@@ -9,10 +9,12 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.MicrosoftAccount;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Primitives;
 
 namespace Identity.Base.Features.Authentication.External;
 
@@ -338,8 +340,32 @@ public sealed class ExternalAuthenticationService
     private static string BuildCallbackUri(HttpContext context, string provider)
     {
         var request = context.Request;
-        var callbackPath = $"/auth/external/{provider}/callback";
-        return new Uri(new Uri($"{request.Scheme}://{request.Host}"), callbackPath).ToString();
+        var forwardedProto = request.Headers["X-Forwarded-Proto"];
+        var scheme = !StringValues.IsNullOrEmpty(forwardedProto)
+            ? forwardedProto![0]!.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault() ?? request.Scheme
+            : request.Scheme;
+
+        var forwardedHost = request.Headers["X-Forwarded-Host"];
+        HostString host;
+        if (!StringValues.IsNullOrEmpty(forwardedHost))
+        {
+            var hostSegment = forwardedHost![0]!
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .FirstOrDefault();
+            host = !string.IsNullOrWhiteSpace(hostSegment)
+                ? HostString.FromUriComponent(hostSegment)
+                : request.Host;
+        }
+        else
+        {
+            host = request.Host;
+        }
+
+        var safeProvider = Uri.EscapeDataString(provider);
+        var callbackPath = new PathString($"/auth/external/{safeProvider}/callback");
+        var fullPath = request.PathBase.Add(callbackPath);
+
+        return UriHelper.BuildAbsolute(scheme, host, fullPath);
     }
 
     private static bool IsRelativeUrl(string url)

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
 import type { IdentityConfig, UserProfile, AuthState, AuthEvent } from '../core/types'
 import { IdentityAuthManager } from '../core/IdentityAuthManager'
@@ -20,11 +20,23 @@ interface IdentityProviderProps {
 }
 
 export function IdentityProvider({ config, children }: IdentityProviderProps) {
-  debugLog('IdentityProvider: Creating new instance with config:', config)
-  const [authManager] = useState(() => {
+  const configRef = useRef(config)
+  const [authManager, setAuthManager] = useState(() => {
     debugLog('IdentityProvider: Creating new IdentityAuthManager')
     return new IdentityAuthManager(config)
   })
+
+  useEffect(() => {
+    if (configsAreEqual(configRef.current, config)) {
+      configRef.current = config
+      return
+    }
+
+    debugLog('IdentityProvider: Config changed, recreating IdentityAuthManager', config)
+    const manager = new IdentityAuthManager(config)
+    configRef.current = config
+    setAuthManager(manager)
+  }, [config])
   const [user, setUser] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<any>(null)
@@ -123,6 +135,21 @@ export function IdentityProvider({ config, children }: IdentityProviderProps) {
     <IdentityContext.Provider value={value}>
       {children}
     </IdentityContext.Provider>
+  )
+}
+
+function configsAreEqual(a: IdentityConfig, b: IdentityConfig): boolean {
+  return (
+    a === b || (
+      a.apiBase === b.apiBase &&
+      a.clientId === b.clientId &&
+      a.redirectUri === b.redirectUri &&
+      a.scope === b.scope &&
+      a.tokenStorage === b.tokenStorage &&
+      a.autoRefresh === b.autoRefresh &&
+      a.timeout === b.timeout &&
+      a.retries === b.retries
+    )
   )
 }
 

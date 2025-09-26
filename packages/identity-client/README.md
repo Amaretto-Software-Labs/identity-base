@@ -157,10 +157,16 @@ interface IdentityConfig {
   // Optional
   scope?: string               // OAuth2 scopes (default: 'openid profile email offline_access')
   tokenStorage?: 'localStorage' | 'sessionStorage' | 'memory'
-  autoRefresh?: boolean        // Auto refresh tokens (default: true)
+  autoRefresh?: boolean        // Auto refresh access tokens (default: true)
   timeout?: number            // API timeout in ms (default: 10000)
 }
 ```
+
+### Token Auto-Refresh
+
+- When `autoRefresh` is `true` (default), the SDK inspects the JWT `exp` claim and requests a new access token 30 seconds before expiry. If refresh fails, cached tokens are cleared and the error is rethrown so the UI can prompt for a fresh sign-in.
+- When `autoRefresh` is `false`, expired access tokens are removed from storage and `ensureValidToken()` resolves to `null`, leaving it to the host app to restart authentication.
+- Auto-refresh applies regardless of storage backend (`localStorage`, `sessionStorage`, or in-memory) and requires a refresh token to be available.
 
 ## Hooks API
 

@@ -101,13 +101,69 @@ export class TokenManager {
       return null
     }
 
-    // For now, we'll just return the token
-    // In a production app, you'd want to check if it's expired
-    // and automatically refresh it if needed
-    return accessToken
+    const expiresAt = this.decodeTokenExpiry(accessToken)
+    if (!expiresAt) {
+      return accessToken
+    }
+
+    const now = Math.floor(Date.now() / 1000)
+    const isExpired = expiresAt <= now
+    const refreshThreshold = now + 30 // refresh 30s before expiry to avoid race conditions
+
+    if (!this.config.autoRefresh) {
+      if (isExpired) {
+        this.clearTokens()
+        return null
+      }
+
+      return accessToken
+    }
+
+    if (expiresAt > refreshThreshold) {
+      return accessToken
+    }
+
+    try {
+      return await this.refreshAccessToken()
+    } catch (error) {
+      this.clearTokens()
+      throw error
+    }
   }
 
   isAuthenticated(): boolean {
     return !!this.getAccessToken()
+  }
+
+  private decodeTokenExpiry(token: string): number | null {
+    const parts = token.split('.')
+    if (parts.length !== 3) {
+      return null
+    }
+
+    try {
+      const payload = JSON.parse(this.base64UrlDecode(parts[1])) as { exp?: unknown }
+      return typeof payload.exp === 'number' ? payload.exp : null
+    } catch {
+      return null
+    }
+  }
+
+  private base64UrlDecode(segment: string): string {
+    const normalized = segment.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=')
+
+    if (typeof window === 'undefined') {
+      const globalBuffer = typeof globalThis !== 'undefined' ? (globalThis as any).Buffer : undefined
+      if (globalBuffer?.from) {
+        return globalBuffer.from(padded, 'base64').toString('utf-8')
+      }
+    }
+
+    return decodeURIComponent(
+      Array.prototype.map
+        .call(atob(padded), (c: string) => `%${`00${c.charCodeAt(0).toString(16)}`.slice(-2)}`)
+        .join(''),
+    )
   }
 }
