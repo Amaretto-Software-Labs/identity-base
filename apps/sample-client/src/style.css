@@ -3,10 +3,18 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   color: rgb(15 23 42);
   background-color: rgb(248 250 252);
   font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Ensure inputs have light backgrounds regardless of system preference */
+input[type="email"],
+input[type="password"],
+input[type="text"] {
+  background-color: white;
+  color: rgb(15 23 42);
 }
 
 body {

@@ -21,7 +21,8 @@ public sealed class CorsPolicyConfigurator : IConfigureOptions<CorsOptions>
         {
             builder.WithOrigins(allowedOrigins)
                    .AllowAnyHeader()
-                   .AllowAnyMethod();
+                   .AllowAnyMethod()
+                   .AllowCredentials();
         });
     }
 }

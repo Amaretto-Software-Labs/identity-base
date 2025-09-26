@@ -1,6 +1,6 @@
-@src_HostAddress = http://localhost:0
+@src_HostAddress = https://localhost:5000
 
-GET {{src_HostAddress}}/weatherforecast/
+GET {{src_HostAddress}}/.well-known/openid-configuration
 Accept: application/json
 
 ###

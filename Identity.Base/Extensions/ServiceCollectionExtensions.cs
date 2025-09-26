@@ -241,6 +241,7 @@ public static class ServiceCollectionExtensions
             options.TokenLifespan = TimeSpan.FromHours(3);
         });
 
+        services.AddHostedService<MigrationHostedService>();
         services.AddScoped<IdentityDataSeeder>();
         services.AddHostedService<IdentitySeedHostedService>();
         services.AddScoped<OpenIddictSeeder>();
