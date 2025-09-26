@@ -1,41 +1,39 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { buildExternalStartUrl, updateProfile, unlinkExternalProvider } from '../api/auth'
+import { useAuth, useProfile } from '@identity-base/react-client'
+import { buildExternalStartUrl, unlinkExternalProvider } from '../api/auth'
 import { CONFIG } from '../config'
-import { useProfileSchema } from '../hooks/useProfileSchema'
-import { useAuth } from '../context/AuthContext'
 
 export default function ProfilePage() {
   const navigate = useNavigate()
-  const { user, refreshUser, isLoading: authLoading } = useAuth()
-  const { fields, isLoading: schemaLoading, error: schemaError } = useProfileSchema()
+  const { user, isAuthenticated, isLoading: authLoading, refreshUser } = useAuth()
+  const { schema, isLoadingSchema, updateProfile, isUpdating, error: profileError } = useProfile()
   const [formState, setFormState] = useState<Record<string, string>>({})
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
   const [linking, setLinking] = useState<string | null>(null)
   const [unlinking, setUnlinking] = useState<string | null>(null)
 
   useEffect(() => {
-    if (user) {
+    if (user && schema) {
       const next: Record<string, string> = {}
-      fields.forEach((field) => {
+      schema.fields.forEach((field) => {
         next[field.name] = user.metadata[field.name] ?? ''
       })
       setFormState(next)
     }
-  }, [user, fields])
+  }, [user, schema])
 
-  const ready = useMemo(() => !authLoading && !schemaLoading, [authLoading, schemaLoading])
+  const ready = useMemo(() => !authLoading && !isLoadingSchema, [authLoading, isLoadingSchema])
 
   useEffect(() => {
-    if (ready && !user) {
+    if (ready && !isAuthenticated) {
       navigate('/login', { replace: true })
     }
-  }, [ready, user, navigate])
+  }, [ready, isAuthenticated, navigate])
 
-  if (schemaError) {
+  if (profileError) {
     return <p className="text-sm text-red-600">Unable to load profile schema.</p>
   }
 
@@ -45,19 +43,17 @@ export default function ProfilePage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setSaving(true)
     setStatus(null)
     setError(null)
 
+    if (!schema || !user) return
+
     try {
-      const metadata = Object.fromEntries(fields.map((field) => [field.name, (formState[field.name] ?? '').trim() || null]))
+      const metadata = Object.fromEntries(schema.fields.map((field) => [field.name, (formState[field.name] ?? '').trim() || null]))
       await updateProfile({ metadata, concurrencyStamp: user.concurrencyStamp })
-      await refreshUser()
       setStatus('Profile saved successfully.')
     } catch (err) {
       setError(renderError(err))
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -69,7 +65,7 @@ export default function ProfilePage() {
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {fields.map((field) => (
+        {schema?.fields.map((field) => (
           <div key={field.name}>
             <label htmlFor={`profile-${field.name}`} className="block text-sm font-medium text-slate-700">
               {field.displayName}
@@ -96,10 +92,10 @@ export default function ProfilePage() {
 
         <button
           type="submit"
-          disabled={saving}
+          disabled={isUpdating}
           className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-70"
         >
-          {saving ? 'Saving…' : 'Save profile'}
+          {isUpdating ? 'Saving…' : 'Save profile'}
         </button>
       </form>
 

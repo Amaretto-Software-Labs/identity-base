@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { sendMfaChallenge, verifyMfa } from '../api/auth'
+import { useMfa } from '@identity-base/react-client'
 import type { MfaChallengeRequest, MfaVerifyRequest } from '../api/types'
-import { useAuth } from '../context/AuthContext'
 
 interface MfaState {
   email?: string
@@ -15,58 +14,46 @@ const CHALLENGEABLE_METHODS = new Set(['sms', 'email'])
 export default function MfaPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { refreshUser } = useAuth()
   const mfaState = (location.state as MfaState) ?? {}
+  const { sendChallenge, verifyChallenge, isLoading, error } = useMfa()
 
   const methods = useMemo(() => mfaState.methods ?? ['authenticator', 'recovery'], [mfaState.methods])
   const [method, setMethod] = useState<string>(methods[0] ?? 'authenticator')
   const [code, setCode] = useState('')
   const [rememberMachine, setRememberMachine] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
 
-  const sendChallenge = async (event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleSendChallenge = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault()
-    setError(null)
     setMessage(null)
 
     if (!CHALLENGEABLE_METHODS.has(method)) {
-      setError('Only email or SMS challenges can be dispatched.')
+      setMessage('Only email or SMS challenges can be dispatched.')
       return
     }
 
-    const payload: MfaChallengeRequest = { method: method as 'sms' | 'email' }
-
     try {
-      await sendMfaChallenge(payload)
+      await sendChallenge({ method: method as 'sms' | 'email' })
       setMessage(`Challenge for ${method.toUpperCase()} sent.`)
     } catch (err) {
-      setError(renderError(err))
+      // Error is already handled by the useMfa hook
     }
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setError(null)
     setMessage(null)
-    setLoading(true)
 
     try {
-      const payload: MfaVerifyRequest = {
+      await verifyChallenge({
         code,
         method: method as MfaVerifyRequest['method'],
         rememberMachine,
-      }
-
-      await verifyMfa(payload)
-      await refreshUser()
+      })
       setMessage('MFA verification successful. Redirecting…')
       setTimeout(() => navigate('/', { replace: true }), 750)
     } catch (err) {
-      setError(renderError(err))
-    } finally {
-      setLoading(false)
+      // Error is already handled by the useMfa hook
     }
   }
 
@@ -126,22 +113,22 @@ export default function MfaPage() {
           </label>
           <button
             type="button"
-            onClick={sendChallenge}
+            onClick={handleSendChallenge}
             className="text-sm font-medium text-slate-700 underline decoration-slate-400 hover:text-slate-900"
           >
             Send challenge
           </button>
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-red-600">{renderError(error)}</p>}
         {message && <p className="text-sm text-green-600">{message}</p>}
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={isLoading}
           className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {loading ? 'Verifying…' : 'Verify'}
+          {isLoading ? 'Verifying…' : 'Verify'}
         </button>
       </form>
 
