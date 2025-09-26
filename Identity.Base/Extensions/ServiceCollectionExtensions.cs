@@ -281,8 +281,7 @@ public static class ServiceCollectionExtensions
 
                 options.UseAspNetCore()
                     .EnableAuthorizationEndpointPassthrough()
-                    .EnableStatusCodePagesIntegration()
-                    .DisableTransportSecurityRequirement();
+                    .EnableStatusCodePagesIntegration();
 
                 options.AddEventHandler(PasswordGrantHandler.Descriptor);
             })
@@ -301,7 +300,7 @@ public static class ServiceCollectionExtensions
         authenticationBuilder.AddCookie(IdentityConstants.ApplicationScheme, options =>
         {
             options.Cookie.HttpOnly = true;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
             options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None;
             options.SlidingExpiration = false;
 
@@ -328,7 +327,7 @@ public static class ServiceCollectionExtensions
         authenticationBuilder.AddCookie(IdentityConstants.ExternalScheme, options =>
         {
             options.Cookie.HttpOnly = true;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
             options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax;
             options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
         });
@@ -336,7 +335,7 @@ public static class ServiceCollectionExtensions
         authenticationBuilder.AddCookie(IdentityConstants.TwoFactorUserIdScheme, options =>
         {
             options.Cookie.HttpOnly = true;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
             options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None;
             options.ExpireTimeSpan = TimeSpan.FromMinutes(10); // Give more time for MFA completion
         });
