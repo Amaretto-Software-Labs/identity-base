@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Identity.Base.Options;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OpenIddict.Server;
 
