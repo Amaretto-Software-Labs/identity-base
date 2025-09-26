@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased – Modularization & NuGet Prep
+- Split the monolithic ASP.NET project into a reusable class library (`Identity.Base`), reference host (`Identity.Base.Host`), and ASP.NET integration package, paving the way for NuGet distribution.
+- Introduced the fluent `services.AddIdentityBase(...)` builder with opt-in external provider registration (`AddGoogleAuth`, `AddMicrosoftAuth`, `AddAppleAuth`, `AddExternalAuthProvider`).
+- Hardened security around external flows: normalized return URLs, ignored spoofed forwarded headers, made password grant opt-in per client, and limited JWT claim logging to development environments.
+- Trimmed the library's public surface to intentional extension points (options, builder, identity entities, DI interfaces) while keeping concrete implementations internal; documented the supported API in `docs/identity-base-public-api.md`.
+- Added EF design-time factory support for the new structure, updated docs (`README.md`, `docs/getting-started.md`, refactor plan) and ensured existing integration tests run against the host.
+
 ## Sprint 02 – Identity Core & Registration Metadata
 - Added ASP.NET Core Identity with GUID keys, strict password policy, and optional seed administrator support.
 - Persisted user profile metadata as JSONB with configurable registration fields and confirmation URL template.

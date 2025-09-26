@@ -18,6 +18,7 @@ This repository contains a .NET 9-based identity and OpenID Connect service desi
 - [Engineering Principles](docs/Engineering_Principles.md)
 - [Database Design Guidelines](docs/Database_Design_Guidelines.md)
 - [MailJet Email Sender Guide](docs/mailjet-email-sender.md)
+- [Identity.Base Public API](docs/identity-base-public-api.md)
 - Sprint Backlog:
   - [Sprint 01](docs/sprints/sprint-01.md)
   - [Sprint 02](docs/sprints/sprint-02.md)
