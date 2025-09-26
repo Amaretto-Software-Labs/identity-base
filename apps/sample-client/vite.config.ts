@@ -6,23 +6,13 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/auth': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        secure: false,
-      },
       '/users': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/connect': {
-        target: 'http://localhost:8080',
+        target: 'https://localhost:5000',
         changeOrigin: true,
         secure: false,
       },
       '/healthz': {
-        target: 'http://localhost:8080',
+        target: 'https://localhost:5000',
         changeOrigin: true,
         secure: false,
       }

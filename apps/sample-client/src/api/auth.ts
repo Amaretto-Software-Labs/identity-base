@@ -104,7 +104,7 @@ export function buildAuthorizationUrl({
     state,
   })
 
-  return `/connect/authorize?${params.toString()}`
+  return `${CONFIG.apiBase}/connect/authorize?${params.toString()}`
 }
 
 export function exchangeAuthorizationCode(payload: { code: string; codeVerifier: string; redirectUri: string }) {

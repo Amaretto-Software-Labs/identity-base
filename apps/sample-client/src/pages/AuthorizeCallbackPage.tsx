@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { exchangeAuthorizationCode } from '../api/auth'
 import { CONFIG } from '../config'
@@ -22,9 +22,11 @@ export default function AuthorizeCallbackPage() {
   const [error, setError] = useState<string | null>(null)
   const [verifier, setVerifier] = useState<string | null>(null)
   const [exchanging, setExchanging] = useState(false)
+  const pkceConsumed = useRef(false)
 
   useEffect(() => {
-    if (state) {
+    if (state && !pkceConsumed.current) {
+      pkceConsumed.current = true
       const stored = consumePkce(state)
       setVerifier(stored)
     }

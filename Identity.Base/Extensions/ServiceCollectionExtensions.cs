@@ -299,7 +299,7 @@ public static class ServiceCollectionExtensions
         {
             options.Cookie.HttpOnly = true;
             options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-            options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax;
+            options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None;
             options.SlidingExpiration = false;
 
             options.Events = new CookieAuthenticationEvents
