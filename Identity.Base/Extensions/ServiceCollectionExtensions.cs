@@ -11,6 +11,7 @@ using Identity.Base.Identity;
 using Identity.Base.Health;
 using Identity.Base.OpenIddict;
 using Identity.Base.OpenIddict.Handlers;
+using Identity.Base.OpenIddict.KeyManagement;
 using Identity.Base.Options;
 using Identity.Base.Seeders;
 using Identity.Base.Logging;
@@ -94,6 +95,13 @@ public static class ServiceCollectionExtensions
             .AddOptions<OpenIddictOptions>()
             .BindConfiguration(OpenIddictOptions.SectionName)
             .ValidateDataAnnotations();
+
+        services
+            .AddOptions<OpenIddictServerKeyOptions>()
+            .BindConfiguration(OpenIddictServerKeyOptions.SectionName)
+            .ValidateOnStart();
+
+        services.AddSingleton<IValidateOptions<OpenIddictServerKeyOptions>, OpenIddictServerKeyOptionsValidator>();
 
         services.AddSingleton<IValidateOptions<OpenIddictOptions>, OpenIddictOptionsValidator>();
         services
@@ -273,8 +281,7 @@ public static class ServiceCollectionExtensions
 
                 options.RegisterScopes(OpenIddictConstants.Scopes.Email, OpenIddictConstants.Scopes.Profile, OpenIddictConstants.Scopes.OfflineAccess);
 
-                options.AddEphemeralEncryptionKey(); // Use ephemeral key but don't encrypt tokens
-                options.AddDevelopmentSigningCertificate();
+                options.UseConfiguredServerKeys(configuration, environment);
 
                 // Disable token encryption for JWT Bearer compatibility
                 options.DisableAccessTokenEncryption();

@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
@@ -10,6 +11,8 @@ using Identity.Base.Identity;
 using Identity.Base.Options;
 using Identity.Base.Tests.Fakes;
 using OpenIddict.Abstractions;
+using OpenIddict.Server;
+using OpenIddict.Server.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Hosting;
@@ -55,6 +58,8 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
 {
     public FakeEmailSender EmailSender { get; } = new();
     public FakeMfaChallengeSender SmsChallengeSender { get; } = new();
+
+    private static readonly Uri DefaultBaseAddress = new("https://localhost");
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -196,7 +201,22 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                     Resources = { "identity.api" }
                 });
             });
+
+            services.PostConfigure<OpenIddictServerAspNetCoreOptions>(options =>
+            {
+                options.DisableTransportSecurityRequirement = true;
+            });
         });
+    }
+
+    protected override void ConfigureClient(HttpClient client)
+    {
+        base.ConfigureClient(client);
+
+        if (client.BaseAddress is null || client.BaseAddress.Scheme != Uri.UriSchemeHttps)
+        {
+            client.BaseAddress = DefaultBaseAddress;
+        }
     }
 
     private sealed class PassThroughHealthCheck : IHealthCheck
