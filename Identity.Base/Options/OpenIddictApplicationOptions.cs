@@ -30,6 +30,8 @@ public sealed class OpenIddictApplicationOptions
     public IList<string> Permissions { get; init; } = new List<string>();
 
     public IList<string> Requirements { get; init; } = new List<string>();
+
+    public bool AllowPasswordFlow { get; init; }
 }
 
 public sealed class OpenIddictScopeOptions

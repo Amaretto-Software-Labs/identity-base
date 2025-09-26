@@ -58,6 +58,11 @@ public sealed class OpenIddictSeeder
                 descriptor.Permissions.Add(permission);
             }
 
+            if (application.AllowPasswordFlow)
+            {
+                descriptor.Permissions.Add(OpenIddictConstants.Permissions.GrantTypes.Password);
+            }
+
             descriptor.Permissions.Add(OpenIddictConstants.Permissions.Prefixes.Scope + "identity.api");
 
             descriptor.Permissions.Add(OpenIddictConstants.Permissions.Endpoints.Authorization);

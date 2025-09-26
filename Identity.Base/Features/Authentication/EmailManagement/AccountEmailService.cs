@@ -1,6 +1,7 @@
 using System.Text;
 using Identity.Base.Features.Email;
 using Identity.Base.Identity;
+using Identity.Base.Logging;
 using Identity.Base.Options;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
@@ -23,19 +24,22 @@ public sealed class AccountEmailService : IAccountEmailService
     private readonly RegistrationOptions _registrationOptions;
     private readonly MailJetOptions _mailJetOptions;
     private readonly ILogger<AccountEmailService> _logger;
+    private readonly ILogSanitizer _sanitizer;
 
     public AccountEmailService(
         UserManager<ApplicationUser> userManager,
         ITemplatedEmailSender emailSender,
         IOptions<RegistrationOptions> registrationOptions,
         IOptions<MailJetOptions> mailJetOptions,
-        ILogger<AccountEmailService> logger)
+        ILogger<AccountEmailService> logger,
+        ILogSanitizer sanitizer)
     {
         _userManager = userManager;
         _emailSender = emailSender;
         _registrationOptions = registrationOptions.Value;
         _mailJetOptions = mailJetOptions.Value;
         _logger = logger;
+        _sanitizer = sanitizer;
     }
 
     public async Task SendConfirmationEmailAsync(ApplicationUser user, CancellationToken cancellationToken = default)
@@ -99,11 +103,11 @@ public sealed class AccountEmailService : IAccountEmailService
         try
         {
             await _emailSender.SendAsync(email, cancellationToken);
-            _logger.LogInformation("Dispatched email template {TemplateId} to {Recipient}", email.TemplateId, recipient);
+            _logger.LogInformation("Dispatched email template {TemplateId} to {Recipient}", email.TemplateId, _sanitizer.RedactEmail(recipient));
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
-            _logger.LogError(exception, "Failed to send email template {TemplateId} to {Recipient}", email.TemplateId, recipient);
+            _logger.LogError(exception, "Failed to send email template {TemplateId} to {Recipient}", email.TemplateId, _sanitizer.RedactEmail(recipient));
             throw;
         }
     }

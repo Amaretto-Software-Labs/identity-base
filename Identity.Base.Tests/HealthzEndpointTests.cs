@@ -155,7 +155,8 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                 options.Applications.Add(new OpenIddictApplicationOptions
                 {
                     ClientId = "test-client",
-                    ClientType = OpenIddictConstants.ClientTypes.Public,
+                    ClientType = OpenIddictConstants.ClientTypes.Confidential,
+                    ClientSecret = "test-secret",
                     RedirectUris = { "https://localhost/callback" },
                     Permissions =
                     {
@@ -165,7 +166,8 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                         OpenIddictConstants.Permissions.ResponseTypes.Code,
                         OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Email,
                         OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Profile
-                    }
+                    },
+                    AllowPasswordFlow = true
                 });
 
                 options.Applications.Add(new OpenIddictApplicationOptions

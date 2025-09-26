@@ -2,6 +2,7 @@ using System.Linq;
 using FluentValidation;
 using Identity.Base.Extensions;
 using Identity.Base.Identity;
+using Identity.Base.Logging;
 using Identity.Base.Features.Authentication.EmailManagement;
 using Identity.Base.Options;
 using Microsoft.AspNetCore.Builder;
@@ -33,6 +34,7 @@ public static class RegisterUserEndpoint
         IAccountEmailService accountEmailService,
         IOptions<RegistrationOptions> registrationOptions,
         ILoggerFactory loggerFactory,
+        ILogSanitizer logSanitizer,
         CancellationToken cancellationToken)
     {
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
@@ -66,7 +68,7 @@ public static class RegisterUserEndpoint
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
-            logger.LogError(exception, "Failed to send confirmation email for {Email}", user.Email);
+            logger.LogError(exception, "Failed to send confirmation email for {Email}", logSanitizer.RedactEmail(user.Email));
             return Results.Problem("Failed to dispatch confirmation email.", statusCode: StatusCodes.Status500InternalServerError);
         }
 

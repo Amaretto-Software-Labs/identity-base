@@ -2,6 +2,7 @@ using System.Text;
 using FluentValidation;
 using Identity.Base.Extensions;
 using Identity.Base.Identity;
+using Identity.Base.Logging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
@@ -87,6 +88,7 @@ public static class EmailManagementEndpoints
         UserManager<ApplicationUser> userManager,
         IAccountEmailService accountEmailService,
         ILoggerFactory loggerFactory,
+        ILogSanitizer logSanitizer,
         CancellationToken cancellationToken)
     {
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
@@ -114,7 +116,7 @@ public static class EmailManagementEndpoints
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
-            logger.LogError(exception, "Failed to resend confirmation email for {Email}", user.Email);
+            logger.LogError(exception, "Failed to resend confirmation email for {Email}", logSanitizer.RedactEmail(user.Email));
             return Results.Problem("Failed to resend confirmation email.", statusCode: StatusCodes.Status500InternalServerError);
         }
 
@@ -127,6 +129,7 @@ public static class EmailManagementEndpoints
         UserManager<ApplicationUser> userManager,
         IAccountEmailService accountEmailService,
         ILoggerFactory loggerFactory,
+        ILogSanitizer logSanitizer,
         CancellationToken cancellationToken)
     {
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
@@ -149,7 +152,7 @@ public static class EmailManagementEndpoints
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
-            logger.LogError(exception, "Failed to send password reset email for {Email}", user.Email);
+            logger.LogError(exception, "Failed to send password reset email for {Email}", logSanitizer.RedactEmail(user.Email));
             return Results.Problem("Failed to dispatch password reset email.", statusCode: StatusCodes.Status500InternalServerError);
         }
 

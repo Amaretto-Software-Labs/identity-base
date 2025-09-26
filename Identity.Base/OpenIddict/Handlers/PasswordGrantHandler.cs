@@ -115,7 +115,7 @@ public sealed class PasswordGrantHandler : IOpenIddictServerHandler<OpenIddictSe
         principal.SetDestinations(GetDestinations);
 
         context.Principal = principal;
-        _logger.LogInformation("Password grant succeeded for {Email}", user.Email);
+        _logger.LogInformation("Password grant succeeded for user {UserId}", user.Id);
     }
 
     private static IEnumerable<string> GetDestinations(Claim claim)

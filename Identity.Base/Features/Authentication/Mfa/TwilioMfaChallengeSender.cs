@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Net.Http.Headers;
 using System.Text;
 using Identity.Base.Identity;
+using Identity.Base.Logging;
 using Identity.Base.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -13,17 +14,20 @@ public sealed class TwilioMfaChallengeSender : IMfaChallengeSender
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly SmsChallengeOptions _options;
     private readonly ILogger<TwilioMfaChallengeSender> _logger;
+    private readonly ILogSanitizer _sanitizer;
 
     public string Method => "sms";
 
     public TwilioMfaChallengeSender(
         IHttpClientFactory httpClientFactory,
         IOptions<MfaOptions> options,
-        ILogger<TwilioMfaChallengeSender> logger)
+        ILogger<TwilioMfaChallengeSender> logger,
+        ILogSanitizer sanitizer)
     {
         _httpClientFactory = httpClientFactory;
         _options = options.Value.Sms;
         _logger = logger;
+        _sanitizer = sanitizer;
     }
 
     public async Task SendChallengeAsync(ApplicationUser user, string code, CancellationToken cancellationToken = default)
@@ -58,10 +62,11 @@ public sealed class TwilioMfaChallengeSender : IMfaChallengeSender
         if (!response.IsSuccessStatusCode)
         {
             var payload = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogError("Twilio SMS send failed with status {Status}. Payload: {Payload}", response.StatusCode, payload);
+            _logger.LogError("Twilio SMS send failed with status {Status} for {Recipient}", response.StatusCode, _sanitizer.RedactPhoneNumber(user.PhoneNumber));
+            _logger.LogDebug("Twilio response payload: {Payload}", payload);
             throw new InvalidOperationException("Failed to send SMS challenge.");
         }
 
-        _logger.LogInformation("Sent SMS MFA challenge to {PhoneNumber}", user.PhoneNumber);
+        _logger.LogInformation("Sent SMS MFA challenge to {PhoneNumber}", _sanitizer.RedactPhoneNumber(user.PhoneNumber));
     }
 }

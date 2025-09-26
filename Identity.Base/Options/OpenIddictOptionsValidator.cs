@@ -29,6 +29,11 @@ public sealed class OpenIddictOptionsValidator : IValidateOptions<OpenIddictOpti
             {
                 return ValidateOptionsResult.Fail($"Client secret must be provided for confidential client '{application.ClientId}'.");
             }
+
+            if (application.AllowPasswordFlow && application.ClientType != OpenIddictConstants.ClientTypes.Confidential)
+            {
+                return ValidateOptionsResult.Fail($"Password flow can only be enabled for confidential clients (client '{application.ClientId}').");
+            }
         }
 
         if (options.Scopes is not null)

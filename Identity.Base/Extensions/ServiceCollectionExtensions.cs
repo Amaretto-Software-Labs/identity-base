@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading.Tasks;
 using FluentValidation;
 using Identity.Base.Data;
@@ -290,7 +291,9 @@ public static class ServiceCollectionExtensions
                     .EnableAuthorizationEndpointPassthrough()
                     .EnableStatusCodePagesIntegration();
 
+                options.AddEventHandler(PasswordFlowClientValidator.Descriptor);
                 options.AddEventHandler(PasswordGrantHandler.Descriptor);
+
             })
             .AddValidation(options =>
             {
@@ -398,6 +401,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAccountEmailService, AccountEmailService>();
         services.AddScoped<ExternalAuthenticationService>();
         services.AddScoped<IAuditLogger, AuditLogger>();
+        services.AddSingleton<ILogSanitizer, LogSanitizer>();
+
         services.AddScoped<IMfaChallengeSender>(provider =>
         {
             var options = provider.GetRequiredService<IOptions<MfaOptions>>().Value;
@@ -427,4 +432,5 @@ public static class ServiceCollectionExtensions
 
         return services;
     }
+
 }
