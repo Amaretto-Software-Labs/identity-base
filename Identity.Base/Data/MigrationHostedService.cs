@@ -21,6 +21,16 @@ public sealed class MigrationHostedService : IHostedService
         using var scope = _serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+        // Skip migrations for in-memory databases (used in tests)
+        if (dbContext.Database.IsInMemory())
+        {
+            _logger.LogInformation("Skipping migrations for in-memory database");
+
+            // Ensure database is created for in-memory provider
+            await dbContext.Database.EnsureCreatedAsync(cancellationToken);
+            return;
+        }
+
         try
         {
             _logger.LogInformation("Applying pending database migrations...");
