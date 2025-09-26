@@ -9,39 +9,39 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.MicrosoftAccount;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Primitives;
 
 namespace Identity.Base.Features.Authentication.External;
 
 public sealed class ExternalAuthenticationService
 {
     private readonly IOptions<ExternalProviderOptions> _providerOptions;
-    private readonly IOptions<OpenIddictOptions> _openIddictOptions;
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ILogger<ExternalAuthenticationService> _logger;
     private readonly IAuditLogger _auditLogger;
-    private HashSet<string>? _allowedReturnUrlOrigins;
+    private readonly IExternalReturnUrlValidator _returnUrlValidator;
+    private readonly IExternalCallbackUriFactory _callbackUriFactory;
 
     public ExternalAuthenticationService(
         IOptions<ExternalProviderOptions> providerOptions,
-        IOptions<OpenIddictOptions> openIddictOptions,
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
         ILogger<ExternalAuthenticationService> logger,
-        IAuditLogger auditLogger)
+        IAuditLogger auditLogger,
+        IExternalReturnUrlValidator returnUrlValidator,
+        IExternalCallbackUriFactory callbackUriFactory)
     {
         _providerOptions = providerOptions;
-        _openIddictOptions = openIddictOptions;
         _signInManager = signInManager;
         _userManager = userManager;
         _logger = logger;
         _auditLogger = auditLogger;
+        _returnUrlValidator = returnUrlValidator;
+        _callbackUriFactory = callbackUriFactory;
     }
 
     public async Task<IResult> StartAsync(HttpContext httpContext, string provider, string? returnUrl, string mode, CancellationToken cancellationToken)
@@ -59,7 +59,7 @@ public sealed class ExternalAuthenticationService
             return Results.Problem($"External provider '{provider}' is disabled.", statusCode: StatusCodes.Status400BadRequest);
         }
 
-        if (!TryNormalizeReturnUrl(returnUrl, out var sanitizedReturnUrl))
+        if (!_returnUrlValidator.TryNormalize(returnUrl, out var sanitizedReturnUrl))
         {
             return Results.Problem("returnUrl must be a relative path or match a registered client redirect URI.", statusCode: StatusCodes.Status400BadRequest);
         }
@@ -88,7 +88,7 @@ public sealed class ExternalAuthenticationService
             userId = user.Id.ToString();
         }
 
-        var callbackUri = BuildCallbackUri(httpContext, provider);
+        var callbackUri = _callbackUriFactory.Create(httpContext, provider);
         var properties = _signInManager.ConfigureExternalAuthenticationProperties(scheme, callbackUri, userId);
         properties.Items[ExternalAuthenticationConstants.ModeKey] = normalizedMode;
         if (!string.IsNullOrWhiteSpace(sanitizedReturnUrl))
@@ -145,7 +145,7 @@ public sealed class ExternalAuthenticationService
             ? storedReturnUrl
             : null;
 
-        if (!TryNormalizeReturnUrl(returnUrl, out var sanitizedReturnUrl))
+        if (!_returnUrlValidator.TryNormalize(returnUrl, out var sanitizedReturnUrl))
         {
             sanitizedReturnUrl = null;
         }
@@ -341,120 +341,6 @@ public sealed class ExternalAuthenticationService
         return user;
     }
 
-    private static string BuildCallbackUri(HttpContext context, string provider)
-    {
-        var request = context.Request;
-        var scheme = request.Scheme;
-        var host = request.Host;
-        if (!host.HasValue)
-        {
-            host = new HostString("localhost");
-        }
-
-        var safeProvider = Uri.EscapeDataString(provider);
-        var callbackPath = new PathString($"/auth/external/{safeProvider}/callback");
-        var fullPath = request.PathBase.Add(callbackPath);
-
-        return UriHelper.BuildAbsolute(scheme, host, fullPath);
-    }
-
-    private bool TryNormalizeReturnUrl(string? value, out string? normalized)
-    {
-        normalized = null;
-
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return true;
-        }
-
-        var trimmed = value.Trim();
-
-        if (trimmed.Length == 0)
-        {
-            return false;
-        }
-
-        if (trimmed[0] == '/')
-        {
-            if (trimmed.Length > 1 && trimmed[1] == '/')
-            {
-                return false;
-            }
-
-            normalized = trimmed;
-            return true;
-        }
-
-        if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var absolute))
-        {
-            return false;
-        }
-
-        if (!string.Equals(absolute.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(absolute.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        if (!IsAllowedReturnOrigin(absolute))
-        {
-            return false;
-        }
-
-        normalized = absolute.ToString();
-        return true;
-    }
-
-    private bool IsAllowedReturnOrigin(Uri uri)
-    {
-        var origins = _allowedReturnUrlOrigins ??= BuildAllowedReturnUrlOrigins();
-        var origin = uri.GetComponents(UriComponents.SchemeAndServer, UriFormat.Unescaped);
-        return origins.Contains(origin);
-    }
-
-    private HashSet<string> BuildAllowedReturnUrlOrigins()
-    {
-        var origins = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var options = _openIddictOptions.Value;
-
-        foreach (var application in options.Applications)
-        {
-            if (application.RedirectUris is not null)
-            {
-                foreach (var redirect in application.RedirectUris)
-                {
-                    AddOriginIfValid(origins, redirect);
-                }
-            }
-
-            if (application.PostLogoutRedirectUris is not null)
-            {
-                foreach (var redirect in application.PostLogoutRedirectUris)
-                {
-                    AddOriginIfValid(origins, redirect);
-                }
-            }
-        }
-
-        return origins;
-    }
-
-    private static void AddOriginIfValid(ISet<string> origins, string? candidate)
-    {
-        if (string.IsNullOrWhiteSpace(candidate))
-        {
-            return;
-        }
-
-        if (!Uri.TryCreate(candidate, UriKind.Absolute, out var uri))
-        {
-            return;
-        }
-
-        var origin = uri.GetComponents(UriComponents.SchemeAndServer, UriFormat.Unescaped);
-        origins.Add(origin);
-    }
-
     private static string? MapTwoFactorProvider(string provider)
     {
         if (string.Equals(provider, TokenOptions.DefaultAuthenticatorProvider, StringComparison.OrdinalIgnoreCase))
@@ -490,7 +376,7 @@ public sealed class ExternalAuthenticationService
 
     private IResult CreateLinkResponse(string? returnUrl, string status, string? message)
     {
-        if (TryNormalizeReturnUrl(returnUrl, out var sanitizedReturnUrl) && !string.IsNullOrWhiteSpace(sanitizedReturnUrl))
+        if (_returnUrlValidator.TryNormalize(returnUrl, out var sanitizedReturnUrl) && !string.IsNullOrWhiteSpace(sanitizedReturnUrl))
         {
             var redirected = QueryHelpers.AddQueryString(sanitizedReturnUrl, new Dictionary<string, string?>
             {
@@ -505,7 +391,7 @@ public sealed class ExternalAuthenticationService
 
     private IResult CreateLoginResponse(string? returnUrl, string status, string? message, bool requiresTwoFactor, IReadOnlyCollection<string>? methods)
     {
-        if (TryNormalizeReturnUrl(returnUrl, out var sanitizedReturnUrl) && !string.IsNullOrWhiteSpace(sanitizedReturnUrl))
+        if (_returnUrlValidator.TryNormalize(returnUrl, out var sanitizedReturnUrl) && !string.IsNullOrWhiteSpace(sanitizedReturnUrl))
         {
             var query = new Dictionary<string, string?>
             {

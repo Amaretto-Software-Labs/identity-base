@@ -45,6 +45,28 @@ public static class ServiceCollectionExtensions
         services.AddOpenApi();
         services.AddControllers();
 
+        var providerFlags = ConfigureOptions(services, configuration);
+
+        ConfigureExternalAuthenticationOptions(services, providerFlags);
+        ConfigureDatabase(services);
+        ConfigureIdentity(services);
+        RegisterHostedServices(services);
+        ConfigureCorsAndHttpClients(services);
+        ConfigureOpenIddict(services, configuration, environment);
+        ConfigureAuthentication(services, providerFlags);
+
+        services.AddAuthorization();
+
+        RegisterValidators(services);
+        RegisterApplicationServices(services);
+        ConfigureMfaChallengeSenders(services);
+        ConfigureHealthChecks(services);
+
+        return services;
+    }
+
+    private static ExternalProviderFlags ConfigureOptions(IServiceCollection services, IConfiguration configuration)
+    {
         var externalProvidersSection = configuration.GetSection(ExternalProviderOptions.SectionName);
         var googleEnabled = externalProvidersSection.GetSection(nameof(ExternalProviderOptions.Google)).GetValue<bool?>(nameof(OAuthProviderOptions.Enabled)) ?? false;
         var microsoftEnabled = externalProvidersSection.GetSection(nameof(ExternalProviderOptions.Microsoft)).GetValue<bool?>(nameof(OAuthProviderOptions.Enabled)) ?? false;
@@ -88,10 +110,6 @@ public static class ServiceCollectionExtensions
             .BindConfiguration(MailJetOptions.SectionName)
             .ValidateDataAnnotations();
 
-        services.AddSingleton<IValidateOptions<RegistrationOptions>, RegistrationOptionsValidator>();
-        services.AddSingleton<IValidateOptions<MailJetOptions>, MailJetOptionsValidator>();
-        services.AddSingleton<IValidateOptions<MfaOptions>, MfaOptionsValidator>();
-        services.AddSingleton<IValidateOptions<ExternalProviderOptions>, ExternalProviderOptionsValidator>();
         services
             .AddOptions<OpenIddictOptions>()
             .BindConfiguration(OpenIddictOptions.SectionName)
@@ -102,17 +120,25 @@ public static class ServiceCollectionExtensions
             .BindConfiguration(OpenIddictServerKeyOptions.SectionName)
             .ValidateOnStart();
 
-        services.AddSingleton<IValidateOptions<OpenIddictServerKeyOptions>, OpenIddictServerKeyOptionsValidator>();
-
-        services.AddSingleton<IValidateOptions<OpenIddictOptions>, OpenIddictOptionsValidator>();
         services
             .AddOptions<CorsSettings>()
             .BindConfiguration(CorsSettings.SectionName)
             .ValidateDataAnnotations();
 
+        services.AddSingleton<IValidateOptions<RegistrationOptions>, RegistrationOptionsValidator>();
+        services.AddSingleton<IValidateOptions<MailJetOptions>, MailJetOptionsValidator>();
+        services.AddSingleton<IValidateOptions<MfaOptions>, MfaOptionsValidator>();
+        services.AddSingleton<IValidateOptions<ExternalProviderOptions>, ExternalProviderOptionsValidator>();
+        services.AddSingleton<IValidateOptions<OpenIddictOptions>, OpenIddictOptionsValidator>();
+        services.AddSingleton<IValidateOptions<OpenIddictServerKeyOptions>, OpenIddictServerKeyOptionsValidator>();
         services.AddSingleton<IValidateOptions<CorsSettings>, CorsSettingsValidator>();
 
-        if (googleEnabled)
+        return new ExternalProviderFlags(googleEnabled, microsoftEnabled, appleEnabled);
+    }
+
+    private static void ConfigureExternalAuthenticationOptions(IServiceCollection services, ExternalProviderFlags providerFlags)
+    {
+        if (providerFlags.GoogleEnabled)
         {
             services.AddOptions<GoogleOptions>().Configure<IOptions<ExternalProviderOptions>>((options, providerOptions) =>
             {
@@ -138,7 +164,7 @@ public static class ServiceCollectionExtensions
             });
         }
 
-        if (microsoftEnabled)
+        if (providerFlags.MicrosoftEnabled)
         {
             services.AddOptions<MicrosoftAccountOptions>().Configure<IOptions<ExternalProviderOptions>>((options, providerOptions) =>
             {
@@ -164,7 +190,7 @@ public static class ServiceCollectionExtensions
             });
         }
 
-        if (appleEnabled)
+        if (providerFlags.AppleEnabled)
         {
             services.AddOptions<OpenIdConnectOptions>(ExternalAuthenticationConstants.AppleScheme)
                 .Configure<IOptions<ExternalProviderOptions>>((options, providerOptions) =>
@@ -194,7 +220,10 @@ public static class ServiceCollectionExtensions
                     }
                 });
         }
+    }
 
+    private static void ConfigureDatabase(IServiceCollection services)
+    {
         services.AddDbContext<AppDbContext>((provider, options) =>
         {
             var databaseOptions = provider.GetRequiredService<IOptions<DatabaseOptions>>().Value;
@@ -221,7 +250,10 @@ public static class ServiceCollectionExtensions
                     builder => builder.EnableRetryOnFailure());
             }
         });
+    }
 
+    private static void ConfigureIdentity(IServiceCollection services)
+    {
         services
             .AddIdentityCore<ApplicationUser>(options =>
             {
@@ -249,17 +281,26 @@ public static class ServiceCollectionExtensions
         {
             options.TokenLifespan = TimeSpan.FromHours(3);
         });
+    }
 
+    private static void RegisterHostedServices(IServiceCollection services)
+    {
         services.AddHostedService<MigrationHostedService>();
         services.AddScoped<IdentityDataSeeder>();
         services.AddHostedService<IdentitySeedHostedService>();
         services.AddScoped<OpenIddictSeeder>();
         services.AddHostedService<OpenIddictSeederHostedService>();
+    }
 
+    private static void ConfigureCorsAndHttpClients(IServiceCollection services)
+    {
         services.AddCors();
         services.AddSingleton<IConfigureOptions<Microsoft.AspNetCore.Cors.Infrastructure.CorsOptions>, CorsPolicyConfigurator>();
         services.AddHttpClient();
+    }
 
+    private static void ConfigureOpenIddict(IServiceCollection services, IConfiguration configuration, IWebHostEnvironment environment)
+    {
         services.AddOpenIddict()
             .AddCore(options =>
             {
@@ -284,7 +325,6 @@ public static class ServiceCollectionExtensions
 
                 options.UseConfiguredServerKeys(configuration, environment);
 
-                // Disable token encryption for JWT Bearer compatibility
                 options.DisableAccessTokenEncryption();
 
                 options.UseAspNetCore()
@@ -293,14 +333,16 @@ public static class ServiceCollectionExtensions
 
                 options.AddEventHandler(PasswordFlowClientValidator.Descriptor);
                 options.AddEventHandler(PasswordGrantHandler.Descriptor);
-
             })
             .AddValidation(options =>
             {
                 options.UseLocalServer();
                 options.UseAspNetCore();
             });
+    }
 
+    private static void ConfigureAuthentication(IServiceCollection services, ExternalProviderFlags providerFlags)
+    {
         var authenticationBuilder = services.AddAuthentication(options =>
         {
             options.DefaultScheme = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme;
@@ -347,12 +389,12 @@ public static class ServiceCollectionExtensions
             options.Cookie.HttpOnly = true;
             options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
             options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None;
-            options.ExpireTimeSpan = TimeSpan.FromMinutes(10); // Give more time for MFA completion
+            options.ExpireTimeSpan = TimeSpan.FromMinutes(10);
         });
 
         authenticationBuilder.AddCookie(IdentityConstants.TwoFactorRememberMeScheme);
 
-        if (googleEnabled)
+        if (providerFlags.GoogleEnabled)
         {
             authenticationBuilder.AddGoogle(GoogleDefaults.AuthenticationScheme, options =>
             {
@@ -361,7 +403,7 @@ public static class ServiceCollectionExtensions
             });
         }
 
-        if (microsoftEnabled)
+        if (providerFlags.MicrosoftEnabled)
         {
             authenticationBuilder.AddMicrosoftAccount(MicrosoftAccountDefaults.AuthenticationScheme, options =>
             {
@@ -370,7 +412,7 @@ public static class ServiceCollectionExtensions
             });
         }
 
-        if (appleEnabled)
+        if (providerFlags.AppleEnabled)
         {
             authenticationBuilder.AddOpenIdConnect(ExternalAuthenticationConstants.AppleScheme, options =>
             {
@@ -384,9 +426,10 @@ public static class ServiceCollectionExtensions
                 options.Scope.Clear();
             });
         }
+    }
 
-        services.AddAuthorization();
-
+    private static void RegisterValidators(IServiceCollection services)
+    {
         services.AddScoped<IValidator<LoginRequest>, LoginRequestValidator>();
         services.AddScoped<IValidator<ConfirmEmailRequest>, ConfirmEmailRequestValidator>();
         services.AddScoped<IValidator<ResendConfirmationRequest>, ResendConfirmationRequestValidator>();
@@ -396,13 +439,21 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IValidator<RegisterUserRequest>, RegisterUserRequestValidator>();
         services.AddScoped<IValidator<MfaChallengeRequest>, MfaChallengeRequestValidator>();
         services.AddScoped<IValidator<UpdateProfileRequest>, UpdateProfileRequestValidator>();
+    }
 
+    private static void RegisterApplicationServices(IServiceCollection services)
+    {
+        services.AddSingleton<ILogSanitizer, LogSanitizer>();
+        services.AddSingleton<IExternalReturnUrlValidator, ExternalReturnUrlValidator>();
+        services.AddSingleton<IExternalCallbackUriFactory, ExternalCallbackUriFactory>();
         services.AddScoped<ITemplatedEmailSender, MailJetEmailSender>();
         services.AddScoped<IAccountEmailService, AccountEmailService>();
         services.AddScoped<ExternalAuthenticationService>();
         services.AddScoped<IAuditLogger, AuditLogger>();
-        services.AddSingleton<ILogSanitizer, LogSanitizer>();
+    }
 
+    private static void ConfigureMfaChallengeSenders(IServiceCollection services)
+    {
         services.AddScoped<IMfaChallengeSender>(provider =>
         {
             var options = provider.GetRequiredService<IOptions<MfaOptions>>().Value;
@@ -413,6 +464,7 @@ public static class ServiceCollectionExtensions
                     "email",
                     "Email MFA challenge is disabled.");
         });
+
         services.AddScoped<IMfaChallengeSender>(provider =>
         {
             var options = provider.GetRequiredService<IOptions<MfaOptions>>().Value;
@@ -423,14 +475,16 @@ public static class ServiceCollectionExtensions
                     "sms",
                     "SMS MFA challenge is disabled.");
         });
+    }
 
+    private static void ConfigureHealthChecks(IServiceCollection services)
+    {
         services
             .AddHealthChecks()
             .AddDbContextCheck<AppDbContext>("database")
             .AddCheck<MailJetOptionsHealthCheck>("mailjet")
             .AddCheck<ExternalProvidersHealthCheck>("externalProviders");
-
-        return services;
     }
 
+    private sealed record ExternalProviderFlags(bool GoogleEnabled, bool MicrosoftEnabled, bool AppleEnabled);
 }
