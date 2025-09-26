@@ -4,11 +4,11 @@ This document helps AI agents and new contributors quickly locate key references
 
 ## Primary References
 - **Project Overview:** `README.md`
-- **Detailed Plan & Roadmap:** `docs/identity-oidc-project-plan.md`
-- **Engineering Principles:** `docs/Engineering_Principles.md`
-- **Database Guidelines:** `docs/Database_Design_Guidelines.md`
-- **Getting Started:** `docs/getting-started.md`
-- **MailJet Integration Guide:** `docs/mailjet-email-sender.md`
+- **Detailed Plan & Roadmap:** `docs/plans/identity-oidc-project-plan.md`
+- **Engineering Principles:** `docs/reference/Engineering_Principles.md`
+- **Database Guidelines:** `docs/reference/Database_Design_Guidelines.md`
+- **Getting Started:** `docs/guides/getting-started.md`
+- **MailJet Integration Guide:** `docs/guides/mailjet-email-sender.md`
 - **Sprint Backlog:** `docs/sprints/`
   - [Sprint 01](docs/sprints/sprint-01.md)
   - [Sprint 02](docs/sprints/sprint-02.md)
@@ -21,8 +21,8 @@ Check the latest sprint document to understand in-progress stories, priorities, 
 
 ## Upcoming Documentation
 The following guides will be authored in later sprints:
-- `docs/integration-guide.md`
-- `docs/docker.md`
+- `docs/guides/integration-guide.md`
+- `docs/guides/docker.md`
 
 ## Key Conventions
 - Source code lives in project-named folders (primary service: `Identity.Base/` beneath the repo root alongside `Identity.sln`).

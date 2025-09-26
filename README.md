@@ -28,11 +28,11 @@ The project is open source under the MIT License.
 | `apps/` | Sample applications, including a JWT-consuming API. |
 
 Key documents:
-- [Project Plan](docs/identity-oidc-project-plan.md)
-- [Engineering Principles](docs/Engineering_Principles.md)
-- [Database Design Guidelines](docs/Database_Design_Guidelines.md)
-- [Identity.Base Public API](docs/identity-base-public-api.md)
-- [Release Checklist](docs/release-checklist.md)
+- [Project Plan](docs/plans/identity-oidc-project-plan.md)
+- [Engineering Principles](docs/reference/Engineering_Principles.md)
+- [Database Design Guidelines](docs/reference/Database_Design_Guidelines.md)
+- [Identity.Base Public API](docs/reference/identity-base-public-api.md)
+- [Release Checklist](docs/release/release-checklist.md)
 
 ---
 
@@ -50,7 +50,7 @@ dotnet add package Identity.Base --version <latest>
 dotnet add package Identity.Base.AspNet --version <latest>
 ```
 
-Manual package builds are available through the GitHub Actions **CI** workflow (see [Release Checklist](docs/release-checklist.md)).
+Manual package builds are available through the GitHub Actions **CI** workflow (see [Release Checklist](docs/release/release-checklist.md)).
 
 ---
 
@@ -81,7 +81,7 @@ app.MapApiEndpoints();
 app.Run();
 ```
 
-Follow the [Getting Started guide](docs/getting-started.md) for database setup, MailJet configuration, MFA, and OpenIddict seeding.
+Follow the [Getting Started guide](docs/guides/getting-started.md) for database setup, MailJet configuration, MFA, and OpenIddict seeding.
 
 ### 2. Integrate with an existing API
 
@@ -128,7 +128,7 @@ Connection strings live under `ConnectionStrings:Primary`. In development we def
 - `OpenIddict` – client applications, scopes, server key provider (development, file-system, Azure Key Vault).
 - `Cors` – allowed origins for browser clients.
 
-Full option reference is documented in [docs/getting-started.md](docs/getting-started.md).
+Full option reference is documented in [docs/guides/getting-started.md](docs/guides/getting-started.md).
 
 ---
 
@@ -145,14 +145,14 @@ Full option reference is documented in [docs/getting-started.md](docs/getting-st
 3. Smoke test the packages locally before pushing to NuGet.
 4. Tag the release and publish notes referencing the changelog.
 
-Process details: [Release Checklist](docs/release-checklist.md).
+Process details: [Release Checklist](docs/release/release-checklist.md).
 
 ---
 
 ## Support
 - File issues and feature requests on [GitHub](https://github.com/Amaretto-Software-Labs/identity-base/issues).
 - For security or conduct-related concerns, email [opensource@amarettosoftware.com](mailto:opensource@amarettosoftware.com).
-- Configuration guidance for email lives in [docs/mailjet-email-sender.md](docs/mailjet-email-sender.md).
+- Configuration guidance for email lives in [docs/guides/mailjet-email-sender.md](docs/guides/mailjet-email-sender.md).
 
 ---
 

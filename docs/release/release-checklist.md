@@ -6,6 +6,6 @@
 4. **Smoke test the packages** – download artifacts from the workflow run, add them to a sample host application, and verify migrations/options behave as expected.
 5. **Publish to NuGet (optional automation)** – set `publish-to-nuget` to true and configure `NUGET_API_KEY` secret to push automatically. Otherwise, run `dotnet nuget push` locally using the artifacts.
 6. **Tag the release** – create a Git tag/release notes referencing the changelog entry.
-7. **Docs** – if APIs changed, update `docs/identity-base-public-api.md` and `docs/getting-started.md` accordingly.
+7. **Docs** – if APIs changed, update `docs/reference/identity-base-public-api.md` and `docs/guides/getting-started.md` accordingly.
 
 _Optional_: Add release automation to the CI pipeline by supplying a NuGet API key and calling `dotnet nuget push` after the pack step.

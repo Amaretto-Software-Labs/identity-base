@@ -94,7 +94,7 @@ Ensure docs cover Identity setup, migrations, metadata configuration, and email 
 
 **Acceptance Criteria**
 - `Identity.Base/docs/README.md` updated with migration instructions and metadata configuration examples.
-- `/docs/getting-started.md` includes prerequisites to configure registration fields.
+- `/docs/guides/getting-started.md` includes prerequisites to configure registration fields.
 - Changelog entry describing sprint deliverables created.
 
 **Tasks**

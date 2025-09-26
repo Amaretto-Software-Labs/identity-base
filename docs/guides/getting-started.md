@@ -77,7 +77,7 @@ identityBuilder
 - Chain `AddExternalAuthProvider(...)` to plug in custom providers without modifying the package.
 - Use `AddIdentityBase(builder.Configuration, builder.Environment, options =>
   options.ConfigureOptions((services, configuration) => { /* override binding */ }));` to load settings from external stores (e.g., database, Key Vault) before the default option binding runs. Disable the built-in JSON binding by setting `options.UseDefaultOptionBinding = false` when replacing it entirely.
-- Review `docs/identity-base-public-api.md` for the supported public surface area when wiring custom services.
+- Review `../reference/identity-base-public-api.md` for the supported public surface area when wiring custom services.
 
 ## Server Key Providers
 

@@ -12,7 +12,7 @@
 
 ## Methodology
 - Static code review of API endpoints, configuration, authentication flows, option objects, and ASP.NET integration helpers.
-- Cross-referenced recent remediation notes in `docs/audit-findings.md` and existing unit/integration test coverage within `Identity.Base.Tests`.
+- Cross-referenced recent remediation notes in `docs/audits/audit-findings.md` and existing unit/integration test coverage within `Identity.Base.Tests`.
 - Findings prioritised by potential impact (High / Medium / Informational) and ease of exploitation.
 
 ## Security Findings

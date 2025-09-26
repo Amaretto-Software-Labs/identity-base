@@ -20,7 +20,7 @@
 7. Add or adapt unit/integration tests exercising the host and library APIs separately.
 
 ## Phase 3 – Documentation, Packaging, and Release (Medium Priority)
-1. Update `README.md`, `docs/getting-started.md`, and new plan docs to reflect NuGet-based consumption.
+1. Update `README.md`, `docs/guides/getting-started.md`, and new plan docs to reflect NuGet-based consumption.
 2. Produce example configuration files and explain how to override providers/configuration sources.
 3. Configure CI/CD to build, test, and pack `Identity.Base` and `Identity.Base.AspNet`; add symbol/source link settings.
 4. Draft release notes and migration guidance in `CHANGELOG.md` for package consumers.

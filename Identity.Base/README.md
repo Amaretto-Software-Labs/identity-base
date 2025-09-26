@@ -26,9 +26,9 @@ app.Run();
 See the repository README for complete instructions, configuration schemas, and database migration guidance.
 
 ## Documentation
-- [Getting Started](https://github.com/Amaretto-Software-Labs/identity-base/blob/main/docs/getting-started.md)
-- [Identity.Base Public API](https://github.com/Amaretto-Software-Labs/identity-base/blob/main/docs/identity-base-public-api.md)
-- [Release Checklist](https://github.com/Amaretto-Software-Labs/identity-base/blob/main/docs/release-checklist.md)
+- [Getting Started](https://github.com/Amaretto-Software-Labs/identity-base/blob/main/docs/guides/getting-started.md)
+- [Identity.Base Public API](https://github.com/Amaretto-Software-Labs/identity-base/blob/main/docs/reference/identity-base-public-api.md)
+- [Release Checklist](https://github.com/Amaretto-Software-Labs/identity-base/blob/main/docs/release/release-checklist.md)
 
 ## License
 Identity.Base is released under the [MIT License](https://github.com/Amaretto-Software-Labs/identity-base/blob/main/LICENSE).

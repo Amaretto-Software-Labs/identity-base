@@ -1,7 +1,7 @@
 # Identity Base
 
 ## Overview
-Identity Base is a .NET 9 minimal API that centralises authentication, user management, and integration surfaces for the broader identity platform. It follows the Engineering Principles defined in `docs/Engineering_Principles.md`, using extension modules to isolate concerns and feature folders for vertical slices (Authentication, Users, Email).
+Identity Base is a .NET 9 minimal API that centralises authentication, user management, and integration surfaces for the broader identity platform. It follows the Engineering Principles defined in `docs/reference/Engineering_Principles.md`, using extension modules to isolate concerns and feature folders for vertical slices (Authentication, Users, Email).
 
 ## Prerequisites
 - .NET SDK 9.0+

@@ -29,7 +29,7 @@ Deliver Identity.Base as a reusable NuGet library that encapsulates authenticati
    - Replace direct usage of `WebApplicationBuilder` with DI/service abstractions and expose minimal API registration methods.
    - Keep endpoint classes but ensure they can run inside arbitrary hosts.
    - Introduce a fluent `IdentityBaseBuilder` returned from `services.AddIdentityBase(...)` to compose features and external providers.
-   - Minimise the package's public surface by exposing only builder, option models, identity entities, and extensibility interfaces (see `docs/identity-base-public-api.md`).
+   - Minimise the package's public surface by exposing only builder, option models, identity entities, and extensibility interfaces (see `docs/reference/identity-base-public-api.md`).
 3. **Configuration Surface**
    - Preserve option classes (`DatabaseOptions`, `RegistrationOptions`, `MfaOptions`, etc.) and ensure validation occurs via DI.
    - Provide sample `appsettings.json` in host; document required configuration sections for consumers.
@@ -50,13 +50,13 @@ Deliver Identity.Base as a reusable NuGet library that encapsulates authenticati
 ## Build & Packaging
 - Update project metadata for `Identity.Base` and `Identity.Base.AspNet` (authors, license, README, release notes).
 - Configure CI to restore, build, run tests, pack both libraries, and optionally publish prerelease packages.
-- Current GitHub Actions workflow packs both libraries and uploads artifacts; see `docs/release-checklist.md` for manual publish steps.
+- Current GitHub Actions workflow packs both libraries and uploads artifacts; see `docs/release/release-checklist.md` for manual publish steps.
 - Provide symbol packages if desired; ensure deterministic builds and SourceLink are enabled.
 
 ## Documentation Updates
-- Revise `README.md` and `docs/getting-started.md` with NuGet usage, configuration requirements, and hosting instructions.
+- Revise `README.md` and `docs/guides/getting-started.md` with NuGet usage, configuration requirements, and hosting instructions.
 - Add migration guidance to `CHANGELOG.md` for downstream consumers.
-- Document configuration schemas and option classes in `docs/` as needed.
+- Document configuration schemas and option classes in `docs/reference/` as needed.
 
 ## Execution Phases
 1. **Phase 1 – Structural Refactor**

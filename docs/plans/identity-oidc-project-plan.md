@@ -50,9 +50,9 @@ Identity.sln
 - Maintain automated smoke tests covering both integration paths (drop-in + container) to ensure behavioural parity as the platform evolves.
 
 ## Documentation & Open Source Readiness
-- Create `/docs/getting-started.md` with copy-paste steps for dropping the solution into an existing repo (folder structure, configuration wiring, migration execution, MailJet setup).
-- Author `/docs/integration-guide.md` that walks consuming apps through registering clients/scopes, wiring minimal API endpoints, invoking token flows, configuring 2FA, enabling external providers, and extending user metadata; include Postman collections.
-- Provide `/docs/docker.md` describing container configuration, sample `docker-compose` with PostgreSQL, environment variable matrix for all settings, and guidance for injecting provider secrets securely.
+- Create `/docs/guides/getting-started.md` with copy-paste steps for dropping the solution into an existing repo (folder structure, configuration wiring, migration execution, MailJet setup).
+- Author `/docs/guides/integration-guide.md` that walks consuming apps through registering clients/scopes, wiring minimal API endpoints, invoking token flows, configuring 2FA, enabling external providers, and extending user metadata; include Postman collections.
+- Provide `/docs/guides/docker.md` describing container configuration, sample `docker-compose` with PostgreSQL, environment variable matrix for all settings, and guidance for injecting provider secrets securely.
 - Add open-source artefacts: `LICENSE`, `CONTRIBUTING.md`, and issue/PR templates aligned with project standards.
 - Keep change logs (`CHANGELOG.md`) and migration docs current so adopters can track upgrades.
 

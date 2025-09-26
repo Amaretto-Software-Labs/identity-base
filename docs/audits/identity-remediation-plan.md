@@ -37,7 +37,7 @@
 
 - **Task 1.3 – Update deployment guidance**  
   - Document new return URL policy and proxy requirements.  
-  - Files: `docs/getting-started.md`, `docs/identity-oidc-project-plan.md`, new release notes entry.
+  - Files: `docs/guides/getting-started.md`, `docs/plans/identity-oidc-project-plan.md`, new release notes entry.
 
 ## 2. Logging & Observability Safeguards
 **Owner:** Platform Foundation team  
@@ -76,7 +76,7 @@
   - Tests: update `LoginEndpointTests` to assert scope behaviour.
 
 - **Task 3.3 – Documentation alignment**  
-  - Reflect new configuration knobs in `docs/identity-oidc-project-plan.md` and sample usage guides.
+  - Reflect new configuration knobs in `docs/plans/identity-oidc-project-plan.md` and sample usage guides.
 
 ## 4. Dependency Injection & Service Refactor
 **Owner:** Architecture working group  
@@ -111,7 +111,7 @@
 **Goal:** Deliver confidence in changes and prepare stakeholders.
 
 - **Task 6.1 – Update changelog and audit docs**  
-  - Add entries to `CHANGELOG.md`, `docs/audit-findings.md`, and `docs/identity-code-audit.md` summarising remediation.
+  - Add entries to `CHANGELOG.md`, `docs/audits/audit-findings.md`, and `docs/audits/identity-code-audit.md` summarising remediation.
 
 - **Task 6.2 – Expand automated testing**  
   - Ensure new unit/integration tests cover key paths (external auth, logging toggles, MFA orchestrator).  

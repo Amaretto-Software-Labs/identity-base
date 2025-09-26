@@ -49,7 +49,7 @@ Deliver sample web app demonstrating registration, login (with MFA/social), prof
 - [x] Implement dynamic form renderer consuming `/auth/profile-schema` for registration & profile forms.
 - [x] Implement PKCE helpers and token storage (secure httpOnly cookie or memory + refresh).
 - [x] Provide reusable hook for checking MFA-required responses and orchestrating second factor challenge.
-- [x] Document harness setup in `/docs/integration-guide.md`.
+- [x] Document harness setup in `/docs/guides/integration-guide.md`.
 
 **Dependencies**
 - Sprint 3 & 4 auth flows complete.
@@ -82,7 +82,7 @@ Prepare final documentation set for internal and external audiences.
 **Notes:** LICENSE, CODE_OF_CONDUCT, release notes, and Postman collection remain unpublished.
 
 **Acceptance Criteria**
-- `/docs/getting-started.md`, `/docs/integration-guide.md`, `/docs/docker.md` completed with step-by-step instructions and screenshots where helpful.
+- `/docs/guides/getting-started.md`, `/docs/guides/integration-guide.md`, `/docs/guides/docker.md` completed with step-by-step instructions and screenshots where helpful.
 - `LICENSE`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, and issue/PR templates published.
 - Change log updated with Sprint 05 features and release notes draft.
 
