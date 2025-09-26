@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace Identity.Base.Logging;
 
-public sealed class LogSanitizer : ILogSanitizer
+internal sealed class LogSanitizer : ILogSanitizer
 {
     private const string Redacted = "[redacted]";
 

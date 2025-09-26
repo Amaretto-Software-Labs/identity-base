@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Identity.Base.Features.Authentication.Login;
 
-public sealed class LoginRequest
+internal sealed class LoginRequest
 {
     [Required]
     [EmailAddress]

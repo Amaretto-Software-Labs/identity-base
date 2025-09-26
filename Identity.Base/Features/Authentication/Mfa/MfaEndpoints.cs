@@ -382,9 +382,9 @@ public static class MfaEndpoints
     }
 }
 
-public sealed record MfaVerifyRequest(string Code, string Method = "authenticator", bool RememberMachine = false);
+internal sealed record MfaVerifyRequest(string Code, string Method = "authenticator", bool RememberMachine = false);
 
-public sealed class MfaVerifyRequestValidator : AbstractValidator<MfaVerifyRequest>
+internal sealed class MfaVerifyRequestValidator : AbstractValidator<MfaVerifyRequest>
 {
     public MfaVerifyRequestValidator()
     {
@@ -403,9 +403,9 @@ public sealed class MfaVerifyRequestValidator : AbstractValidator<MfaVerifyReque
     }
 }
 
-public sealed record MfaChallengeRequest(string Method);
+internal sealed record MfaChallengeRequest(string Method);
 
-public sealed class MfaChallengeRequestValidator : AbstractValidator<MfaChallengeRequest>
+internal sealed class MfaChallengeRequestValidator : AbstractValidator<MfaChallengeRequest>
 {
     public MfaChallengeRequestValidator()
     {

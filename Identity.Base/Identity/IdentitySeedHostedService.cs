@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Identity.Base.Identity;
 
-public sealed class IdentitySeedHostedService : IHostedService
+internal sealed class IdentitySeedHostedService : IHostedService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<IdentitySeedHostedService> _logger;

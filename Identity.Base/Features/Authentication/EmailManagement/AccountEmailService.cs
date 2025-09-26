@@ -17,7 +17,7 @@ public interface IAccountEmailService
     Task SendPasswordResetEmailAsync(ApplicationUser user, CancellationToken cancellationToken = default);
 }
 
-public sealed class AccountEmailService : IAccountEmailService
+internal sealed class AccountEmailService : IAccountEmailService
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ITemplatedEmailSender _emailSender;

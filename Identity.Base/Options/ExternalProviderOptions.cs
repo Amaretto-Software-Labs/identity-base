@@ -42,7 +42,7 @@ public sealed class AppleProviderOptions : OAuthProviderOptions
     public string PrivateKey { get; set; } = string.Empty;
 }
 
-public sealed class ExternalProviderOptionsValidator : IValidateOptions<ExternalProviderOptions>
+internal sealed class ExternalProviderOptionsValidator : IValidateOptions<ExternalProviderOptions>
 {
     public ValidateOptionsResult Validate(string? name, ExternalProviderOptions options)
     {

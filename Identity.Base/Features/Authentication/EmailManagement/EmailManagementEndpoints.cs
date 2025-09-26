@@ -225,15 +225,15 @@ public static class EmailManagementEndpoints
     }
 }
 
-public sealed record ConfirmEmailRequest(string Email, string Token);
+internal sealed record ConfirmEmailRequest(string Email, string Token);
 
-public sealed record ResendConfirmationRequest(string Email);
+internal sealed record ResendConfirmationRequest(string Email);
 
-public sealed record ForgotPasswordRequest(string Email);
+internal sealed record ForgotPasswordRequest(string Email);
 
-public sealed record ResetPasswordRequest(string Email, string Token, string Password);
+internal sealed record ResetPasswordRequest(string Email, string Token, string Password);
 
-public sealed class ConfirmEmailRequestValidator : AbstractValidator<ConfirmEmailRequest>
+internal sealed class ConfirmEmailRequestValidator : AbstractValidator<ConfirmEmailRequest>
 {
     public ConfirmEmailRequestValidator()
     {
@@ -245,7 +245,7 @@ public sealed class ConfirmEmailRequestValidator : AbstractValidator<ConfirmEmai
     }
 }
 
-public sealed class ResendConfirmationRequestValidator : AbstractValidator<ResendConfirmationRequest>
+internal sealed class ResendConfirmationRequestValidator : AbstractValidator<ResendConfirmationRequest>
 {
     public ResendConfirmationRequestValidator()
     {
@@ -255,7 +255,7 @@ public sealed class ResendConfirmationRequestValidator : AbstractValidator<Resen
     }
 }
 
-public sealed class ForgotPasswordRequestValidator : AbstractValidator<ForgotPasswordRequest>
+internal sealed class ForgotPasswordRequestValidator : AbstractValidator<ForgotPasswordRequest>
 {
     public ForgotPasswordRequestValidator()
     {
@@ -265,7 +265,7 @@ public sealed class ForgotPasswordRequestValidator : AbstractValidator<ForgotPas
     }
 }
 
-public sealed class ResetPasswordRequestValidator : AbstractValidator<ResetPasswordRequest>
+internal sealed class ResetPasswordRequestValidator : AbstractValidator<ResetPasswordRequest>
 {
     public ResetPasswordRequestValidator()
     {

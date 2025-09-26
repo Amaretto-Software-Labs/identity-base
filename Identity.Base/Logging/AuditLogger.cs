@@ -22,7 +22,7 @@ public static class AuditEventTypes
     public const string ExternalLogin = "external.login";
 }
 
-public sealed class AuditLogger : IAuditLogger
+internal sealed class AuditLogger : IAuditLogger
 {
     private readonly ILogger<AuditLogger> _logger;
 

@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Identity.Base.Data;
 
-public sealed class MigrationHostedService : IHostedService
+internal sealed class MigrationHostedService : IHostedService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<MigrationHostedService> _logger;

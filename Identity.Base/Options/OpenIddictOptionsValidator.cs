@@ -3,7 +3,7 @@ using OpenIddict.Abstractions;
 
 namespace Identity.Base.Options;
 
-public sealed class OpenIddictOptionsValidator : IValidateOptions<OpenIddictOptions>
+internal sealed class OpenIddictOptionsValidator : IValidateOptions<OpenIddictOptions>
 {
     public ValidateOptionsResult Validate(string? name, OpenIddictOptions options)
     {

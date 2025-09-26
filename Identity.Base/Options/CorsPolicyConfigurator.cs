@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Options;
 
-public sealed class CorsPolicyConfigurator : IConfigureOptions<CorsOptions>
+internal sealed class CorsPolicyConfigurator : IConfigureOptions<CorsOptions>
 {
     private readonly IOptions<CorsSettings> _settings;
 

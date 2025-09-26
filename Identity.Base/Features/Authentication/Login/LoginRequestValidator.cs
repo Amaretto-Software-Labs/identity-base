@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace Identity.Base.Features.Authentication.Login;
 
-public sealed class LoginRequestValidator : AbstractValidator<LoginRequest>
+internal sealed class LoginRequestValidator : AbstractValidator<LoginRequest>
 {
     public LoginRequestValidator()
     {

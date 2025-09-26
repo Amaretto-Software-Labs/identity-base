@@ -5,7 +5,7 @@ using Identity.Base.Options;
 
 namespace Identity.Base.OpenIddict.KeyManagement;
 
-public sealed class FileSystemOpenIddictServerKeyProvider : IOpenIddictServerKeyProvider
+internal sealed class FileSystemOpenIddictServerKeyProvider : IOpenIddictServerKeyProvider
 {
     private readonly CertificateDescriptor _signing;
     private readonly CertificateDescriptor? _encryption;

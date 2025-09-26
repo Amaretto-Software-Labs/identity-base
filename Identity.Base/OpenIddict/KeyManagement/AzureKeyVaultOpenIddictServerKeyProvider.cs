@@ -8,7 +8,7 @@ using Identity.Base.Options;
 
 namespace Identity.Base.OpenIddict.KeyManagement;
 
-public sealed class AzureKeyVaultOpenIddictServerKeyProvider : IOpenIddictServerKeyProvider
+internal sealed class AzureKeyVaultOpenIddictServerKeyProvider : IOpenIddictServerKeyProvider
 {
     private readonly AzureKeyVaultCertificateOptions _options;
     private readonly SecretClient _secretClient;

@@ -8,7 +8,7 @@ using OpenIddict.Server;
 
 namespace Identity.Base.OpenIddict.Handlers;
 
-public sealed class PasswordFlowClientValidator : IOpenIddictServerHandler<OpenIddictServerEvents.ValidateTokenRequestContext>
+internal sealed class PasswordFlowClientValidator : IOpenIddictServerHandler<OpenIddictServerEvents.ValidateTokenRequestContext>
 {
     private readonly IOptions<OpenIddictOptions> _options;
     private HashSet<string>? _allowedClients;

@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Features.Authentication.Register;
 
-public sealed class RegisterUserRequestValidator : AbstractValidator<RegisterUserRequest>
+internal sealed class RegisterUserRequestValidator : AbstractValidator<RegisterUserRequest>
 {
     public RegisterUserRequestValidator(IOptions<RegistrationOptions> options)
     {

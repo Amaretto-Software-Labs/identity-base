@@ -145,14 +145,14 @@ internal sealed record UserProfileResponse(
     string ConcurrencyStamp,
     bool TwoFactorEnabled);
 
-public sealed class UpdateProfileRequest
+internal sealed class UpdateProfileRequest
 {
     public IDictionary<string, string?> Metadata { get; init; } = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
 
     public string ConcurrencyStamp { get; init; } = string.Empty;
 }
 
-public sealed class UpdateProfileRequestValidator : AbstractValidator<UpdateProfileRequest>
+internal sealed class UpdateProfileRequestValidator : AbstractValidator<UpdateProfileRequest>
 {
     public UpdateProfileRequestValidator(IOptions<RegistrationOptions> registrationOptions)
     {

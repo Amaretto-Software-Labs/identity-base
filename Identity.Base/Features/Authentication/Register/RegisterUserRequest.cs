@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Identity.Base.Features.Authentication.Register;
 
-public sealed class RegisterUserRequest
+internal sealed class RegisterUserRequest
 {
     [Required]
     [EmailAddress]

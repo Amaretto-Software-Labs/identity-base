@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace Identity.Base.Options;
 
-public sealed class RegistrationOptionsValidator : IValidateOptions<RegistrationOptions>
+internal sealed class RegistrationOptionsValidator : IValidateOptions<RegistrationOptions>
 {
     public ValidateOptionsResult Validate(string? name, RegistrationOptions options)
     {

@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Health;
 
-public sealed class MailJetOptionsHealthCheck : IHealthCheck
+internal sealed class MailJetOptionsHealthCheck : IHealthCheck
 {
     private readonly IOptions<MailJetOptions> _options;
 

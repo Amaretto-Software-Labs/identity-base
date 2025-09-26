@@ -7,7 +7,7 @@ using OpenIddict.Server;
 
 namespace Identity.Base.OpenIddict.Handlers;
 
-public sealed class PasswordGrantHandler : IOpenIddictServerHandler<OpenIddictServerEvents.HandleTokenRequestContext>
+internal sealed class PasswordGrantHandler : IOpenIddictServerHandler<OpenIddictServerEvents.HandleTokenRequestContext>
 {
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;

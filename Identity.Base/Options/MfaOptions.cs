@@ -35,7 +35,7 @@ public sealed class SmsChallengeOptions
     public string AuthToken { get; set; } = string.Empty;
 }
 
-public sealed class MfaOptionsValidator : IValidateOptions<MfaOptions>
+internal sealed class MfaOptionsValidator : IValidateOptions<MfaOptions>
 {
     public ValidateOptionsResult Validate(string? name, MfaOptions options)
     {

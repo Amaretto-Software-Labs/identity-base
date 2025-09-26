@@ -9,7 +9,7 @@ public interface IMfaChallengeSender
     Task SendChallengeAsync(ApplicationUser user, string code, CancellationToken cancellationToken = default);
 }
 
-public sealed class DisabledMfaChallengeSender : IMfaChallengeSender
+internal sealed class DisabledMfaChallengeSender : IMfaChallengeSender
 {
     private readonly string _method;
     private readonly string _message;

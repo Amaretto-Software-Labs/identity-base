@@ -9,7 +9,7 @@ public interface IExternalCallbackUriFactory
     string Create(HttpContext context, string provider);
 }
 
-public sealed class ExternalCallbackUriFactory : IExternalCallbackUriFactory
+internal sealed class ExternalCallbackUriFactory : IExternalCallbackUriFactory
 {
     public string Create(HttpContext context, string provider)
     {

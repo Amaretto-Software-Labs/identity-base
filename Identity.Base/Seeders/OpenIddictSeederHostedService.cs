@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Identity.Base.Seeders;
 
-public sealed class OpenIddictSeederHostedService : IHostedService
+internal sealed class OpenIddictSeederHostedService : IHostedService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<OpenIddictSeederHostedService> _logger;

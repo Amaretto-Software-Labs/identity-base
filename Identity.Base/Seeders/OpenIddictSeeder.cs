@@ -5,7 +5,7 @@ using OpenIddict.Abstractions;
 
 namespace Identity.Base.Seeders;
 
-public sealed class OpenIddictSeeder
+internal sealed class OpenIddictSeeder
 {
     private readonly IOptions<OpenIddictOptions> _options;
     private readonly IOpenIddictApplicationManager _applicationManager;

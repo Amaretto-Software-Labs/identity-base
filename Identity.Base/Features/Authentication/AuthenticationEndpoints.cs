@@ -50,9 +50,9 @@ public static class AuthenticationEndpoints
     }
 }
 
-public sealed record ProfileSchemaResponse(IReadOnlyCollection<ProfileSchemaField> Fields);
+internal sealed record ProfileSchemaResponse(IReadOnlyCollection<ProfileSchemaField> Fields);
 
-public sealed record ProfileSchemaField(
+internal sealed record ProfileSchemaField(
     string Name,
     string DisplayName,
     bool Required,

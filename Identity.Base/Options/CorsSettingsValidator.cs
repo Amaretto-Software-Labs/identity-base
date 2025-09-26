@@ -2,7 +2,7 @@ using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Options;
 
-public sealed class CorsSettingsValidator : IValidateOptions<CorsSettings>
+internal sealed class CorsSettingsValidator : IValidateOptions<CorsSettings>
 {
     public ValidateOptionsResult Validate(string? name, CorsSettings options)
     {

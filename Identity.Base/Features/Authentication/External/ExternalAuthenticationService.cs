@@ -16,7 +16,7 @@ using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Features.Authentication.External;
 
-public sealed class ExternalAuthenticationService
+internal sealed class ExternalAuthenticationService
 {
     private readonly IOptions<ExternalProviderOptions> _providerOptions;
     private readonly SignInManager<ApplicationUser> _signInManager;

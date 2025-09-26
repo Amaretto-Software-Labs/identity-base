@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Options;
 
-public sealed class OpenIddictServerKeyOptionsValidator : IValidateOptions<OpenIddictServerKeyOptions>
+internal sealed class OpenIddictServerKeyOptionsValidator : IValidateOptions<OpenIddictServerKeyOptions>
 {
     public ValidateOptionsResult Validate(string? name, OpenIddictServerKeyOptions options)
     {

@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace Identity.Base.Health;
 
-public sealed class ExternalProvidersHealthCheck : IHealthCheck
+internal sealed class ExternalProvidersHealthCheck : IHealthCheck
 {
     private readonly IOptions<ExternalProviderOptions> _options;
 

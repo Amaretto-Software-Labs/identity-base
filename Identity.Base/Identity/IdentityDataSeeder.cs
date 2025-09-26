@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Identity;
 
-public sealed class IdentityDataSeeder
+internal sealed class IdentityDataSeeder
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<ApplicationRole> _roleManager;

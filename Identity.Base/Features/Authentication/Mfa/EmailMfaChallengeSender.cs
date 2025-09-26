@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Features.Authentication.Mfa;
 
-public sealed class EmailMfaChallengeSender : IMfaChallengeSender
+internal sealed class EmailMfaChallengeSender : IMfaChallengeSender
 {
     private readonly ITemplatedEmailSender _emailSender;
     private readonly MailJetOptions _mailJetOptions;

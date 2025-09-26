@@ -39,7 +39,7 @@ public sealed class MailJetErrorReportingOptions
     public string Email { get; set; } = string.Empty;
 }
 
-public sealed class MailJetOptionsValidator : IValidateOptions<MailJetOptions>
+internal sealed class MailJetOptionsValidator : IValidateOptions<MailJetOptions>
 {
     public ValidateOptionsResult Validate(string? name, MailJetOptions options)
     {

@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Features.Email;
 
-public sealed class MailJetEmailSender : ITemplatedEmailSender
+internal sealed class MailJetEmailSender : ITemplatedEmailSender
 {
     private readonly MailJetOptions _options;
     private readonly ILogger<MailJetEmailSender> _logger;

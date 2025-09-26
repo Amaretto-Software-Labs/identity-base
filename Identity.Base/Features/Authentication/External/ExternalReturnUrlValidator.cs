@@ -11,7 +11,7 @@ public interface IExternalReturnUrlValidator
     bool TryNormalize(string? value, out string? normalized);
 }
 
-public sealed class ExternalReturnUrlValidator : IExternalReturnUrlValidator
+internal sealed class ExternalReturnUrlValidator : IExternalReturnUrlValidator
 {
     private readonly IOptions<OpenIddictOptions> _openIddictOptions;
     private HashSet<string>? _allowedOrigins;
