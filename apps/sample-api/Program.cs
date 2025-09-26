@@ -1,6 +1,5 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
+using Identity.Base.AspNet;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,48 +26,8 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Configure JWT Bearer authentication with JWKS endpoint
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.Authority = "https://localhost:5000";
-        options.Audience = "identity.api";
-        options.RequireHttpsMetadata = false; // For development only
-
-        // Configure HTTP client to bypass SSL validation
-        options.BackchannelHttpHandler = new HttpClientHandler()
-        {
-            ServerCertificateCustomValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true
-        };
-
-        // Enable detailed logging for debugging
-        options.Events = new JwtBearerEvents
-        {
-            OnAuthenticationFailed = context =>
-            {
-                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-                logger.LogError("Authentication failed: {Error}", context.Exception?.Message);
-                return Task.CompletedTask;
-            },
-            OnTokenValidated = context =>
-            {
-                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-                logger.LogInformation("Token validated successfully for user: {User}",
-                    context.Principal?.Identity?.Name ?? "Unknown");
-
-                // Log all claims for debugging
-                var claims = context.Principal?.Claims?.ToList() ?? new List<System.Security.Claims.Claim>();
-                foreach (var claim in claims)
-                {
-                    logger.LogDebug("Claim: {Type} = {Value}", claim.Type, claim.Value);
-                }
-
-                return Task.CompletedTask;
-            }
-        };
-    });
-
-builder.Services.AddAuthorization();
+// Configure JWT Bearer authentication using Identity.Base.AspNet
+builder.Services.AddIdentityBaseAuthentication("https://localhost:5000");
 
 var app = builder.Build();
 
@@ -81,33 +40,9 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors();
 
-// Add request logging middleware
-app.Use(async (context, next) =>
-{
-    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-    var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
-    var authHeaderDisplay = "None";
-    if (authHeader != null && authHeader.StartsWith("Bearer "))
-    {
-        var token = authHeader.Substring("Bearer ".Length);
-        authHeaderDisplay = $"Bearer {token[..Math.Min(20, token.Length)]}...";
-    }
-
-    logger.LogInformation("Request: {Method} {Path} - Auth Header: {AuthHeader}",
-        context.Request.Method,
-        context.Request.Path,
-        authHeaderDisplay);
-
-    await next();
-
-    logger.LogInformation("Response: {StatusCode} - User authenticated: {IsAuthenticated} - User: {User}",
-        context.Response.StatusCode,
-        context.User?.Identity?.IsAuthenticated ?? false,
-        context.User?.Identity?.Name ?? "None");
-});
-
-app.UseAuthentication();
-app.UseAuthorization();
+// Add Identity.Base logging and authentication middleware
+app.UseIdentityBaseRequestLogging(enableDetailedLogging: true);
+app.UseIdentityBaseAuthentication();
 
 var summaries = new[]
 {
@@ -154,37 +89,7 @@ app.MapGet("/api/protected/admin", (ClaimsPrincipal user) =>
         User = GetUserInfo(user)
     };
 })
-.RequireAuthorization(policy =>
-{
-    policy.RequireAssertion(context =>
-    {
-        // Check for scope claim in various formats
-        var user = context.User;
-
-        // Option 1: Check for "scope" claim with space-separated values
-        var scopeClaim = user.FindFirst("scope")?.Value;
-        if (!string.IsNullOrEmpty(scopeClaim) && scopeClaim.Split(' ').Contains("identity.api"))
-        {
-            return true;
-        }
-
-        // Option 2: Check for multiple "scope" claims
-        var scopes = user.FindAll("scope").Select(c => c.Value);
-        if (scopes.Contains("identity.api"))
-        {
-            return true;
-        }
-
-        // Option 3: Check for "scp" claim (common in some JWT implementations)
-        var scpClaim = user.FindFirst("scp")?.Value;
-        if (!string.IsNullOrEmpty(scpClaim) && scpClaim.Split(' ').Contains("identity.api"))
-        {
-            return true;
-        }
-
-        return false;
-    });
-})
+.RequireAuthorization(policy => policy.RequireScope("identity.api"))
 .WithName("GetAdminData");
 
 static object GetUserInfo(ClaimsPrincipal user)
