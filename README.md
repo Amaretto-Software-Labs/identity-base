@@ -166,3 +166,16 @@ Process details: [Release Checklist](docs/release/release-checklist.md).
 ## License
 
 Identity Base is licensed under the [MIT License](LICENSE).
+
+## Sponsors & Contributors
+
+<p align="center">
+  <a href="https://vasoftware.co.uk" target="_blank" style="margin-right:24px;">
+    <img src="docs/assets/VA_Logo_Horizontal_RGBx320.png" alt="VA Software Solutions" width="200" />
+  </a>
+  <a href="https://amarettosoftware.com" target="_blank">
+    <img src="docs/assets/amaretto-software-labs-logo.png" alt="Amaretto Software Labs" width="200" />
+  </a>
+</p>
+
+We are grateful to VA Software Solutions and Amaretto Software Labs for supporting the Identity Base project.
