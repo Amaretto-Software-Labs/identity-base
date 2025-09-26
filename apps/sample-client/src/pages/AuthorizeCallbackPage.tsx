@@ -1,10 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthorization } from '@identity-base/react-client'
 
 export default function AuthorizeCallbackPage() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
+  const callbackProcessed = useRef(false)
   const { handleCallback, isLoading, error } = useAuthorization({
     onSuccess: () => {
       navigate('/', { replace: true })
@@ -17,7 +18,8 @@ export default function AuthorizeCallbackPage() {
   const state = params.get('state')
 
   useEffect(() => {
-    if (code && state) {
+    if (code && state && !callbackProcessed.current) {
+      callbackProcessed.current = true
       handleCallback(code, state)
     }
   }, [code, state, handleCallback])

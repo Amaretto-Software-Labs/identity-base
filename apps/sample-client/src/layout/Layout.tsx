@@ -31,6 +31,9 @@ export default function Layout() {
             <NavLink to="/authorize" className={navLinkClass}>
               Authorize
             </NavLink>
+            <NavLink to="/api-demo" className={navLinkClass}>
+              API Demo
+            </NavLink>
           </nav>
           <div className="flex items-center gap-3">
             {user ? (

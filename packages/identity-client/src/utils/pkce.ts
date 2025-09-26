@@ -28,10 +28,12 @@ export function randomState(): string {
 
 export class PKCEManager {
   private storageKey = 'identity:pkce'
+  private consumedKey = 'identity:pkce:consumed'
 
   persistPkce(verifier: string, state: string): void {
     try {
       sessionStorage.setItem(this.storageKey, JSON.stringify({ verifier, state }))
+      sessionStorage.removeItem(this.consumedKey) // Reset consumed flag
     } catch {
       // Silently fail if sessionStorage is not available
     }
@@ -39,6 +41,11 @@ export class PKCEManager {
 
   consumePkce(state: string): string | null {
     try {
+      // Check if already consumed to prevent double consumption
+      if (sessionStorage.getItem(this.consumedKey)) {
+        return null
+      }
+
       const stored = sessionStorage.getItem(this.storageKey)
       if (!stored) return null
 
@@ -48,7 +55,19 @@ export class PKCEManager {
         return null
       }
 
-      sessionStorage.removeItem(this.storageKey)
+      // Mark as consumed but don't remove yet (in case of React StrictMode double calls)
+      sessionStorage.setItem(this.consumedKey, 'true')
+
+      // Remove after a short delay to allow for StrictMode double execution
+      setTimeout(() => {
+        try {
+          sessionStorage.removeItem(this.storageKey)
+          sessionStorage.removeItem(this.consumedKey)
+        } catch {
+          // Silently fail
+        }
+      }, 100)
+
       return verifier
     } catch {
       return null
@@ -58,6 +77,7 @@ export class PKCEManager {
   clearPkce(): void {
     try {
       sessionStorage.removeItem(this.storageKey)
+      sessionStorage.removeItem(this.consumedKey)
     } catch {
       // Silently fail if sessionStorage is not available
     }

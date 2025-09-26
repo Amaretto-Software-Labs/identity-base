@@ -9,6 +9,7 @@ import ProfilePage from './pages/ProfilePage'
 import AuthorizePage from './pages/AuthorizePage'
 import AuthorizeCallbackPage from './pages/AuthorizeCallbackPage'
 import ExternalResultPage from './pages/ExternalResultPage'
+import ApiDemoPage from './pages/ApiDemoPage'
 import { CONFIG } from './config'
 
 export default function App() {
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="mfa" element={<MfaPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="authorize" element={<AuthorizePage />} />
+          <Route path="api-demo" element={<ApiDemoPage />} />
           <Route path="external-result" element={<ExternalResultPage />} />
         </Route>
         <Route path="auth/callback" element={<AuthorizeCallbackPage />} />

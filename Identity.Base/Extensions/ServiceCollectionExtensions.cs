@@ -273,8 +273,11 @@ public static class ServiceCollectionExtensions
 
                 options.RegisterScopes(OpenIddictConstants.Scopes.Email, OpenIddictConstants.Scopes.Profile, OpenIddictConstants.Scopes.OfflineAccess);
 
-                options.AddDevelopmentEncryptionCertificate();
+                options.AddEphemeralEncryptionKey(); // Use ephemeral key but don't encrypt tokens
                 options.AddDevelopmentSigningCertificate();
+
+                // Disable token encryption for JWT Bearer compatibility
+                options.DisableAccessTokenEncryption();
 
                 options.UseAspNetCore()
                     .EnableAuthorizationEndpointPassthrough()
