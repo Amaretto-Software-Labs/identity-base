@@ -20,8 +20,10 @@
   },
   "dependencies": {
     "@identity-base/react-client": "file:../../packages/identity-client",
+    "@types/qrcode": "^1.5.5",
     "axios": "^1.12.2",
     "clsx": "^2.1.1",
+    "qrcode": "^1.5.4",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.9.1"

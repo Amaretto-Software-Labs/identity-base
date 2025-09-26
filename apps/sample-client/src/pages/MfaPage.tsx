@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useMfa } from '@identity-base/react-client'
-import type { MfaChallengeRequest, MfaVerifyRequest } from '../api/types'
+import type { MfaVerifyRequest } from '../api/types'
 
 interface MfaState {
   email?: string
@@ -20,7 +20,6 @@ export default function MfaPage() {
   const methods = useMemo(() => mfaState.methods ?? ['authenticator', 'recovery'], [mfaState.methods])
   const [method, setMethod] = useState<string>(methods[0] ?? 'authenticator')
   const [code, setCode] = useState('')
-  const [rememberMachine, setRememberMachine] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
   const handleSendChallenge = async (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -48,7 +47,6 @@ export default function MfaPage() {
       await verifyChallenge({
         code,
         method: method as MfaVerifyRequest['method'],
-        rememberMachine,
       })
       setMessage('MFA verification successful. Redirecting…')
       setTimeout(() => navigate('/', { replace: true }), 750)
@@ -101,16 +99,7 @@ export default function MfaPage() {
           />
         </div>
 
-        <div className="flex items-center justify-between text-sm text-slate-600">
-          <label className="inline-flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={rememberMachine}
-              onChange={(event) => setRememberMachine(event.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-200"
-            />
-            Remember this machine
-          </label>
+        <div className="text-right">
           <button
             type="button"
             onClick={handleSendChallenge}

@@ -6,6 +6,9 @@ import { createError } from '../../utils/errors'
 interface UseMfaOptions {
   onChallengeSuccess?: (response: { message: string }) => void
   onVerifySuccess?: (response: { message: string }) => void
+  onEnrollSuccess?: (response: { sharedKey: string; authenticatorUri: string }) => void
+  onDisableSuccess?: (response: { message: string }) => void
+  onRecoveryCodesSuccess?: (response: { recoveryCodes: string[] }) => void
   onError?: (error: any) => void
 }
 
@@ -61,9 +64,70 @@ export function useMfa(options: UseMfaOptions = {}) {
     }
   }, [authManager, refreshUser, options])
 
+  const enrollMfa = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await authManager.enrollMfa()
+      options.onEnrollSuccess?.(response)
+      return response
+    } catch (err) {
+      const error = createError(err)
+      setError(error)
+      options.onError?.(error)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }, [authManager, options])
+
+  const disableMfa = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await authManager.disableMfa()
+
+      // After disabling MFA, refresh user state
+      await refreshUser()
+
+      options.onDisableSuccess?.(response)
+      return response
+    } catch (err) {
+      const error = createError(err)
+      setError(error)
+      options.onError?.(error)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }, [authManager, refreshUser, options])
+
+  const regenerateRecoveryCodes = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await authManager.regenerateRecoveryCodes()
+      options.onRecoveryCodesSuccess?.(response)
+      return response
+    } catch (err) {
+      const error = createError(err)
+      setError(error)
+      options.onError?.(error)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }, [authManager, options])
+
   return {
     sendChallenge,
     verifyChallenge,
+    enrollMfa,
+    disableMfa,
+    regenerateRecoveryCodes,
     isLoading,
     error,
   }

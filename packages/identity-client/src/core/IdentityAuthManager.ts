@@ -71,6 +71,10 @@ export class IdentityAuthManager {
     }
   }
 
+  async getAccessToken(): Promise<string | null> {
+    return await this.tokenManager.ensureValidToken()
+  }
+
   // Login flow
   async login(request: LoginRequest): Promise<LoginResponse> {
     const loginRequest = {
@@ -139,6 +143,48 @@ export class IdentityAuthManager {
     return await this.apiClient.fetch<{ message: string }>('/auth/mfa/verify', {
       method: 'POST',
       body: JSON.stringify(mfaRequest),
+    })
+  }
+
+  async enrollMfa(): Promise<{ sharedKey: string; authenticatorUri: string }> {
+    const token = await this.tokenManager.ensureValidToken()
+    if (!token) {
+      throw createError('Authentication required')
+    }
+
+    return await this.apiClient.fetch<{ sharedKey: string; authenticatorUri: string }>('/auth/mfa/enroll', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
+
+  async disableMfa(): Promise<{ message: string }> {
+    const token = await this.tokenManager.ensureValidToken()
+    if (!token) {
+      throw createError('Authentication required')
+    }
+
+    return await this.apiClient.fetch<{ message: string }>('/auth/mfa/disable', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  }
+
+  async regenerateRecoveryCodes(): Promise<{ recoveryCodes: string[] }> {
+    const token = await this.tokenManager.ensureValidToken()
+    if (!token) {
+      throw createError('Authentication required')
+    }
+
+    return await this.apiClient.fetch<{ recoveryCodes: string[] }>('/auth/mfa/recovery-codes', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
     })
   }
 

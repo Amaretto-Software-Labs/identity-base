@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth, useProfile } from '@identity-base/react-client'
+import { useNavigate, Link } from 'react-router-dom'
+import { useAuth, useProfile, useMfa } from '@identity-base/react-client'
 import { buildExternalStartUrl, unlinkExternalProvider } from '../api/auth'
 import { CONFIG } from '../config'
 
@@ -14,12 +14,25 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null)
   const [linking, setLinking] = useState<string | null>(null)
   const [unlinking, setUnlinking] = useState<string | null>(null)
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null)
+  const [showRecoveryCodes, setShowRecoveryCodes] = useState(false)
+
+  const { disableMfa, regenerateRecoveryCodes, isLoading: mfaLoading } = useMfa({
+    onDisableSuccess: () => {
+      setStatus('MFA has been disabled for your account.')
+    },
+    onRecoveryCodesSuccess: (response) => {
+      setRecoveryCodes(response.recoveryCodes)
+      setShowRecoveryCodes(true)
+      setStatus('New recovery codes generated.')
+    }
+  })
 
   useEffect(() => {
     if (user && schema) {
       const next: Record<string, string> = {}
       schema.fields.forEach((field) => {
-        next[field.name] = user.metadata[field.name] ?? ''
+        next[field.name] = user.profileMetadata[field.name] ?? ''
       })
       setFormState(next)
     }
@@ -55,6 +68,42 @@ export default function ProfilePage() {
     } catch (err) {
       setError(renderError(err))
     }
+  }
+
+  const handleDisableMfa = async () => {
+    if (!window.confirm('Are you sure you want to disable two-factor authentication? This will make your account less secure.')) {
+      return
+    }
+
+    setStatus(null)
+    setError(null)
+
+    try {
+      await disableMfa()
+    } catch (err) {
+      setError(renderError(err))
+    }
+  }
+
+  const handleRegenerateRecoveryCodes = async () => {
+    if (!window.confirm('Are you sure you want to generate new recovery codes? Your existing codes will no longer work.')) {
+      return
+    }
+
+    setStatus(null)
+    setError(null)
+
+    try {
+      await regenerateRecoveryCodes()
+    } catch (err) {
+      setError(renderError(err))
+    }
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setStatus('Copied to clipboard!')
+    })
   }
 
   return (
@@ -144,6 +193,80 @@ export default function ProfilePage() {
             ))}
         </div>
         {linking && <p className="text-xs text-slate-500">Link flow started for {linking}. Complete the provider login.</p>}
+      </section>
+
+      <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <h2 className="text-sm font-semibold text-slate-800">Two-Factor Authentication</h2>
+        <p className="text-xs text-slate-600">
+          Two-factor authentication adds an extra layer of security to your account by requiring a second form of verification.
+        </p>
+
+        {user.twoFactorEnabled ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+              <span className="text-slate-900 font-medium">MFA is enabled</span>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleRegenerateRecoveryCodes}
+                disabled={mfaLoading}
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-100 disabled:opacity-70"
+              >
+                {mfaLoading ? 'Generating...' : 'Generate Recovery Codes'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDisableMfa}
+                disabled={mfaLoading}
+                className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-70"
+              >
+                {mfaLoading ? 'Disabling...' : 'Disable MFA'}
+              </button>
+            </div>
+
+            {recoveryCodes && showRecoveryCodes && (
+              <div className="border rounded-lg p-4 bg-amber-50 border-amber-200">
+                <h3 className="text-sm font-medium text-amber-900 mb-2">
+                  ⚠️ Recovery Codes Generated
+                </h3>
+                <p className="text-xs text-amber-800 mb-3">
+                  Save these codes in a safe place. You can use them to access your account if you lose your authenticator device.
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-xs font-mono mb-2">
+                  {recoveryCodes.map((code, index) => (
+                    <div key={index} className="bg-white px-2 py-1 rounded border">
+                      {code}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => copyToClipboard(recoveryCodes.join('\n'))}
+                  className="text-xs text-amber-900 underline hover:no-underline"
+                >
+                  Copy All Codes
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="inline-block w-2 h-2 bg-slate-300 rounded-full"></span>
+              <span className="text-slate-600">MFA is not enabled</span>
+            </div>
+
+            <Link
+              to="/mfa-setup"
+              className="inline-flex items-center rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            >
+              Set Up Two-Factor Authentication
+            </Link>
+          </div>
+        )}
       </section>
     </div>
   )

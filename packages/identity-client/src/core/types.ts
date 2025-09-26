@@ -25,6 +25,7 @@ export interface UserProfile {
   emailConfirmed: boolean
   profileMetadata: Record<string, string | null>
   concurrencyStamp: string
+  twoFactorEnabled?: boolean
   createdAt: string
   updatedAt: string
 }

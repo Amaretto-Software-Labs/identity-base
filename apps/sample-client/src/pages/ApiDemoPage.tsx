@@ -37,7 +37,7 @@ export default function ApiDemoPage() {
       }
 
       if (requiresAuth) {
-        const token = await authManager.tokenManager.getAccessToken()
+        const token = await authManager.getAccessToken()
         if (token) {
           headers['Authorization'] = `Bearer ${token}`
         }
