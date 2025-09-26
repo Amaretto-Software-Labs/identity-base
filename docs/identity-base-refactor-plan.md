@@ -38,7 +38,9 @@ Deliver Identity.Base as a reusable NuGet library that encapsulates authenticati
    - Ensure seeding hosted services remain optional and can be triggered by host.
 5. **External Integrations**
    - Maintain MailJet implementation as default, but expose abstractions for custom providers.
-   - Verify external auth configuration (Google, Microsoft, Apple) reads from options supplied by the host.
+   - Expose fluent extension points so hosts opt into providers (`services.AddIdentityBase(...).AddGoogleAuth().AddMicrosoftAuth().AddAppleAuth()`).
+   - Provide a generic hook (`AddExternalAuthProvider`) so additional providers can plug in without modifying the package.
+   - Verify external auth configuration (Google, Microsoft, Apple, etc.) reads from host-supplied options and supports add/remove at composition time.
 6. **Tests & Samples**
    - Retarget `Identity.Base.Tests` to build against the library and exercise the host via `WebApplicationFactory` as needed.
    - Add (or update) sample apps under `apps/` that reference the NuGet packages for integration testing.
