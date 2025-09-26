@@ -56,6 +56,66 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
     }
 
     [Fact]
+    public async Task ExternalLogin_StartAllowsConfiguredAbsoluteReturnUrl()
+    {
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        client.BaseAddress = new Uri("https://localhost");
+
+        // https://localhost:3000 is configured in appsettings RedirectUris
+        var encoded = Uri.EscapeDataString("https://localhost:3000/auth/external-complete");
+        var response = await client.GetAsync($"/auth/external/google/start?returnUrl={encoded}&email=absolute@example.com&name=Absolute");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+    }
+
+    [Fact]
+    public async Task ExternalLogin_StartIgnoresForwardedHeaders()
+    {
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        client.BaseAddress = new Uri("https://localhost");
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "/auth/external/google/start?returnUrl=/client/callback&email=fh@example.com&name=Forwarded");
+        request.Headers.TryAddWithoutValidation("X-Forwarded-Host", "evil.com");
+        request.Headers.TryAddWithoutValidation("X-Forwarded-Proto", "http");
+
+        var response = await client.SendAsync(request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        var location = response.Headers.Location;
+        location.Should().NotBeNull();
+        location!.Host.Should().Be("localhost");
+        location.Scheme.Should().Be("https");
+    }
+
+    [Theory]
+    [InlineData("//evil.com")]
+    [InlineData("https://evil.com/callback")]
+    [InlineData("http://evil.com/callback")]
+    [InlineData("client/callback")]
+    public async Task ExternalLogin_StartRejectsUnsafeReturnUrls(string unsafeReturnUrl)
+    {
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        client.BaseAddress = new Uri("https://localhost");
+
+        var encoded = Uri.EscapeDataString(unsafeReturnUrl);
+        var response = await client.GetAsync($"/auth/external/google/start?returnUrl={encoded}&email=malicious@example.com&name=bad");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task ExternalLink_And_Unlink_Works()
     {
         const string email = "link-user@example.com";
