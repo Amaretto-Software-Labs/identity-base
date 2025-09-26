@@ -62,7 +62,51 @@ After completing consent, the callback page stores the authorization code and le
 - Use MailHog (`http://localhost:8025`) to verify confirmation and MFA emails if real MailJet credentials are not configured.
 - Clear PKCE values via the “Clear stored PKCE verifier” button if you restart flows mid-way.
 
-## 8. Building for Production
+## 8. ASP.NET Core API Integration
+
+For .NET developers who need to protect their APIs with Identity.Base JWT tokens, use the `Identity.Base.AspNet` integration library. This simplifies JWT Bearer authentication setup with pre-configured extension methods.
+
+### Quick Setup
+
+Add the project reference or install the library:
+```xml
+<ProjectReference Include="../../Identity.Base.AspNet/Identity.Base.AspNet.csproj" />
+```
+
+Configure in your `Program.cs`:
+```csharp
+using Identity.Base.AspNet;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add Identity.Base JWT authentication
+builder.Services.AddIdentityBaseAuthentication("https://localhost:5000");
+
+var app = builder.Build();
+
+// Add middleware
+app.UseIdentityBaseRequestLogging(enableDetailedLogging: true);
+app.UseIdentityBaseAuthentication();
+
+// Protect endpoints
+app.MapGet("/api/protected/data", () => "Protected data")
+    .RequireAuthorization();
+
+// Require specific scopes
+app.MapGet("/api/admin", () => "Admin data")
+    .RequireAuthorization(policy => policy.RequireScope("identity.api"));
+```
+
+### Sample API
+See `apps/sample-api/` for a complete working example that demonstrates:
+- Public and protected endpoints
+- Scope-based authorization
+- User profile access
+- JWT claims inspection
+
+For detailed configuration options, troubleshooting, and API reference, see the [Identity.Base.AspNet README](../Identity.Base.AspNet/README.md).
+
+## 9. Building for Production
 Generate a production bundle with:
 
 ```bash

@@ -4,7 +4,9 @@ This repository contains a .NET 9-based identity and OpenID Connect service desi
 
 ## Directory Structure
 - `Identity.Base/` – Primary ASP.NET Core minimal API project.
+- `Identity.Base.AspNet/` – ASP.NET Core integration library for JWT authentication with Identity.Base.
 - `Identity.Base/docs/` – Service-specific architecture notes, ERDs, and onboarding guides.
+- `apps/sample-api/` – Sample ASP.NET Core API demonstrating Identity.Base.AspNet integration.
 - `docs/` – Architecture, engineering principles, sprint plans, and integration guides.
 - `docs/sprints/` – Sprint-by-sprint plans breaking down stories and tasks.
 - `README.md` – This overview.
@@ -23,10 +25,28 @@ This repository contains a .NET 9-based identity and OpenID Connect service desi
   - [Sprint 05](docs/sprints/sprint-05.md)
 
 ## Getting Started
+
+### Identity Service
 1. Review the [Project Plan](docs/identity-oidc-project-plan.md) for objectives, architecture guidance, and roadmap.
 2. Check the relevant sprint document to understand current priorities and tasks.
 3. Follow instructions in `/docs/getting-started.md` for environment setup, the SPA authentication walkthrough (login → authorize → token → logout), and optional MFA enrolment.
 4. Run `dotnet build Identity.sln` from the repository root once scaffolded.
+
+### ASP.NET Core Integration
+The `Identity.Base.AspNet` library provides easy JWT Bearer authentication integration for ASP.NET Core APIs. See the [Identity.Base.AspNet README](Identity.Base.AspNet/README.md) for complete setup instructions and API reference. Quick example:
+
+```csharp
+// Add to Program.cs
+builder.Services.AddIdentityBaseAuthentication("https://your-identity-base-url");
+
+// Configure middleware
+app.UseIdentityBaseRequestLogging();
+app.UseIdentityBaseAuthentication();
+
+// Protect endpoints
+app.MapGet("/api/protected", () => "Protected data")
+    .RequireAuthorization();
+```
 
 ### Local PostgreSQL Setup
 - Use the default connection string found in `Identity.Base/appsettings.Development.json` (`identity/identity` credentials).

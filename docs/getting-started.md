@@ -111,8 +111,9 @@ If multi-factor authentication is enabled for an account:
 - Every request pushes `CorrelationId` (ASP.NET trace identifier) and `UserId` (if authenticated) into Serilog's scope. Audit actions are emitted via the `IAuditLogger` for MFA operations, profile updates, and external-provider link/unlink events.
 - `/healthz` now reports database, MailJet configuration, and external-provider readiness in the `checks` payload. Use it for container liveness/readiness probes.
 
-## Sample React Harness
+## Sample Applications
 
+### React SPA Client
 - A reference SPA lives under `apps/sample-client` (Vite + React + Tailwind). It exercises registration, login + MFA, profile updates, external connectors, and the PKCE authorization code flow.
 - Configure the harness by copying `.env.example` to `.env` and setting any overrides (API base URL, redirect URI, optional external providers).
 - Install dependencies and start the dev server:
@@ -122,3 +123,14 @@ If multi-factor authentication is enabled for an account:
   npm run dev
   ```
 - The Vite server proxies API requests to `http://localhost:8080` by default. Adjust `VITE_API_BASE` or the proxy config in `vite.config.ts` if your API runs elsewhere.
+
+### ASP.NET Core Sample API
+- A minimal API example lives under `apps/sample-api` demonstrating JWT Bearer authentication using the `Identity.Base.AspNet` integration library.
+- The sample API includes public endpoints, protected endpoints, and scope-based authorization examples.
+- Run the sample API:
+  ```bash
+  cd apps/sample-api
+  dotnet run --launch-profile https
+  ```
+- The API runs on `https://localhost:7001` and demonstrates authentication with Identity.Base tokens.
+- See the [Identity.Base.AspNet README](../Identity.Base.AspNet/README.md) for complete integration details.
