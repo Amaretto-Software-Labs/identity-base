@@ -1,9 +1,11 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
-using System.Security.Claims;
+using System.Linq;
 
 namespace Identity.Base.AspNet;
 
@@ -44,20 +46,22 @@ public static class ServiceCollectionExtensions
                     OnAuthenticationFailed = context =>
                     {
                         var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<JwtBearerHandler>>();
-                        logger.LogError("JWT Authentication failed: {Error}", context.Exception?.Message);
+                        logger.LogError("JWT authentication failed: {Error}", context.Exception?.Message);
                         return Task.CompletedTask;
                     },
                     OnTokenValidated = context =>
                     {
                         var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<JwtBearerHandler>>();
-                        logger.LogDebug("JWT Token validated successfully for user: {User}",
-                            context.Principal?.Identity?.Name ?? "Unknown");
 
-                        // Log all claims for debugging
-                        var claims = context.Principal?.Claims?.ToList() ?? new List<Claim>();
-                        foreach (var claim in claims)
+                        if (context.HttpContext.RequestServices.GetService<IHostEnvironment>()?.IsDevelopment() == true)
                         {
-                            logger.LogTrace("JWT Claim: {Type} = {Value}", claim.Type, claim.Value);
+                            var user = context.Principal?.Identity?.Name ?? "Unknown";
+                            logger.LogDebug("JWT token validated for {User}", user);
+
+                            foreach (var claim in context.Principal?.Claims ?? Enumerable.Empty<Claim>())
+                            {
+                                logger.LogTrace("JWT Claim (debug): {Type} = {Value}", claim.Type, claim.Value);
+                            }
                         }
 
                         return Task.CompletedTask;
