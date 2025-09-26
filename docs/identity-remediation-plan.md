@@ -67,7 +67,7 @@
 
 - **Task 3.1 – Gate password grant flow**  
   - Introduce configuration flag or client metadata to enable Resource Owner Password Credentials (ROPC) selectively.  
-  - Adjust `ServiceCollectionExtensions.AddApiServices` and `OpenIddict` configuration to respect the flag.  
+  - Adjust `ServiceCollectionExtensions.AddIdentityBase` and OpenIddict configuration to respect the flag.  
   - Tests: scenarios covering flagged/flagless clients; update `Identity.Base.Tests/OpenIddictSeedingTests.cs`.
 
 - **Task 3.2 – Honour requested scopes on login**  
@@ -82,8 +82,8 @@
 **Owner:** Architecture working group  
 **Goal:** Improve SOLID alignment and testability.
 
-- **Task 4.1 – Decompose `AddApiServices`**  
-  - Break into focused extension methods (e.g., `AddIdentityCoreServices`, `AddExternalAuthentication`, `AddOpenIddictServer`).  
+- **Task 4.1 – Evaluate `IdentityBaseBuilder` surface**  
+  - Break out focused helpers (e.g., `AddIdentityCoreServices`, `AddExternalAuthentication`, `AddOpenIddictServer`) if the fluent builder continues to grow.  
   - Ensure unit tests cover each segment; consider introducing smoke tests for DI container configuration.
 
 - **Task 4.2 – Refactor `ExternalAuthenticationService`**  

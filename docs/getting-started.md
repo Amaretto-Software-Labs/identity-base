@@ -12,7 +12,7 @@ This guide walks through configuring and running Identity Base in a local enviro
    ```bash
    dotnet restore Identity.sln
    ```
-2. Configure the database connection string in `Identity.Base/appsettings.Development.json` or via environment variables.
+2. Configure the database connection string in `Identity.Base.Host/appsettings.Development.json` or via environment variables.
 3. Adjust registration metadata in the `Registration` section. Each `ProfileField` entry defines:
    - `Name`: Key used in registration payload metadata
    - `DisplayName`: Human readable label
@@ -26,11 +26,13 @@ This guide walks through configuring and running Identity Base in a local enviro
 8. (Optional) Enable the seed administrator account by setting `IdentitySeed:Enabled` to `true` and providing `Email`, `Password`, and `Roles`.
 9. Apply database migrations:
    ```bash
-   dotnet ef database update --project Identity.Base/Identity.Base.csproj
+   dotnet ef database update \
+     --project Identity.Base/Identity.Base.csproj \
+     --startup-project Identity.Base.Host/Identity.Base.Host.csproj
    ```
 10. Run the service:
    ```bash
-   dotnet run --project Identity.Base/Identity.Base.csproj
+   dotnet run --project Identity.Base.Host/Identity.Base.Host.csproj
    ```
 11. Submit a registration request with metadata:
    ```bash
@@ -57,6 +59,24 @@ This guide walks through configuring and running Identity Base in a local enviro
 
 ## Running Tests
 - Integration tests run against the EF Core in-memory provider. Execute `dotnet test Identity.sln` before opening a pull request.
+
+## Customising the Host Composition
+
+`Identity.Base.Host/Program.cs` now composes the core services via the fluent builder:
+
+```csharp
+var identityBuilder = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
+
+identityBuilder
+    .AddGoogleAuth()
+    .AddMicrosoftAuth()
+    .AddAppleAuth();
+```
+
+- Call `AddConfiguredExternalProviders()` to register only the providers that are enabled in configuration.
+- Chain `AddExternalAuthProvider(...)` to plug in custom providers without modifying the package.
+- Use `AddIdentityBase(builder.Configuration, builder.Environment, options =>
+  options.ConfigureOptions((services, configuration) => { /* override binding */ }));` to load settings from external stores (e.g., database, Key Vault) before the default option binding runs. Disable the built-in JSON binding by setting `options.UseDefaultOptionBinding = false` when replacing it entirely.
 
 ## Server Key Providers
 

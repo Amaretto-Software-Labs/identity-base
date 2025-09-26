@@ -3,7 +3,8 @@
 This repository contains a .NET 9-based identity and OpenID Connect service designed to be dropped into existing projects or deployed as a self-hosted auth platform. It follows Amaretto Software Labs engineering principles, supports configurable user metadata, MFA, and social login integrations, and ships with detailed documentation and sprint plans.
 
 ## Directory Structure
-- `Identity.Base/` – Primary ASP.NET Core minimal API project.
+- `Identity.Base/` – Reusable Identity/OpenIddict class library.
+- `Identity.Base.Host/` – Reference ASP.NET Core minimal API host for local runs and tests.
 - `Identity.Base.AspNet/` – ASP.NET Core integration library for JWT authentication with Identity.Base.
 - `Identity.Base/docs/` – Service-specific architecture notes, ERDs, and onboarding guides.
 - `apps/sample-api/` – Sample ASP.NET Core API demonstrating Identity.Base.AspNet integration.
@@ -31,6 +32,7 @@ This repository contains a .NET 9-based identity and OpenID Connect service desi
 2. Check the relevant sprint document to understand current priorities and tasks.
 3. Follow instructions in `/docs/getting-started.md` for environment setup, the SPA authentication walkthrough (login → authorize → token → logout), and optional MFA enrolment.
 4. Run `dotnet build Identity.sln` from the repository root once scaffolded.
+5. Start the reference host with `dotnet run --project Identity.Base.Host/Identity.Base.Host.csproj` and compose providers via the fluent `AddIdentityBase` builder in `Identity.Base.Host/Program.cs`.
 
 ### ASP.NET Core Integration
 The `Identity.Base.AspNet` library provides easy JWT Bearer authentication integration for ASP.NET Core APIs. See the [Identity.Base.AspNet README](Identity.Base.AspNet/README.md) for complete setup instructions and API reference. Quick example:
@@ -49,7 +51,7 @@ app.MapGet("/api/protected", () => "Protected data")
 ```
 
 ### Local PostgreSQL Setup
-- Use the default connection string found in `Identity.Base/appsettings.Development.json` (`identity/identity` credentials).
+- Use the default connection string found in `Identity.Base.Host/appsettings.Development.json` (`identity/identity` credentials).
 - Persist database objects using **PascalCase** table names. When a prefix is required, use `Identity_` (e.g., `Identity_UserProfile`).
 - Quick-start with Docker Compose:
 

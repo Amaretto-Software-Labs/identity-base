@@ -28,6 +28,7 @@ Deliver Identity.Base as a reusable NuGet library that encapsulates authenticati
    - Move all non-host code from `Identity.Base/Program.cs` and supporting folders into library-friendly structures.
    - Replace direct usage of `WebApplicationBuilder` with DI/service abstractions and expose minimal API registration methods.
    - Keep endpoint classes but ensure they can run inside arbitrary hosts.
+   - Introduce a fluent `IdentityBaseBuilder` returned from `services.AddIdentityBase(...)` to compose features and external providers.
 3. **Configuration Surface**
    - Preserve option classes (`DatabaseOptions`, `RegistrationOptions`, `MfaOptions`, etc.) and ensure validation occurs via DI.
    - Provide sample `appsettings.json` in host; document required configuration sections for consumers.

@@ -16,7 +16,7 @@
 ## 2. Tools & Workflow
 1. **Design:** capture ERD sketches (Mermaid/Draw.io) in `Identity.Base/docs/erd/` before implementing.
 2. **Model:** define EF Core entities and `DbContext` configuration in `Identity.Base/Data` (use `IEntityTypeConfiguration` per aggregate).
-3. **Migration:** generate migrations via EF Core CLI (`dotnet ef migrations add <Name> -p Identity.Base/Identity.Base.csproj -s Identity.Base/Identity.Base.csproj`). Store them in `Identity.Base/Migrations`.
+3. **Migration:** generate migrations via EF Core CLI (`dotnet ef migrations add <Name> -p Identity.Base/Identity.Base.csproj -s Identity.Base.Host/Identity.Base.Host.csproj`). Store them in `Identity.Base/Data/Migrations`.
 4. **Review:** migrations must be human-reviewed; ensure column types, default values, constraints, and index names are intentional.
 5. **Apply:** the API automatically applies migrations on startup (`using var scope = app.Services.CreateScope(); scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();`). CLI `dotnet ef database update` is reserved for local troubleshooting only.
 6. **Document:** update `Identity.Base/docs/README.md` with migration name, purpose, and rollback steps.

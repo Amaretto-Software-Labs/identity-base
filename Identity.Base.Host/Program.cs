@@ -14,7 +14,12 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) =>
         .WriteTo.Console();
 });
 
-builder.Services.AddApiServices(builder.Configuration, builder.Environment);
+var identityBuilder = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
+
+identityBuilder
+    .AddGoogleAuth()
+    .AddMicrosoftAuth()
+    .AddAppleAuth();
 
 var app = builder.Build();
 
