@@ -26,7 +26,12 @@ npm install @identity-base/react-client
 ### 1. Wrap your app with IdentityProvider
 
 ```tsx
-import { IdentityProvider } from '@identity-base/react-client'
+import { IdentityProvider, enableDebugLogging } from '@identity-base/react-client'
+
+// Enable debug logging in development
+if (import.meta.env.DEV) {
+  enableDebugLogging(true)
+}
 
 function App() {
   return (
@@ -237,6 +242,55 @@ function SecurePage() {
 
 ## Advanced Usage
 
+### Debug Logging
+
+The client includes built-in debug logging to help troubleshoot authentication flows. Debug logging is disabled by default.
+
+#### Enable via Code (Recommended)
+
+```tsx
+import { enableDebugLogging } from '@identity-base/react-client'
+
+// Enable only in development
+if (import.meta.env.DEV) {
+  enableDebugLogging(true)
+}
+
+// Or conditionally based on environment variable
+if (import.meta.env.VITE_ENABLE_IDENTITY_DEBUG === 'true') {
+  enableDebugLogging(true)
+}
+```
+
+#### Enable via Browser Console
+
+```javascript
+// Enable debug logging at runtime
+__enableIdentityDebug(true)   // Returns true
+__enableIdentityDebug(false)  // Returns false
+
+// Check current debug state
+window.__identityDebugEnabled  // true/false
+```
+
+#### Debug Output
+
+When enabled, you'll see detailed logs for:
+- Authentication flows (login, logout, token refresh)
+- API requests and responses
+- MFA challenges and verification
+- User profile updates
+- Authorization code exchanges
+
+Example debug output:
+```
+IdentityProvider.tsx: Module loading
+IdentityProvider: Creating new instance with config: {...}
+IdentityProvider.refreshUser: Starting user refresh
+Using Bearer token authentication for /users/me
+useMfa.verifyChallenge: Starting MFA verification
+```
+
 ### Custom Token Storage
 ```tsx
 import { createTokenStorage } from '@identity-base/react-client'
@@ -270,7 +324,78 @@ import type {
   IdentityConfig,
   ApiError
 } from '@identity-base/react-client'
+
+// Debug utilities
+import { enableDebugLogging, debugLog } from '@identity-base/react-client'
 ```
+
+## Troubleshooting
+
+### Enable Debug Logging
+
+If you're experiencing issues with authentication flows, enable debug logging to see detailed information:
+
+```tsx
+import { enableDebugLogging } from '@identity-base/react-client'
+
+// Enable in development
+if (process.env.NODE_ENV === 'development') {
+  enableDebugLogging(true)
+}
+
+// Or enable via browser console
+// __enableIdentityDebug(true)
+```
+
+### Common Issues
+
+#### Authentication Not Working
+1. **Check debug logs** - Enable debug logging to see API requests/responses
+2. **Verify configuration** - Ensure `apiBase`, `clientId`, and `redirectUri` are correct
+3. **CORS issues** - Make sure your API allows requests from your frontend origin
+4. **Token storage** - Try different storage options (`localStorage`, `sessionStorage`, `memory`)
+
+#### MFA Issues
+```tsx
+// Check MFA debug output
+__enableIdentityDebug(true)
+
+// Look for these debug messages:
+// - "useMfa.verifyChallenge: Starting MFA verification"
+// - "useMfa.verifyChallenge: MFA verification successful"
+// - "useMfa.verifyChallenge: MFA verification failed"
+```
+
+#### OAuth/PKCE Issues
+```tsx
+// Debug OAuth flows
+__enableIdentityDebug(true)
+
+// Check for PKCE-related logs:
+// - "IdentityProvider: Creating new instance with config"
+// - Authorization URL generation
+// - Token exchange logs
+```
+
+#### Browser Console Debug Commands
+
+```javascript
+// Enable/disable debug logging
+__enableIdentityDebug(true)    // Enable
+__enableIdentityDebug(false)   // Disable
+
+// Check current state
+window.__identityDebugEnabled  // true or false
+
+// Manual user refresh (when authenticated)
+window.__identityRefreshUser?.()
+```
+
+### Performance Tips
+
+- **Use memory storage** for better performance in SPAs: `tokenStorage: 'memory'`
+- **Disable debug logging in production** to reduce console output
+- **Use route-level protection** with `<ProtectedRoute>` for better UX
 
 ## License
 

@@ -1,5 +1,5 @@
 // Debug logging utility
-let isDebugEnabled = true // Temporarily enabled for debugging
+let isDebugEnabled = false // Start with debug logging disabled
 
 function syncWindowDebugState() {
   if (typeof window !== 'undefined') {
