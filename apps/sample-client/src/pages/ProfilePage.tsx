@@ -32,7 +32,7 @@ export default function ProfilePage() {
     if (user && schema) {
       const next: Record<string, string> = {}
       schema.fields.forEach((field) => {
-        next[field.name] = user.profileMetadata[field.name] ?? ''
+        next[field.name] = user.metadata?.[field.name] ?? ''
       })
       setFormState(next)
     }
@@ -45,6 +45,13 @@ export default function ProfilePage() {
       navigate('/login', { replace: true })
     }
   }, [ready, isAuthenticated, navigate])
+
+  // Refresh user data when component mounts to get latest MFA status
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      refreshUser()
+    }
+  }, [isAuthenticated, authLoading, refreshUser])
 
   if (profileError) {
     return <p className="text-sm text-red-600">Unable to load profile schema.</p>

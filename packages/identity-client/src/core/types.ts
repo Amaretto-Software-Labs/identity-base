@@ -23,7 +23,7 @@ export interface UserProfile {
   email: string
   displayName: string
   emailConfirmed: boolean
-  profileMetadata: Record<string, string | null>
+  metadata: Record<string, string | null>
   concurrencyStamp: string
   twoFactorEnabled?: boolean
   createdAt: string

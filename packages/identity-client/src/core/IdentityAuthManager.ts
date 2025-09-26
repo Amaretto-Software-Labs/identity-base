@@ -7,13 +7,13 @@ import type {
   MfaChallengeRequest,
   MfaVerifyRequest,
   ProfileSchemaResponse,
-  AuthEvent,
-  AuthState
+  AuthEvent
 } from './types'
 import { ApiClient } from './ApiClient'
 import { TokenManager } from './TokenManager'
 import { PKCEManager, generatePkce, randomState } from '../utils/pkce'
 import { createError } from '../utils/errors'
+import { debugLog } from '../utils/logger'
 
 export class IdentityAuthManager {
   private config: IdentityConfig
@@ -49,21 +49,33 @@ export class IdentityAuthManager {
 
   // Authentication state
   isAuthenticated(): boolean {
+    // For now, we return true if tokens exist (OAuth2 flow) or if we can't determine
+    // the state from tokens alone (cookie-based auth requires a server call)
     return this.tokenManager.isAuthenticated()
   }
 
   async getCurrentUser(): Promise<UserProfile | null> {
     try {
       const token = await this.tokenManager.ensureValidToken()
-      if (!token) return null
 
-      return await this.apiClient.fetch<UserProfile>('/users/me', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
+      if (token) {
+        debugLog('Using Bearer token authentication for /users/me')
+        // Use Bearer token authentication (OAuth2 flow)
+        return await this.apiClient.fetch<UserProfile>('/users/me', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+      } else {
+        debugLog('Using cookie-based authentication for /users/me')
+        // Fall back to cookie-based authentication (direct login flow)
+        return await this.apiClient.fetch<UserProfile>('/users/me', {
+          method: 'GET',
+        })
+      }
     } catch (error: any) {
+      debugLog('getCurrentUser error:', error)
       if (error?.status === 401) {
         return null
       }

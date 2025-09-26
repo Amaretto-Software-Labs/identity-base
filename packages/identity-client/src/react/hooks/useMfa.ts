@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import type { MfaChallengeRequest, MfaVerifyRequest } from '../../core/types'
 import { useIdentityContext } from '../IdentityProvider'
 import { createError } from '../../utils/errors'
+import { debugLog } from '../../utils/logger'
 
 interface UseMfaOptions {
   onChallengeSuccess?: (response: { message: string }) => void
@@ -40,21 +41,27 @@ export function useMfa(options: UseMfaOptions = {}) {
   }, [authManager, options])
 
   const verifyChallenge = useCallback(async (request: Omit<MfaVerifyRequest, 'clientId'>) => {
+    debugLog('useMfa.verifyChallenge: Starting MFA verification', request)
     setIsLoading(true)
     setError(null)
 
     try {
+      debugLog('useMfa.verifyChallenge: Calling authManager.verifyMfa')
       const response = await authManager.verifyMfa({
         ...request,
         clientId: '',
       })
+      debugLog('useMfa.verifyChallenge: MFA verification successful', response)
 
       // After successful MFA verification, refresh user state
+      debugLog('useMfa.verifyChallenge: About to call refreshUser after successful MFA verification')
       await refreshUser()
+      debugLog('useMfa.verifyChallenge: Called refreshUser after successful MFA verification')
 
       options.onVerifySuccess?.(response)
       return response
     } catch (err) {
+      debugLog('useMfa.verifyChallenge: MFA verification failed', err)
       const error = createError(err)
       setError(error)
       options.onError?.(error)

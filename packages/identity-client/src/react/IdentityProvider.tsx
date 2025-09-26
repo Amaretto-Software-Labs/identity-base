@@ -2,10 +2,14 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import type { ReactNode } from 'react'
 import type { IdentityConfig, UserProfile, AuthState, AuthEvent } from '../core/types'
 import { IdentityAuthManager } from '../core/IdentityAuthManager'
+import { debugLog } from '../utils/logger'
+
+debugLog('IdentityProvider.tsx: Module loading')
 
 interface IdentityContextValue extends AuthState {
   authManager: IdentityAuthManager
   refreshUser: () => Promise<void>
+  logout: () => Promise<void>
 }
 
 const IdentityContext = createContext<IdentityContextValue | undefined>(undefined)
@@ -16,19 +20,36 @@ interface IdentityProviderProps {
 }
 
 export function IdentityProvider({ config, children }: IdentityProviderProps) {
-  const [authManager] = useState(() => new IdentityAuthManager(config))
+  debugLog('IdentityProvider: Creating new instance with config:', config)
+  const [authManager] = useState(() => {
+    debugLog('IdentityProvider: Creating new IdentityAuthManager')
+    return new IdentityAuthManager(config)
+  })
   const [user, setUser] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<any>(null)
 
   const refreshUser = useCallback(async () => {
+    debugLog('IdentityProvider.refreshUser: Starting user refresh')
     try {
       const currentUser = await authManager.getCurrentUser()
+      debugLog('IdentityProvider.refreshUser: Got user:', currentUser)
       setUser(currentUser)
       setError(null)
     } catch (err) {
+      debugLog('IdentityProvider.refreshUser: Error getting user:', err)
       setError(err)
       setUser(null)
+    }
+  }, [authManager])
+
+  const logout = useCallback(async () => {
+    try {
+      await authManager.logout()
+      setUser(null)
+      setError(null)
+    } catch (err) {
+      setError(err)
     }
   }, [authManager])
 
@@ -37,13 +58,17 @@ export function IdentityProvider({ config, children }: IdentityProviderProps) {
     let mounted = true
 
     const initializeAuth = async () => {
+      debugLog('IdentityProvider.initializeAuth: Starting auth initialization')
       try {
+        debugLog('IdentityProvider.initializeAuth: About to call authManager.getCurrentUser')
         const currentUser = await authManager.getCurrentUser()
+        debugLog('IdentityProvider.initializeAuth: Got user from getCurrentUser:', currentUser)
         if (mounted) {
           setUser(currentUser)
           setError(null)
         }
       } catch (err) {
+        debugLog('IdentityProvider.initializeAuth: Error during initialization:', err)
         if (mounted) {
           setError(err)
           setUser(null)
@@ -91,7 +116,8 @@ export function IdentityProvider({ config, children }: IdentityProviderProps) {
     isLoading,
     error,
     refreshUser,
-  }), [authManager, user, isLoading, error, refreshUser])
+    logout,
+  }), [authManager, user, isLoading, error, refreshUser, logout])
 
   return (
     <IdentityContext.Provider value={value}>

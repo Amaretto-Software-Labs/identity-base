@@ -5,7 +5,7 @@ import QRCode from 'qrcode'
 
 export default function MfaSetupPage() {
   const navigate = useNavigate()
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth()
+  const { user, isAuthenticated, isLoading: authLoading, refreshUser } = useAuth()
   const [currentStep, setCurrentStep] = useState<'enroll' | 'verify' | 'complete'>('enroll')
   const [enrollmentData, setEnrollmentData] = useState<{
     sharedKey: string
@@ -31,6 +31,8 @@ export default function MfaSetupPage() {
       if ('recoveryCodes' in response) {
         setEnrollmentData(prev => prev ? { ...prev, recoveryCodes: (response as any).recoveryCodes } : null)
       }
+      // Refresh user to update MFA status
+      refreshUser()
     }
   })
 

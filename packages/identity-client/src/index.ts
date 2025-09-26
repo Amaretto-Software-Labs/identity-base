@@ -26,3 +26,7 @@ export { RequireAuth } from './react/components/RequireAuth'
 export { generatePkce, randomState, PKCEManager } from './utils/pkce'
 export { createTokenStorage } from './utils/storage'
 export { IdentityError, createError } from './utils/errors'
+export { enableDebugLogging, debugLog } from './utils/logger'
+
+// Import logger for side effects (sets up __enableIdentityDebug global)
+import './utils/logger'

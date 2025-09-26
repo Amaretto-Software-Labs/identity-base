@@ -64,7 +64,8 @@ public static class UserEndpoints
             user.EmailConfirmed,
             user.DisplayName,
             user.ProfileMetadata.Values,
-            user.ConcurrencyStamp ?? string.Empty));
+            user.ConcurrencyStamp ?? string.Empty,
+            user.TwoFactorEnabled));
     }
 
     private static async Task<IResult> UpdateProfileAsync(
@@ -130,7 +131,8 @@ public static class UserEndpoints
             user.EmailConfirmed,
             user.DisplayName,
             user.ProfileMetadata.Values,
-            user.ConcurrencyStamp ?? string.Empty));
+            user.ConcurrencyStamp ?? string.Empty,
+            user.TwoFactorEnabled));
     }
 }
 
@@ -140,7 +142,8 @@ internal sealed record UserProfileResponse(
     bool EmailConfirmed,
     string? DisplayName,
     IReadOnlyDictionary<string, string?> Metadata,
-    string ConcurrencyStamp);
+    string ConcurrencyStamp,
+    bool TwoFactorEnabled);
 
 public sealed class UpdateProfileRequest
 {

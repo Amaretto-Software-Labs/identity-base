@@ -15,7 +15,11 @@ export default function MfaPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const mfaState = (location.state as MfaState) ?? {}
-  const { sendChallenge, verifyChallenge, isLoading, error } = useMfa()
+  const mfaHookResult = useMfa()
+  console.log('MfaPage: useMfa hook result:', mfaHookResult)
+  console.log('MfaPage: verifyChallenge function:', mfaHookResult.verifyChallenge)
+  console.log('MfaPage: verifyChallenge type:', typeof mfaHookResult.verifyChallenge)
+  const { sendChallenge, verifyChallenge, isLoading, error } = mfaHookResult
 
   const methods = useMemo(() => mfaState.methods ?? ['authenticator', 'recovery'], [mfaState.methods])
   const [method, setMethod] = useState<string>(methods[0] ?? 'authenticator')
@@ -40,17 +44,22 @@ export default function MfaPage() {
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    console.log('MfaPage.handleSubmit: Form submitted')
     event.preventDefault()
     setMessage(null)
 
     try {
+      console.log('MfaPage.handleSubmit: About to call verifyChallenge with:', { code, method })
       await verifyChallenge({
         code,
         method: method as MfaVerifyRequest['method'],
       })
+      console.log('MfaPage.handleSubmit: verifyChallenge completed successfully')
       setMessage('MFA verification successful. Redirecting…')
+
       setTimeout(() => navigate('/', { replace: true }), 750)
     } catch (err) {
+      console.log('MfaPage.handleSubmit: verifyChallenge failed with error:', err)
       // Error is already handled by the useMfa hook
     }
   }

@@ -333,7 +333,14 @@ public static class ServiceCollectionExtensions
             options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
         });
 
-        authenticationBuilder.AddCookie(IdentityConstants.TwoFactorUserIdScheme);
+        authenticationBuilder.AddCookie(IdentityConstants.TwoFactorUserIdScheme, options =>
+        {
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None;
+            options.ExpireTimeSpan = TimeSpan.FromMinutes(10); // Give more time for MFA completion
+        });
+
         authenticationBuilder.AddCookie(IdentityConstants.TwoFactorRememberMeScheme);
 
         if (googleEnabled)
