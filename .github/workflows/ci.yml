@@ -46,8 +46,8 @@ jobs:
 
       - name: Pack Identity.Base libraries
         run: |
-          dotnet pack Identity.Base/Identity.Base.csproj --configuration Release --no-build -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
-          dotnet pack Identity.Base.AspNet/Identity.Base.AspNet.csproj --configuration Release --no-build -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
+          dotnet pack Identity.Base/Identity.Base.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
+          dotnet pack Identity.Base.AspNet/Identity.Base.AspNet.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
 
       - name: Upload NuGet artifacts
         uses: actions/upload-artifact@v4
@@ -96,8 +96,8 @@ jobs:
 
       - name: Pack Identity.Base libraries
         run: |
-          dotnet pack Identity.Base/Identity.Base.csproj --configuration Release --no-build -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
-          dotnet pack Identity.Base.AspNet/Identity.Base.AspNet.csproj --configuration Release --no-build -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
+          dotnet pack Identity.Base/Identity.Base.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
+          dotnet pack Identity.Base.AspNet/Identity.Base.AspNet.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
