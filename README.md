@@ -1,3 +1,4 @@
+[![CI](https://github.com/Amaretto-Software-Labs/identity-base/actions/workflows/ci.yml/badge.svg)](https://github.com/Amaretto-Software-Labs/identity-base/actions/workflows/ci.yml)
 # Identity Base
 
 Identity Base is a modular Identity + OpenID Connect platform for .NET 9. It packages ASP.NET Core Identity, EF Core migrations, OpenIddict server setup, MFA, external providers (Google, Microsoft, Apple), MailJet-powered email flows, and deployment-ready defaults. Hosts can self-run the identity server or embed its capabilities through NuGet packages.
