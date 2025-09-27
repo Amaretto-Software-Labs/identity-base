@@ -22,6 +22,10 @@ These remain `public` so consumers can author custom `IConfigureOptions<>` imple
 - `ApplicationUser`, `ApplicationRole`
 - `AppDbContext` and design-time `AppDbContextFactory`
 - `UserProfileMetadata`
+- Planned additions via `Identity.Base.Roles`:
+  - `Role`, `Permission`, `RolePermission`, `UserRole`
+  - `AuditEntry` (configurable)
+  - See `rbac-design.md` for schema details
 
 ## Extension Interfaces
 Consumers can replace default services by implementing the following interfaces:
