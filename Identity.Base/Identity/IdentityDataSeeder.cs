@@ -1,3 +1,4 @@
+using Identity.Base.Abstractions;
 using Identity.Base.Logging;
 using Identity.Base.Options;
 using Microsoft.AspNetCore.Identity;
@@ -10,6 +11,7 @@ internal sealed class IdentityDataSeeder
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<ApplicationRole> _roleManager;
+    private readonly IEnumerable<IUserCreationListener> _creationListeners;
     private readonly IOptions<IdentitySeedOptions> _options;
     private readonly ILogger<IdentityDataSeeder> _logger;
     private readonly ILogSanitizer _sanitizer;
@@ -17,12 +19,14 @@ internal sealed class IdentityDataSeeder
     public IdentityDataSeeder(
         UserManager<ApplicationUser> userManager,
         RoleManager<ApplicationRole> roleManager,
+        IEnumerable<IUserCreationListener> creationListeners,
         IOptions<IdentitySeedOptions> options,
         ILogger<IdentityDataSeeder> logger,
         ILogSanitizer sanitizer)
     {
         _userManager = userManager;
         _roleManager = roleManager;
+        _creationListeners = creationListeners;
         _options = options;
         _logger = logger;
         _sanitizer = sanitizer;
@@ -88,6 +92,11 @@ internal sealed class IdentityDataSeeder
             {
                 _logger.LogWarning("Failed to add seed user {Email} to roles: {Errors}", _sanitizer.RedactEmail(options.Email), string.Join(",", addToRoleResult.Errors.Select(e => e.Description)));
             }
+        }
+
+        foreach (var listener in _creationListeners)
+        {
+            await listener.OnUserCreatedAsync(user, cancellationToken).ConfigureAwait(false);
         }
 
         _logger.LogInformation("Seed user {Email} created successfully.", _sanitizer.RedactEmail(options.Email));
