@@ -55,4 +55,7 @@
     <PackageReference Include="Azure.Security.KeyVault.Secrets" Version="4.6.0" />
   </ItemGroup>
 
+  <ItemGroup>
+  </ItemGroup>
+
 </Project>

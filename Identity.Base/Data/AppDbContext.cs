@@ -13,7 +13,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<OpenIddictAuthorization> OpenIddictAuthorizations => Set<OpenIddictAuthorization>();
     public DbSet<OpenIddictScope> OpenIddictScopes => Set<OpenIddictScope>();
     public DbSet<OpenIddictToken> OpenIddictTokens => Set<OpenIddictToken>();
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
