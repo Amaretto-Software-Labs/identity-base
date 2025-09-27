@@ -1,5 +1,6 @@
 using System.Linq;
 using FluentValidation;
+using Identity.Base.Abstractions;
 using Identity.Base.Extensions;
 using Identity.Base.Identity;
 using Identity.Base.Logging;
@@ -35,6 +36,7 @@ public static class RegisterUserEndpoint
         IOptions<RegistrationOptions> registrationOptions,
         ILoggerFactory loggerFactory,
         ILogSanitizer logSanitizer,
+        IEnumerable<IUserCreationListener> creationListeners,
         CancellationToken cancellationToken)
     {
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
@@ -70,6 +72,11 @@ public static class RegisterUserEndpoint
         {
             logger.LogError(exception, "Failed to send confirmation email for {Email}", logSanitizer.RedactEmail(user.Email));
             return Results.Problem("Failed to dispatch confirmation email.", statusCode: StatusCodes.Status500InternalServerError);
+        }
+
+        foreach (var listener in creationListeners)
+        {
+            await listener.OnUserCreatedAsync(user, cancellationToken).ConfigureAwait(false);
         }
 
         var correlationId = Guid.NewGuid().ToString("N");

@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Identity.Base.Host", "Ident
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Identity.Base.Roles", "Identity.Base.Roles\Identity.Base.Roles.csproj", "{CF740BB2-B5C5-48A6-8EA1-1DE13E523E05}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Identity.Base.Roles.Tools", "Identity.Base.Roles.Tools\Identity.Base.Roles.Tools.csproj", "{BEA535A6-A14C-426F-8ACE-6DBDD682523E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -69,6 +71,18 @@ Global
 		{CF740BB2-B5C5-48A6-8EA1-1DE13E523E05}.Release|x64.Build.0 = Release|Any CPU
 		{CF740BB2-B5C5-48A6-8EA1-1DE13E523E05}.Release|x86.ActiveCfg = Release|Any CPU
 		{CF740BB2-B5C5-48A6-8EA1-1DE13E523E05}.Release|x86.Build.0 = Release|Any CPU
+		{BEA535A6-A14C-426F-8ACE-6DBDD682523E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BEA535A6-A14C-426F-8ACE-6DBDD682523E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BEA535A6-A14C-426F-8ACE-6DBDD682523E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{BEA535A6-A14C-426F-8ACE-6DBDD682523E}.Debug|x64.Build.0 = Debug|Any CPU
+		{BEA535A6-A14C-426F-8ACE-6DBDD682523E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{BEA535A6-A14C-426F-8ACE-6DBDD682523E}.Debug|x86.Build.0 = Debug|Any CPU
+		{BEA535A6-A14C-426F-8ACE-6DBDD682523E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BEA535A6-A14C-426F-8ACE-6DBDD682523E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BEA535A6-A14C-426F-8ACE-6DBDD682523E}.Release|x64.ActiveCfg = Release|Any CPU
+		{BEA535A6-A14C-426F-8ACE-6DBDD682523E}.Release|x64.Build.0 = Release|Any CPU
+		{BEA535A6-A14C-426F-8ACE-6DBDD682523E}.Release|x86.ActiveCfg = Release|Any CPU
+		{BEA535A6-A14C-426F-8ACE-6DBDD682523E}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
