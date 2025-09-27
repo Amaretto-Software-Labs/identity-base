@@ -1,3 +1,4 @@
+using System.Linq;
 using Identity.Base.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -63,7 +64,13 @@ internal sealed class OpenIddictSeeder
                 descriptor.Permissions.Add(OpenIddictConstants.Permissions.GrantTypes.Password);
             }
 
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.Prefixes.Scope + "identity.api");
+            foreach (var scope in options.Scopes)
+            {
+                if (!string.IsNullOrWhiteSpace(scope.Name))
+                {
+                    descriptor.Permissions.Add(OpenIddictConstants.Permissions.Prefixes.Scope + scope.Name);
+                }
+            }
 
             descriptor.Permissions.Add(OpenIddictConstants.Permissions.Endpoints.Authorization);
             descriptor.Permissions.Add(OpenIddictConstants.Permissions.Endpoints.Token);
@@ -86,8 +93,20 @@ internal sealed class OpenIddictSeeder
             var existing = await _applicationManager.FindByClientIdAsync(application.ClientId, cancellationToken);
             if (existing is null)
             {
-                await _applicationManager.CreateAsync(descriptor, cancellationToken);
-                _logger.LogInformation("Created OpenIddict application {ClientId}", application.ClientId);
+                try
+                {
+                    await _applicationManager.CreateAsync(descriptor, cancellationToken);
+                    _logger.LogInformation("Created OpenIddict application {ClientId}", application.ClientId);
+                }
+                catch (OpenIddictExceptions.ValidationException)
+                {
+                    existing = await _applicationManager.FindByClientIdAsync(application.ClientId, cancellationToken);
+                    if (existing is not null)
+                    {
+                        await _applicationManager.UpdateAsync(existing, descriptor, cancellationToken);
+                        _logger.LogInformation("Updated OpenIddict application {ClientId} after duplicate detection", application.ClientId);
+                    }
+                }
             }
             else
             {
@@ -117,8 +136,20 @@ internal sealed class OpenIddictSeeder
             var existing = await _scopeManager.FindByNameAsync(scope.Name, cancellationToken);
             if (existing is null)
             {
-                await _scopeManager.CreateAsync(descriptor, cancellationToken);
-                _logger.LogInformation("Created OpenIddict scope {Scope}", scope.Name);
+                try
+                {
+                    await _scopeManager.CreateAsync(descriptor, cancellationToken);
+                    _logger.LogInformation("Created OpenIddict scope {Scope}", scope.Name);
+                }
+                catch (OpenIddictExceptions.ValidationException)
+                {
+                    existing = await _scopeManager.FindByNameAsync(scope.Name, cancellationToken);
+                    if (existing is not null)
+                    {
+                        await _scopeManager.UpdateAsync(existing, descriptor, cancellationToken);
+                        _logger.LogInformation("Updated OpenIddict scope {Scope} after duplicate detection", scope.Name);
+                    }
+                }
             }
             else
             {

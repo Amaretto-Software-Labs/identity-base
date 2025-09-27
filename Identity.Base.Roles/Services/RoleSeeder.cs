@@ -6,6 +6,7 @@ using Identity.Base.Roles.Abstractions;
 using Identity.Base.Roles.Entities;
 using Identity.Base.Roles.Options;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -32,102 +33,160 @@ public sealed class RoleSeeder : IRoleSeeder
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
-        using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        var useTransaction = _dbContext.Database.IsRelational();
+        IDbContextTransaction? transaction = null;
 
-        var existingPermissions = await _dbContext.Permissions
-            .ToDictionaryAsync(p => p.Name, p => p, StringComparer.OrdinalIgnoreCase, cancellationToken)
-            .ConfigureAwait(false);
-        var permissionsById = existingPermissions.Values.ToDictionary(p => p.Id);
-
-        foreach (var permissionDefinition in _permissionOptions.Definitions)
+        if (useTransaction)
         {
-            if (existingPermissions.ContainsKey(permissionDefinition.Name))
-            {
-                continue;
-            }
+            transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        }
 
-           var permission = new Permission
-           {
-               Name = permissionDefinition.Name,
-               Description = permissionDefinition.Description
-           };
-
-           _dbContext.Permissions.Add(permission);
-           existingPermissions[permission.Name] = permission;
-            permissionsById[permission.Id] = permission;
-       }
-
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-        var existingRoles = await _dbContext.Roles
-            .ToDictionaryAsync(r => r.Name, r => r, StringComparer.OrdinalIgnoreCase, cancellationToken)
-            .ConfigureAwait(false);
-
-        foreach (var roleDefinition in _roleOptions.Definitions)
+        try
         {
-            if (!existingRoles.TryGetValue(roleDefinition.Name, out var role))
-            {
-                role = new Role
-                {
-                    Name = roleDefinition.Name,
-                    Description = roleDefinition.Description,
-                    IsSystemRole = roleDefinition.IsSystemRole,
-                };
-
-                _dbContext.Roles.Add(role);
-                existingRoles[role.Name] = role;
-
-                await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                role.Description = roleDefinition.Description;
-                role.IsSystemRole = roleDefinition.IsSystemRole;
-            }
-
-            var existingRolePermissions = await _dbContext.RolePermissions
-                .Where(rp => rp.RoleId == role.Id)
+            var permissionEntities = await _dbContext.Permissions
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            var desiredPermissions = new HashSet<string>(roleDefinition.Permissions, StringComparer.OrdinalIgnoreCase);
+            var existingPermissions = new Dictionary<string, Permission>(StringComparer.OrdinalIgnoreCase);
+            var permissionsById = new Dictionary<Guid, Permission>();
 
-            foreach (var rolePermission in existingRolePermissions)
+            var permissionsModified = false;
+
+            foreach (var permission in permissionEntities)
             {
-                if (!permissionsById.TryGetValue(rolePermission.PermissionId, out var permission))
+                if (!existingPermissions.TryAdd(permission.Name, permission))
                 {
+                    _dbContext.Permissions.Remove(permission);
+                    permissionsModified = true;
                     continue;
                 }
 
-                if (!desiredPermissions.Contains(permission.Name))
-                {
-                    _dbContext.RolePermissions.Remove(rolePermission);
-                }
+                permissionsById[permission.Id] = permission;
             }
 
-            foreach (var permissionName in desiredPermissions)
+            if (permissionsModified)
             {
-                if (!existingPermissions.TryGetValue(permissionName, out var permission))
+                await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            foreach (var permissionDefinition in _permissionOptions.Definitions)
+            {
+                if (existingPermissions.ContainsKey(permissionDefinition.Name))
                 {
-                    _logger.LogWarning("Permission {Permission} referenced by role {Role} but not defined.", permissionName, roleDefinition.Name);
                     continue;
                 }
 
-                var alreadyAssigned = existingRolePermissions.Any(rp => rp.PermissionId == permission.Id);
-
-                if (!alreadyAssigned)
+                var permission = new Permission
                 {
-                    _dbContext.RolePermissions.Add(new RolePermission
-                    {
-                        RoleId = role.Id,
-                        PermissionId = permission.Id
-                    });
-                }
+                    Name = permissionDefinition.Name,
+                    Description = permissionDefinition.Description
+                };
+
+                _dbContext.Permissions.Add(permission);
+                existingPermissions[permission.Name] = permission;
+                permissionsById[permission.Id] = permission;
             }
 
             await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        }
 
-        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            var roleEntities = await _dbContext.Roles
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            var existingRoles = new Dictionary<string, Role>(StringComparer.OrdinalIgnoreCase);
+
+            var rolesModified = false;
+
+            foreach (var roleEntity in roleEntities)
+            {
+                if (!existingRoles.TryAdd(roleEntity.Name, roleEntity))
+                {
+                    _dbContext.Roles.Remove(roleEntity);
+                    rolesModified = true;
+                }
+            }
+
+            if (rolesModified)
+            {
+                await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            foreach (var roleDefinition in _roleOptions.Definitions)
+            {
+                if (!existingRoles.TryGetValue(roleDefinition.Name, out var role))
+                {
+                    role = new Role
+                    {
+                        Name = roleDefinition.Name,
+                        Description = roleDefinition.Description,
+                        IsSystemRole = roleDefinition.IsSystemRole,
+                    };
+
+                    _dbContext.Roles.Add(role);
+                    existingRoles[role.Name] = role;
+
+                    await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    role.Description = roleDefinition.Description;
+                    role.IsSystemRole = roleDefinition.IsSystemRole;
+                }
+
+                var existingRolePermissions = await _dbContext.RolePermissions
+                    .Where(rp => rp.RoleId == role.Id)
+                    .ToListAsync(cancellationToken)
+                    .ConfigureAwait(false);
+
+                var desiredPermissions = new HashSet<string>(roleDefinition.Permissions, StringComparer.OrdinalIgnoreCase);
+
+                foreach (var rolePermission in existingRolePermissions)
+                {
+                    if (!permissionsById.TryGetValue(rolePermission.PermissionId, out var permission))
+                    {
+                        continue;
+                    }
+
+                    if (!desiredPermissions.Contains(permission.Name))
+                    {
+                        _dbContext.RolePermissions.Remove(rolePermission);
+                    }
+                }
+
+                foreach (var permissionName in desiredPermissions)
+                {
+                    if (!existingPermissions.TryGetValue(permissionName, out var permission))
+                    {
+                        _logger.LogWarning("Permission {Permission} referenced by role {Role} but not defined.", permissionName, roleDefinition.Name);
+                        continue;
+                    }
+
+                    var alreadyAssigned = existingRolePermissions.Any(rp => rp.PermissionId == permission.Id);
+
+                    if (!alreadyAssigned)
+                    {
+                        _dbContext.RolePermissions.Add(new RolePermission
+                        {
+                            RoleId = role.Id,
+                            PermissionId = permission.Id
+                        });
+                    }
+                }
+
+                await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            if (transaction is not null)
+            {
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            if (transaction is not null)
+            {
+                await transaction.DisposeAsync().ConfigureAwait(false);
+            }
+        }
     }
 }

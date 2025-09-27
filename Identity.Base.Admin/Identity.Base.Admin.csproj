@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackageId>Identity.Base.Admin</PackageId>
+    <Title>Identity Base Admin API</Title>
+    <Description>Administrative endpoints, authorization handlers, and helpers for managing Identity Base users, roles, and audit trails.</Description>
+    <Authors>Identity Base Maintainers</Authors>
+    <PackageTags>identity;rbac;admin;aspnetcore</PackageTags>
+    <PackageProjectUrl>https://github.com/amaretto-labs/identity-base</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/amaretto-labs/identity-base</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Identity.Base\Identity.Base.csproj" />
+    <ProjectReference Include="..\Identity.Base.Roles\Identity.Base.Roles.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="9.0.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+</Project>

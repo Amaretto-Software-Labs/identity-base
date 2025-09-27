@@ -10,6 +10,7 @@ using Identity.Base.Features.Email;
 using Identity.Base.Identity;
 using Identity.Base.Options;
 using Identity.Base.Tests.Fakes;
+using Identity.Base.Roles.Options;
 using OpenIddict.Abstractions;
 using OpenIddict.Server;
 using OpenIddict.Server.AspNetCore;
@@ -163,9 +164,12 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                         OpenIddictConstants.Permissions.Endpoints.Token,
                         OpenIddictConstants.Permissions.Endpoints.Authorization,
                         OpenIddictConstants.Permissions.GrantTypes.AuthorizationCode,
+                        OpenIddictConstants.Permissions.GrantTypes.Password,
                         OpenIddictConstants.Permissions.ResponseTypes.Code,
                         OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Email,
-                        OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Profile
+                        OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Profile,
+                        OpenIddictConstants.Permissions.Prefixes.Scope + "identity.api",
+                        OpenIddictConstants.Permissions.Prefixes.Scope + "identity.admin"
                     },
                     AllowPasswordFlow = true
                 });
@@ -187,7 +191,8 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                         OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Profile,
                         OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Email,
                         OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.OfflineAccess,
-                        OpenIddictConstants.Permissions.Prefixes.Scope + "identity.api"
+                        OpenIddictConstants.Permissions.Prefixes.Scope + "identity.api",
+                        OpenIddictConstants.Permissions.Prefixes.Scope + "identity.admin"
                     },
                     Requirements =
                     {
@@ -202,11 +207,56 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                     DisplayName = "Identity API",
                     Resources = { "identity.api" }
                 });
+                options.Scopes.Add(new OpenIddictScopeOptions
+                {
+                    Name = "identity.admin",
+                    DisplayName = "Identity Admin API",
+                    Resources = { "identity.api", "identity.admin" }
+                });
             });
 
             services.PostConfigure<OpenIddictServerAspNetCoreOptions>(options =>
             {
                 options.DisableTransportSecurityRequirement = true;
+            });
+
+            services.PostConfigure<PermissionCatalogOptions>(options =>
+            {
+                options.Definitions.Clear();
+                options.Definitions.Add(new PermissionDefinition { Name = "users.read", Description = "View user directory" });
+                options.Definitions.Add(new PermissionDefinition { Name = "users.manage-roles", Description = "Assign roles" });
+                options.Definitions.Add(new PermissionDefinition { Name = "users.update", Description = "Update user profiles" });
+                options.Definitions.Add(new PermissionDefinition { Name = "roles.read", Description = "View role definitions" });
+            });
+
+            services.PostConfigure<RoleConfigurationOptions>(options =>
+            {
+                options.Definitions.Clear();
+                options.Definitions.Add(new RoleDefinition
+                {
+                    Name = "StandardUser",
+                    Description = "Standard user",
+                    Permissions = new List<string>()
+                });
+
+                options.Definitions.Add(new RoleDefinition
+                {
+                    Name = "IdentityAdmin",
+                    Description = "Full admin",
+                    Permissions = new List<string>
+                    {
+                        "users.read",
+                        "users.manage-roles",
+                        "users.update",
+                        "roles.read"
+                    },
+                    IsSystemRole = true
+                });
+
+                options.DefaultUserRoles.Clear();
+                options.DefaultUserRoles.Add("StandardUser");
+                options.DefaultAdminRoles.Clear();
+                options.DefaultAdminRoles.Add("IdentityAdmin");
             });
         });
     }

@@ -1,9 +1,11 @@
 using Identity.Base.Abstractions;
+using Identity.Base.Roles.Infrastructure;
 using Identity.Base.Roles.Options;
 using Identity.Base.Roles.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 
 namespace Identity.Base.Roles.Configuration;
 
@@ -25,6 +27,8 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<IRoleAssignmentService, RoleAssignmentService>();
         services.TryAddScoped<IPermissionResolver, RoleAssignmentService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IUserCreationListener, DefaultUserRoleAssignmentListener>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IClaimsPrincipalAugmentor, PermissionClaimsAugmentor>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, IdentityRolesSeedHostedService>());
 
         return new IdentityRolesBuilder(services);
     }

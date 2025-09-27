@@ -1,4 +1,11 @@
+using Identity.Base.Admin.Configuration;
+using Identity.Base.Admin.Endpoints;
 using Identity.Base.Extensions;
+using Identity.Base.Options;
+using Identity.Base.Roles;
+using Identity.Base.Roles.Configuration;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,13 +28,44 @@ identityBuilder
     .AddMicrosoftAuth()
     .AddAppleAuth();
 
+var rolesBuilder = builder.Services.AddIdentityAdmin(builder.Configuration);
+
+rolesBuilder.AddDbContext<IdentityRolesDbContext>((provider, options) =>
+{
+    var databaseOptions = provider.GetRequiredService<IOptions<DatabaseOptions>>().Value;
+    var connectionString = databaseOptions.Primary ?? string.Empty;
+
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException("ConnectionStrings:Primary must be provided.");
+    }
+
+    if (connectionString.StartsWith("InMemory:", StringComparison.OrdinalIgnoreCase))
+    {
+        var databaseName = connectionString[("InMemory:".Length)..];
+        if (string.IsNullOrWhiteSpace(databaseName))
+        {
+            databaseName = "IdentityBaseTests";
+        }
+
+        options.UseInMemoryDatabase($"{databaseName}_roles");
+    }
+    else
+    {
+        options.UseNpgsql(
+            connectionString,
+            sql => sql.EnableRetryOnFailure());
+    }
+});
+
 var app = builder.Build();
 
 app.UseApiPipeline();
 
 app.MapControllers();
 app.MapApiEndpoints();
+app.MapIdentityAdminEndpoints();
 
-app.Run();
+await app.RunAsync();
 
 public partial class Program;

@@ -13,11 +13,13 @@ public sealed class RoleAssignmentService : IRoleAssignmentService, IPermissionR
 {
     private readonly IRoleDbContext _dbContext;
     private readonly ILogger<RoleAssignmentService> _logger;
+    private readonly IRoleSeeder? _roleSeeder;
 
-    public RoleAssignmentService(IRoleDbContext dbContext, ILogger<RoleAssignmentService> logger)
+    public RoleAssignmentService(IRoleDbContext dbContext, ILogger<RoleAssignmentService> logger, IRoleSeeder? roleSeeder = null)
     {
         _dbContext = dbContext;
         _logger = logger;
+        _roleSeeder = roleSeeder;
     }
 
     public async Task AssignRolesAsync(Guid userId, IEnumerable<string> roleNames, CancellationToken cancellationToken = default)
@@ -37,8 +39,23 @@ public sealed class RoleAssignmentService : IRoleAssignmentService, IPermissionR
 
         if (roles.Count != desiredRoles.Count)
         {
-            var missing = desiredRoles.Except(roles.Select(r => r.Name), StringComparer.OrdinalIgnoreCase);
-            throw new InvalidOperationException($"Unknown roles: {string.Join(", ", missing)}");
+            var missing = desiredRoles.Except(roles.Select(r => r.Name), StringComparer.OrdinalIgnoreCase).ToList();
+
+            if (_roleSeeder is not null && missing.Count > 0)
+            {
+                await _roleSeeder.SeedAsync(cancellationToken).ConfigureAwait(false);
+
+                roles = await _dbContext.Roles
+                    .Where(role => desiredRoles.Contains(role.Name))
+                    .ToListAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            if (roles.Count != desiredRoles.Count)
+            {
+                var stillMissing = desiredRoles.Except(roles.Select(r => r.Name), StringComparer.OrdinalIgnoreCase);
+                throw new InvalidOperationException($"Unknown roles: {string.Join(", ", stillMissing)}");
+            }
         }
 
         var existingAssignments = await _dbContext.UserRoles

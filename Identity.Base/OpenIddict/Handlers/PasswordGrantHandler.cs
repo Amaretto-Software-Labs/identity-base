@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using System.Security.Claims;
 using Identity.Base.Identity;
+using Identity.Base.Abstractions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using OpenIddict.Abstractions;
@@ -13,17 +15,20 @@ internal sealed class PasswordGrantHandler : IOpenIddictServerHandler<OpenIddict
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IOpenIddictScopeManager _scopeManager;
     private readonly ILogger<PasswordGrantHandler> _logger;
+    private readonly IEnumerable<IClaimsPrincipalAugmentor> _augmentors;
 
     public PasswordGrantHandler(
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
         IOpenIddictScopeManager scopeManager,
-        ILogger<PasswordGrantHandler> logger)
+        ILogger<PasswordGrantHandler> logger,
+        IEnumerable<IClaimsPrincipalAugmentor> augmentors)
     {
         _signInManager = signInManager;
         _userManager = userManager;
         _scopeManager = scopeManager;
         _logger = logger;
+        _augmentors = augmentors;
     }
 
     public async ValueTask HandleAsync(OpenIddictServerEvents.HandleTokenRequestContext context)
@@ -110,6 +115,11 @@ internal sealed class PasswordGrantHandler : IOpenIddictServerHandler<OpenIddict
         if (resources.Count > 0)
         {
             principal.SetResources(resources);
+        }
+
+        foreach (var augmentor in _augmentors)
+        {
+            await augmentor.AugmentAsync(user, principal, context.CancellationToken).ConfigureAwait(false);
         }
 
         principal.SetDestinations(GetDestinations);

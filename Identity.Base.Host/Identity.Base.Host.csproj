@@ -9,6 +9,8 @@
   <ItemGroup>
     <ProjectReference Include="../Identity.Base/Identity.Base.csproj" />
     <ProjectReference Include="../Identity.Base.AspNet/Identity.Base.AspNet.csproj" />
+    <ProjectReference Include="../Identity.Base.Admin/Identity.Base.Admin.csproj" />
+    <ProjectReference Include="../Identity.Base.Roles/Identity.Base.Roles.csproj" />
   </ItemGroup>
 
   <ItemGroup>
