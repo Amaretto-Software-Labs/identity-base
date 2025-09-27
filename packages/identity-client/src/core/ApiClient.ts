@@ -52,7 +52,19 @@ export class ApiClient {
         return undefined as T
       }
 
-      return (await response.json()) as T
+      const raw = await response.text()
+      if (!raw) {
+        return undefined as T
+      }
+
+      try {
+        return JSON.parse(raw) as T
+      } catch {
+        throw createError({
+          status: response.status,
+          detail: raw,
+        })
+      }
     } catch (error: any) {
       clearTimeout(timeoutId)
       if (error?.name === 'AbortError') {

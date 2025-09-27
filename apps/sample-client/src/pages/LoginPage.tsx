@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useLogin, useIdentityContext } from '@identity-base/react-client'
 import { CONFIG } from '../config'
 
@@ -144,6 +144,12 @@ export default function LoginPage() {
       </form>
 
       {renderExternalSection()}
+
+      <div className="text-center text-sm">
+        <Link to="/forgot-password" className="text-slate-600 hover:text-slate-900">
+          Forgot your password?
+        </Link>
+      </div>
     </div>
   )
 }

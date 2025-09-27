@@ -4,6 +4,8 @@ import type {
   LoginRequest,
   LoginResponse,
   RegisterRequest,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
   MfaChallengeRequest,
   MfaVerifyRequest,
   ProfileSchemaResponse,
@@ -128,6 +130,22 @@ export class IdentityAuthManager {
   // Registration
   async register(request: RegisterRequest): Promise<{ correlationId: string }> {
     return await this.apiClient.fetch<{ correlationId: string }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    })
+  }
+
+  async requestPasswordReset(email: string): Promise<void> {
+    const payload: ForgotPasswordRequest = { email }
+
+    await this.apiClient.fetch('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async resetPassword(request: ResetPasswordRequest): Promise<{ message: string }> {
+    return await this.apiClient.fetch<{ message: string }>('/auth/reset-password', {
       method: 'POST',
       body: JSON.stringify(request),
     })

@@ -23,6 +23,11 @@ export default function HomePage() {
           to="/login"
         />
         <ActionCard
+          title="Forgot Password"
+          description="Request and complete the password reset flow using the email templates configured in Identity Base."
+          to="/forgot-password"
+        />
+        <ActionCard
           title="Manage Profile"
           description="View and update profile metadata sourced from the registration schema."
           to="/profile"

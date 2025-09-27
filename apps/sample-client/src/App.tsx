@@ -6,6 +6,8 @@ import RegisterPage from './pages/RegisterPage'
 import LoginPage from './pages/LoginPage'
 import MfaPage from './pages/MfaPage'
 import MfaSetupPage from './pages/MfaSetupPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import ProfilePage from './pages/ProfilePage'
 import AuthorizePage from './pages/AuthorizePage'
 import AuthorizeCallbackPage from './pages/AuthorizeCallbackPage'
@@ -29,6 +31,8 @@ export default function App() {
           <Route index element={<HomePage />} />
           <Route path="register" element={<RegisterPage />} />
           <Route path="login" element={<LoginPage />} />
+          <Route path="forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="reset-password" element={<ResetPasswordPage />} />
           <Route path="mfa" element={<MfaPage />} />
           <Route path="mfa-setup" element={<MfaSetupPage />} />
           <Route path="profile" element={<ProfilePage />} />

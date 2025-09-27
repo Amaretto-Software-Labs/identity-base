@@ -44,6 +44,16 @@ export interface RegisterRequest {
   metadata: Record<string, string | null>
 }
 
+export interface ForgotPasswordRequest {
+  email: string
+}
+
+export interface ResetPasswordRequest {
+  email: string
+  token: string
+  password: string
+}
+
 export interface MfaChallengeRequest {
   method: string
   clientId: string
