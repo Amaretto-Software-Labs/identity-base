@@ -24,6 +24,7 @@
   <ItemGroup>
     <ProjectReference Include="../Identity.Base/Identity.Base.csproj" />
     <ProjectReference Include="../Identity.Base.Host/Identity.Base.Host.csproj" />
+    <ProjectReference Include="..\Identity.Base.Roles\Identity.Base.Roles.csproj" />
   </ItemGroup>
 
 </Project>
