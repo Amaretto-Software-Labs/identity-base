@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { useAuth, useLogin } from '@identity-base/react-client'
+import { useAuth, useLogin, usePermissions } from '@identity-base/react-client'
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `rounded-md px-3 py-2 text-sm font-medium ${isActive ? 'bg-slate-900 text-white' : 'text-slate-100 hover:bg-slate-800 hover:text-white'}`
@@ -7,6 +7,8 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 export default function Layout() {
   const { user, isAuthenticated } = useAuth()
   const { logout } = useLogin()
+  const { hasAll, isLoading: isCheckingPermissions } = usePermissions({ autoLoad: isAuthenticated })
+  const hasAdminAccess = hasAll(['users.read', 'roles.read'])
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -34,7 +36,7 @@ export default function Layout() {
             <NavLink to="/api-demo" className={navLinkClass}>
               API Demo
             </NavLink>
-            {isAuthenticated && (
+            {isAuthenticated && hasAdminAccess && !isCheckingPermissions && (
               <NavLink to="/admin/users" className={navLinkClass}>
                 Admin
               </NavLink>

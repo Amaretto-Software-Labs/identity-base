@@ -47,6 +47,8 @@ jobs:
       - name: Pack Identity.Base libraries
         run: |
           dotnet pack Identity.Base/Identity.Base.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
+          dotnet pack Identity.Base.Roles/Identity.Base.Roles.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
+          dotnet pack Identity.Base.Admin/Identity.Base.Admin.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
           dotnet pack Identity.Base.AspNet/Identity.Base.AspNet.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
 
       - name: Upload NuGet artifacts
@@ -97,6 +99,8 @@ jobs:
       - name: Pack Identity.Base libraries
         run: |
           dotnet pack Identity.Base/Identity.Base.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
+          dotnet pack Identity.Base.Roles/Identity.Base.Roles.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
+          dotnet pack Identity.Base.Admin/Identity.Base.Admin.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
           dotnet pack Identity.Base.AspNet/Identity.Base.AspNet.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
 
       - name: Upload release artifacts

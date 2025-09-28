@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { IdentityProvider } from '@identity-base/react-client'
 import Layout from './layout/Layout'
 import AdminLayout from './layout/AdminLayout'
+import AdminRoute from './components/AdminRoute'
 import HomePage from './pages/HomePage'
 import RegisterPage from './pages/RegisterPage'
 import LoginPage from './pages/LoginPage'
@@ -42,7 +43,14 @@ export default function App() {
           <Route path="profile" element={<ProfilePage />} />
           <Route path="authorize" element={<AuthorizePage />} />
           <Route path="api-demo" element={<ApiDemoPage />} />
-          <Route path="admin" element={<AdminLayout />}>
+          <Route
+            path="admin"
+            element={(
+              <AdminRoute>
+                <AdminLayout />
+              </AdminRoute>
+            )}
+          >
             <Route index element={<Navigate to="users" replace />} />
             <Route path="users" element={<AdminUsersPage />} />
             <Route path="users/:id" element={<AdminUserDetailPage />} />

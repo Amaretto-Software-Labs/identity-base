@@ -154,6 +154,7 @@ This breakdown turns the epic plan into actionable tickets. Suggested ordering f
 5. **CI adjustments**
    - Ensure CI builds/tests the new projects, packs both packages, and uploads artifacts.
    - Update release workflow to optionally publish `Identity.Base.Roles` and `Identity.Base.Admin` when triggered.
+   - `.github/workflows/ci.yml` now packs `Identity.Base.Roles` and `Identity.Base.Admin` alongside the existing artefacts.
 
 6. **End-to-end QA pass**
    - Run through admin UI scenarios against a seeded environment.

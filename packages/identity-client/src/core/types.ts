@@ -115,6 +115,10 @@ export type AuthEvent =
   | { type: 'token-refresh'; token: string }
   | { type: 'error'; error: Error }
 
+export interface UserPermissionsResponse {
+  permissions: string[]
+}
+
 // Admin API – Users
 export interface AdminUserListQuery {
   page?: number

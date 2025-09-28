@@ -23,6 +23,7 @@ import type {
   AdminRoleDetail,
   AdminRoleCreateRequest,
   AdminRoleUpdateRequest,
+  UserPermissionsResponse,
 } from './types'
 import { ApiClient } from './ApiClient'
 import { TokenManager } from './TokenManager'
@@ -271,6 +272,14 @@ export class IdentityAuthManager {
       },
       body: JSON.stringify(payload),
     })
+  }
+
+  async getUserPermissions(): Promise<string[]> {
+    const response = await this.authorizedFetch<UserPermissionsResponse>('/users/me/permissions')
+    if (!response || !Array.isArray(response.permissions)) {
+      return []
+    }
+    return response.permissions
   }
 
   // Admin APIs – Users
