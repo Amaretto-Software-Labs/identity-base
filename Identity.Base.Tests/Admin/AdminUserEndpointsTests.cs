@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Identity.Base.Identity;
+using Identity.Base.Roles.Abstractions;
 using Identity.Base.Roles.Configuration;
 using Identity.Base.Roles.Services;
 using Identity.Base.Tests;
@@ -16,9 +17,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using OpenIddict.Abstractions;
+using Microsoft.EntityFrameworkCore;
 
 namespace Identity.Base.Tests.Admin;
 
+[Collection("AdminEndpoints")]
 public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
 {
     private readonly IdentityApiFactory _factory;
@@ -124,6 +127,7 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
         _factory.EmailSender.Sent.Should().HaveCount(2);
 
         using var scope = _factory.Services.CreateScope();
+        await scope.ServiceProvider.SeedIdentityRolesAsync();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var created = await userManager.FindByIdAsync(createdId.ToString());
         created.Should().NotBeNull();
@@ -330,6 +334,9 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
     {
         using var scope = _factory.Services.CreateScope();
         await scope.ServiceProvider.SeedIdentityRolesAsync();
+        var roleContext = scope.ServiceProvider.GetRequiredService<IRoleDbContext>();
+        var seededRoles = await roleContext.Roles.Select(r => r.Name).ToListAsync();
+        seededRoles.Should().Contain("IdentityAdmin");
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var roleAssignmentService = scope.ServiceProvider.GetRequiredService<IRoleAssignmentService>();
 

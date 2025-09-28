@@ -47,26 +47,34 @@ public sealed class RoleSeeder : IRoleSeeder
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
+            var roleEntities = await _dbContext.Roles
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            var existingPermissionNames = new HashSet<string>(permissionEntities.Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
+            var existingRoleNames = new HashSet<string>(roleEntities.Select(r => r.Name), StringComparer.OrdinalIgnoreCase);
+
+            var hasAllPermissions = _permissionOptions.Definitions.All(def => existingPermissionNames.Contains(def.Name));
+            var hasAllRoles = _roleOptions.Definitions.All(def => existingRoleNames.Contains(def.Name));
+
+            if (hasAllPermissions && hasAllRoles)
+            {
+                if (transaction is not null)
+                {
+                    await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                }
+                return;
+            }
+
             var existingPermissions = new Dictionary<string, Permission>(StringComparer.OrdinalIgnoreCase);
             var permissionsById = new Dictionary<Guid, Permission>();
 
-            var permissionsModified = false;
-
             foreach (var permission in permissionEntities)
             {
-                if (!existingPermissions.TryAdd(permission.Name, permission))
+                if (existingPermissions.TryAdd(permission.Name, permission))
                 {
-                    _dbContext.Permissions.Remove(permission);
-                    permissionsModified = true;
-                    continue;
+                    permissionsById[permission.Id] = permission;
                 }
-
-                permissionsById[permission.Id] = permission;
-            }
-
-            if (permissionsModified)
-            {
-                await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             }
 
             foreach (var permissionDefinition in _permissionOptions.Definitions)
@@ -89,26 +97,10 @@ public sealed class RoleSeeder : IRoleSeeder
 
             await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-            var roleEntities = await _dbContext.Roles
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
-
             var existingRoles = new Dictionary<string, Role>(StringComparer.OrdinalIgnoreCase);
-
-            var rolesModified = false;
-
             foreach (var roleEntity in roleEntities)
             {
-                if (!existingRoles.TryAdd(roleEntity.Name, roleEntity))
-                {
-                    _dbContext.Roles.Remove(roleEntity);
-                    rolesModified = true;
-                }
-            }
-
-            if (rolesModified)
-            {
-                await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                existingRoles.TryAdd(roleEntity.Name, roleEntity);
             }
 
             foreach (var roleDefinition in _roleOptions.Definitions)

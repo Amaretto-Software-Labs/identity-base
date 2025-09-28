@@ -30,6 +30,9 @@ public static class AuditEventTypes
     public const string AdminUserDeleted = "admin.user.deleted";
     public const string AdminUserRestored = "admin.user.restored";
     public const string AdminUserRolesUpdated = "admin.user.roles-updated";
+    public const string AdminRoleCreated = "admin.role.created";
+    public const string AdminRoleUpdated = "admin.role.updated";
+    public const string AdminRoleDeleted = "admin.role.deleted";
 }
 
 internal sealed class AuditLogger : IAuditLogger
