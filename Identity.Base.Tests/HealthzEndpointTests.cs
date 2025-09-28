@@ -224,9 +224,15 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
             {
                 options.Definitions.Clear();
                 options.Definitions.Add(new PermissionDefinition { Name = "users.read", Description = "View user directory" });
-                options.Definitions.Add(new PermissionDefinition { Name = "users.manage-roles", Description = "Assign roles" });
+                options.Definitions.Add(new PermissionDefinition { Name = "users.create", Description = "Create users" });
                 options.Definitions.Add(new PermissionDefinition { Name = "users.update", Description = "Update user profiles" });
+                options.Definitions.Add(new PermissionDefinition { Name = "users.lock", Description = "Lock and unlock accounts" });
+                options.Definitions.Add(new PermissionDefinition { Name = "users.reset-password", Description = "Force password reset" });
+                options.Definitions.Add(new PermissionDefinition { Name = "users.reset-mfa", Description = "Reset MFA enrollment" });
+                options.Definitions.Add(new PermissionDefinition { Name = "users.manage-roles", Description = "Assign roles" });
+                options.Definitions.Add(new PermissionDefinition { Name = "users.delete", Description = "Soft delete users" });
                 options.Definitions.Add(new PermissionDefinition { Name = "roles.read", Description = "View role definitions" });
+                options.Definitions.Add(new PermissionDefinition { Name = "roles.manage", Description = "Manage role definitions" });
             });
 
             services.PostConfigure<RoleConfigurationOptions>(options =>
@@ -246,9 +252,29 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                     Permissions = new List<string>
                     {
                         "users.read",
-                        "users.manage-roles",
+                        "users.create",
                         "users.update",
-                        "roles.read"
+                        "users.lock",
+                        "users.reset-password",
+                        "users.reset-mfa",
+                        "users.manage-roles",
+                        "users.delete",
+                        "roles.read",
+                        "roles.manage"
+                    },
+                    IsSystemRole = true
+                });
+
+                options.Definitions.Add(new RoleDefinition
+                {
+                    Name = "SupportAgent",
+                    Description = "Support staff",
+                    Permissions = new List<string>
+                    {
+                        "users.read",
+                        "users.update",
+                        "users.lock",
+                        "users.manage-roles"
                     },
                     IsSystemRole = true
                 });

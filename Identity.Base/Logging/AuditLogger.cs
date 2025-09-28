@@ -20,6 +20,16 @@ public static class AuditEventTypes
     public const string ExternalLinked = "external.linked";
     public const string ExternalUnlinked = "external.unlinked";
     public const string ExternalLogin = "external.login";
+    public const string AdminUserCreated = "admin.user.created";
+    public const string AdminUserUpdated = "admin.user.updated";
+    public const string AdminUserLocked = "admin.user.locked";
+    public const string AdminUserUnlocked = "admin.user.unlocked";
+    public const string AdminUserPasswordReset = "admin.user.password-reset";
+    public const string AdminUserMfaReset = "admin.user.mfa-reset";
+    public const string AdminUserConfirmationResent = "admin.user.confirmation-resent";
+    public const string AdminUserDeleted = "admin.user.deleted";
+    public const string AdminUserRestored = "admin.user.restored";
+    public const string AdminUserRolesUpdated = "admin.user.roles-updated";
 }
 
 internal sealed class AuditLogger : IAuditLogger
