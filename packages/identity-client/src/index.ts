@@ -19,6 +19,10 @@ export { useMfa } from './react/hooks/useMfa'
 export { useProfile } from './react/hooks/useProfile'
 export { useAuthorization } from './react/hooks/useAuthorization'
 export { useRequireAuth } from './react/hooks/useRequireAuth'
+export { useAdminUsers } from './react/hooks/useAdminUsers'
+export { useAdminUser } from './react/hooks/useAdminUser'
+export { useAdminUserRoles } from './react/hooks/useAdminUserRoles'
+export { useAdminRoles } from './react/hooks/useAdminRoles'
 
 // React components
 export { ProtectedRoute } from './react/components/ProtectedRoute'

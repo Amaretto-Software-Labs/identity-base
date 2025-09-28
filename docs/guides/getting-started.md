@@ -195,6 +195,8 @@ If multi-factor authentication is enabled for an account:
   npm run dev
   ```
 - The Vite server proxies API requests to `http://localhost:8080` by default. Adjust `VITE_API_BASE` or the proxy config in `vite.config.ts` if your API runs elsewhere.
+- The sample now includes an admin console under `/admin`. Update `VITE_AUTHORIZE_SCOPE` to include the admin scope (default `identity.admin`) and ensure your seed or test accounts hold the roles required by the `/admin/users` and `/admin/roles` endpoints before browsing to the console.
+- `@identity-base/react-client` exposes `useAdminUsers`, `useAdminUser`, `useAdminUserRoles`, and `useAdminRoles` hooks for headless integration. See `apps/sample-client/src/pages/admin` for usage patterns covering list/detail flows, role assignment, and CRUD operations.
 
 ### ASP.NET Core Sample API
 - A minimal API example lives under `apps/sample-api` demonstrating JWT Bearer authentication using the `Identity.Base.AspNet` integration library.

@@ -9,7 +9,20 @@ import type {
   MfaChallengeRequest,
   MfaVerifyRequest,
   ProfileSchemaResponse,
-  AuthEvent
+  AuthEvent,
+  AdminUserListQuery,
+  AdminUserListResponse,
+  AdminUserCreateRequest,
+  AdminUserCreateResponse,
+  AdminUserUpdateRequest,
+  AdminUserDetail,
+  AdminUserLockRequest,
+  AdminUserRolesResponse,
+  AdminUserRolesUpdateRequest,
+  AdminRoleSummary,
+  AdminRoleDetail,
+  AdminRoleCreateRequest,
+  AdminRoleUpdateRequest,
 } from './types'
 import { ApiClient } from './ApiClient'
 import { TokenManager } from './TokenManager'
@@ -46,6 +59,26 @@ export class IdentityAuthManager {
       } catch (error) {
         console.error('Error in auth event listener:', error)
       }
+    })
+  }
+
+  private async authorizedFetch<T>(
+    path: string,
+    init: RequestInit & { parse?: 'json' | 'text' } = {},
+  ): Promise<T> {
+    const token = await this.tokenManager.ensureValidToken()
+    if (!token) {
+      throw createError('Authentication required')
+    }
+
+    const headers: Record<string, string> = {
+      ...(init.headers as Record<string, string> | undefined),
+      Authorization: `Bearer ${token}`,
+    }
+
+    return await this.apiClient.fetch<T>(path, {
+      ...init,
+      headers,
     })
   }
 
@@ -237,6 +270,145 @@ export class IdentityAuthManager {
         'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify(payload),
+    })
+  }
+
+  // Admin APIs – Users
+  async listAdminUsers(query: AdminUserListQuery = {}): Promise<AdminUserListResponse> {
+    const params = new URLSearchParams()
+
+    if (typeof query.page === 'number') {
+      params.set('page', String(query.page))
+    }
+
+    if (typeof query.pageSize === 'number') {
+      params.set('pageSize', String(query.pageSize))
+    }
+
+    if (typeof query.locked === 'boolean') {
+      params.set('locked', String(query.locked))
+    }
+
+    if (query.search && query.search.trim().length > 0) {
+      params.set('search', query.search.trim())
+    }
+
+    if (query.role && query.role.trim().length > 0) {
+      params.set('role', query.role.trim())
+    }
+
+    const queryString = params.toString()
+    const path = queryString.length > 0 ? `/admin/users?${queryString}` : '/admin/users'
+    return await this.authorizedFetch<AdminUserListResponse>(path)
+  }
+
+  async getAdminUser(id: string): Promise<AdminUserDetail> {
+    const encodedId = encodeURIComponent(id)
+    return await this.authorizedFetch<AdminUserDetail>(`/admin/users/${encodedId}`)
+  }
+
+  async createAdminUser(payload: AdminUserCreateRequest): Promise<AdminUserCreateResponse> {
+    return await this.authorizedFetch<AdminUserCreateResponse>('/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async updateAdminUser(id: string, payload: AdminUserUpdateRequest): Promise<AdminUserDetail> {
+    const encodedId = encodeURIComponent(id)
+    return await this.authorizedFetch<AdminUserDetail>(`/admin/users/${encodedId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async lockAdminUser(id: string, payload?: AdminUserLockRequest): Promise<void> {
+    const encodedId = encodeURIComponent(id)
+    return await this.authorizedFetch<void>(`/admin/users/${encodedId}/lock`, {
+      method: 'POST',
+      body: JSON.stringify(payload ?? {}),
+    })
+  }
+
+  async unlockAdminUser(id: string): Promise<void> {
+    const encodedId = encodeURIComponent(id)
+    return await this.authorizedFetch<void>(`/admin/users/${encodedId}/unlock`, {
+      method: 'POST',
+    })
+  }
+
+  async forceAdminPasswordReset(id: string): Promise<void> {
+    const encodedId = encodeURIComponent(id)
+    return await this.authorizedFetch<void>(`/admin/users/${encodedId}/force-password-reset`, {
+      method: 'POST',
+    })
+  }
+
+  async resetAdminUserMfa(id: string): Promise<void> {
+    const encodedId = encodeURIComponent(id)
+    return await this.authorizedFetch<void>(`/admin/users/${encodedId}/mfa/reset`, {
+      method: 'POST',
+    })
+  }
+
+  async resendAdminConfirmation(id: string): Promise<void> {
+    const encodedId = encodeURIComponent(id)
+    return await this.authorizedFetch<void>(`/admin/users/${encodedId}/resend-confirmation`, {
+      method: 'POST',
+    })
+  }
+
+  async getAdminUserRoles(id: string): Promise<AdminUserRolesResponse> {
+    const encodedId = encodeURIComponent(id)
+    return await this.authorizedFetch<AdminUserRolesResponse>(`/admin/users/${encodedId}/roles`)
+  }
+
+  async updateAdminUserRoles(id: string, payload: AdminUserRolesUpdateRequest): Promise<void> {
+    const encodedId = encodeURIComponent(id)
+    return await this.authorizedFetch<void>(`/admin/users/${encodedId}/roles`, {
+      method: 'PUT',
+      body: JSON.stringify(payload ?? { roles: [] }),
+    })
+  }
+
+  async softDeleteAdminUser(id: string): Promise<void> {
+    const encodedId = encodeURIComponent(id)
+    return await this.authorizedFetch<void>(`/admin/users/${encodedId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async restoreAdminUser(id: string): Promise<void> {
+    const encodedId = encodeURIComponent(id)
+    return await this.authorizedFetch<void>(`/admin/users/${encodedId}/restore`, {
+      method: 'POST',
+    })
+  }
+
+  // Admin APIs – Roles
+  async listAdminRoles(): Promise<AdminRoleSummary[]> {
+    return await this.authorizedFetch<AdminRoleSummary[]>('/admin/roles')
+  }
+
+  async createAdminRole(payload: AdminRoleCreateRequest): Promise<AdminRoleDetail> {
+    return await this.authorizedFetch<AdminRoleDetail>('/admin/roles', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async updateAdminRole(id: string, payload: AdminRoleUpdateRequest): Promise<AdminRoleDetail> {
+    const encodedId = encodeURIComponent(id)
+    return await this.authorizedFetch<AdminRoleDetail>(`/admin/roles/${encodedId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async deleteAdminRole(id: string): Promise<void> {
+    const encodedId = encodeURIComponent(id)
+    return await this.authorizedFetch<void>(`/admin/roles/${encodedId}`, {
+      method: 'DELETE',
     })
   }
 

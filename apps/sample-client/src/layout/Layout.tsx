@@ -5,7 +5,7 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `rounded-md px-3 py-2 text-sm font-medium ${isActive ? 'bg-slate-900 text-white' : 'text-slate-100 hover:bg-slate-800 hover:text-white'}`
 
 export default function Layout() {
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   const { logout } = useLogin()
 
   return (
@@ -15,7 +15,7 @@ export default function Layout() {
           <Link to="/" className="text-lg font-semibold">
             Identity Sample Client
           </Link>
-          <nav className="flex items-center gap-2">
+          <nav className="flex flex-wrap items-center gap-2">
             <NavLink to="/register" className={navLinkClass}>
               Register
             </NavLink>
@@ -34,6 +34,11 @@ export default function Layout() {
             <NavLink to="/api-demo" className={navLinkClass}>
               API Demo
             </NavLink>
+            {isAuthenticated && (
+              <NavLink to="/admin/users" className={navLinkClass}>
+                Admin
+              </NavLink>
+            )}
           </nav>
           <div className="flex items-center gap-3">
             {user ? (
@@ -55,7 +60,7 @@ export default function Layout() {
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-4xl px-4 py-8">
+      <main className="mx-auto max-w-6xl px-4 py-8">
         <Outlet />
       </main>
     </div>

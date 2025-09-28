@@ -115,6 +115,136 @@ export type AuthEvent =
   | { type: 'token-refresh'; token: string }
   | { type: 'error'; error: Error }
 
+// Admin API – Users
+export interface AdminUserListQuery {
+  page?: number
+  pageSize?: number
+  search?: string
+  role?: string
+  locked?: boolean
+}
+
+export interface AdminUserSummary {
+  id: string
+  email: string | null
+  displayName: string | null
+  emailConfirmed: boolean
+  isLockedOut: boolean
+  createdAt: string
+  mfaEnabled: boolean
+  roles: string[]
+  isDeleted: boolean
+}
+
+export interface AdminUserListResponse {
+  page: number
+  pageSize: number
+  totalCount: number
+  users: AdminUserSummary[]
+}
+
+export interface AdminUserExternalLogin {
+  provider: string
+  displayName: string
+  key: string
+}
+
+export interface AdminUserDetail {
+  id: string
+  email: string | null
+  emailConfirmed: boolean
+  displayName: string | null
+  createdAt: string
+  lockoutEnabled: boolean
+  isLockedOut: boolean
+  lockoutEnd: string | null
+  twoFactorEnabled: boolean
+  phoneNumberConfirmed: boolean
+  phoneNumber: string | null
+  metadata: Record<string, string | null>
+  concurrencyStamp: string
+  roles: string[]
+  externalLogins: AdminUserExternalLogin[]
+  authenticatorConfigured: boolean
+  isDeleted: boolean
+}
+
+export interface AdminUserCreateRequest {
+  email: string
+  password?: string
+  displayName?: string | null
+  metadata?: Record<string, string | null>
+  emailConfirmed?: boolean
+  sendConfirmationEmail?: boolean
+  sendPasswordResetEmail?: boolean
+  roles?: string[]
+}
+
+export interface AdminUserCreateResponse {
+  id: string
+  email: string | null
+  displayName: string | null
+}
+
+export interface AdminUserUpdateRequest {
+  concurrencyStamp: string
+  displayName?: string | null
+  metadata?: Record<string, string | null>
+  emailConfirmed?: boolean
+  lockoutEnabled?: boolean
+  lockoutEnd?: string | null
+  twoFactorEnabled?: boolean
+  phoneNumber?: string | null
+  phoneNumberConfirmed?: boolean
+}
+
+export interface AdminUserLockRequest {
+  minutes?: number
+}
+
+export interface AdminUserRolesResponse {
+  roles: string[]
+}
+
+export interface AdminUserRolesUpdateRequest {
+  roles?: string[]
+}
+
+// Admin API – Roles
+export interface AdminRoleSummary {
+  id: string
+  name: string
+  description: string | null
+  isSystemRole: boolean
+  concurrencyStamp: string
+  permissions: string[]
+  userCount: number
+}
+
+export interface AdminRoleDetail {
+  id: string
+  name: string
+  description: string | null
+  isSystemRole: boolean
+  concurrencyStamp: string
+  permissions: string[]
+}
+
+export interface AdminRoleCreateRequest {
+  name: string
+  description?: string | null
+  isSystemRole?: boolean
+  permissions?: string[]
+}
+
+export interface AdminRoleUpdateRequest {
+  concurrencyStamp: string
+  name?: string | null
+  description?: string | null
+  isSystemRole?: boolean
+  permissions?: string[]
+}
+
 // Errors
 export interface ApiError {
   title?: string

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { IdentityProvider } from '@identity-base/react-client'
 import Layout from './layout/Layout'
+import AdminLayout from './layout/AdminLayout'
 import HomePage from './pages/HomePage'
 import RegisterPage from './pages/RegisterPage'
 import LoginPage from './pages/LoginPage'
@@ -14,6 +15,9 @@ import AuthorizeCallbackPage from './pages/AuthorizeCallbackPage'
 import ExternalResultPage from './pages/ExternalResultPage'
 import ApiDemoPage from './pages/ApiDemoPage'
 import { CONFIG } from './config'
+import AdminUsersPage from './pages/admin/AdminUsersPage'
+import AdminUserDetailPage from './pages/admin/AdminUserDetailPage'
+import AdminRolesPage from './pages/admin/AdminRolesPage'
 
 export default function App() {
   return (
@@ -38,6 +42,12 @@ export default function App() {
           <Route path="profile" element={<ProfilePage />} />
           <Route path="authorize" element={<AuthorizePage />} />
           <Route path="api-demo" element={<ApiDemoPage />} />
+          <Route path="admin" element={<AdminLayout />}>
+            <Route index element={<Navigate to="users" replace />} />
+            <Route path="users" element={<AdminUsersPage />} />
+            <Route path="users/:id" element={<AdminUserDetailPage />} />
+            <Route path="roles" element={<AdminRolesPage />} />
+          </Route>
           <Route path="external-result" element={<ExternalResultPage />} />
         </Route>
         <Route path="auth/callback" element={<AuthorizeCallbackPage />} />
