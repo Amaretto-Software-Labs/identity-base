@@ -68,13 +68,13 @@ export class IdentityAuthManager {
     init: RequestInit & { parse?: 'json' | 'text' } = {},
   ): Promise<T> {
     const token = await this.tokenManager.ensureValidToken()
-    if (!token) {
-      throw createError('Authentication required')
-    }
 
     const headers: Record<string, string> = {
       ...(init.headers as Record<string, string> | undefined),
-      Authorization: `Bearer ${token}`,
+    }
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
     }
 
     return await this.apiClient.fetch<T>(path, {
@@ -275,11 +275,20 @@ export class IdentityAuthManager {
   }
 
   async getUserPermissions(): Promise<string[]> {
-    const response = await this.authorizedFetch<UserPermissionsResponse>('/users/me/permissions')
-    if (!response || !Array.isArray(response.permissions)) {
-      return []
+    try {
+      const response = await this.authorizedFetch<UserPermissionsResponse>('/users/me/permissions')
+      if (!response || !Array.isArray(response.permissions)) {
+        return []
+      }
+      return response.permissions
+    } catch (error: any) {
+      const normalized = createError(error)
+      if (normalized.status === 404) {
+        return []
+      }
+
+      throw normalized
     }
-    return response.permissions
   }
 
   // Admin APIs – Users

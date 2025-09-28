@@ -43,7 +43,7 @@ export function usePermissions(options: UsePermissionsOptions = {}): UsePermissi
       return result
     } catch (err) {
       const normalized = createError(err)
-      if (normalized.status === 401) {
+      if (normalized.status === 401 || normalized.status === 404) {
         setPermissions([])
         setError(null)
         return []

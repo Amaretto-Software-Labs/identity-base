@@ -3,6 +3,7 @@ using Identity.Base.Admin.Endpoints;
 using Identity.Base.Extensions;
 using Identity.Base.Options;
 using Identity.Base.Roles;
+using Identity.Base.Roles.Endpoints;
 using Identity.Base.Roles.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -65,6 +66,7 @@ app.UseApiPipeline();
 app.MapControllers();
 app.MapApiEndpoints();
 app.MapIdentityAdminEndpoints();
+app.MapIdentityRolesUserEndpoints();
 
 await app.RunAsync();
 

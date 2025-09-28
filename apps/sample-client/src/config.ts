@@ -1,5 +1,7 @@
+const DEFAULT_API_BASE = 'https://localhost:5001'
+
 export const CONFIG = {
-  apiBase: (import.meta.env.VITE_API_BASE as string | undefined) ?? '',
+  apiBase: (import.meta.env.VITE_API_BASE as string | undefined) ?? DEFAULT_API_BASE,
   clientId: (import.meta.env.VITE_CLIENT_ID as string | undefined) ?? 'spa-client',
   authorizeRedirectUri:
     (import.meta.env.VITE_AUTHORIZE_REDIRECT as string | undefined) ?? `${window.location.origin}/auth/callback`,

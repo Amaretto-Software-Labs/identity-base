@@ -28,6 +28,7 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<IPermissionResolver, RoleAssignmentService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IUserCreationListener, DefaultUserRoleAssignmentListener>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IClaimsPrincipalAugmentor, PermissionClaimsAugmentor>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, IdentityRolesMigrationHostedService>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, IdentityRolesSeedHostedService>());
 
         return new IdentityRolesBuilder(services);
