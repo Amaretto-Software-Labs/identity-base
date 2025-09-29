@@ -2,6 +2,10 @@
 
 This guide walks operators through enabling and using the Identity Base admin surface. It covers API configuration, required roles and permissions, and the day-to-day workflows available in the sample React console (`apps/sample-client`).
 
+> Repository: [Identity Base on GitHub](https://github.com/Amaretto-Software-Labs/identity-base)  
+> Documentation index: [`docs/`](https://github.com/Amaretto-Software-Labs/identity-base/tree/main/docs)  
+> Issues & support: [GitHub Issues](https://github.com/Amaretto-Software-Labs/identity-base/issues)
+
 ## 1. Prerequisites
 - Identity Base host running (e.g., `dotnet run --project Identity.Base.Host`).
 - Database schema up to date. The host automatically applies the Identity and Roles migrations via background hosted services on startup.
@@ -69,3 +73,9 @@ This guide walks operators through enabling and using the Identity Base admin su
 - Integrate audit events with your observability stack so each privileged action is tracked end-to-end.
 
 For broader setup guidance (mail, OAuth clients, Docker compose), refer to `docs/guides/getting-started.md` and `docs/guides/integration-guide.md`.
+
+## Resources
+- [Identity Base repository](https://github.com/Amaretto-Software-Labs/identity-base)
+- [Documentation folder](https://github.com/Amaretto-Software-Labs/identity-base/tree/main/docs)
+- [Issue tracker](https://github.com/Amaretto-Software-Labs/identity-base/issues)
+- [AGENTS guide](../../AGENTS.md) — contributor playbook and non-negotiable rules

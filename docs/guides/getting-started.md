@@ -1,211 +1,283 @@
-# Getting Started
+# Getting Started with Identity Base Packages
 
-This guide walks through configuring and running Identity Base in a local environment.
+This walkthrough shows how to stand up Identity Base as a service using only the published NuGet packages. By the end of each stage you will have a working host that you can run and test. Subsequent sections add optional RBAC (`Identity.Base.Roles`) and the full admin API (`Identity.Base.Admin`).
 
-## Prerequisites
-- .NET SDK 9.0+
-- PostgreSQL 16 (local or containerised)
-- Optional: Docker Desktop for running the provided Postgres compose file
+> Repository: [Identity Base](https://github.com/Amaretto-Software-Labs/identity-base) • Issue tracker: [GitHub Issues](https://github.com/Amaretto-Software-Labs/identity-base/issues)
 
-## Setup Steps
-1. Clone the repository and restore dependencies:
+---
+
+## 1. Create the Host Project
+
+1. Create an empty ASP.NET Core project:
    ```bash
-   dotnet restore Identity.sln
+   dotnet new web -n IdentityHost
+   cd IdentityHost
    ```
-2. Configure the database connection string in `Identity.Base.Host/appsettings.Development.json` or via environment variables.
-3. Adjust registration metadata in the `Registration` section. Each `ProfileField` entry defines:
-   - `Name`: Key used in registration payload metadata
-   - `DisplayName`: Human readable label
-   - `Required`: Whether the field must be supplied
-   - `MaxLength`: Maximum character length
-   - `Pattern`: Optional regular expression for server-side validation
-4. Replace the MailJet placeholders (`MailJet:ApiKey`, `MailJet:ApiSecret`, `MailJet:FromEmail`, `MailJet:Templates:Confirmation`, `MailJet:Templates:PasswordReset`, `MailJet:Templates:MfaChallenge`) with valid values and, if you want operational alerts, enable `MailJet:ErrorReporting` with a monitored inbox. The service will fail to start without these credentials.
-5. Configure OpenIddict applications/scopes under the `OpenIddict` section (client IDs, redirect URIs, permissions, resources). The default sample client targets a local SPA. Persist signing/encryption keys by setting `OpenIddict:ServerKeys` (see “Server Key Providers” below).
-6. Provide the MFA issuer name via `Mfa:Issuer` (this is the label shown in authenticator apps when users enrol). Use the nested `Mfa:Email:Enabled` and `Mfa:Sms` settings to decide which challenge methods are available; when SMS is enabled, populate the Twilio credentials inside `Mfa:Sms` (`AccountSid`, `AuthToken`, `FromPhoneNumber`).
-7. (Optional) Enable social sign-in by configuring the `ExternalProviders` section. Each provider exposes `Enabled`, `ClientId`, `ClientSecret`, `CallbackPath`, and `Scopes`; Apple additionally supports `TeamId`, `KeyId`, and an inline `PrivateKey` for JWT-based client secrets.
-8. (Optional) Enable the seed administrator account by setting `IdentitySeed:Enabled` to `true` and providing `Email`, `Password`, and `Roles`.
-9. Apply database migrations:
+2. (Optional) Install the EF Core CLI if you have not already:
    ```bash
-   dotnet ef database update \
-     --project Identity.Base/Identity.Base.csproj \
-     --startup-project Identity.Base.Host/Identity.Base.Host.csproj
-   ```
-10. Run the service:
-   ```bash
-   dotnet run --project Identity.Base.Host/Identity.Base.Host.csproj
-   ```
-11. Submit a registration request with metadata:
-   ```bash
-   curl -X POST https://localhost:5001/auth/register \
-     -H "Content-Type: application/json" \
-     -d '{
-       "email": "user@example.com",
-       "password": "Passw0rd!Passw0rd!",
-       "metadata": {
-         "displayName": "Example User",
-         "company": "Example Co"
-       }
-     }'
+   dotnet tool install --global dotnet-ef
    ```
 
-## Email Templates
-- MailJet integration is always on. Populate `MailJet` API credentials, sender details, template ids (confirmation, password reset, MFA challenge), and (optionally) enable `MailJet:ErrorReporting` to receive delivery failures.
-- When enabled, `/auth/register` sends the confirmation template with the following variables:
-  - `email`
-  - `displayName`
-  - `confirmationUrl`
-- `/auth/forgot-password` leverages the password reset template with variables `email`, `displayName`, and `resetUrl`.
-- `/auth/mfa/challenge` (email method) uses the MFA challenge template with variables `email`, `displayName`, and `code`.
+---
 
-## Running Tests
-- Integration tests run against the EF Core in-memory provider. Execute `dotnet test Identity.sln` before opening a pull request.
+## 2. Install Identity Base Core
 
-## Customising the Host Composition
+### 2.1 Add NuGet Packages
+```bash
+dotnet add package Identity.Base
+```
 
-`Identity.Base.Host/Program.cs` now composes the core services via the fluent builder:
-
+### 2.2 Configure `Program.cs`
+Replace the generated file with the following minimal host:
 ```csharp
-var identityBuilder = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
+using Identity.Base.Extensions;
 
-identityBuilder
-    .AddGoogleAuth()
-    .AddMicrosoftAuth()
-    .AddAppleAuth();
+var builder = WebApplication.CreateBuilder(args);
+
+// Registers Identity Base services, including AppDbContext, Identity, OpenIddict, mail, MFA, etc.
+builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
+
+var app = builder.Build();
+
+app.UseApiPipeline();         // HTTPS redirection, Serilog, CORS, auth, etc.
+app.MapControllers();         // enables controller discovery if you add any
+app.MapApiEndpoints();        // Identity Base authentication/profile endpoints
+
+await app.RunAsync();
 ```
 
-- Call `AddConfiguredExternalProviders()` to register only the providers that are enabled in configuration.
-- Chain `AddExternalAuthProvider(...)` to plug in custom providers without modifying the package.
-- Use `AddIdentityBase(builder.Configuration, builder.Environment, options =>
-  options.ConfigureOptions((services, configuration) => { /* override binding */ }));` to load settings from external stores (e.g., database, Key Vault) before the default option binding runs. Disable the built-in JSON binding by setting `options.UseDefaultOptionBinding = false` when replacing it entirely.
-- Review `../reference/identity-base-public-api.md` for the supported public surface area when wiring custom services.
-
-## Server Key Providers
-
-OpenIddict uses configuration-driven providers to load signing and encryption certificates:
-
-- `OpenIddict:ServerKeys:Provider`
-  - `Development` *(default)* – uses development certificates (suitable only for local builds).
-  - `File` – loads `.pfx` certificates from disk.
-  - `AzureKeyVault` – retrieves base64-encoded PFX secrets from Azure Key Vault.
-
-### File Provider
-
+### 2.3 Provide Configuration
+Add an `appsettings.json` (or edit the existing file) with at least the following sections. Adjust values to match your environment:
 ```json
-"OpenIddict": {
-  "ServerKeys": {
-    "Provider": "File",
-    "File": {
-      "Signing": {
-        "Path": "./certs/identity-signing.pfx",
-        "Password": "strong-password"
-      },
-      "Encryption": {
-        "Path": "./certs/identity-encryption.pfx",
-        "Password": "strong-password"
+{
+  "ConnectionStrings": {
+    "Primary": "User ID=postgres;Password=P@ssword123;Host=localhost;Port=5432;Database=identity;Include Error Detail=true"
+  },
+  "IdentitySeed": {
+    "Enabled": true,
+    "Email": "admin@example.com",
+    "Password": "Passw0rd!Passw0rd!",
+    "Roles": ["IdentityAdmin"]
+  },
+  "Registration": {
+    "ConfirmationUrlTemplate": "https://localhost:5001/account/confirm?token={token}&email={email}",
+    "PasswordResetUrlTemplate": "https://localhost:5001/reset-password?token={token}&email={email}",
+    "ProfileFields": [
+      { "Name": "displayName", "DisplayName": "Display Name", "Required": true, "MaxLength": 128 }
+    ]
+  },
+  "Cors": {
+    "AllowedOrigins": ["https://localhost:5173", "http://localhost:5173"]
+  },
+  "MailJet": {
+    "FromEmail": "noreply@example.com",
+    "FromName": "Identity Base",
+    "ApiKey": "your-mailjet-key",
+    "ApiSecret": "your-mailjet-secret",
+    "Templates": {
+      "Confirmation": 123456,
+      "PasswordReset": 234567,
+      "MfaChallenge": 345678
+    }
+  },
+  "Mfa": {
+    "Issuer": "Identity Base",
+    "Email": { "Enabled": true },
+    "Sms": {
+      "Enabled": false,
+      "FromPhoneNumber": "+15005550006",
+      "AccountSid": "twilio-account-sid",
+      "AuthToken": "twilio-auth-token"
+    }
+  },
+  "ExternalProviders": {
+    "Google": { "Enabled": false },
+    "Microsoft": { "Enabled": false },
+    "Apple": { "Enabled": false }
+  },
+  "OpenIddict": {
+    "ServerKeys": { "Provider": "Development" },
+    "Applications": [
+      {
+        "ClientId": "spa-client",
+        "ClientType": "public",
+        "RedirectUris": ["http://localhost:5173/auth/callback"],
+        "Permissions": [
+          "endpoints:authorization",
+          "endpoints:token",
+          "endpoints:userinfo",
+          "grant_types:authorization_code",
+          "response_types:code",
+          "scopes:openid",
+          "scopes:profile",
+          "scopes:email",
+          "scopes:offline_access",
+          "scopes:identity.api"
+        ],
+        "Requirements": ["requirements:pkce"]
       }
-    }
+    ]
   }
 }
 ```
+Key sections:
+- `ConnectionStrings:Primary` – required for the internal `AppDbContext`.
+- `IdentitySeed` – optionally bootstrap an admin user.
+- `MailJet`, `Mfa`, `ExternalProviders` – supply credentials/enabled flags as needed.
+- `OpenIddict` – register clients, scopes, and key management strategy.
 
-Only the signing certificate is required; the encryption entry is optional.
+### 2.4 Apply the Core Migrations
+Generate the database schema inside your host project:
+```bash
+dotnet ef migrations add InitialIdentityBase \
+  --context Identity.Base.Identity.AppDbContext \
+  --output-dir Data/Migrations/IdentityBase
 
-### Azure Key Vault Provider
+dotnet ef database update \
+  --context Identity.Base.Identity.AppDbContext
+```
 
+### 2.5 Run & Verify
+```bash
+dotnet run
+```
+Visit `https://localhost:5000/healthz` to confirm the service is up. If you enabled seeding, the bootstrap admin user is now available.
+
+At this stage you have the complete identity, registration, MFA, and OAuth surface without RBAC or admin APIs.
+
+---
+
+## 3. (Optional) Add Role-Based Access Control
+
+If you need role management and effective permission resolution, add the `Identity.Base.Roles` package.
+
+### 3.1 Install Package
+```bash
+dotnet add package Identity.Base.Roles
+```
+
+### 3.2 Register Services and Endpoints
+Update `Program.cs` to register the roles services and expose the permissions endpoint:
+```csharp
+using Identity.Base.Roles;
+using Identity.Base.Roles.Endpoints;
+using Microsoft.EntityFrameworkCore;
+
+// ... after AddIdentityBase
+var rolesBuilder = builder.Services.AddIdentityRoles(builder.Configuration);
+rolesBuilder.AddDbContext<IdentityRolesDbContext>((provider, options) =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("Primary")!;
+    options.UseNpgsql(connectionString, sql => sql.EnableRetryOnFailure());
+});
+
+var app = builder.Build();
+
+app.UseApiPipeline();
+app.MapControllers();
+app.MapApiEndpoints();
+app.MapIdentityRolesUserEndpoints();   // exposes GET /users/me/permissions
+
+await app.RunAsync();
+```
+
+### 3.3 Supply Role Configuration
+Add the `Permissions` and `Roles` sections to `appsettings.json` (adjust names as required):
 ```json
-"OpenIddict": {
-  "ServerKeys": {
-    "Provider": "AzureKeyVault",
-    "AzureKeyVault": {
-      "VaultUri": "https://contoso-identity.vault.azure.net/",
-      "SigningSecretName": "identity-signing-cert",
-      "EncryptionSecretName": "identity-encryption-cert",
-      "ManagedIdentityClientId": "<optional-client-id>"
+"Permissions": {
+  "Definitions": [
+    { "Name": "users.read", "Description": "View user directory" },
+    { "Name": "users.manage-roles", "Description": "Assign roles" }
+  ]
+},
+"Roles": {
+  "Definitions": [
+    {
+      "Name": "StandardUser",
+      "Description": "Baseline end user",
+      "Permissions": [],
+      "IsSystemRole": false
+    },
+    {
+      "Name": "IdentityAdmin",
+      "Description": "Full access",
+      "Permissions": ["users.read", "users.manage-roles"],
+      "IsSystemRole": true
     }
-  }
+  ],
+  "DefaultUserRoles": ["StandardUser"],
+  "DefaultAdminRoles": ["IdentityAdmin"]
 }
 ```
 
-- Store certificates as base64-encoded PFX secrets. Optionally specify secret versions or passwords with `SigningSecretVersion`, `SigningSecretPassword`, and the corresponding encryption fields.
-- The loader uses the default Azure credential chain; set `ManagedIdentityClientId` when targeting a specific managed identity.
+### 3.4 Create RBAC Migrations
+```bash
+dotnet ef migrations add InitialIdentityRoles \
+  --context Identity.Base.Roles.IdentityRolesDbContext \
+  --output-dir Data/Migrations/IdentityRoles
 
-## SPA Authentication Flow
+dotnet ef database update \
+  --context Identity.Base.Roles.IdentityRolesDbContext
+```
 
-Single-page applications interact with the identity service in two phases:
+Re-run `dotnet run` and check `GET https://localhost:5000/users/me/permissions` after authenticating—your roles now determine the returned permission set.
 
-1. **Credential Sign-In** – submit the user’s email/password to `/auth/login`:
-   ```http
-   POST /auth/login
-   Content-Type: application/json
+---
 
-   {
-     "email": "user@example.com",
-     "password": "Passw0rd!Passw0rd!",
-     "clientId": "spa-client"
-   }
-   ```
-   A successful response returns `200 OK` and sets the Identity cookie that backs subsequent OpenID Connect requests.
+## 4. (Optional) Add the Admin API
 
-2. **Authorization Code with PKCE** – once the cookie is present, initiate the OpenIddict flow from the SPA by navigating to `/connect/authorize` with the usual PKCE parameters (`response_type=code`, `client_id`, `redirect_uri`, `scope`, `code_challenge`, `code_challenge_method`, optional `state`).
+`Identity.Base.Admin` layers admin endpoints on top of the roles package. If you add this package you do **not** need the separate `AddIdentityRoles` registration from the previous step (the admin builder already includes it).
 
-   If the session is missing, the server replies with `401 Unauthorized` and a `WWW-Authenticate: error="login_required"` header. The SPA should interpret this as “show the login screen”, obtain a new cookie via `/auth/login`, and retry `/connect/authorize`.
+### 4.1 Install Package
+```bash
+dotnet add package Identity.Base.Admin
+```
 
-3. **Token Exchange** – the SPA exchanges the returned authorization `code` for tokens by POSTing to `/connect/token` with the corresponding `code_verifier` and redirect URI.
+### 4.2 Update `Program.cs`
+```csharp
+using Identity.Base.Admin.Configuration;
+using Identity.Base.Admin.Endpoints;
+using Identity.Base.Roles;
+using Identity.Base.Roles.Endpoints;
+using Microsoft.EntityFrameworkCore;
 
-This mirrors the hosted-provider experience (e.g., Auth0 Universal Login) while keeping all credential UX inside the SPA.
+// ... after AddIdentityBase
+var adminBuilder = builder.Services.AddIdentityAdmin(builder.Configuration);
+adminBuilder.AddDbContext<IdentityRolesDbContext>((provider, options) =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("Primary")!;
+    options.UseNpgsql(connectionString, sql => sql.EnableRetryOnFailure());
+});
 
-4. **Logout** – to clear the Identity session, POST to `/auth/logout`. A subsequent `/connect/authorize` call will again yield `401 Unauthorized` until the SPA signs the user back in.
+var app = builder.Build();
 
-### MFA Flow (Optional)
+app.UseApiPipeline();
+app.MapControllers();
+app.MapApiEndpoints();
+app.MapIdentityAdminEndpoints();       // registers /admin/users and /admin/roles
+app.MapIdentityRolesUserEndpoints();   // keep the permissions endpoint for guards
 
-If multi-factor authentication is enabled for an account:
+await app.RunAsync();
+```
 
-1. **Enroll** – authenticated users call `/auth/mfa/enroll` to retrieve the shared key and `otpauth` URI (render as QR in the SPA). They verify the initial code via `/auth/mfa/verify` which enables MFA and returns recovery codes.
-2. **Step-Up During Login** – when `/auth/login` responds with `{ "requiresTwoFactor": true, "methods": [ ... ] }`, prompt for the desired method (authenticator, SMS, recovery). Use `/auth/mfa/challenge` to send an SMS code when supported, then POST the code to `/auth/mfa/verify`. A successful response completes the sign-in.
-3. **Recovery & Disable** – authenticated users can regenerate recovery codes (`/auth/mfa/recovery-codes`) or disable MFA (`/auth/mfa/disable`).
+### 4.3 Configuration Checklist
+- Ensure the `Permissions` and `Roles` sections include all admin permissions (see sample in section 3).
+- Expand `OpenIddict:Applications` to include the `identity.admin` scope and expose it to admin clients.
+- Update `IdentitySeed:Roles` or `Roles:DefaultAdminRoles` so at least one account receives the admin role.
+- Keep `VITE_AUTHORIZE_SCOPE` (or equivalent client configuration) aligned with the new admin scope.
 
-## External Sign-In
+### 4.4 Database
+If you have already applied the RBAC migrations, no additional migrations are required—the admin package shares `IdentityRolesDbContext`. Otherwise, follow step 3.4 before running the service.
 
-- Initiate Google, Microsoft, or Apple sign-in by calling `GET /auth/external/{provider}/start?returnUrl=/app/auth/callback`. The `returnUrl` must be a relative path, and the backend redirects there after processing the provider callback with `status`, `requiresTwoFactor`, and optional `methods` query parameters.
-- Add `mode=link` to the start request while authenticated to attach the external identity to the current user (e.g., `/auth/external/google/start?mode=link&returnUrl=/account/connections`).
-- Provider callbacks are handled at `/auth/external/{provider}/callback`; the server issues the Identity cookie before redirecting.
-- Remove a linked provider with `DELETE /auth/external/{provider}` (requires authentication).
+### 4.5 Verify
+After `dotnet run`, authenticate with an admin account and call `GET https://localhost:5000/admin/users` (expect `403` without the admin scope/permissions and `200` when authorized). The sample React client in `apps/sample-client` can now drive the full admin experience.
 
-## Profile Metadata API
+---
 
-- Retrieve the configured profile fields with `GET /auth/profile-schema` to build registration/profile forms dynamically.
-- Fetch the signed-in user's profile via `GET /users/me` (requires the Identity cookie) to obtain metadata values and the `concurrencyStamp`.
-- Persist changes with `PUT /users/me/profile`, passing the full metadata map and the current `concurrencyStamp`. Validation follows the schema (required, max length, optional regex), and the response includes the updated stamp for subsequent edits.
+## 5. Where to Go Next
+- Admin workflows: [`docs/guides/admin-operations-guide.md`](./admin-operations-guide.md)
+- React harness & integration patterns: [`docs/guides/integration-guide.md`](./integration-guide.md)
+- Raising issues or feature requests: [GitHub Issues](https://github.com/Amaretto-Software-Labs/identity-base/issues)
+- AI Agent Contributor rules: [`AGENTS.md`](../../AGENTS.md)
 
-## Observability & Health
-
-- Every request pushes `CorrelationId` (ASP.NET trace identifier) and `UserId` (if authenticated) into Serilog's scope. Audit actions are emitted via the `IAuditLogger` for MFA operations, profile updates, and external-provider link/unlink events.
-- `/healthz` now reports database, MailJet configuration, and external-provider readiness in the `checks` payload. Use it for container liveness/readiness probes.
-
-## Sample Applications
-
-### React SPA Client
-- A reference SPA lives under `apps/sample-client` (Vite + React + Tailwind). It exercises registration, login + MFA, profile updates, external connectors, and the PKCE authorization code flow.
-- Configure the harness by copying `.env.example` to `.env` and setting any overrides (API base URL, redirect URI, optional external providers).
-- The client enables token auto-refresh by default. Pass `autoRefresh: false` to `IdentityProvider` if you prefer to manage refresh flows manually.
-- Install dependencies and start the dev server:
-  ```bash
-  cd apps/sample-client
-  npm install
-  npm run dev
-  ```
-- The Vite server proxies API requests to `http://localhost:8080` by default. Adjust `VITE_API_BASE` or the proxy config in `vite.config.ts` if your API runs elsewhere.
-- The sample now includes an admin console under `/admin`. Set `VITE_API_BASE` (defaults to `https://localhost:5001`) so the SPA points at your running host, update `VITE_AUTHORIZE_SCOPE` to include the admin scope (default `identity.admin`), and ensure your seed or test accounts hold the roles required by the `/admin/users` and `/admin/roles` endpoints before browsing to the console.
-- `@identity-base/react-client` exposes `useAdminUsers`, `useAdminUser`, `useAdminUserRoles`, and `useAdminRoles` hooks for headless integration. See `apps/sample-client/src/pages/admin` for usage patterns covering list/detail flows, role assignment, and CRUD operations.
-- Use the new `usePermissions` hook alongside the sample `AdminRoute` guard (`apps/sample-client/src/components/AdminRoute.tsx`) to protect admin-only surfaces. The sample navigation only renders the Admin link when the current user holds both `users.read` and `roles.read`; adjust the required permission list if your deployment needs a stricter check (for example `roles.manage` for full CRUD access).
-
-### ASP.NET Core Sample API
-- A minimal API example lives under `apps/sample-api` demonstrating JWT Bearer authentication using the `Identity.Base.AspNet` integration library.
-- The sample API includes public endpoints, protected endpoints, and scope-based authorization examples.
-- Run the sample API:
-  ```bash
-  cd apps/sample-api
-  dotnet run --launch-profile https
-  ```
-- The API runs on `https://localhost:7001` and demonstrates authentication with Identity.Base tokens.
-- See the [Identity.Base.AspNet README](../Identity.Base.AspNet/README.md) for complete integration details.
+With the packages wired into your host, you now have a configurable identity platform that can grow from core authentication to full-featured administrative tooling. EOF
