@@ -4,7 +4,9 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Identity.Base.Abstractions;
+using Identity.Base.Abstractions.MultiTenancy;
 using Identity.Base.Identity;
+using Identity.Base.Roles.Abstractions;
 using Identity.Base.Roles.Claims;
 
 namespace Identity.Base.Roles.Services;
@@ -12,10 +14,17 @@ namespace Identity.Base.Roles.Services;
 public sealed class PermissionClaimsAugmentor : IClaimsPrincipalAugmentor
 {
     private readonly IPermissionResolver _permissionResolver;
+    private readonly ITenantContextAccessor _tenantContextAccessor;
+    private readonly IPermissionClaimFormatter _claimFormatter;
 
-    public PermissionClaimsAugmentor(IPermissionResolver permissionResolver)
+    public PermissionClaimsAugmentor(
+        IPermissionResolver permissionResolver,
+        ITenantContextAccessor tenantContextAccessor,
+        IPermissionClaimFormatter claimFormatter)
     {
         _permissionResolver = permissionResolver;
+        _tenantContextAccessor = tenantContextAccessor;
+        _claimFormatter = claimFormatter;
     }
 
     public async Task AugmentAsync(ApplicationUser user, ClaimsPrincipal principal, CancellationToken cancellationToken = default)
@@ -40,18 +49,18 @@ public sealed class PermissionClaimsAugmentor : IClaimsPrincipalAugmentor
 
         var existingPermissions = principal
             .FindAll(RoleClaimTypes.Permissions)
-            .SelectMany(claim => claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+            .SelectMany(static claim => claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
-        var union = new HashSet<string>(existingPermissions, StringComparer.OrdinalIgnoreCase);
+        var permissionSet = new HashSet<string>(existingPermissions, StringComparer.OrdinalIgnoreCase);
         foreach (var permission in permissions)
         {
             if (!string.IsNullOrWhiteSpace(permission))
             {
-                union.Add(permission.Trim());
+                permissionSet.Add(permission.Trim());
             }
         }
 
-        if (union.Count == 0)
+        if (permissionSet.Count == 0)
         {
             return;
         }
@@ -64,7 +73,10 @@ public sealed class PermissionClaimsAugmentor : IClaimsPrincipalAugmentor
             }
         }
 
-        var value = string.Join(' ', union.OrderBy(permission => permission, StringComparer.OrdinalIgnoreCase));
-        identity.AddClaim(new Claim(RoleClaimTypes.Permissions, value));
+        var formattedClaims = _claimFormatter.CreateClaims(user, permissionSet.ToArray(), _tenantContextAccessor.Current);
+        foreach (var claim in formattedClaims)
+        {
+            identity.AddClaim(claim);
+        }
     }
 }

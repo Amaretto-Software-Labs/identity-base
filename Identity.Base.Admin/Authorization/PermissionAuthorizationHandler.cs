@@ -8,10 +8,14 @@ namespace Identity.Base.Admin.Authorization;
 public sealed class PermissionAuthorizationHandler : AuthorizationHandler<PermissionRequirement>
 {
     private readonly AdminApiOptions _options;
+    private readonly IPermissionScopeResolver _scopeResolver;
 
-    public PermissionAuthorizationHandler(IOptions<AdminApiOptions> options)
+    public PermissionAuthorizationHandler(
+        IOptions<AdminApiOptions> options,
+        IPermissionScopeResolver scopeResolver)
     {
         _options = options.Value;
+        _scopeResolver = scopeResolver;
     }
 
     protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
@@ -22,6 +26,11 @@ public sealed class PermissionAuthorizationHandler : AuthorizationHandler<Permis
         }
 
         if (!HasRequiredScope(context.User))
+        {
+            return Task.CompletedTask;
+        }
+
+        if (!_scopeResolver.IsInScope(context.User, requirement.Permission))
         {
             return Task.CompletedTask;
         }

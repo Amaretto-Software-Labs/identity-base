@@ -4,6 +4,7 @@ using Identity.Base.Roles.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Identity.Base.Admin.Configuration;
 
@@ -15,6 +16,7 @@ public static class ServiceCollectionExtensions
 
         var rolesBuilder = services.AddIdentityRoles(configuration);
 
+        services.TryAddSingleton<IPermissionScopeResolver, DefaultPermissionScopeResolver>();
         services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
         return rolesBuilder;
     }

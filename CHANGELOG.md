@@ -6,6 +6,7 @@
 - Hardened security around external flows: normalized return URLs, ignored spoofed forwarded headers, made password grant opt-in per client, and limited JWT claim logging to development environments.
 - Trimmed the library's public surface to intentional extension points (options, builder, identity entities, DI interfaces) while keeping concrete implementations internal; documented the supported API in `docs/reference/identity-base-public-api.md`.
 - Added EF design-time factory support for the new structure, updated docs (`README.md`, `docs/guides/getting-started.md`, refactor plan) and ensured existing integration tests run against the host.
+- Introduced multi-tenant extensibility hooks: tenant context abstractions, EF model customization delegates (`ConfigureAppDbContextModel`, `ConfigureIdentityRolesModel`), pluggable permission claim formatter/scope resolver, and post-seeding callbacks for identity and roles. Updated docs (`docs/guides/getting-started.md`, `docs/reference/Engineering_Principles.md`) and added automated coverage.
 
 ## Sprint 02 – Identity Core & Registration Metadata
 - Added ASP.NET Core Identity with GUID keys, strict password policy, and optional seed administrator support.

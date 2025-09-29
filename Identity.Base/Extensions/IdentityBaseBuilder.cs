@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using FluentValidation;
+using Identity.Base.Abstractions.MultiTenancy;
 using Identity.Base.Data;
 using Identity.Base.Features.Authentication.EmailManagement;
 using Identity.Base.Features.Authentication.External;
@@ -25,8 +26,10 @@ using Microsoft.AspNetCore.Authentication.MicrosoftAccount;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
@@ -40,6 +43,8 @@ namespace Identity.Base.Extensions;
 public sealed class IdentityBaseBuilder
 {
     private readonly IdentityBaseOptions _options;
+    private readonly IdentityBaseModelCustomizationOptions _modelCustomizationOptions = new();
+    private readonly IdentityBaseSeedCallbacks _seedCallbacks = new();
 
     internal IdentityBaseBuilder(
         IServiceCollection services,
@@ -68,6 +73,9 @@ public sealed class IdentityBaseBuilder
     {
         Services.AddOpenApi();
         Services.AddControllers();
+        Services.TryAddSingleton(_ => _modelCustomizationOptions);
+        Services.TryAddSingleton(_ => _seedCallbacks);
+        RegisterTenantContextAccessor();
 
         ProviderFlags = ConfigureOptions();
         ConfigureDatabase();
@@ -84,6 +92,40 @@ public sealed class IdentityBaseBuilder
         ConfigureHealthChecks();
 
         return this;
+    }
+
+    public IdentityBaseBuilder ConfigureAppDbContextModel(Action<ModelBuilder> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        _modelCustomizationOptions.AddAppDbContextCustomization(configure);
+        return this;
+    }
+
+    public IdentityBaseBuilder ConfigureIdentityRolesModel(Action<ModelBuilder> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        _modelCustomizationOptions.AddIdentityRolesDbContextCustomization(configure);
+        return this;
+    }
+
+    public IdentityBaseBuilder AfterRoleSeeding(Func<IServiceProvider, CancellationToken, Task> callback)
+    {
+        ArgumentNullException.ThrowIfNull(callback);
+        _seedCallbacks.RegisterRoleSeedCallback(callback);
+        return this;
+    }
+
+    public IdentityBaseBuilder AfterIdentitySeed(Func<IServiceProvider, CancellationToken, Task> callback)
+    {
+        ArgumentNullException.ThrowIfNull(callback);
+        _seedCallbacks.RegisterIdentitySeedCallback(callback);
+        return this;
+    }
+
+    private void RegisterTenantContextAccessor()
+    {
+        Services.TryAddSingleton<ITenantContextAccessor, NullTenantContextAccessor>();
+        Services.TryAddScoped<ITenantContext>(static sp => sp.GetRequiredService<ITenantContextAccessor>().Current);
     }
 
     public IdentityBaseBuilder AddConfiguredExternalProviders()
@@ -309,6 +351,9 @@ public sealed class IdentityBaseBuilder
                     connectionString,
                     builder => builder.EnableRetryOnFailure());
             }
+
+            ((IDbContextOptionsBuilderInfrastructure)options)
+                .AddOrUpdateExtension(new IdentityBaseModelCustomizationOptionsExtension(_modelCustomizationOptions));
         });
     }
 

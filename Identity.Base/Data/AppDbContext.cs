@@ -1,8 +1,11 @@
 using Identity.Base.Identity;
 using Identity.Base.OpenIddict;
+using Identity.Base.Options;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Identity.Base.Data;
 
@@ -29,5 +32,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
         modelBuilder.Entity<OpenIddictToken>().ToTable("Identity_OpenIddictTokens");
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+
+        var customizationOptions = this.GetService<IDbContextOptions>()
+                ?.FindExtension<IdentityBaseModelCustomizationOptionsExtension>()
+                ?.Options
+            ?? ((IInfrastructure<IServiceProvider>)this).Instance?.GetService<IdentityBaseModelCustomizationOptions>();
+        if (customizationOptions is not null)
+        {
+            foreach (var configure in customizationOptions.AppDbContextCustomizations)
+            {
+                configure(modelBuilder);
+            }
+        }
     }
 }

@@ -1,4 +1,7 @@
 using Identity.Base.Abstractions;
+using Identity.Base.Identity;
+using Identity.Base.Options;
+using Identity.Base.Roles.Abstractions;
 using Identity.Base.Roles.Infrastructure;
 using Identity.Base.Roles.Options;
 using Identity.Base.Roles.Services;
@@ -26,6 +29,8 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<IRoleSeeder, RoleSeeder>();
         services.TryAddScoped<IRoleAssignmentService, RoleAssignmentService>();
         services.TryAddScoped<IPermissionResolver, RoleAssignmentService>();
+        services.TryAddScoped<IPermissionClaimFormatter, DefaultPermissionClaimFormatter>();
+        services.TryAddSingleton<IdentityBaseSeedCallbacks>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IUserCreationListener, DefaultUserRoleAssignmentListener>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IClaimsPrincipalAugmentor, PermissionClaimsAugmentor>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, IdentityRolesMigrationHostedService>());

@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Identity.Base.Abstractions.MultiTenancy;
 using Identity.Base.Identity;
 using Identity.Base.Roles;
 using Identity.Base.Roles.Claims;
@@ -45,7 +46,7 @@ public class PermissionClaimsAugmentorTests
         await context.SaveChangesAsync();
 
         var resolver = new RoleAssignmentService(context, NullLogger<RoleAssignmentService>.Instance);
-        var augmentor = new PermissionClaimsAugmentor(resolver);
+        var augmentor = new PermissionClaimsAugmentor(resolver, new NullTenantContextAccessor(), new DefaultPermissionClaimFormatter());
 
         var user = new ApplicationUser { Id = userId, Email = "support@example.com" };
         var principal = new ClaimsPrincipal(new ClaimsIdentity());
@@ -75,7 +76,7 @@ public class PermissionClaimsAugmentorTests
         await context.SaveChangesAsync();
 
         var resolver = new RoleAssignmentService(context, NullLogger<RoleAssignmentService>.Instance);
-        var augmentor = new PermissionClaimsAugmentor(resolver);
+        var augmentor = new PermissionClaimsAugmentor(resolver, new NullTenantContextAccessor(), new DefaultPermissionClaimFormatter());
 
         var user = new ApplicationUser { Id = userId, Email = "admin@example.com" };
         var identity = new ClaimsIdentity();

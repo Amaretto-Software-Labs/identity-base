@@ -15,6 +15,8 @@ internal sealed class IdentityDataSeeder
     private readonly IOptions<IdentitySeedOptions> _options;
     private readonly ILogger<IdentityDataSeeder> _logger;
     private readonly ILogSanitizer _sanitizer;
+    private readonly IdentityBaseSeedCallbacks _seedCallbacks;
+    private readonly IServiceProvider _serviceProvider;
 
     public IdentityDataSeeder(
         UserManager<ApplicationUser> userManager,
@@ -22,7 +24,9 @@ internal sealed class IdentityDataSeeder
         IEnumerable<IUserCreationListener> creationListeners,
         IOptions<IdentitySeedOptions> options,
         ILogger<IdentityDataSeeder> logger,
-        ILogSanitizer sanitizer)
+        ILogSanitizer sanitizer,
+        IdentityBaseSeedCallbacks seedCallbacks,
+        IServiceProvider serviceProvider)
     {
         _userManager = userManager;
         _roleManager = roleManager;
@@ -30,6 +34,8 @@ internal sealed class IdentityDataSeeder
         _options = options;
         _logger = logger;
         _sanitizer = sanitizer;
+        _seedCallbacks = seedCallbacks;
+        _serviceProvider = serviceProvider;
     }
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
@@ -45,6 +51,7 @@ internal sealed class IdentityDataSeeder
         if (string.IsNullOrWhiteSpace(options.Email) || string.IsNullOrWhiteSpace(options.Password))
         {
             _logger.LogWarning("Identity seeding enabled but Email or Password not provided.");
+            await ExecuteCallbacksAsync(cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -67,6 +74,7 @@ internal sealed class IdentityDataSeeder
         if (existingUser is not null)
         {
             _logger.LogInformation("Seed user {Email} already exists.", _sanitizer.RedactEmail(options.Email));
+            await ExecuteCallbacksAsync(cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -82,6 +90,7 @@ internal sealed class IdentityDataSeeder
         if (!createUserResult.Succeeded)
         {
             _logger.LogWarning("Failed to create seed user {Email}: {Errors}", _sanitizer.RedactEmail(options.Email), string.Join(",", createUserResult.Errors.Select(e => e.Description)));
+            await ExecuteCallbacksAsync(cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -91,6 +100,8 @@ internal sealed class IdentityDataSeeder
             if (!addToRoleResult.Succeeded)
             {
                 _logger.LogWarning("Failed to add seed user {Email} to roles: {Errors}", _sanitizer.RedactEmail(options.Email), string.Join(",", addToRoleResult.Errors.Select(e => e.Description)));
+                await ExecuteCallbacksAsync(cancellationToken).ConfigureAwait(false);
+                return;
             }
         }
 
@@ -100,5 +111,15 @@ internal sealed class IdentityDataSeeder
         }
 
         _logger.LogInformation("Seed user {Email} created successfully.", _sanitizer.RedactEmail(options.Email));
+
+        await ExecuteCallbacksAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task ExecuteCallbacksAsync(CancellationToken cancellationToken)
+    {
+        foreach (var callback in _seedCallbacks.IdentitySeedCallbacks)
+        {
+            await callback(_serviceProvider, cancellationToken).ConfigureAwait(false);
+        }
     }
 }

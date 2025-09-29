@@ -1,4 +1,6 @@
+using Identity.Base.Options;
 using Identity.Base.Roles.Abstractions;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -28,7 +30,13 @@ public sealed class IdentityRolesBuilder
     public IdentityRolesBuilder AddDbContext<TContext>(Action<IServiceProvider, DbContextOptionsBuilder> optionsAction)
         where TContext : DbContext, IRoleDbContext
     {
-        Services.AddDbContext<TContext>(optionsAction);
+        ArgumentNullException.ThrowIfNull(optionsAction);
+
+        Services.AddDbContext<TContext>((provider, options) =>
+        {
+            optionsAction(provider, options);
+            TryAddCustomizationExtension(provider, options);
+        });
         Services.AddScoped<IRoleDbContext, TContext>();
         return this;
     }
@@ -36,8 +44,19 @@ public sealed class IdentityRolesBuilder
     public IdentityRolesBuilder AddDbContext<TContext>(Action<DbContextOptionsBuilder> optionsAction)
         where TContext : DbContext, IRoleDbContext
     {
-        Services.AddDbContext<TContext>(optionsAction);
-        Services.AddScoped<IRoleDbContext, TContext>();
-        return this;
+        ArgumentNullException.ThrowIfNull(optionsAction);
+        return AddDbContext<TContext>((_, builder) => optionsAction(builder));
+    }
+
+    private static void TryAddCustomizationExtension(IServiceProvider provider, DbContextOptionsBuilder options)
+    {
+        var customizationOptions = provider.GetService<IdentityBaseModelCustomizationOptions>();
+        if (customizationOptions is null)
+        {
+            return;
+        }
+
+        ((IDbContextOptionsBuilderInfrastructure)options)
+            .AddOrUpdateExtension(new IdentityBaseModelCustomizationOptionsExtension(customizationOptions));
     }
 }

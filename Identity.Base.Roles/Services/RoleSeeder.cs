@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Identity.Base.Identity;
 using Identity.Base.Roles.Abstractions;
 using Identity.Base.Roles.Entities;
 using Identity.Base.Roles.Options;
@@ -17,17 +18,23 @@ public sealed class RoleSeeder : IRoleSeeder
     private readonly RoleConfigurationOptions _roleOptions;
     private readonly PermissionCatalogOptions _permissionOptions;
     private readonly ILogger<RoleSeeder> _logger;
+    private readonly IdentityBaseSeedCallbacks _seedCallbacks;
+    private readonly IServiceProvider _serviceProvider;
 
     public RoleSeeder(
         IRoleDbContext dbContext,
         IOptions<RoleConfigurationOptions> roleOptions,
         IOptions<PermissionCatalogOptions> permissionOptions,
-        ILogger<RoleSeeder> logger)
+        ILogger<RoleSeeder> logger,
+        IdentityBaseSeedCallbacks seedCallbacks,
+        IServiceProvider serviceProvider)
     {
         _dbContext = dbContext;
         _roleOptions = roleOptions.Value;
         _permissionOptions = permissionOptions.Value;
         _logger = logger;
+        _seedCallbacks = seedCallbacks;
+        _serviceProvider = serviceProvider;
     }
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
@@ -35,6 +42,7 @@ public sealed class RoleSeeder : IRoleSeeder
         if (!_dbContext.Database.IsRelational())
         {
             await SeedInternalAsync(cancellationToken).ConfigureAwait(false);
+            await ExecuteCallbacksAsync(cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -46,6 +54,8 @@ public sealed class RoleSeeder : IRoleSeeder
             await SeedInternalAsync(cancellationToken).ConfigureAwait(false);
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
+
+        await ExecuteCallbacksAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task SeedInternalAsync(CancellationToken cancellationToken)
@@ -167,6 +177,14 @@ public sealed class RoleSeeder : IRoleSeeder
             }
 
             await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task ExecuteCallbacksAsync(CancellationToken cancellationToken)
+    {
+        foreach (var callback in _seedCallbacks.RoleSeedCallbacks)
+        {
+            await callback(_serviceProvider, cancellationToken).ConfigureAwait(false);
         }
     }
 }
