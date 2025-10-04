@@ -60,6 +60,10 @@ public sealed class IdentityBaseBuilder
 
     internal IServiceCollection Services { get; }
 
+    internal IdentityBaseModelCustomizationOptions ModelCustomizationOptions => _modelCustomizationOptions;
+
+    internal IdentityBaseSeedCallbacks SeedCallbacks => _seedCallbacks;
+
     internal IConfiguration Configuration { get; }
 
     internal IWebHostEnvironment Environment { get; }

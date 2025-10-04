@@ -224,7 +224,66 @@ Re-run `dotnet run` and check `GET https://localhost:5000/users/me/permissions` 
 
 ---
 
-## 4. (Optional) Add the Admin API
+## 4. (Optional) Add Organization Management
+
+Install the organizations add-on if you need per-tenant organizations, memberships, and organization-level roles.
+
+### 5.1 Install Package
+```bash
+dotnet add package Identity.Base.Organizations
+```
+
+### 4.2 Register Services & Endpoints
+Add the organizations registration after Identity Base (and, if present, RBAC) in `Program.cs`:
+```csharp
+using Identity.Base.Organizations.Data;
+using Identity.Base.Organizations.Extensions;
+using Microsoft.EntityFrameworkCore;
+
+var organizationsBuilder = builder.Services.AddIdentityBaseOrganizations(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("Primary")!;
+    options.UseNpgsql(connectionString);
+});
+
+organizationsBuilder.ConfigureOrganizationModel(modelBuilder =>
+{
+    // Optional: add custom indexes or shadow properties.
+});
+
+var app = builder.Build();
+
+app.UseApiPipeline();
+app.MapApiEndpoints();
+app.MapIdentityRolesUserEndpoints();
+app.MapIdentityBaseOrganizationEndpoints();
+```
+
+### 4.3 Apply Organization Migrations
+Run the packaged migration for `OrganizationDbContext`:
+```bash
+dotnet ef database update \
+  --project Identity.Base.Organizations/Identity.Base.Organizations.csproj \
+  --context Identity.Base.Organizations.Data.OrganizationDbContext
+```
+
+The hosted migration and seed services will also apply any pending migrations and seed default roles (`OrgOwner`, `OrgManager`, `OrgMember`) at runtime.
+
+### 4.4 Extend Hooks
+Use the builder hooks when you need custom behaviour:
+```csharp
+organizationsBuilder
+    .AfterOrganizationSeed(async (sp, ct) => { /* custom seeding */ })
+    .AddOrganizationScopeResolver<CustomScopeResolver>()
+    .AddOrganizationClaimFormatter<CustomClaimFormatter>();
+```
+
+At this stage your host exposes organization CRUD, membership, and role endpoints alongside identity + RBAC features.
+
+
+---
+
+## 5. (Optional) Add the Admin API
 
 `Identity.Base.Admin` layers admin endpoints on top of the roles package. If you add this package you do **not** need the separate `AddIdentityRoles` registration from the previous step (the admin builder already includes it).
 
@@ -233,7 +292,7 @@ Re-run `dotnet run` and check `GET https://localhost:5000/users/me/permissions` 
 dotnet add package Identity.Base.Admin
 ```
 
-### 4.2 Update `Program.cs`
+### 5.2 Update `Program.cs`
 ```csharp
 using Identity.Base.Admin.Configuration;
 using Identity.Base.Admin.Endpoints;
@@ -260,21 +319,21 @@ app.MapIdentityRolesUserEndpoints();   // keep the permissions endpoint for guar
 await app.RunAsync();
 ```
 
-### 4.3 Configuration Checklist
+### 5.3 Configuration Checklist
 - Ensure the `Permissions` and `Roles` sections include all admin permissions (see sample in section 3).
 - Expand `OpenIddict:Applications` to include the `identity.admin` scope and expose it to admin clients.
 - Update `IdentitySeed:Roles` or `Roles:DefaultAdminRoles` so at least one account receives the admin role.
 - Keep `VITE_AUTHORIZE_SCOPE` (or equivalent client configuration) aligned with the new admin scope.
 
-### 4.4 Database
+### 5.4 Database
 If you have already applied the RBAC migrations, no additional migrations are required—the admin package shares `IdentityRolesDbContext`. Otherwise, follow step 3.4 before running the service.
 
-### 4.5 Verify
+### 5.5 Verify
 After `dotnet run`, authenticate with an admin account and call `GET https://localhost:5000/admin/users` (expect `403` without the admin scope/permissions and `200` when authorized). The sample React client in `apps/sample-client` can now drive the full admin experience.
 
 ---
 
-## 5. Where to Go Next
+## 6. Where to Go Next
 - Admin workflows: [`docs/guides/admin-operations-guide.md`](./admin-operations-guide.md)
 - React harness & integration patterns: [`docs/guides/integration-guide.md`](./integration-guide.md)
 - Raising issues or feature requests: [GitHub Issues](https://github.com/Amaretto-Software-Labs/identity-base/issues)
