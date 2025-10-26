@@ -18,7 +18,11 @@ public sealed class IdentityBaseOrganizationsBuilder
 
     public IdentityBaseOrganizationsBuilder UseDbContext<TContext>() where TContext : OrganizationDbContext
     {
-        Services.AddScoped<OrganizationDbContext>(sp => sp.GetRequiredService<TContext>());
+        if (typeof(TContext) != typeof(OrganizationDbContext))
+        {
+            Services.AddScoped<OrganizationDbContext>(sp => sp.GetRequiredService<TContext>());
+        }
+
         return this;
     }
 
@@ -33,7 +37,11 @@ public sealed class IdentityBaseOrganizationsBuilder
             TryAddCustomizationExtension(provider, options);
         });
 
-        Services.AddScoped<OrganizationDbContext>(sp => sp.GetRequiredService<TContext>());
+        if (typeof(TContext) != typeof(OrganizationDbContext))
+        {
+            Services.AddScoped<OrganizationDbContext>(sp => sp.GetRequiredService<TContext>());
+        }
+
         return this;
     }
 
