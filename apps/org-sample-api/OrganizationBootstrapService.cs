@@ -49,7 +49,7 @@ public sealed class OrganizationBootstrapService
             ?? await _organizationService.CreateAsync(new OrganizationCreateRequest
             {
                 Slug = request.Slug,
-                DisplayName = string.IsNullOrWhiteSpace(request.DisplayName) ? request.Slug : request.DisplayName,
+                DisplayName = string.IsNullOrWhiteSpace(request.Name) ? request.Slug : request.Name.Trim(),
                 Metadata = CreateMetadata(request.Metadata)
             }, cancellationToken).ConfigureAwait(false);
 

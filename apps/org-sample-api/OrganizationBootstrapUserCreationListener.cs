@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 using Identity.Base.Abstractions;
 using Identity.Base.Identity;
 using Identity.Base.Options;
@@ -13,8 +14,8 @@ namespace OrgSampleApi;
 
 public sealed class OrganizationBootstrapUserCreationListener : IUserCreationListener
 {
-    private static readonly string[] SlugKeys = { "organizationSlug", "organization.slug" };
     private static readonly string[] NameKeys = { "organizationName", "organization.name", "organizationDisplayName" };
+    private static readonly string[] SlugKeys = { "organizationSlug", "organization.slug" };
     private const string MetadataPrefix = "organization.metadata.";
 
     private readonly OrganizationBootstrapService _bootstrapService;
@@ -71,15 +72,25 @@ public sealed class OrganizationBootstrapUserCreationListener : IUserCreationLis
             return null;
         }
 
+        var name = ResolveValue(metadata.Values, NameKeys);
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
         var slug = ResolveValue(metadata.Values, SlugKeys);
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            slug = GenerateSlug(name);
+        }
+
         if (string.IsNullOrWhiteSpace(slug))
         {
             return null;
         }
 
-        var displayName = ResolveValue(metadata.Values, NameKeys) ?? slug;
         var metadataValues = ExtractMetadata(metadata.Values);
-        return new OrganizationBootstrapRequest(slug, displayName, metadataValues);
+        return new OrganizationBootstrapRequest(name.Trim(), slug, metadataValues);
     }
 
     private static string? ResolveValue(IReadOnlyDictionary<string, string?> values, IEnumerable<string> keys)
@@ -95,7 +106,7 @@ public sealed class OrganizationBootstrapUserCreationListener : IUserCreationLis
         return null;
     }
 
-    private static IReadOnlyDictionary<string, string?> ExtractMetadata(IReadOnlyDictionary<string, string?> values)
+    private static Dictionary<string, string?> ExtractMetadata(IReadOnlyDictionary<string, string?> values)
     {
         var result = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         foreach (var (key, value) in values)
@@ -117,6 +128,20 @@ public sealed class OrganizationBootstrapUserCreationListener : IUserCreationLis
         return result;
     }
 
+    private static string? GenerateSlug(string? source)
+    {
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            return null;
+        }
+
+        var normalized = source.Trim().ToLowerInvariant();
+        normalized = Regex.Replace(normalized, "[^a-z0-9]+", "-");
+        normalized = Regex.Replace(normalized, "-+", "-").Trim('-');
+
+        return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+    }
+
     private bool ShouldUseDefaults(ApplicationUser user)
     {
         var options = _seedOptions.Value;
@@ -136,10 +161,14 @@ public sealed class OrganizationBootstrapUserCreationListener : IUserCreationLis
             return null;
         }
 
+        var name = string.IsNullOrWhiteSpace(defaults.DisplayName) ? defaults.Slug : defaults.DisplayName;
+        var metadata = defaults.Metadata is null
+            ? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, string?>(defaults.Metadata, StringComparer.OrdinalIgnoreCase);
+
         return new OrganizationBootstrapRequest(
+            name,
             defaults.Slug,
-            defaults.DisplayName,
-            defaults.Metadata ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase));
+            metadata);
     }
 }
-

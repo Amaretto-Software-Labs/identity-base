@@ -111,7 +111,8 @@ internal static class OrgSampleApiHostBuilderExtensions
 
             var bootstrapService = scopedServices.GetRequiredService<OrganizationBootstrapService>();
             var metadata = defaults.Metadata ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-            var request = new OrganizationBootstrapRequest(defaults.Slug, defaults.DisplayName, metadata);
+            var name = string.IsNullOrWhiteSpace(defaults.DisplayName) ? defaults.Slug : defaults.DisplayName;
+            var request = new OrganizationBootstrapRequest(name, defaults.Slug, metadata);
 
             await bootstrapService.EnsureOrganizationOwnerAsync(user, request, cancellationToken).ConfigureAwait(false);
         });
@@ -199,14 +200,16 @@ internal static class OrgSampleApiHostBuilderExtensions
         sampleGroup.MapGet("/registration/profile-fields", (IOptions<RegistrationOptions> options) =>
         {
             var registration = options.Value;
-            return Results.Ok(registration.ProfileFields.Select(field => new
+            var fields = registration.ProfileFields.Select(field => new
             {
                 field.Name,
                 field.DisplayName,
                 field.Required,
                 field.MaxLength,
                 field.Pattern
-            }));
+            });
+
+            return Results.Ok(new { fields });
         });
 
         sampleGroup.MapGet("/organizations/{organizationId:guid}/invitations", async (
