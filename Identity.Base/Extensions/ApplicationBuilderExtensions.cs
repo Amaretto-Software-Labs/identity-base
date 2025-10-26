@@ -15,7 +15,6 @@ public static class ApplicationBuilderExtensions
             app.MapOpenApi();
         }
 
-        app.UseHttpsRedirection();
         app.UseSerilogRequestLogging();
         app.Use(async (context, next) =>
         {
