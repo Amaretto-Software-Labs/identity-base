@@ -4,7 +4,7 @@ using FluentValidation;
 using Identity.Base.Extensions;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Api.Models;
-using Identity.Base.Organizations.Domain;
+using Identity.Base.Organizations.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -21,8 +21,9 @@ public static class OrganizationEndpoints
         endpoints.MapGet("/organizations", async (Guid? tenantId, IOrganizationService service, CancellationToken cancellationToken) =>
         {
             var organizations = await service.ListAsync(tenantId, cancellationToken).ConfigureAwait(false);
-            return Results.Ok(organizations.Select(ToDto));
-        });
+            return Results.Ok(organizations.Select(OrganizationApiMapper.ToOrganizationDto));
+        })
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organizations.read"));
 
         endpoints.MapPost("/organizations", async (CreateOrganizationRequest request, IValidator<CreateOrganizationRequest> validator, IOrganizationService service, CancellationToken cancellationToken) =>
         {
@@ -42,7 +43,7 @@ public static class OrganizationEndpoints
                     Metadata = request.Metadata
                 }, cancellationToken).ConfigureAwait(false);
 
-                return Results.Created($"/organizations/{organization.Id}", ToDto(organization));
+                return Results.Created($"/organizations/{organization.Id}", OrganizationApiMapper.ToOrganizationDto(organization));
             }
             catch (ArgumentException ex)
             {
@@ -52,13 +53,15 @@ public static class OrganizationEndpoints
             {
                 return Results.Conflict(new ProblemDetails { Title = "Organization conflict", Detail = ex.Message, Status = StatusCodes.Status409Conflict });
             }
-        });
+        })
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organizations.manage"));
 
         endpoints.MapGet("/organizations/{organizationId:guid}", async (Guid organizationId, IOrganizationService service, CancellationToken cancellationToken) =>
         {
             var organization = await service.GetByIdAsync(organizationId, cancellationToken).ConfigureAwait(false);
-            return organization is null ? Results.NotFound() : Results.Ok(ToDto(organization));
-        });
+            return organization is null ? Results.NotFound() : Results.Ok(OrganizationApiMapper.ToOrganizationDto(organization));
+        })
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organizations.read"));
 
         endpoints.MapPatch("/organizations/{organizationId:guid}", async (Guid organizationId, UpdateOrganizationRequest request, IValidator<UpdateOrganizationRequest> validator, IOrganizationService service, CancellationToken cancellationToken) =>
         {
@@ -77,7 +80,7 @@ public static class OrganizationEndpoints
                     Status = request.Status
                 }, cancellationToken).ConfigureAwait(false);
 
-                return Results.Ok(ToDto(updated));
+                return Results.Ok(OrganizationApiMapper.ToOrganizationDto(updated));
             }
             catch (KeyNotFoundException)
             {
@@ -91,7 +94,8 @@ public static class OrganizationEndpoints
             {
                 return Results.Conflict(new ProblemDetails { Title = "Organization conflict", Detail = ex.Message, Status = StatusCodes.Status409Conflict });
             }
-        });
+        })
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organizations.manage"));
 
         endpoints.MapDelete("/organizations/{organizationId:guid}", async (Guid organizationId, IOrganizationService service, CancellationToken cancellationToken) =>
         {
@@ -104,22 +108,9 @@ public static class OrganizationEndpoints
             {
                 return Results.NotFound();
             }
-        });
+        })
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organizations.manage"));
 
         return endpoints;
     }
-
-    private static OrganizationDto ToDto(Organization organization)
-        => new()
-        {
-            Id = organization.Id,
-            TenantId = organization.TenantId,
-            Slug = organization.Slug,
-            DisplayName = organization.DisplayName,
-            Status = organization.Status,
-            Metadata = organization.Metadata.Values,
-            CreatedAtUtc = organization.CreatedAtUtc,
-            UpdatedAtUtc = organization.UpdatedAtUtc,
-            ArchivedAtUtc = organization.ArchivedAtUtc
-        };
 }

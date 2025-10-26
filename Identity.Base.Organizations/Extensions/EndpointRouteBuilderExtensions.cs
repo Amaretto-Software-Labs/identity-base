@@ -13,6 +13,7 @@ public static class EndpointRouteBuilderExtensions
         endpoints.MapOrganizationEndpoints();
         endpoints.MapOrganizationMembershipEndpoints();
         endpoints.MapOrganizationRoleEndpoints();
+        endpoints.MapUserOrganizationEndpoints();
         return endpoints;
     }
 }

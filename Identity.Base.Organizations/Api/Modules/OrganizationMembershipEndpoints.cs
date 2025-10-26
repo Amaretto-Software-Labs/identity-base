@@ -1,10 +1,11 @@
 using System;
 using System.Linq;
+using System.Security.Claims;
 using FluentValidation;
 using Identity.Base.Extensions;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Api.Models;
-using Identity.Base.Organizations.Domain;
+using Identity.Base.Organizations.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -18,18 +19,31 @@ public static class OrganizationMembershipEndpoints
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        endpoints.MapGet("/organizations/{organizationId:guid}/members", async (Guid organizationId, IOrganizationMembershipService membershipService, CancellationToken cancellationToken) =>
+        endpoints.MapGet("/organizations/{organizationId:guid}/members", async (Guid organizationId, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationMembershipService membershipService, CancellationToken cancellationToken) =>
         {
-            var members = await membershipService.GetMembersAsync(organizationId, cancellationToken).ConfigureAwait(false);
-            return Results.Ok(members.Select(ToDto));
-        });
+            var scopeResult = await EnsureActorInScopeAsync(principal, scopeResolver, organizationId, null, cancellationToken).ConfigureAwait(false);
+            if (scopeResult is not null)
+            {
+                return scopeResult;
+            }
 
-        endpoints.MapPost("/organizations/{organizationId:guid}/members", async (Guid organizationId, AddMembershipRequest request, IValidator<AddMembershipRequest> validator, IOrganizationMembershipService membershipService, CancellationToken cancellationToken) =>
+            var members = await membershipService.GetMembersAsync(organizationId, cancellationToken).ConfigureAwait(false);
+            return Results.Ok(members.Select(OrganizationApiMapper.ToMembershipDto));
+        })
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.read"));
+
+        endpoints.MapPost("/organizations/{organizationId:guid}/members", async (Guid organizationId, AddMembershipRequest request, IValidator<AddMembershipRequest> validator, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationMembershipService membershipService, CancellationToken cancellationToken) =>
         {
             var validationResult = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
             if (!validationResult.IsValid)
             {
                 return Results.ValidationProblem(validationResult.ToDictionary());
+            }
+
+            var scopeResult = await EnsureActorInScopeAsync(principal, scopeResolver, organizationId, request.UserId, cancellationToken).ConfigureAwait(false);
+            if (scopeResult is not null)
+            {
+                return scopeResult;
             }
 
             try
@@ -43,7 +57,7 @@ public static class OrganizationMembershipEndpoints
                     RoleIds = request.RoleIds
                 }, cancellationToken).ConfigureAwait(false);
 
-                return Results.Created($"/organizations/{organizationId}/members/{membership.UserId}", ToDto(membership));
+                return Results.Created($"/organizations/{organizationId}/members/{membership.UserId}", OrganizationApiMapper.ToMembershipDto(membership));
             }
             catch (ArgumentException ex)
             {
@@ -57,14 +71,21 @@ public static class OrganizationMembershipEndpoints
             {
                 return Results.NotFound(new ProblemDetails { Title = "Organization not found", Detail = ex.Message, Status = StatusCodes.Status404NotFound });
             }
-        });
+        })
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
 
-        endpoints.MapPut("/organizations/{organizationId:guid}/members/{userId:guid}", async (Guid organizationId, Guid userId, UpdateMembershipRequest request, IValidator<UpdateMembershipRequest> validator, IOrganizationMembershipService membershipService, CancellationToken cancellationToken) =>
+        endpoints.MapPut("/organizations/{organizationId:guid}/members/{userId:guid}", async (Guid organizationId, Guid userId, UpdateMembershipRequest request, IValidator<UpdateMembershipRequest> validator, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationMembershipService membershipService, CancellationToken cancellationToken) =>
         {
             var validationResult = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
             if (!validationResult.IsValid)
             {
                 return Results.ValidationProblem(validationResult.ToDictionary());
+            }
+
+            var scopeResult = await EnsureActorInScopeAsync(principal, scopeResolver, organizationId, userId, cancellationToken).ConfigureAwait(false);
+            if (scopeResult is not null)
+            {
+                return scopeResult;
             }
 
             try
@@ -77,7 +98,7 @@ public static class OrganizationMembershipEndpoints
                     RoleIds = request.RoleIds
                 }, cancellationToken).ConfigureAwait(false);
 
-                return Results.Ok(ToDto(membership));
+                return Results.Ok(OrganizationApiMapper.ToMembershipDto(membership));
             }
             catch (ArgumentException ex)
             {
@@ -91,26 +112,54 @@ public static class OrganizationMembershipEndpoints
             {
                 return Results.Conflict(new ProblemDetails { Title = "Membership conflict", Detail = ex.Message, Status = StatusCodes.Status409Conflict });
             }
-        });
+        })
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
 
-        endpoints.MapDelete("/organizations/{organizationId:guid}/members/{userId:guid}", async (Guid organizationId, Guid userId, IOrganizationMembershipService membershipService, CancellationToken cancellationToken) =>
+        endpoints.MapDelete("/organizations/{organizationId:guid}/members/{userId:guid}", async (Guid organizationId, Guid userId, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationMembershipService membershipService, CancellationToken cancellationToken) =>
         {
+            var scopeResult = await EnsureActorInScopeAsync(principal, scopeResolver, organizationId, userId, cancellationToken).ConfigureAwait(false);
+            if (scopeResult is not null)
+            {
+                return scopeResult;
+            }
+
             await membershipService.RemoveMemberAsync(organizationId, userId, cancellationToken).ConfigureAwait(false);
             return Results.NoContent();
-        });
+        })
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
 
         return endpoints;
     }
 
-    private static OrganizationMembershipDto ToDto(OrganizationMembership membership)
-        => new()
+    private static async Task<IResult?> EnsureActorInScopeAsync(
+        ClaimsPrincipal principal,
+        IOrganizationScopeResolver scopeResolver,
+        Guid organizationId,
+        Guid? targetUserId,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(principal, out var actorUserId))
         {
-            OrganizationId = membership.OrganizationId,
-            UserId = membership.UserId,
-            TenantId = membership.TenantId,
-            IsPrimary = membership.IsPrimary,
-            RoleIds = membership.RoleAssignments.Select(assignment => assignment.RoleId).ToArray(),
-            CreatedAtUtc = membership.CreatedAtUtc,
-            UpdatedAtUtc = membership.UpdatedAtUtc
-        };
+            return Results.Unauthorized();
+        }
+
+        if (organizationId == Guid.Empty)
+        {
+            return Results.BadRequest(new ProblemDetails { Title = "Invalid organization", Detail = "Organization identifier is required.", Status = StatusCodes.Status400BadRequest });
+        }
+
+        var inScope = await scopeResolver.IsInScopeAsync(actorUserId, organizationId, cancellationToken).ConfigureAwait(false);
+        if (!inScope && (!targetUserId.HasValue || targetUserId.Value != actorUserId))
+        {
+            return Results.Forbid();
+        }
+
+        return null;
+    }
+
+    private static bool TryGetUserId(ClaimsPrincipal principal, out Guid userId)
+    {
+        var value = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(value, out userId);
+    }
 }

@@ -50,7 +50,7 @@
 ### Task P2.3 – Context Accessors & Claim Integration
 - Create `OrganizationContextAccessor` and `DefaultOrganizationContextAccessor` mirroring tenant pattern.
 - Implement `OrganizationClaimFormatter` to emit org context when augmenting claims.
-- Implement `OrganizationScopeResolver`; default behavior is permissive (returns true) but structure to allow overrides.
+- Implement `OrganizationScopeResolver`; default behavior enforces membership while remaining easy to override for custom scopes.
 
 ## P3 – Dependency Injection & Builder Extensions *(High Priority)*
 

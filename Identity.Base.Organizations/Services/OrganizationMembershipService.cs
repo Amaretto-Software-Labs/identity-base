@@ -125,6 +125,7 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
         }
 
         return await _dbContext.OrganizationMemberships
+            .Include(membership => membership.Organization)
             .Include(membership => membership.RoleAssignments)
             .AsNoTracking()
             .FirstOrDefaultAsync(membership => membership.OrganizationId == organizationId && membership.UserId == userId, cancellationToken)
@@ -139,6 +140,7 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
         }
 
         var query = _dbContext.OrganizationMemberships
+            .Include(membership => membership.Organization)
             .Include(membership => membership.RoleAssignments)
             .AsNoTracking()
             .Where(membership => membership.UserId == userId);

@@ -107,7 +107,7 @@ All tables include `TenantId` columns for future commercial composition, but OSS
 - `OrganizationRoleSeeder` – seeds default roles (`OrgOwner`, `OrgManager`, `OrgMember`) per organization/tenant.
 - `OrganizationContextAccessor` & `DefaultOrganizationContextAccessor` – surfaces the active organization (no-op by default).
 - `OrganizationClaimFormatter` – default implementation of `IPermissionClaimFormatter` that adds `org_id`, `org_roles` claims when active.
-- `OrganizationScopeResolver` – default implementation of `IPermissionScopeResolver` that allows all (consumers can override to enforce membership).
+- `OrganizationScopeResolver` – default implementation of `IPermissionScopeResolver` that enforces organization membership (consumers can override to compose tenant-aware logic or elevated roles).
 - `OrganizationMigrationHostedService` / `OrganizationSeedHostedService` – run migrations and seeding during startup.
 
 **DI Extension:**
@@ -157,7 +157,7 @@ Implementation details:
 ### 7. Token & Authorization Integration
 
 - Default claim formatter merges org context into existing permissions claim while retaining backwards compatibility.
-- Organization scope resolver checks membership (default implementation returns true to avoid breaking existing apps; documentation will show how to override to enforce membership).
+- Organization scope resolver checks membership (default implementation enforces membership; documentation will show how to extend it for tenant-aware or elevated administrator scenarios).
 - Provide helper method to register custom claim formatter/resolver.
 - Document how to regenerate tokens after switching org (e.g., call login refresh endpoint).
 

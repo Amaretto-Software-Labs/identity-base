@@ -96,7 +96,7 @@ organizationsBuilder.ConfigureOrganizationModel(modelBuilder =>
 | `POST /organizations/{id}/roles` | Create a custom organization role. | `organization.roles.manage` |
 | `DELETE /organizations/{id}/roles/{roleId}` | Delete a custom role. | `organization.roles.manage` |
 
-Authorization is enforced through the Identity Base RBAC package. Override `IOrganizationScopeResolver` or `IPermissionClaimFormatter` via the builder extensions to add stricter membership validation or custom claims.
+Authorization is enforced through the Identity Base RBAC package. The default `IOrganizationScopeResolver` verifies the caller is a member of the target organization; override it (or `IPermissionClaimFormatter`) via the builder extensions to compose tenant-specific or elevated administrator rules.
 
 ## Options
 - `OrganizationOptions`
