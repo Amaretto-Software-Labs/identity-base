@@ -10,8 +10,10 @@ import {
   revokeInvitation,
   getOrganization,
   getOrganizationRoles,
+  getOrganizationRolePermissions,
+  updateOrganizationRolePermissions,
 } from '../api/organizations'
-import type { InvitationResponse, OrganizationRole } from '../api/types'
+import type { InvitationResponse, OrganizationRole, OrganizationRolePermissions } from '../api/types'
 import { renderApiError } from '../api/client'
 
 export default function OrganizationAdminPage() {
@@ -45,6 +47,13 @@ export default function OrganizationAdminPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
 
   const [roles, setRoles] = useState<OrganizationRole[]>([])
+  const [activeRoleId, setActiveRoleId] = useState<string | null>(null)
+  const [rolePermissions, setRolePermissions] = useState<OrganizationRolePermissions | null>(null)
+  const [editableRolePermissions, setEditableRolePermissions] = useState<string[]>([])
+  const [rolePermissionsLoading, setRolePermissionsLoading] = useState(false)
+  const [rolePermissionsSaving, setRolePermissionsSaving] = useState(false)
+  const [rolePermissionsError, setRolePermissionsError] = useState<string | null>(null)
+  const [newRolePermission, setNewRolePermission] = useState('')
   const [invitations, setInvitations] = useState<InvitationResponse[]>([])
 
   const [searchTerm, setSearchTerm] = useState(memberQuery.search ?? '')
@@ -87,6 +96,17 @@ export default function OrganizationAdminPage() {
         setOrganizationSlug(organization.slug)
         setRoles(roleList)
         setInvitations(inviteList)
+        setActiveRoleId((previous) => {
+          if (roleList.length === 0) {
+            return null
+          }
+
+          if (previous && roleList.some((role) => role.id === previous)) {
+            return previous
+          }
+
+          return roleList[0]?.id ?? null
+        })
       } catch (err) {
         if (!cancelled) {
           setLoadError(renderApiError(err))
@@ -120,6 +140,40 @@ export default function OrganizationAdminPage() {
   useEffect(() => {
     setPageInput(currentPage.toString())
   }, [currentPage])
+
+  useEffect(() => {
+    if (!organizationId || !activeRoleId) {
+      setRolePermissions(null)
+      setEditableRolePermissions([])
+      return
+    }
+
+    let cancelled = false
+    setRolePermissionsLoading(true)
+    setRolePermissionsError(null)
+
+    getOrganizationRolePermissions(organizationId, activeRoleId)
+      .then((response) => {
+        if (cancelled) return
+        setRolePermissions(response)
+        setEditableRolePermissions(response.explicit)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setRolePermissionsError(renderApiError(err))
+        setRolePermissions(null)
+        setEditableRolePermissions([])
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setRolePermissionsLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [organizationId, activeRoleId])
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -258,6 +312,81 @@ export default function OrganizationAdminPage() {
   const disablePrev = currentPage <= 1
   const disableNext = currentPage >= memberPageCount
 
+  const permissionsChanged = useMemo(() => {
+    if (!rolePermissions) {
+      return editableRolePermissions.length > 0
+    }
+
+    const current = new Set(rolePermissions.explicit.map((value) => value.toLowerCase()))
+    const next = new Set(
+      editableRolePermissions
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0)
+        .map((value) => value.toLowerCase()),
+    )
+
+    if (current.size !== next.size) {
+      return true
+    }
+
+    for (const value of next) {
+      if (!current.has(value)) {
+        return true
+      }
+    }
+
+    return false
+  }, [editableRolePermissions, rolePermissions])
+
+  const handleAddRolePermission = () => {
+    const trimmed = newRolePermission.trim()
+    if (trimmed === '') {
+      return
+    }
+
+    setRolePermissionsError(null)
+
+    setEditableRolePermissions((previous) => {
+      if (previous.some((value) => value.toLowerCase() === trimmed.toLowerCase())) {
+        return previous
+      }
+
+      return [...previous, trimmed]
+    })
+    setNewRolePermission('')
+  }
+
+  const handleRemoveRolePermission = (permission: string) => {
+    setRolePermissionsError(null)
+    setEditableRolePermissions((previous) => previous.filter((value) => value.toLowerCase() !== permission.toLowerCase()))
+  }
+
+  const handleSaveRolePermissions = async () => {
+    if (!organizationId || !activeRoleId) {
+      return
+    }
+
+    const payload = editableRolePermissions
+      .map((value) => value.trim())
+      .filter((value, index, array) => value.length > 0 && array.findIndex((candidate) => candidate.toLowerCase() === value.toLowerCase()) === index)
+
+    setRolePermissionsSaving(true)
+    setRolePermissionsError(null)
+    setStatusMessage(null)
+
+    try {
+      await updateOrganizationRolePermissions(organizationId, activeRoleId, payload)
+      setStatusMessage('Role permissions updated.')
+      const updated = await getOrganizationRolePermissions(organizationId, activeRoleId)
+      setRolePermissions(updated)
+      setEditableRolePermissions(updated.explicit)
+    } catch (err) {
+      setRolePermissionsError(renderApiError(err))
+    } finally {
+      setRolePermissionsSaving(false)
+    }
+  }
+
   const handleCreateInvitation = async () => {
     if (!organizationId) return
     setInviteError(null)
@@ -385,6 +514,157 @@ export default function OrganizationAdminPage() {
         <p className="text-sm text-slate-600">Loading organization details…</p>
       ) : (
         <>
+          <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-900">Roles</h2>
+              {roles.length > 0 ? (
+                <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  {roles.length.toLocaleString()} total
+                </span>
+              ) : null}
+            </div>
+
+            {rolePermissionsError && (
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+                {rolePermissionsError}
+              </div>
+            )}
+
+            <div className="grid gap-4 lg:grid-cols-[1.5fr,2fr]">
+              <div className="space-y-2">
+                {roles.length === 0 ? (
+                  <p className="text-sm text-slate-600">No organization roles have been defined.</p>
+                ) : (
+                  roles.map((role) => {
+                    const isActive = role.id === activeRoleId
+                    return (
+                      <button
+                        key={role.id}
+                        type="button"
+                        onClick={() => setActiveRoleId(role.id)}
+                        className={`w-full rounded-md border px-3 py-2 text-left text-sm shadow-sm transition ${
+                          isActive ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className="font-semibold">{role.name}</span>
+                        {role.description ? (
+                          <span className={`mt-1 block text-xs ${isActive ? 'text-slate-100' : 'text-slate-500'}`}>
+                            {role.description}
+                          </span>
+                        ) : null}
+                        {role.isSystemRole ? (
+                          <span
+                            className={`mt-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                              isActive ? 'bg-slate-800 text-slate-100' : 'bg-slate-200 text-slate-700'
+                            }`}
+                          >
+                            System role
+                          </span>
+                        ) : null}
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+
+              <div className="space-y-3">
+                {!activeRoleId ? (
+                  <p className="text-sm text-slate-600">Select a role to view and edit its permissions.</p>
+                ) : rolePermissionsLoading ? (
+                  <p className="text-sm text-slate-600">Loading permissions…</p>
+                ) : !rolePermissions ? (
+                  <p className="text-sm text-slate-600">Unable to load permissions for the selected role.</p>
+                ) : (
+                  <>
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900">Effective permissions</h3>
+                      {rolePermissions.effective.length === 0 ? (
+                        <p className="text-xs text-slate-500">This role does not grant any permissions.</p>
+                      ) : (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {rolePermissions.effective.map((permission) => (
+                            <span
+                              key={permission}
+                              className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-[11px] font-medium text-slate-700"
+                            >
+                              {permission}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-900">Explicit permissions</h3>
+                        <p className="text-xs text-slate-500">
+                          These permissions are applied specifically to this organization. Permissions inherited from default role
+                          definitions remain read-only.
+                        </p>
+                      </div>
+
+                      {editableRolePermissions.length === 0 ? (
+                        <p className="text-xs text-slate-500">No explicit permissions configured.</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {editableRolePermissions.map((permission) => (
+                            <button
+                              key={permission}
+                              type="button"
+                              onClick={() => handleRemoveRolePermission(permission)}
+                              className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-3 py-1 text-[11px] font-medium text-slate-700 hover:bg-red-50 hover:text-red-600"
+                            >
+                              {permission}
+                              <span aria-hidden="true">×</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <input
+                          type="text"
+                          value={newRolePermission}
+                          onChange={(event) => setNewRolePermission(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                              event.preventDefault()
+                              handleAddRolePermission()
+                            }
+                          }}
+                          placeholder="Enter permission name"
+                          className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddRolePermission}
+                          disabled={newRolePermission.trim() === ''}
+                          className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Add permission
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={handleSaveRolePermissions}
+                          disabled={rolePermissionsSaving || !permissionsChanged}
+                          className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {rolePermissionsSaving ? 'Saving…' : 'Save permissions'}
+                        </button>
+                        {!permissionsChanged && !rolePermissionsSaving ? (
+                          <span className="text-[11px] text-slate-500">No changes to save.</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </section>
+
           <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-slate-900">Members</h2>

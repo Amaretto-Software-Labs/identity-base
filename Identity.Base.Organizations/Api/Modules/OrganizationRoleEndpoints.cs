@@ -95,6 +95,56 @@ public static class OrganizationRoleEndpoints
         })
         .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.roles.manage"));
 
+        endpoints.MapGet("/organizations/{organizationId:guid}/roles/{roleId:guid}/permissions", async (Guid organizationId, Guid roleId, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationRoleService roleService, CancellationToken cancellationToken) =>
+        {
+            var scopeResult = await EnsureActorInScopeAsync(principal, scopeResolver, organizationId, cancellationToken).ConfigureAwait(false);
+            if (scopeResult is not null)
+            {
+                return scopeResult;
+            }
+
+            try
+            {
+                var permissionSet = await roleService.GetPermissionsAsync(roleId, organizationId, cancellationToken).ConfigureAwait(false);
+                return Results.Ok(OrganizationApiMapper.ToRolePermissionsResponse(permissionSet));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.NotFound(new ProblemDetails { Title = "Role not found", Detail = ex.Message, Status = StatusCodes.Status404NotFound });
+            }
+        })
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.roles.read"));
+
+        endpoints.MapPut("/organizations/{organizationId:guid}/roles/{roleId:guid}/permissions", async (Guid organizationId, Guid roleId, UpdateOrganizationRolePermissionsRequest request, IValidator<UpdateOrganizationRolePermissionsRequest> validator, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationRoleService roleService, CancellationToken cancellationToken) =>
+        {
+            var validationResult = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
+            if (!validationResult.IsValid)
+            {
+                return Results.ValidationProblem(validationResult.ToDictionary());
+            }
+
+            var scopeResult = await EnsureActorInScopeAsync(principal, scopeResolver, organizationId, cancellationToken).ConfigureAwait(false);
+            if (scopeResult is not null)
+            {
+                return scopeResult;
+            }
+
+            try
+            {
+                await roleService.UpdatePermissionsAsync(roleId, organizationId, request.Permissions, cancellationToken).ConfigureAwait(false);
+                return Results.NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.NotFound(new ProblemDetails { Title = "Resource not found", Detail = ex.Message, Status = StatusCodes.Status404NotFound });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.Conflict(new ProblemDetails { Title = "Role conflict", Detail = ex.Message, Status = StatusCodes.Status409Conflict });
+            }
+        })
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.roles.manage"));
+
         return endpoints;
     }
 

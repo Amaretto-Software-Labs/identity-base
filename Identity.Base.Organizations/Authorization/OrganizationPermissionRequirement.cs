@@ -1,11 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Identity.Base.Roles.Claims;
-using Identity.Base.Organizations.Abstractions;
+using Identity.Base.Organizations.Services;
 using Identity.Base.Organizations.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -30,35 +29,11 @@ public sealed class OrganizationPermissionRequirement : IAuthorizationRequiremen
 
 public sealed class OrganizationPermissionAuthorizationHandler : AuthorizationHandler<OrganizationPermissionRequirement>
 {
-    private static readonly Dictionary<string, string[]> SystemRolePermissions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["OrgOwner"] = new[]
-        {
-            "organizations.read",
-            "organizations.manage",
-            "organization.members.read",
-            "organization.members.manage",
-            "organization.roles.read",
-            "organization.roles.manage"
-        },
-        ["OrgManager"] = new[]
-        {
-            "organizations.read",
-            "organization.members.read",
-            "organization.members.manage",
-            "organization.roles.read"
-        },
-        ["OrgMember"] = new[]
-        {
-            "organizations.read"
-        }
-    };
+    private readonly IOrganizationPermissionResolver _permissionResolver;
 
-    private readonly IOrganizationMembershipService _membershipService;
-
-    public OrganizationPermissionAuthorizationHandler(IOrganizationMembershipService membershipService)
+    public OrganizationPermissionAuthorizationHandler(IOrganizationPermissionResolver permissionResolver)
     {
-        _membershipService = membershipService ?? throw new ArgumentNullException(nameof(membershipService));
+        _permissionResolver = permissionResolver ?? throw new ArgumentNullException(nameof(permissionResolver));
     }
 
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, OrganizationPermissionRequirement requirement)
@@ -92,24 +67,18 @@ public sealed class OrganizationPermissionAuthorizationHandler : AuthorizationHa
             return;
         }
 
-        var membership = await _membershipService.GetMembershipAsync(organizationId.Value, userId, CancellationToken.None).ConfigureAwait(false);
-        if (membership?.RoleAssignments.Count > 0)
-        {
-            foreach (var assignment in membership.RoleAssignments)
-            {
-                var roleName = assignment.Role?.Name;
-                if (string.IsNullOrWhiteSpace(roleName))
-                {
-                    continue;
-                }
+        var permissions = await _permissionResolver
+            .GetPermissionsAsync(organizationId.Value, userId, CancellationToken.None)
+            .ConfigureAwait(false);
 
-                if (SystemRolePermissions.TryGetValue(roleName, out var permissions) &&
-                    permissions.Contains(requirement.Permission, StringComparer.OrdinalIgnoreCase))
-                {
-                    context.Succeed(requirement);
-                    return;
-                }
-            }
+        if (permissions.Count == 0)
+        {
+            return;
+        }
+
+        if (permissions.Contains(requirement.Permission, StringComparer.OrdinalIgnoreCase))
+        {
+            context.Succeed(requirement);
         }
     }
 

@@ -10,6 +10,7 @@ using Identity.Base.Organizations.Infrastructure;
 using Identity.Base.Organizations.Options;
 using Identity.Base.Organizations.Services;
 using Identity.Base.Roles.Abstractions;
+using Identity.Base.Roles.Services;
 using Identity.Base.Options;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -42,12 +43,15 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<IOrganizationScopeResolver, OrganizationScopeResolver>();
         services.TryAddScoped<OrganizationRoleSeeder>();
         services.TryAddScoped<OrganizationClaimFormatter>();
+        services.TryAddScoped<IOrganizationPermissionResolver, OrganizationPermissionResolver>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IAdditionalPermissionSource, OrganizationAdditionalPermissionSource>());
 
         services.TryAddScoped<IValidator<CreateOrganizationRequest>, CreateOrganizationRequestValidator>();
         services.TryAddScoped<IValidator<UpdateOrganizationRequest>, UpdateOrganizationRequestValidator>();
         services.TryAddScoped<IValidator<AddMembershipRequest>, AddMembershipRequestValidator>();
         services.TryAddScoped<IValidator<UpdateMembershipRequest>, UpdateMembershipRequestValidator>();
         services.TryAddScoped<IValidator<CreateOrganizationRoleRequest>, CreateOrganizationRoleRequestValidator>();
+        services.TryAddScoped<IValidator<UpdateOrganizationRolePermissionsRequest>, UpdateOrganizationRolePermissionsRequestValidator>();
         services.TryAddScoped<IValidator<SetActiveOrganizationRequest>, SetActiveOrganizationRequestValidator>();
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, OrganizationMigrationHostedService>());

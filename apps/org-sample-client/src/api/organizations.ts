@@ -2,6 +2,7 @@ import { API_ROUTES } from '../config'
 import { apiFetch } from './client'
 import type {
   OrganizationRole,
+  OrganizationRolePermissions,
   InvitationResponse,
   CreateInvitationRequest,
   ClaimInvitationRequest,
@@ -21,6 +22,17 @@ export function getOrganization(organizationId: string) {
 
 export function getOrganizationRoles(organizationId: string) {
   return apiFetch<OrganizationRole[]>(API_ROUTES.organizationRoles(organizationId))
+}
+
+export function getOrganizationRolePermissions(organizationId: string, roleId: string) {
+  return apiFetch<OrganizationRolePermissions>(API_ROUTES.organizationRolePermissions(organizationId, roleId))
+}
+
+export function updateOrganizationRolePermissions(organizationId: string, roleId: string, permissions: string[]) {
+  return apiFetch<void>(API_ROUTES.organizationRolePermissions(organizationId, roleId), {
+    method: 'PUT',
+    body: JSON.stringify({ permissions }),
+  })
 }
 
 export function listInvitations(organizationId: string) {

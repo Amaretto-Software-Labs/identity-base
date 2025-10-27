@@ -1,8 +1,9 @@
+using System;
 using System.Security.Claims;
 using FluentAssertions;
-using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Authorization;
-using Identity.Base.Organizations.Domain;
+using Identity.Base.Organizations.Claims;
+using Identity.Base.Organizations.Services;
 using Identity.Base.Roles.Claims;
 using Microsoft.AspNetCore.Authorization;
 
@@ -10,11 +11,12 @@ namespace Identity.Base.Organizations.Tests.Authorization;
 
 public class OrganizationPermissionAuthorizationHandlerTests
 {
-    private readonly OrganizationPermissionAuthorizationHandler _handler = new(new StubMembershipService());
-
     [Fact]
     public async Task HandleRequirementAsync_Succeeds_WhenPermissionClaimPresent()
     {
+        var resolver = new StubOrganizationPermissionResolver();
+        var handler = new OrganizationPermissionAuthorizationHandler(resolver);
+
         var requirement = new OrganizationPermissionRequirement("organizations.read");
         var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
@@ -23,7 +25,7 @@ public class OrganizationPermissionAuthorizationHandlerTests
 
         var context = new AuthorizationHandlerContext(new[] { requirement }, user, null);
 
-        await _handler.HandleAsync(context);
+        await handler.HandleAsync(context);
 
         context.HasSucceeded.Should().BeTrue();
     }
@@ -31,6 +33,9 @@ public class OrganizationPermissionAuthorizationHandlerTests
     [Fact]
     public async Task HandleRequirementAsync_DoesNotSucceed_WhenPermissionMissing()
     {
+        var resolver = new StubOrganizationPermissionResolver();
+        var handler = new OrganizationPermissionAuthorizationHandler(resolver);
+
         var requirement = new OrganizationPermissionRequirement("organizations.manage");
         var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
@@ -39,29 +44,63 @@ public class OrganizationPermissionAuthorizationHandlerTests
 
         var context = new AuthorizationHandlerContext(new[] { requirement }, user, null);
 
-        await _handler.HandleAsync(context);
+        await handler.HandleAsync(context);
 
         context.HasSucceeded.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task HandleRequirementAsync_Succeeds_WhenResolverProvidesPermission()
+    {
+        var organizationId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var resolver = new StubOrganizationPermissionResolver
+        {
+            Permissions = ["organization.members.manage"],
+            OrganizationId = organizationId,
+            UserId = userId
+        };
+
+        var handler = new OrganizationPermissionAuthorizationHandler(resolver);
+        var requirement = new OrganizationPermissionRequirement("organization.members.manage");
+
+        var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+            new Claim(OrganizationClaimTypes.OrganizationId, organizationId.ToString()),
+        }, authenticationType: "Test"));
+
+        var context = new AuthorizationHandlerContext(new[] { requirement }, user, null);
+
+        await handler.HandleAsync(context);
+
+        context.HasSucceeded.Should().BeTrue();
+    }
 }
 
-internal sealed class StubMembershipService : IOrganizationMembershipService
+internal sealed class StubOrganizationPermissionResolver : IOrganizationPermissionResolver
 {
-    public Task<OrganizationMembership> AddMemberAsync(OrganizationMembershipRequest request, CancellationToken cancellationToken = default)
-        => throw new NotImplementedException();
+    public Guid? OrganizationId { get; set; }
 
-    public Task<OrganizationMembership?> GetMembershipAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken = default)
-        => Task.FromResult<OrganizationMembership?>(null);
+    public Guid? UserId { get; set; }
 
-    public Task<IReadOnlyList<OrganizationMembership>> GetMembershipsForUserAsync(Guid userId, Guid? tenantId, CancellationToken cancellationToken = default)
-        => throw new NotImplementedException();
+    public IReadOnlyList<string> Permissions { get; set; } = Array.Empty<string>();
 
-    public Task<OrganizationMemberListResult> GetMembersAsync(OrganizationMemberListRequest request, CancellationToken cancellationToken = default)
-        => Task.FromResult(OrganizationMemberListResult.Empty(request.Page < 1 ? 1 : request.Page, request.PageSize < 1 ? 1 : request.PageSize));
+    public Task<IReadOnlyList<string>> GetPermissionsAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        if (OrganizationId.HasValue && OrganizationId.Value != organizationId)
+        {
+            return Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
+        }
 
-    public Task<OrganizationMembership> UpdateMembershipAsync(OrganizationMembershipUpdateRequest request, CancellationToken cancellationToken = default)
-        => throw new NotImplementedException();
+        if (UserId.HasValue && UserId.Value != userId)
+        {
+            return Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
+        }
 
-    public Task RemoveMemberAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken = default)
-        => throw new NotImplementedException();
+        return Task.FromResult(Permissions);
+    }
+
+    public Task<IReadOnlyList<string>> GetOrganizationPermissionsAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken = default)
+        => GetPermissionsAsync(organizationId, userId, cancellationToken);
 }

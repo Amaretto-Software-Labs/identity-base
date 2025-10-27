@@ -51,6 +51,11 @@ export interface OrganizationRole {
   isSystemRole: boolean
 }
 
+export interface OrganizationRolePermissions {
+  effective: string[]
+  explicit: string[]
+}
+
 export interface OrganizationMember {
   userId: string
   organizationId: string
@@ -77,4 +82,3 @@ export interface CreateInvitationRequest {
 export interface ClaimInvitationRequest {
   code: string
 }
-

@@ -40,5 +40,10 @@ public sealed class OrganizationRoleConfiguration : IEntityTypeConfiguration<Org
             .WithOne(assignment => assignment.Role)
             .HasForeignKey(assignment => assignment.RoleId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(role => role.RolePermissions)
+            .WithOne(permission => permission.Role)
+            .HasForeignKey(permission => permission.RoleId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

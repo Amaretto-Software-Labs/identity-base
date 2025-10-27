@@ -21,6 +21,8 @@ export const API_ROUTES = {
   organizationMembers: (organizationId: string) => `/organizations/${organizationId}/members`,
   organizationMember: (organizationId: string, userId: string) => `/organizations/${organizationId}/members/${userId}`,
   organizationRoles: (organizationId: string) => `/organizations/${organizationId}/roles`,
+  organizationRolePermissions: (organizationId: string, roleId: string) =>
+    `/organizations/${organizationId}/roles/${roleId}/permissions`,
   invitations: (organizationId: string) => `/sample/organizations/${organizationId}/invitations`,
   claimInvitation: '/sample/invitations/claim',
 }

@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Identity.Base.Roles.Services;
 
-public sealed class RoleAssignmentService : IRoleAssignmentService, IPermissionResolver
+public sealed class RoleAssignmentService : IRoleAssignmentService
 {
     private readonly IRoleDbContext _dbContext;
     private readonly ILogger<RoleAssignmentService> _logger;

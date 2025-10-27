@@ -45,7 +45,8 @@ public class PermissionClaimsAugmentorTests
         context.UserRoles.Add(new UserRole { UserId = userId, RoleId = role.Id });
         await context.SaveChangesAsync();
 
-        var resolver = new RoleAssignmentService(context, NullLogger<RoleAssignmentService>.Instance);
+        var roleService = new RoleAssignmentService(context, NullLogger<RoleAssignmentService>.Instance);
+        var resolver = new CompositePermissionResolver(roleService, Array.Empty<IAdditionalPermissionSource>());
         var augmentor = new PermissionClaimsAugmentor(resolver, new NullTenantContextAccessor(), new DefaultPermissionClaimFormatter());
 
         var user = new ApplicationUser { Id = userId, Email = "support@example.com" };
@@ -75,7 +76,8 @@ public class PermissionClaimsAugmentorTests
         context.UserRoles.Add(new UserRole { UserId = userId, RoleId = role.Id });
         await context.SaveChangesAsync();
 
-        var resolver = new RoleAssignmentService(context, NullLogger<RoleAssignmentService>.Instance);
+        var roleService = new RoleAssignmentService(context, NullLogger<RoleAssignmentService>.Instance);
+        var resolver = new CompositePermissionResolver(roleService, Array.Empty<IAdditionalPermissionSource>());
         var augmentor = new PermissionClaimsAugmentor(resolver, new NullTenantContextAccessor(), new DefaultPermissionClaimFormatter());
 
         var user = new ApplicationUser { Id = userId, Email = "admin@example.com" };

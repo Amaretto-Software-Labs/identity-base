@@ -90,4 +90,15 @@ internal static class OrganizationApiMapper
             UpdatedAtUtc = role.UpdatedAtUtc
         };
     }
+
+    public static OrganizationRolePermissionsResponse ToRolePermissionsResponse(OrganizationRolePermissionSet permissionSet)
+    {
+        ArgumentNullException.ThrowIfNull(permissionSet);
+
+        return new OrganizationRolePermissionsResponse
+        {
+            Effective = permissionSet.Effective.ToArray(),
+            Explicit = permissionSet.Explicit.ToArray()
+        };
+    }
 }

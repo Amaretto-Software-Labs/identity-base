@@ -28,7 +28,7 @@ public static class ServiceCollectionExtensions
 
         services.TryAddScoped<IRoleSeeder, RoleSeeder>();
         services.TryAddScoped<IRoleAssignmentService, RoleAssignmentService>();
-        services.TryAddScoped<IPermissionResolver, RoleAssignmentService>();
+        services.TryAddScoped<IPermissionResolver, CompositePermissionResolver>();
         services.TryAddScoped<IPermissionClaimFormatter, DefaultPermissionClaimFormatter>();
         services.TryAddSingleton<IdentityBaseSeedCallbacks>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IUserCreationListener, DefaultUserRoleAssignmentListener>());

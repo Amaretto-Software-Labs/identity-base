@@ -27,6 +27,12 @@ membership and active-organization flows.
   total count, page metadata, `ensurePage()` for prefetching, `getMemberAt()` for virtualized
   lists, and `updateMember()` / `removeMember()` facades over the Identity.Base endpoints.
 
+- `useOrganizations().client`  
+  Provides a typed client wrapper around the underlying API. In addition to membership helpers it
+  now exposes `getRolePermissions(organizationId, roleId)` and
+  `updateRolePermissions(organizationId, roleId, permissions)` so callers can retrieve the effective
+  permission set for an organization role and manage the organization-specific overrides.
+
 - Exported types such as `Membership`, `OrganizationSummary`, `OrganizationRole`, and
   `OrganizationMember` for convenience in strongly typed apps, plus paging helpers like
   `OrganizationMemberQuery`, `OrganizationMemberQueryState`, and `OrganizationMembersPage`.
@@ -54,3 +60,22 @@ function Dashboard() {
 ```
 
 The org sample client consumes this package and no longer ships bespoke membership hooks.
+
+### Editing Role Permissions
+
+```tsx
+const { client } = useOrganizations()
+
+async function savePermissions(organizationId: string, roleId: string, permissions: string[]) {
+  // Fetch the current explicit vs. inherited permissions
+  const current = await client.getRolePermissions(organizationId, roleId)
+
+  console.log(current.effective) // union of inherited + explicit permissions
+  console.log(current.explicit)  // organization-specific overrides
+
+  // Persist a new override list for the organization
+  await client.updateRolePermissions(organizationId, roleId, permissions)
+}
+```
+
+The helper automatically scopes calls to the organization-aware endpoints added in this iteration.

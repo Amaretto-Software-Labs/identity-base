@@ -24,4 +24,6 @@ public class OrganizationRole
     public Organization? Organization { get; set; }
 
     public ICollection<OrganizationRoleAssignment> RoleAssignments { get; set; } = new List<OrganizationRoleAssignment>();
+
+    public ICollection<OrganizationRolePermission> RolePermissions { get; set; } = new List<OrganizationRolePermission>();
 }

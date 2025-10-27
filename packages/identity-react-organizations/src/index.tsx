@@ -86,6 +86,11 @@ export interface OrganizationRole {
   updatedAtUtc: string | null
 }
 
+export interface OrganizationRolePermissions {
+  effective: string[]
+  explicit: string[]
+}
+
 export interface OrganizationMember {
   organizationId: string
   userId: string
@@ -141,6 +146,8 @@ interface OrganizationsClient {
   listMemberships: () => Promise<Membership[]>
   getOrganization: (organizationId: string) => Promise<OrganizationSummary>
   listRoles: (organizationId: string) => Promise<OrganizationRole[]>
+  getRolePermissions: (organizationId: string, roleId: string) => Promise<OrganizationRolePermissions>
+  updateRolePermissions: (organizationId: string, roleId: string, permissions: string[]) => Promise<void>
   listMembers: (organizationId: string, query?: OrganizationMemberQuery) => Promise<OrganizationMembersPage>
   updateMember: (
     organizationId: string,
@@ -412,6 +419,13 @@ export function OrganizationsProvider({
       return mapOrganization(dto)
     },
     listRoles: async (organizationId: string) => authorizedFetch<OrganizationRole[]>(`/organizations/${organizationId}/roles`),
+    getRolePermissions: async (organizationId: string, roleId: string) =>
+      authorizedFetch<OrganizationRolePermissions>(`/organizations/${organizationId}/roles/${roleId}/permissions`),
+    updateRolePermissions: async (organizationId: string, roleId: string, permissions: string[]) =>
+      authorizedFetch<void>(`/organizations/${organizationId}/roles/${roleId}/permissions`, {
+        method: 'PUT',
+        body: JSON.stringify({ permissions }),
+      }),
     listMembers: async (organizationId: string, query?: OrganizationMemberQuery) => {
       const dto = await authorizedFetch<OrganizationMemberListResponseDto>(buildMemberListPath(organizationId, query))
       return mapOrganizationMembersPage(dto)

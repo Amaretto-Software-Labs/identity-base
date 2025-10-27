@@ -54,7 +54,8 @@ This guide captures the end-to-end scenario described in planning: users registe
 
 - [ ] **Organization Role Management**
   - Organization admins call `GET/POST/DELETE /organizations/{orgId}/roles` for custom roles.
-  - Map org roles to RBAC permissions in your application logic (currently no built-in binding between `OrganizationRole` and RBAC permissions).
+  - `GET /organizations/{orgId}/roles/{roleId}/permissions` returns inherited vs. explicit permission assignments; `PUT` replaces the explicit list stored in `Identity_OrganizationRolePermissions`.
+  - Default permission bundles can be configured via `OrganizationRoleOptions.DefaultRoles`; per-organization overrides flow through the same service layer and are surfaced in tokens/claims.
 
 - [ ] **User Self-Service**
   - Existing Identity Base endpoints handle profile updates, password changes, MFA enable/disable. No extra work needed beyond exposing the routes in the client application.
@@ -78,7 +79,7 @@ This guide captures the end-to-end scenario described in planning: users registe
 | Area | Gap | Suggested Action |
 | --- | --- | --- |
 | Invitations | No built-in invitation tokens/email workflows. | Build a custom endpoint/workflow that issues invite codes and creates users + memberships upon accept. |
-| Org ↔ RBAC binding | Organization roles don’t automatically map to RBAC permissions. | Decide on a convention (e.g., metadata linking org roles to RBAC roles) and enforce it in application services. |
+| Org ↔ RBAC binding | Explicit permission overrides are persisted, but hosts must still decide which permissions correspond to new org roles. | Define default permission bundles in configuration/seed callbacks and expose admin UX (see sample) for fine-grained overrides. |
 | Admin UI | No admin endpoints for listing/editing organizations. | Extend `Identity.Base.Admin` or create a companion package to expose `/admin/organizations` and related tooling. |
 | Integration Tests | Minimal APIs currently validated by unit tests only. | Add WebApplicationFactory-based tests to cover authorization and org-switch flows end-to-end. |
 

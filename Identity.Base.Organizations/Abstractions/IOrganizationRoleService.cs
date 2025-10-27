@@ -15,4 +15,8 @@ public interface IOrganizationRoleService
     Task<IReadOnlyList<OrganizationRole>> ListAsync(Guid? tenantId, Guid? organizationId, CancellationToken cancellationToken = default);
 
     Task DeleteAsync(Guid roleId, CancellationToken cancellationToken = default);
+
+    Task<OrganizationRolePermissionSet> GetPermissionsAsync(Guid roleId, Guid organizationId, CancellationToken cancellationToken = default);
+
+    Task UpdatePermissionsAsync(Guid roleId, Guid organizationId, IEnumerable<string> permissions, CancellationToken cancellationToken = default);
 }
