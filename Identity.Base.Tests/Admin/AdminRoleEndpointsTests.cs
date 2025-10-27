@@ -37,11 +37,12 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
 
         using var client = CreateAuthorizedClient(token);
         var response = await client.GetAsync("/admin/roles");
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var responseBody = await response.Content.ReadAsStringAsync();
+        response.StatusCode.Should().Be(HttpStatusCode.OK, responseBody);
 
-        var roles = await response.Content.ReadFromJsonAsync<List<AdminRoleSummaryDto>>(JsonOptions);
-        roles.Should().NotBeNull();
-        roles!.Should().Contain(role => role.Name == "IdentityAdmin");
+        var payload = JsonSerializer.Deserialize<AdminRoleListResponseDto>(responseBody, JsonOptions);
+        payload.Should().NotBeNull(responseBody);
+        payload!.Roles.Should().Contain(role => role.Name == "IdentityAdmin");
     }
 
     [Fact]
@@ -105,8 +106,12 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
         var (_, token) = await CreateAdminUserAndTokenAsync("roles-delete-system@example.com", "AdminPass!2345");
         using var client = CreateAuthorizedClient(token);
 
-        var list = await client.GetFromJsonAsync<List<AdminRoleSummaryDto>>("/admin/roles", JsonOptions);
-        var systemRole = list!.First(role => role.Name == "IdentityAdmin");
+        var listResponse = await client.GetAsync("/admin/roles");
+        var listBody = await listResponse.Content.ReadAsStringAsync();
+        listResponse.StatusCode.Should().Be(HttpStatusCode.OK, listBody);
+        var list = JsonSerializer.Deserialize<AdminRoleListResponseDto>(listBody, JsonOptions);
+        list.Should().NotBeNull(listBody);
+        var systemRole = list!.Roles.First(role => role.Name == "IdentityAdmin");
 
         var response = await client.DeleteAsync($"/admin/roles/{systemRole.Id:D}");
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -229,4 +234,6 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
     private sealed record AdminRoleSummaryDto(Guid Id, string Name, string? Description, bool IsSystemRole, string ConcurrencyStamp, List<string> Permissions, int UserCount);
 
     private sealed record AdminRoleDetailDto(Guid Id, string Name, string? Description, bool IsSystemRole, string ConcurrencyStamp, List<string> Permissions);
+
+    private sealed record AdminRoleListResponseDto(int Page, int PageSize, int TotalCount, List<AdminRoleSummaryDto> Roles);
 }

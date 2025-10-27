@@ -162,13 +162,21 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         var logger = loggerFactory.CreateLogger(typeof(AdminUserEndpoints).FullName!);
         var slowQueryThresholdMs = Math.Max(0, diagnosticsOptions.Value.SlowQueryThreshold.TotalMilliseconds);
         var stopwatch = Stopwatch.StartNew();
-        var page = query.Page < 1 ? 1 : query.Page;
-        var pageSize = query.PageSize switch
+        var page = query.Page.GetValueOrDefault(1);
+        if (page < 1)
         {
-            < 1 => 25,
-            > MaxPageSize => MaxPageSize,
-            _ => query.PageSize
-        };
+            page = 1;
+        }
+
+        var pageSize = query.PageSize.GetValueOrDefault(25);
+        if (pageSize < 1)
+        {
+            pageSize = 25;
+        }
+        else if (pageSize > MaxPageSize)
+        {
+            pageSize = MaxPageSize;
+        }
 
         var usersQuery = appDbContext.Users.AsNoTracking();
 
@@ -1025,21 +1033,21 @@ namespace Identity.Base.Admin.Features.AdminUsers;
     }
 }
 
-internal sealed record AdminUserListQuery
+internal sealed class AdminUserListQuery
 {
-    public int Page { get; init; } = 1;
+    public int? Page { get; set; }
 
-    public int PageSize { get; init; } = 25;
+    public int? PageSize { get; set; }
 
-    public string? Search { get; init; }
+    public string? Search { get; set; }
 
-    public string? Role { get; init; }
+    public string? Role { get; set; }
 
-    public bool? Locked { get; init; }
+    public bool? Locked { get; set; }
 
-    public bool? Deleted { get; init; }
+    public bool? Deleted { get; set; }
 
-    public string? Sort { get; init; }
+    public string? Sort { get; set; }
 }
 
 internal sealed record AdminUserListResponse(int Page, int PageSize, int TotalCount, IReadOnlyList<AdminUserSummary> Users)

@@ -43,13 +43,21 @@ internal static class AdminPermissionEndpoints
         var logger = loggerFactory.CreateLogger(typeof(AdminPermissionEndpoints).FullName!);
         var slowQueryThresholdMs = Math.Max(0, diagnosticsOptions.Value.SlowQueryThreshold.TotalMilliseconds);
         var stopwatch = Stopwatch.StartNew();
-        var page = query.Page < 1 ? 1 : query.Page;
-        var pageSize = query.PageSize switch
+        var page = query.Page.GetValueOrDefault(1);
+        if (page < 1)
         {
-            < 1 => 25,
-            > 200 => 200,
-            _ => query.PageSize
-        };
+            page = 1;
+        }
+
+        var pageSize = query.PageSize.GetValueOrDefault(25);
+        if (pageSize < 1)
+        {
+            pageSize = 25;
+        }
+        else if (pageSize > 200)
+        {
+            pageSize = 200;
+        }
 
         var permissionsQuery = roleDbContext.Permissions.AsNoTracking();
 
@@ -147,15 +155,15 @@ internal static class AdminPermissionEndpoints
     }
 }
 
-internal sealed record AdminPermissionListQuery
+internal sealed class AdminPermissionListQuery
 {
-    public int Page { get; init; } = 1;
+    public int? Page { get; set; }
 
-    public int PageSize { get; init; } = 25;
+    public int? PageSize { get; set; }
 
-    public string? Search { get; init; }
+    public string? Search { get; set; }
 
-    public string? Sort { get; init; }
+    public string? Sort { get; set; }
 }
 
 internal sealed record AdminPermissionSummary(
