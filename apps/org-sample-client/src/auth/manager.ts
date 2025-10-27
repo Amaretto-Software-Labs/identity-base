@@ -1,8 +1,8 @@
-import type { AuthManager } from '@identity-base/react-client'
+import type { IdentityAuthManager } from '@identity-base/react-client'
 
-let currentManager: AuthManager | null = null
+let currentManager: IdentityAuthManager | null = null
 
-export function setAuthManager(manager: AuthManager) {
+export function setAuthManager(manager: IdentityAuthManager) {
   currentManager = manager
 }
 

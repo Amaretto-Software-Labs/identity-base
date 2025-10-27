@@ -1,23 +1,11 @@
 import { API_ROUTES } from '../config'
 import { apiFetch } from './client'
 import type {
-  Membership,
   OrganizationRole,
   InvitationResponse,
   CreateInvitationRequest,
   ClaimInvitationRequest,
 } from './types'
-
-export function getMemberships() {
-  return apiFetch<Membership[]>(API_ROUTES.organizationsMe)
-}
-
-export function setActiveOrganization(payload: { organizationId?: string; organizationSlug?: string }) {
-  return apiFetch<{ requiresTokenRefresh: boolean }>(API_ROUTES.setActiveOrganization, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
-}
 
 export function getOrganization(organizationId: string) {
   return apiFetch<{
@@ -29,17 +17,6 @@ export function getOrganization(organizationId: string) {
     createdAtUtc: string
     updatedAtUtc: string | null
   }>(API_ROUTES.organization(organizationId))
-}
-
-export function getOrganizationMembers(organizationId: string) {
-  return apiFetch<Array<{
-    organizationId: string
-    userId: string
-    isPrimary: boolean
-    roleIds: string[]
-    createdAtUtc: string
-    updatedAtUtc: string | null
-  }>>(API_ROUTES.organizationMembers(organizationId))
 }
 
 export function getOrganizationRoles(organizationId: string) {
@@ -76,4 +53,3 @@ export function claimInvitation(payload: ClaimInvitationRequest) {
     body: JSON.stringify(payload),
   })
 }
-

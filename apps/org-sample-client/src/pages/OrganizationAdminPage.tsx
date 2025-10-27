@@ -1,28 +1,37 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import dayjs from 'dayjs'
-import { listInvitations, createInvitation, revokeInvitation, getOrganization, getOrganizationMembers, getOrganizationRoles } from '../api/organizations'
-import type { OrganizationRole, InvitationResponse } from '../api/types'
+import { useAuth } from '@identity-base/react-client'
+import { useOrganizationMembers, type OrganizationMember } from '@identity-base/react-organizations'
+import {
+  listInvitations,
+  createInvitation,
+  revokeInvitation,
+  getOrganization,
+  getOrganizationRoles,
+} from '../api/organizations'
+import type { InvitationResponse, OrganizationRole } from '../api/types'
 import { renderApiError } from '../api/client'
-
-interface MemberViewModel {
-  userId: string
-  isPrimary: boolean
-  roleIds: string[]
-  createdAtUtc: string
-  updatedAtUtc: string | null
-}
 
 export default function OrganizationAdminPage() {
   const { organizationId } = useParams<'organizationId'>()
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const currentUserId = user?.id ?? null
+
+  const {
+    members,
+    isLoading: isLoadingMembers,
+    error: membersError,
+    updateMember,
+    removeMember,
+  } = useOrganizationMembers(organizationId)
 
   const [organizationName, setOrganizationName] = useState<string>('')
   const [organizationSlug, setOrganizationSlug] = useState<string>('')
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  const [members, setMembers] = useState<MemberViewModel[]>([])
   const [roles, setRoles] = useState<OrganizationRole[]>([])
   const [invitations, setInvitations] = useState<InvitationResponse[]>([])
 
@@ -31,7 +40,10 @@ export default function OrganizationAdminPage() {
   const [inviteExpiry, setInviteExpiry] = useState<number>(48)
   const [inviting, setInviting] = useState(false)
   const [inviteError, setInviteError] = useState<string | null>(null)
+
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [memberActionError, setMemberActionError] = useState<string | null>(null)
+  const [mutatingMemberId, setMutatingMemberId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!organizationId) {
@@ -45,9 +57,8 @@ export default function OrganizationAdminPage() {
       setIsLoading(true)
       setLoadError(null)
       try {
-        const [organization, memberList, roleList, inviteList] = await Promise.all([
+        const [organization, roleList, inviteList] = await Promise.all([
           getOrganization(organizationId),
-          getOrganizationMembers(organizationId),
           getOrganizationRoles(organizationId).catch(() => []),
           listInvitations(organizationId).catch(() => []),
         ])
@@ -56,15 +67,6 @@ export default function OrganizationAdminPage() {
 
         setOrganizationName(organization.displayName)
         setOrganizationSlug(organization.slug)
-        setMembers(
-          memberList.map((member) => ({
-            userId: member.userId,
-            isPrimary: member.isPrimary,
-            roleIds: member.roleIds,
-            createdAtUtc: member.createdAtUtc,
-            updatedAtUtc: member.updatedAtUtc,
-          })),
-        )
         setRoles(roleList)
         setInvitations(inviteList)
       } catch (err) {
@@ -131,6 +133,51 @@ export default function OrganizationAdminPage() {
     }
   }
 
+  const handleUpdateMemberRoles = async (memberId: string, roleIds: string[]) => {
+    setMemberActionError(null)
+    setStatusMessage(null)
+    setMutatingMemberId(memberId)
+
+    if (roleIds.length === 0) {
+      setMemberActionError('Members must have at least one role assigned.')
+      setMutatingMemberId(null)
+      return
+    }
+
+    try {
+      await updateMember(memberId, { roleIds })
+      setStatusMessage('Member roles updated.')
+    } catch (err) {
+      setMemberActionError(renderApiError(err))
+    } finally {
+      setMutatingMemberId(null)
+    }
+  }
+
+  const handleRemoveMember = async (memberId: string) => {
+    if (currentUserId === memberId) {
+      setMemberActionError('You cannot remove your own membership.')
+      return
+    }
+
+    if (!window.confirm('Remove this member from the organization?')) {
+      return
+    }
+
+    setMemberActionError(null)
+    setStatusMessage(null)
+    setMutatingMemberId(memberId)
+
+    try {
+      await removeMember(memberId)
+      setStatusMessage('Member removed from organization.')
+    } catch (err) {
+      setMemberActionError(renderApiError(err))
+    } finally {
+      setMutatingMemberId(null)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <header className="space-y-1">
@@ -145,7 +192,9 @@ export default function OrganizationAdminPage() {
           Manage memberships, inspect organization roles, and create invitation codes. Permissions and scope enforcement are
           handled by the sample API using <code>RequireOrganizationPermission</code>.
         </p>
-        <p className="text-xs text-slate-500">Slug: <span className="font-mono">{organizationSlug}</span></p>
+        <p className="text-xs text-slate-500">
+          Slug: <span className="font-mono">{organizationSlug || 'unknown'}</span>
+        </p>
       </header>
 
       {statusMessage && (
@@ -154,9 +203,19 @@ export default function OrganizationAdminPage() {
       {inviteError && (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{inviteError}</div>
       )}
-      {loadError && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">Failed to load organization. {loadError}</div>
+      {memberActionError && (
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{memberActionError}</div>
       )}
+      {loadError && (
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          Failed to load organization. {loadError}
+        </div>
+      )}
+      {membersError ? (
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          Failed to load members. {renderApiError(membersError)}
+        </div>
+      ) : null}
 
       {isLoading ? (
         <p className="text-sm text-slate-600">Loading organization details…</p>
@@ -164,44 +223,34 @@ export default function OrganizationAdminPage() {
         <>
           <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-900">Members</h2>
-            {members.length === 0 ? (
+            {isLoadingMembers ? (
+              <p className="text-sm text-slate-600">Loading members…</p>
+            ) : members.length === 0 ? (
               <p className="text-sm text-slate-600">No members found. Send an invitation to add teammates.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-slate-200 text-sm">
                   <thead className="bg-slate-50">
                     <tr>
-                      <th className="px-3 py-2 text-left font-medium text-slate-700">User ID</th>
+                      <th className="px-3 py-2 text-left font-medium text-slate-700">Member</th>
                       <th className="px-3 py-2 text-left font-medium text-slate-700">Roles</th>
                       <th className="px-3 py-2 text-left font-medium text-slate-700">Primary</th>
                       <th className="px-3 py-2 text-left font-medium text-slate-700">Joined</th>
+                      <th className="px-3 py-2" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {members.map((member) => (
-                      <tr key={member.userId}>
-                        <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-slate-600">{member.userId}</td>
-                        <td className="px-3 py-2">
-                          {member.roleIds.length === 0 ? (
-                            <span className="text-xs text-slate-500">None</span>
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {member.roleIds.map((roleId) => (
-                                <span
-                                  key={roleId}
-                                  className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"
-                                >
-                                  {roleNameLookup[roleId] ?? roleId}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-600">{member.isPrimary ? 'Yes' : 'No'}</td>
-                        <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-600">
-                          {dayjs(member.createdAtUtc).format('YYYY-MM-DD HH:mm')}
-                        </td>
-                      </tr>
+                      <OrganizationMemberRow
+                        key={member.userId}
+                        member={member}
+                        availableRoles={roles}
+                        roleNameLookup={roleNameLookup}
+                        onUpdateRoles={(roleIds) => handleUpdateMemberRoles(member.userId, roleIds)}
+                        onRemove={() => handleRemoveMember(member.userId)}
+                        isCurrentUser={currentUserId === member.userId}
+                        isBusy={mutatingMemberId === member.userId}
+                      />
                     ))}
                   </tbody>
                 </table>
@@ -331,3 +380,124 @@ export default function OrganizationAdminPage() {
   )
 }
 
+interface OrganizationMemberRowProps {
+  member: OrganizationMember
+  availableRoles: OrganizationRole[]
+  roleNameLookup: Record<string, string>
+  onUpdateRoles: (roleIds: string[]) => Promise<void>
+  onRemove: () => Promise<void>
+  isCurrentUser: boolean
+  isBusy: boolean
+}
+
+function OrganizationMemberRow({
+  member,
+  availableRoles,
+  roleNameLookup,
+  onUpdateRoles,
+  onRemove,
+  isCurrentUser,
+  isBusy,
+}: OrganizationMemberRowProps) {
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(member.roleIds)
+
+  useEffect(() => {
+    setSelectedRoles(member.roleIds)
+  }, [member.roleIds])
+
+  const toggleRole = (roleId: string) => {
+    setSelectedRoles((previous) =>
+      previous.includes(roleId) ? previous.filter((id) => id !== roleId) : [...previous, roleId],
+    )
+  }
+
+  const isDirty = useMemo(() => {
+    if (selectedRoles.length !== member.roleIds.length) {
+      return true
+    }
+
+    const current = new Set(member.roleIds)
+    return selectedRoles.some((roleId) => !current.has(roleId))
+  }, [selectedRoles, member.roleIds])
+
+  const readonlyRoles = member.roleIds.filter(
+    (roleId) => !availableRoles.some((role) => role.id === roleId),
+  )
+
+  const handleSave = async () => {
+    await onUpdateRoles(selectedRoles)
+  }
+
+  return (
+    <tr>
+      <td className="whitespace-nowrap px-3 py-2">
+        <div className="flex flex-col">
+          <span className="text-sm font-medium text-slate-800">
+            {member.displayName ?? member.email ?? 'Organization member'}
+          </span>
+          {member.email && <span className="text-xs text-slate-500">{member.email}</span>}
+          <span className="text-xs font-mono text-slate-400">{member.userId}</span>
+        </div>
+      </td>
+      <td className="px-3 py-2">
+        <div className="flex flex-wrap gap-2">
+          {availableRoles.length === 0 ? (
+            <span className="text-xs text-slate-500">No custom organization roles available.</span>
+          ) : (
+            availableRoles.map((role) => {
+              const isSelected = selectedRoles.includes(role.id)
+              return (
+                <button
+                  key={role.id}
+                  type="button"
+                  onClick={() => (isCurrentUser || isBusy ? undefined : toggleRole(role.id))}
+                  disabled={isCurrentUser || isBusy}
+                  className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                    isSelected ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                  } ${isCurrentUser || isBusy ? 'cursor-not-allowed opacity-60' : ''}`}
+                >
+                  {role.name}
+                </button>
+              )
+            })
+          )}
+        </div>
+        {readonlyRoles.length > 0 && (
+          <p className="mt-1 text-[11px] text-slate-500">
+            Fixed roles:{' '}
+            {readonlyRoles
+              .map((roleId) => roleNameLookup[roleId] ?? roleId)
+              .join(', ')}
+          </p>
+        )}
+      </td>
+      <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-600">{member.isPrimary ? 'Yes' : 'No'}</td>
+      <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-600">
+        {dayjs(member.createdAtUtc).format('YYYY-MM-DD HH:mm')}
+      </td>
+      <td className="whitespace-nowrap px-3 py-2">
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!isDirty || isBusy || isCurrentUser || selectedRoles.length === 0}
+            className="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isBusy ? 'Saving…' : 'Save changes'}
+          </button>
+          <button
+            type="button"
+            onClick={() => (isBusy || isCurrentUser ? undefined : onRemove())}
+            disabled={isBusy || isCurrentUser}
+            className="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Remove
+          </button>
+        </div>
+        {isCurrentUser && (
+          <p className="mt-1 text-[11px] text-slate-500">You cannot modify or remove your own membership.</p>
+        )}
+      </td>
+    </tr>
+  )
+}

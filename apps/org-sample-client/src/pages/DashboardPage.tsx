@@ -1,93 +1,73 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '@identity-base/react-client'
-import { useMemberships } from '../hooks/useMemberships'
-import {
-  getOrganization,
-  getOrganizationRoles,
-  setActiveOrganization,
-} from '../api/organizations'
+import { useOrganizations, useOrganizationSwitcher } from '@identity-base/react-organizations'
+import { getOrganizationRoles } from '../api/organizations'
 import type { OrganizationRole } from '../api/types'
 import { renderApiError } from '../api/client'
 
-interface OrganizationSummary {
-  id: string
-  slug: string
-  displayName: string
-  status: string
-  metadata: Record<string, string | null>
-}
-
 export default function DashboardPage() {
-  const { refreshUser } = useAuth()
-  const { memberships, isLoading: isLoadingMemberships, error: membershipError, reload } = useMemberships()
-  const [organizations, setOrganizations] = useState<Record<string, OrganizationSummary>>({})
+  const {
+    memberships,
+    activeOrganizationId,
+    isLoadingMemberships,
+    membershipError,
+    organizations,
+    isLoadingOrganizations: isLoadingOrganizationSummaries,
+    organizationsError,
+  } = useOrganizations()
+  const { isSwitching, switchOrganization } = useOrganizationSwitcher()
+
   const [rolesLookup, setRolesLookup] = useState<Record<string, Record<string, OrganizationRole>>>({})
-  const [loadingOrganizations, setLoadingOrganizations] = useState(false)
+  const [isLoadingRoles, setIsLoadingRoles] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
-  const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (activeOrganizationId === null && memberships.length === 1) {
-      setActiveOrganizationId(memberships[0].organizationId)
-    }
-  }, [memberships, activeOrganizationId])
+  const [rolesError, setRolesError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
 
-    const load = async () => {
+    const loadRoles = async () => {
       if (memberships.length === 0) {
-        setOrganizations({})
         setRolesLookup({})
+        setRolesError(null)
         return
       }
 
-      setLoadingOrganizations(true)
-      setActionError(null)
+      setIsLoadingRoles(true)
+      setRolesError(null)
 
       const uniqueOrgIds = Array.from(new Set(memberships.map((membership) => membership.organizationId)))
-      const nextOrganizations: Record<string, OrganizationSummary> = {}
       const nextRoles: Record<string, Record<string, OrganizationRole>> = {}
 
       await Promise.all(
         uniqueOrgIds.map(async (organizationId) => {
           try {
-            const organization = await getOrganization(organizationId)
-            nextOrganizations[organizationId] = {
-              id: organization.id,
-              slug: organization.slug,
-              displayName: organization.displayName,
-              status: organization.status,
-              metadata: organization.metadata ?? {},
-            }
-
-            try {
-              const roles = await getOrganizationRoles(organizationId)
-              nextRoles[organizationId] = roles.reduce<Record<string, OrganizationRole>>((acc, role) => {
-                acc[role.id] = role
-                return acc
-              }, {})
-            } catch {
-              nextRoles[organizationId] = {}
-            }
+            const roles = await getOrganizationRoles(organizationId)
+            nextRoles[organizationId] = roles.reduce<Record<string, OrganizationRole>>((acc, role) => {
+              acc[role.id] = role
+              return acc
+            }, {})
           } catch (err) {
             if (!cancelled) {
-              setActionError(renderApiError(err))
+              setRolesError((previous) => previous ?? renderApiError(err))
             }
           }
         }),
       )
 
       if (!cancelled) {
-        setOrganizations(nextOrganizations)
         setRolesLookup(nextRoles)
-        setLoadingOrganizations(false)
+        setIsLoadingRoles(false)
       }
     }
 
-    load()
+    loadRoles().catch((err) => {
+      if (!cancelled) {
+        setRolesError(renderApiError(err))
+        setIsLoadingRoles(false)
+      }
+    })
+
     return () => {
       cancelled = true
     }
@@ -98,20 +78,22 @@ export default function DashboardPage() {
     setActionError(null)
 
     try {
-      const response = await setActiveOrganization({ organizationId })
-      if (response.requiresTokenRefresh) {
-        await refreshUser()
-        setStatusMessage('Active organization updated. Claims refreshed.')
-      } else {
-        setStatusMessage('Active organization updated.')
-      }
-      setActiveOrganizationId(organizationId)
+      const result = await switchOrganization(organizationId)
+      setStatusMessage(result.requiresTokenRefresh
+        ? result.tokensRefreshed
+          ? 'Active organization updated. Refreshing session…'
+          : 'Active organization updated. Completing authorization…'
+        : 'Active organization updated.')
     } catch (err) {
       setActionError(renderApiError(err))
-    } finally {
-      await reload()
     }
   }
+
+  const activeOrganization = activeOrganizationId ? organizations[activeOrganizationId] : undefined
+  const activeOrganizationLabel = activeOrganization?.displayName ?? activeOrganization?.slug ?? (activeOrganizationId ?? 'None')
+  const organizationsErrorMessage = organizationsError ? renderApiError(organizationsError) : null
+
+  const isLoading = isLoadingMemberships || isLoadingOrganizationSummaries || isLoadingRoles
 
   return (
     <div className="space-y-6">
@@ -121,6 +103,12 @@ export default function DashboardPage() {
           Review your organization memberships, switch the active organization (impacting tokens/claims), and jump into
           the organization management view to invite new users.
         </p>
+        <p className="text-xs text-slate-500">
+          Active organization:{' '}
+          <span className="font-medium text-slate-800">
+            {activeOrganizationLabel}
+          </span>
+        </p>
       </header>
 
       {membershipError ? (
@@ -129,15 +117,31 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
+      {organizationsErrorMessage ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          Organization details may be out of date. {organizationsErrorMessage}
+        </div>
+      ) : null}
+
+      {rolesError ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          {rolesError}
+        </div>
+      ) : null}
+
       {actionError && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">{actionError}</div>
+        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {actionError}
+        </div>
       )}
 
       {statusMessage && (
-        <div className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-700">{statusMessage}</div>
+        <div className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+          {statusMessage}
+        </div>
       )}
 
-      {isLoadingMemberships || loadingOrganizations ? (
+      {isLoading ? (
         <p className="text-sm text-slate-600">Loading memberships…</p>
       ) : memberships.length === 0 ? (
         <div className="rounded-md border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
@@ -147,6 +151,9 @@ export default function DashboardPage() {
         <div className="grid gap-4 md:grid-cols-2">
           {memberships.map((membership) => {
             const organization = organizations[membership.organizationId]
+            const organizationName = organization?.displayName ?? organization?.slug ?? membership.organizationId
+            const organizationSlug = organization?.slug ?? 'unknown'
+            const organizationStatus = organization?.status ?? 'unknown'
             const roles = rolesLookup[membership.organizationId] ?? {}
             const isActive = activeOrganizationId === membership.organizationId
 
@@ -158,7 +165,7 @@ export default function DashboardPage() {
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-slate-900">
-                      {organization?.displayName ?? membership.organizationId}
+                      {organizationName}
                     </h2>
                     {isActive && (
                       <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
@@ -167,9 +174,9 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <p className="text-xs text-slate-500">
-                    Slug: <span className="font-mono">{organization?.slug ?? 'unknown'}</span>
+                    Slug: <span className="font-mono">{organizationSlug}</span>
                   </p>
-                  <p className="text-xs text-slate-500">Status: {organization?.status ?? 'unknown'}</p>
+                  <p className="text-xs text-slate-500">Status: {organizationStatus}</p>
                 </div>
 
                 <div>
@@ -191,10 +198,10 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => handleSetActive(membership.organizationId)}
-                    className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                    disabled={isActive}
+                    className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-70"
+                    disabled={isActive || isSwitching}
                   >
-                    {isActive ? 'Current organization' : 'Set active'}
+                    {isActive ? 'Current organization' : isSwitching ? 'Switching…' : 'Set active'}
                   </button>
                   <Link
                     to={`/organizations/${membership.organizationId}`}

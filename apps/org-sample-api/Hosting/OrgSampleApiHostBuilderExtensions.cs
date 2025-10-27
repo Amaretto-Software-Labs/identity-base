@@ -15,6 +15,7 @@ using Identity.Base.Roles.Configuration;
 using Identity.Base.Roles.Endpoints;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -23,6 +24,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OrgSampleApi.Sample.Data;
 using OrgSampleApi.Sample.Invitations;
+using OrgSampleApi.Sample.Members;
 using OrgSampleApi.Hosting.Infrastructure;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -67,6 +69,7 @@ internal static class OrgSampleApiHostBuilderExtensions
 
         services.AddScoped<IInvitationStore, EfInvitationStore>();
         services.AddScoped<InvitationService>();
+        services.AddScoped<OrganizationMemberDirectory>();
         services.AddHostedService<OrgSampleMigrationHostedService>();
 
         var identityBuilder = services.AddIdentityBase(configuration, builder.Environment);
@@ -211,6 +214,163 @@ internal static class OrgSampleApiHostBuilderExtensions
 
             return Results.Ok(new { fields });
         });
+
+        sampleGroup.MapGet("/organizations/{organizationId:guid}/members", async (
+            Guid organizationId,
+            ClaimsPrincipal principal,
+            IOrganizationScopeResolver scopeResolver,
+            OrganizationMemberDirectory memberDirectory,
+            CancellationToken cancellationToken) =>
+        {
+            var scopeResult = await EnsureActorInScopeAsync(principal, scopeResolver, organizationId, cancellationToken).ConfigureAwait(false);
+            if (scopeResult is not null)
+            {
+                return scopeResult;
+            }
+
+            var members = await memberDirectory.GetMembersAsync(organizationId, cancellationToken).ConfigureAwait(false);
+            return Results.Ok(members.Select(member => new
+            {
+                member.OrganizationId,
+                member.UserId,
+                member.IsPrimary,
+                member.RoleIds,
+                member.CreatedAtUtc,
+                member.UpdatedAtUtc,
+                member.Email,
+                member.DisplayName
+            }));
+        })
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.read"));
+
+        sampleGroup.MapPatch("/organizations/{organizationId:guid}/members/{userId:guid}", async (
+            Guid organizationId,
+            Guid userId,
+            UpdateOrganizationMemberRequest request,
+            ClaimsPrincipal principal,
+            IOrganizationScopeResolver scopeResolver,
+            IOrganizationMembershipService membershipService,
+            OrganizationMemberDirectory memberDirectory,
+            CancellationToken cancellationToken) =>
+        {
+            if (request is null)
+            {
+                return Results.BadRequest(new ProblemDetails { Title = "Invalid update", Detail = "Request body is required.", Status = StatusCodes.Status400BadRequest });
+            }
+
+            var scopeResult = await EnsureActorInScopeAsync(principal, scopeResolver, organizationId, cancellationToken).ConfigureAwait(false);
+            if (scopeResult is not null)
+            {
+                return scopeResult;
+            }
+
+            if (!TryGetUserId(principal, out var actorUserId))
+            {
+                return Results.Unauthorized();
+            }
+
+            if (actorUserId == userId)
+            {
+                return Results.Problem(new ProblemDetails
+                {
+                    Title = "Cannot modify self",
+                    Detail = "You cannot change your own organization membership via this endpoint.",
+                    Status = StatusCodes.Status409Conflict
+                });
+            }
+
+            if (request.RoleIds is null && !request.IsPrimary.HasValue)
+            {
+                return Results.BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid update",
+                    Detail = "Specify roles or primary status to update.",
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
+            try
+            {
+                await membershipService.UpdateMembershipAsync(new OrganizationMembershipUpdateRequest
+                {
+                    OrganizationId = organizationId,
+                    UserId = userId,
+                    RoleIds = request.RoleIds?.ToArray(),
+                    IsPrimary = request.IsPrimary
+                }, cancellationToken).ConfigureAwait(false);
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new ProblemDetails { Title = "Invalid membership update", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+            }
+            catch (KeyNotFoundException)
+            {
+                return Results.NotFound(new ProblemDetails { Title = "Membership not found", Detail = "The organization membership could not be found.", Status = StatusCodes.Status404NotFound });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.Conflict(new ProblemDetails { Title = "Membership conflict", Detail = ex.Message, Status = StatusCodes.Status409Conflict });
+            }
+
+            var updated = await memberDirectory.GetMemberAsync(organizationId, userId, cancellationToken).ConfigureAwait(false);
+            if (updated is null)
+            {
+                return Results.NotFound(new ProblemDetails { Title = "Membership not found", Detail = "The organization membership could not be found.", Status = StatusCodes.Status404NotFound });
+            }
+
+            return Results.Ok(new
+            {
+                updated.OrganizationId,
+                updated.UserId,
+                updated.IsPrimary,
+                updated.RoleIds,
+                updated.CreatedAtUtc,
+                updated.UpdatedAtUtc,
+                updated.Email,
+                updated.DisplayName
+            });
+        })
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
+
+        sampleGroup.MapDelete("/organizations/{organizationId:guid}/members/{userId:guid}", async (
+            Guid organizationId,
+            Guid userId,
+            ClaimsPrincipal principal,
+            IOrganizationScopeResolver scopeResolver,
+            IOrganizationMembershipService membershipService,
+            CancellationToken cancellationToken) =>
+        {
+            var scopeResult = await EnsureActorInScopeAsync(principal, scopeResolver, organizationId, cancellationToken).ConfigureAwait(false);
+            if (scopeResult is not null)
+            {
+                return scopeResult;
+            }
+
+            if (!TryGetUserId(principal, out var actorUserId))
+            {
+                return Results.Unauthorized();
+            }
+
+            if (actorUserId == userId)
+            {
+                return Results.Problem(new ProblemDetails
+                {
+                    Title = "Cannot remove self",
+                    Detail = "You cannot remove your own membership from the organization.",
+                    Status = StatusCodes.Status409Conflict
+                });
+            }
+
+            var membership = await membershipService.GetMembershipAsync(organizationId, userId, cancellationToken).ConfigureAwait(false);
+            if (membership is null)
+            {
+                return Results.NotFound(new ProblemDetails { Title = "Membership not found", Detail = "The organization membership could not be found.", Status = StatusCodes.Status404NotFound });
+            }
+
+            await membershipService.RemoveMemberAsync(organizationId, userId, cancellationToken).ConfigureAwait(false);
+            return Results.NoContent();
+        })
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
 
         sampleGroup.MapGet("/organizations/{organizationId:guid}/invitations", async (
             Guid organizationId,

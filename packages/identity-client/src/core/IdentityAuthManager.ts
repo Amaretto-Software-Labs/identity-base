@@ -460,6 +460,22 @@ export class IdentityAuthManager {
     return user
   }
 
+  async refreshTokens(): Promise<UserProfile | null> {
+    try {
+      await this.tokenManager.refreshAccessToken()
+    } catch (error) {
+      debugLog('IdentityAuthManager.refreshTokens: refresh failed', error)
+      throw error
+    }
+
+    const user = await this.getCurrentUser()
+    if (user) {
+      this.emit({ type: 'login', user })
+    }
+
+    return user
+  }
+
   // External auth
   buildExternalStartUrl(
     provider: string,

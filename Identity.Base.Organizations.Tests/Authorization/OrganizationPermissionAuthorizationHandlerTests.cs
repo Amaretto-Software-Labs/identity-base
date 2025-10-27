@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using FluentAssertions;
+using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Authorization;
+using Identity.Base.Organizations.Domain;
 using Identity.Base.Roles.Claims;
 using Microsoft.AspNetCore.Authorization;
 
@@ -8,7 +10,7 @@ namespace Identity.Base.Organizations.Tests.Authorization;
 
 public class OrganizationPermissionAuthorizationHandlerTests
 {
-    private readonly OrganizationPermissionAuthorizationHandler _handler = new();
+    private readonly OrganizationPermissionAuthorizationHandler _handler = new(new StubMembershipService());
 
     [Fact]
     public async Task HandleRequirementAsync_Succeeds_WhenPermissionClaimPresent()
@@ -41,4 +43,25 @@ public class OrganizationPermissionAuthorizationHandlerTests
 
         context.HasSucceeded.Should().BeFalse();
     }
+}
+
+internal sealed class StubMembershipService : IOrganizationMembershipService
+{
+    public Task<OrganizationMembership> AddMemberAsync(OrganizationMembershipRequest request, CancellationToken cancellationToken = default)
+        => throw new NotImplementedException();
+
+    public Task<OrganizationMembership?> GetMembershipAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken = default)
+        => Task.FromResult<OrganizationMembership?>(null);
+
+    public Task<IReadOnlyList<OrganizationMembership>> GetMembershipsForUserAsync(Guid userId, Guid? tenantId, CancellationToken cancellationToken = default)
+        => throw new NotImplementedException();
+
+    public Task<IReadOnlyList<OrganizationMembership>> GetMembersAsync(Guid organizationId, CancellationToken cancellationToken = default)
+        => throw new NotImplementedException();
+
+    public Task<OrganizationMembership> UpdateMembershipAsync(OrganizationMembershipUpdateRequest request, CancellationToken cancellationToken = default)
+        => throw new NotImplementedException();
+
+    public Task RemoveMemberAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken = default)
+        => throw new NotImplementedException();
 }

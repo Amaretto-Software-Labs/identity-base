@@ -53,7 +53,7 @@ public static class ServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, OrganizationMigrationHostedService>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, OrganizationSeedHostedService>());
 
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IAuthorizationHandler, OrganizationPermissionAuthorizationHandler>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IAuthorizationHandler, OrganizationPermissionAuthorizationHandler>());
 
         services.Replace(ServiceDescriptor.Scoped<IPermissionClaimFormatter, OrganizationClaimFormatter>());
 

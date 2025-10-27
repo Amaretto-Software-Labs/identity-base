@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useLogin, useIdentityContext } from '@identity-base/react-client'
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const location = useLocation()
   const { authManager } = useIdentityContext()
   const { login, isLoading, error } = useLogin({
     onSuccess: (response) => {

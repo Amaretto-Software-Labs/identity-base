@@ -15,9 +15,9 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const { parse = 'json', headers, ...init } = options
 
-  const requestHeaders: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...headers,
+  const requestHeaders = new Headers(headers ?? {})
+  if (!requestHeaders.has('Content-Type')) {
+    requestHeaders.set('Content-Type', 'application/json')
   }
 
   const authManager = getAuthManager()
@@ -25,7 +25,7 @@ export async function apiFetch<T>(
     try {
       const token = await authManager.getAccessToken()
       if (token) {
-        requestHeaders['Authorization'] = `Bearer ${token}`
+        requestHeaders.set('Authorization', `Bearer ${token}`)
       }
     } catch {
       // Swallow token retrieval errors; the request will proceed unauthenticated.
