@@ -739,7 +739,17 @@ export function useOrganizationMembers(
   const { client } = useOrganizations()
 
   const fetchOnMount = options.fetchOnMount ?? true
-  const normalizedInitialQuery = useMemo(() => normalizeMemberQuery(options.initialQuery), [options.initialQuery])
+  const normalizedInitialQuery = useMemo(
+    () => normalizeMemberQuery(options.initialQuery),
+    [
+      options.initialQuery?.page,
+      options.initialQuery?.pageSize,
+      options.initialQuery?.search,
+      options.initialQuery?.roleId,
+      options.initialQuery?.isPrimary,
+      options.initialQuery?.sort,
+    ],
+  )
 
   const [queryState, setQueryStateInternal] = useState<OrganizationMemberQueryState>(normalizedInitialQuery)
   const [isLoading, setIsLoading] = useState(false)

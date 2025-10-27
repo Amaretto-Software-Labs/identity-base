@@ -10,18 +10,18 @@ namespace Identity.Base.Roles.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateIndex(
-                name: "IX_Identity_UserRolesRbac_RoleId",
-                table: "Identity_UserRolesRbac",
-                column: "RoleId");
+            migrationBuilder.Sql("""
+                CREATE INDEX IF NOT EXISTS "IX_Identity_UserRolesRbac_RoleId"
+                ON "Identity_UserRolesRbac" ("RoleId");
+                """);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_Identity_UserRolesRbac_RoleId",
-                table: "Identity_UserRolesRbac");
+            migrationBuilder.Sql("""
+                DROP INDEX IF EXISTS "IX_Identity_UserRolesRbac_RoleId";
+                """);
         }
     }
 }
