@@ -24,6 +24,7 @@ export { useAdminUsers } from './react/hooks/useAdminUsers'
 export { useAdminUser } from './react/hooks/useAdminUser'
 export { useAdminUserRoles } from './react/hooks/useAdminUserRoles'
 export { useAdminRoles } from './react/hooks/useAdminRoles'
+export { useAdminPermissions } from './react/hooks/useAdminPermissions'
 
 // React components
 export { ProtectedRoute } from './react/components/ProtectedRoute'

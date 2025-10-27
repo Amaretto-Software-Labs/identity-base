@@ -17,5 +17,8 @@ public sealed class UserRoleConfiguration : IEntityTypeConfiguration<UserRole>
             .WithMany(role => role.UserRoles)
             .HasForeignKey(ur => ur.RoleId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(ur => ur.RoleId)
+            .HasDatabaseName("IX_Identity_UserRolesRbac_RoleId");
     }
 }

@@ -126,6 +126,8 @@ export interface AdminUserListQuery {
   search?: string
   role?: string
   locked?: boolean
+  deleted?: boolean
+  sort?: 'createdAt' | 'createdAt:asc' | 'createdAt:desc' | 'email' | 'email:asc' | 'email:desc'
 }
 
 export interface AdminUserSummary {
@@ -225,6 +227,21 @@ export interface AdminRoleSummary {
   userCount: number
 }
 
+export interface AdminRoleListQuery {
+  page?: number
+  pageSize?: number
+  search?: string
+  isSystemRole?: boolean
+  sort?: 'name' | 'name:asc' | 'name:desc' | 'userCount' | 'userCount:asc' | 'userCount:desc'
+}
+
+export interface AdminRoleListResponse {
+  page: number
+  pageSize: number
+  totalCount: number
+  roles: AdminRoleSummary[]
+}
+
 export interface AdminRoleDetail {
   id: string
   name: string
@@ -247,6 +264,27 @@ export interface AdminRoleUpdateRequest {
   description?: string | null
   isSystemRole?: boolean
   permissions?: string[]
+}
+
+export interface AdminPermissionSummary {
+  id: string
+  name: string
+  description: string | null
+  roleCount: number
+}
+
+export interface AdminPermissionListQuery {
+  page?: number
+  pageSize?: number
+  search?: string
+  sort?: 'name' | 'name:asc' | 'name:desc' | 'roleCount' | 'roleCount:asc' | 'roleCount:desc'
+}
+
+export interface AdminPermissionListResponse {
+  page: number
+  pageSize: number
+  totalCount: number
+  permissions: AdminPermissionSummary[]
 }
 
 // Errors

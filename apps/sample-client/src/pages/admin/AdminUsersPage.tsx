@@ -23,6 +23,8 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState('')
   const [lockedFilter, setLockedFilter] = useState<'all' | 'locked' | 'unlocked'>('all')
   const [pageSize, setPageSize] = useState(25)
+  const [sortOrder, setSortOrder] = useState<'createdAt:desc' | 'createdAt:asc' | 'email:asc' | 'email:desc'>('createdAt:desc')
+  const [deletedFilter, setDeletedFilter] = useState<'all' | 'active' | 'deleted'>('all')
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -44,7 +46,7 @@ export default function AdminUsersPage() {
     resendConfirmation,
     softDeleteUser,
     restoreUser,
-  } = useAdminUsers({ autoLoad: true, initialQuery: { page: 1, pageSize } })
+  } = useAdminUsers({ autoLoad: true, initialQuery: { page: 1, pageSize, sort: 'createdAt:desc' } })
 
   const {
     roles: availableRoles,
@@ -69,6 +71,9 @@ export default function AdminUsersPage() {
 
   const currentPage = data?.page ?? query.page ?? 1
   const currentPageSize = data?.pageSize ?? query.pageSize ?? pageSize
+  const totalUsers = data?.totalCount ?? 0
+  const pageStart = totalUsers > 0 ? (currentPage - 1) * currentPageSize + 1 : 0
+  const pageEnd = totalUsers > 0 ? Math.min(pageStart + Math.max(users.length, 1) - 1, totalUsers) : 0
 
   const hasForbiddenError = error?.status === 403
 
@@ -80,6 +85,8 @@ export default function AdminUsersPage() {
       search: searchTerm.trim() || undefined,
       role: roleFilter || undefined,
       locked,
+      deleted: deletedFilter === 'all' ? undefined : deletedFilter === 'deleted',
+      sort: sortOrder,
       pageSize: currentPageSize,
     })
   }
@@ -96,6 +103,8 @@ export default function AdminUsersPage() {
       search: searchTerm.trim() || undefined,
       role: roleFilter || undefined,
       locked,
+      deleted: deletedFilter === 'all' ? undefined : deletedFilter === 'deleted',
+      sort: sortOrder,
       pageSize: currentPageSize,
     })
   }
@@ -109,7 +118,39 @@ export default function AdminUsersPage() {
       search: searchTerm.trim() || undefined,
       role: roleFilter || undefined,
       locked,
+      deleted: deletedFilter === 'all' ? undefined : deletedFilter === 'deleted',
+      sort: sortOrder,
       pageSize: size,
+    })
+  }
+
+  const handleSortChange = async (value: typeof sortOrder) => {
+    setSortOrder(value)
+    const locked = lockedFilter === 'all' ? undefined : lockedFilter === 'locked'
+
+    await listUsers({
+      page: 1,
+      search: searchTerm.trim() || undefined,
+      role: roleFilter || undefined,
+      locked,
+      deleted: deletedFilter === 'all' ? undefined : deletedFilter === 'deleted',
+      sort: value,
+      pageSize: currentPageSize,
+    })
+  }
+
+  const handleDeletedFilterChange = async (value: typeof deletedFilter) => {
+    setDeletedFilter(value)
+    const locked = lockedFilter === 'all' ? undefined : lockedFilter === 'locked'
+
+    await listUsers({
+      page: 1,
+      search: searchTerm.trim() || undefined,
+      role: roleFilter || undefined,
+      locked,
+      deleted: value === 'all' ? undefined : value === 'deleted',
+      sort: sortOrder,
+      pageSize: currentPageSize,
     })
   }
 
@@ -348,7 +389,7 @@ export default function AdminUsersPage() {
             event.preventDefault()
             applyFilters().catch(() => undefined)
           }}
-          className="grid gap-4 md:grid-cols-4"
+          className="grid gap-4 md:grid-cols-5"
         >
           <label className="flex flex-col gap-1 text-sm font-medium text-slate-700 md:col-span-2">
             Search
@@ -387,6 +428,31 @@ export default function AdminUsersPage() {
               <option value="unlocked">Unlocked only</option>
             </select>
           </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+            Account state
+            <select
+              value={deletedFilter}
+              onChange={event => handleDeletedFilterChange(event.target.value as typeof deletedFilter)}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-600 focus:outline-none"
+            >
+              <option value="all">All</option>
+              <option value="active">Active only</option>
+              <option value="deleted">Soft-deleted only</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+            Sort by
+            <select
+              value={sortOrder}
+              onChange={event => handleSortChange(event.target.value as typeof sortOrder)}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-600 focus:outline-none"
+            >
+              <option value="createdAt:desc">Newest first</option>
+              <option value="createdAt:asc">Oldest first</option>
+              <option value="email:asc">Email A→Z</option>
+              <option value="email:desc">Email Z→A</option>
+            </select>
+          </label>
           <div className="flex items-end gap-3">
             <button
               type="submit"
@@ -399,7 +465,9 @@ export default function AdminUsersPage() {
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
           <div className="text-sm text-slate-600">
-            Showing page {currentPage} of {totalPages} ({data?.totalCount ?? 0} users)
+            {totalUsers > 0
+              ? `Viewing ${pageStart.toLocaleString()}-${pageEnd.toLocaleString()} of ${totalUsers.toLocaleString()} users`
+              : 'No users match the current filters.'}
           </div>
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 text-sm text-slate-600">

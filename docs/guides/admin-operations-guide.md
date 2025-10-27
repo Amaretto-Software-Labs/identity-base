@@ -33,7 +33,7 @@ This guide walks operators through enabling and using the Identity Base admin su
 
 ## 4. Key Workflows
 ### 4.1 User Management (`/admin/users`)
-- **List & Search:** filter by text, role, and lock status. Pagination defaults to 25 users per page.
+- **List & Search:** `GET /admin/users` accepts `page`, `pageSize` (max 100), `search`, `role`, `locked`, `deleted`, and `sort` (`createdAt[:asc|:desc]`, `email[:asc|:desc]`). Combine these to page through large directories without downloading every user.
 - **Create Users:** optional display name, role assignments, confirmation/password reset emails.
 - **Mutations:** lock/unlock, soft delete/restore, force password reset, reset MFA, resend confirmation email.
 - **Detail View:** update profile flags, phone attributes, metadata; inspect external logins; manage role assignments inline.
@@ -41,7 +41,8 @@ This guide walks operators through enabling and using the Identity Base admin su
 
 ### 4.2 Role Management (`/admin/roles`)
 - **CRUD:** create, edit, or delete roles (system roles cannot be deleted or renamed).
-- **Permissions:** select from the catalog defined in configuration; custom permissions can be added directly in the UI.
+- **List Options:** `GET /admin/roles` supports the same `page`/`pageSize` pattern plus `search`, `isSystemRole`, and `sort` (`name[:desc]`, `userCount[:asc|:desc]`).
+- **Permissions:** select from the catalog defined in configuration; custom permissions can be added directly in the UI. `GET /admin/permissions` mirrors the paging API (`page`, `pageSize`, `search`, `sort=name|roleCount`) for large catalogs.
 - **Usage Count:** each role entry shows how many users are assigned, preventing accidental removal of in-use roles.
 
 ## 5. API Reference Snapshot
@@ -59,6 +60,7 @@ This guide walks operators through enabling and using the Identity Base admin su
 - `POST /admin/roles` — create role (`roles.manage`).
 - `PUT /admin/roles/{id}` — update role (`roles.manage`).
 - `DELETE /admin/roles/{id}` — delete role (`roles.manage`).
+- `GET /admin/permissions` — list permission catalog (`roles.read`).
 - `GET /users/me/permissions` — resolves effective permissions for the signed-in user (returns an array of strings).
 
 ## 6. Troubleshooting

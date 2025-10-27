@@ -36,5 +36,8 @@ public sealed class ApplicationUserConfiguration : IEntityTypeConfiguration<Appl
             .HasDatabaseName("IX_Identity_Users_NormalizedUserName")
             .IsUnique()
             .HasFilter("\"NormalizedUserName\" IS NOT NULL");
+
+        builder.HasIndex(user => user.CreatedAt)
+            .HasDatabaseName("IX_Identity_Users_CreatedAt");
     }
 }

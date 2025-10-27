@@ -23,6 +23,10 @@ import type {
   AdminRoleDetail,
   AdminRoleCreateRequest,
   AdminRoleUpdateRequest,
+  AdminRoleListQuery,
+  AdminRoleListResponse,
+  AdminPermissionListQuery,
+  AdminPermissionListResponse,
   UserPermissionsResponse,
 } from './types'
 import { ApiClient } from './ApiClient'
@@ -315,6 +319,14 @@ export class IdentityAuthManager {
       params.set('role', query.role.trim())
     }
 
+    if (typeof query.deleted === 'boolean') {
+      params.set('deleted', String(query.deleted))
+    }
+
+    if (query.sort && query.sort.trim().length > 0) {
+      params.set('sort', query.sort.trim())
+    }
+
     const queryString = params.toString()
     const path = queryString.length > 0 ? `/admin/users?${queryString}` : '/admin/users'
     return await this.authorizedFetch<AdminUserListResponse>(path)
@@ -404,8 +416,32 @@ export class IdentityAuthManager {
   }
 
   // Admin APIs – Roles
-  async listAdminRoles(): Promise<AdminRoleSummary[]> {
-    return await this.authorizedFetch<AdminRoleSummary[]>('/admin/roles')
+  async listAdminRoles(query: AdminRoleListQuery = {}): Promise<AdminRoleListResponse> {
+    const params = new URLSearchParams()
+
+    if (typeof query.page === 'number') {
+      params.set('page', String(query.page))
+    }
+
+    if (typeof query.pageSize === 'number') {
+      params.set('pageSize', String(query.pageSize))
+    }
+
+    if (query.search && query.search.trim().length > 0) {
+      params.set('search', query.search.trim())
+    }
+
+    if (typeof query.isSystemRole === 'boolean') {
+      params.set('isSystemRole', String(query.isSystemRole))
+    }
+
+    if (query.sort && query.sort.trim().length > 0) {
+      params.set('sort', query.sort.trim())
+    }
+
+    const queryString = params.toString()
+    const path = queryString.length > 0 ? `/admin/roles?${queryString}` : '/admin/roles'
+    return await this.authorizedFetch<AdminRoleListResponse>(path)
   }
 
   async createAdminRole(payload: AdminRoleCreateRequest): Promise<AdminRoleDetail> {
@@ -428,6 +464,30 @@ export class IdentityAuthManager {
     return await this.authorizedFetch<void>(`/admin/roles/${encodedId}`, {
       method: 'DELETE',
     })
+  }
+
+  async listAdminPermissions(query: AdminPermissionListQuery = {}): Promise<AdminPermissionListResponse> {
+    const params = new URLSearchParams()
+
+    if (typeof query.page === 'number') {
+      params.set('page', String(query.page))
+    }
+
+    if (typeof query.pageSize === 'number') {
+      params.set('pageSize', String(query.pageSize))
+    }
+
+    if (query.search && query.search.trim().length > 0) {
+      params.set('search', query.search.trim())
+    }
+
+    if (query.sort && query.sort.trim().length > 0) {
+      params.set('sort', query.sort.trim())
+    }
+
+    const queryString = params.toString()
+    const path = queryString.length > 0 ? `/admin/permissions?${queryString}` : '/admin/permissions'
+    return await this.authorizedFetch<AdminPermissionListResponse>(path)
   }
 
   // OAuth2 Authorization Code Flow

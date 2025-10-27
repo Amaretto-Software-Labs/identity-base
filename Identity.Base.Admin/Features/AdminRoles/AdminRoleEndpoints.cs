@@ -25,8 +25,8 @@ internal static class AdminRoleEndpoints
 
         group.MapGet("", ListRolesAsync)
             .WithName("AdminListRoles")
-            .WithSummary("Returns all roles and their permissions.")
-            .Produces<IReadOnlyList<AdminRoleSummary>>(StatusCodes.Status200OK)
+            .WithSummary("Returns a paged list of roles and their permissions.")
+            .Produces<AdminRoleListResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .RequireAuthorization(policy => policy.RequireAdminPermission("roles.read"));
 
@@ -61,27 +61,86 @@ internal static class AdminRoleEndpoints
     }
 
     private static async Task<IResult> ListRolesAsync(
+        [AsParameters] AdminRoleListQuery query,
         IRoleDbContext roleDbContext,
         CancellationToken cancellationToken)
     {
-        var roleDtos = await roleDbContext.Roles
-            .AsNoTracking()
-            .OrderBy(role => role.Name)
-            .Select(role => new AdminRoleSummary(
+        var page = query.Page < 1 ? 1 : query.Page;
+        var pageSize = query.PageSize switch
+        {
+            < 1 => 25,
+            > 200 => 200,
+            _ => query.PageSize
+        };
+
+        var rolesQuery = roleDbContext.Roles.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var pattern = CreateSearchPattern(query.Search);
+            rolesQuery = rolesQuery.Where(role =>
+                EF.Functions.ILike(role.Name, pattern) ||
+                EF.Functions.ILike(role.Description ?? string.Empty, pattern));
+        }
+
+        if (query.IsSystemRole.HasValue)
+        {
+            rolesQuery = rolesQuery.Where(role => role.IsSystemRole == query.IsSystemRole.Value);
+        }
+
+        var total = await rolesQuery.CountAsync(cancellationToken).ConfigureAwait(false);
+
+        var orderedQuery = query.Sort switch
+        {
+            "name:desc" => rolesQuery
+                .OrderByDescending(role => role.Name)
+                .ThenBy(role => role.Id),
+            "userCount" or "userCount:desc" => rolesQuery
+                .OrderByDescending(role => role.UserRoles.Count)
+                .ThenBy(role => role.Name),
+            "userCount:asc" => rolesQuery
+                .OrderBy(role => role.UserRoles.Count)
+                .ThenBy(role => role.Name),
+            "name" or "name:asc" => rolesQuery
+                .OrderBy(role => role.Name)
+                .ThenBy(role => role.Id),
+            _ => rolesQuery
+                .OrderBy(role => role.Name)
+                .ThenBy(role => role.Id)
+        };
+
+        var skip = (page - 1) * pageSize;
+
+        var roles = await orderedQuery
+            .Skip(skip)
+            .Take(pageSize)
+            .Select(role => new
+            {
                 role.Id,
                 role.Name,
                 role.Description,
                 role.IsSystemRole,
                 role.ConcurrencyStamp,
-                role.RolePermissions
+                Permissions = role.RolePermissions
                     .Select(rp => rp.Permission.Name)
-                    .OrderBy(name => name)
                     .ToList(),
-                role.UserRoles.Count))
+                UserCount = role.UserRoles.Count
+            })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return Results.Ok(roleDtos);
+        var summaries = roles.Select(role => new AdminRoleSummary(
+            role.Id,
+            role.Name,
+            role.Description,
+            role.IsSystemRole,
+            role.ConcurrencyStamp,
+            role.Permissions
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToList(),
+            role.UserCount)).ToList();
+
+        return Results.Ok(new AdminRoleListResponse(page, pageSize, total, summaries));
     }
 
     private static async Task<IResult> CreateRoleAsync(
@@ -348,6 +407,41 @@ internal static class AdminRoleEndpoints
 
         return permissions;
     }
+
+    private static string CreateSearchPattern(string value)
+    {
+        var trimmed = value.Trim();
+        if (trimmed.Length == 0)
+        {
+            return "%";
+        }
+
+        var escaped = trimmed
+            .Replace(@"\", @"\\", StringComparison.Ordinal)
+            .Replace("%", @"\%", StringComparison.Ordinal)
+            .Replace("_", @"\_", StringComparison.Ordinal);
+
+        return $"%{escaped}%";
+    }
+
+    private sealed record AdminRoleListQuery
+    {
+        public int Page { get; init; } = 1;
+
+        public int PageSize { get; init; } = 25;
+
+        public string? Search { get; init; }
+
+        public bool? IsSystemRole { get; init; }
+
+        public string? Sort { get; init; }
+    }
+
+    private sealed record AdminRoleListResponse(
+        int Page,
+        int PageSize,
+        int TotalCount,
+        IReadOnlyList<AdminRoleSummary> Roles);
 
     private sealed record AdminRoleSummary(
         Guid Id,

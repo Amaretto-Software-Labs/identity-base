@@ -11,6 +11,7 @@ public static class AdminEndpointRouteBuilderExtensions
     {
         endpoints.MapAdminUserEndpoints();
         endpoints.MapAdminRoleEndpoints();
+        endpoints.MapAdminPermissionEndpoints();
         return endpoints;
     }
 }

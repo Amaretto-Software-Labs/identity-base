@@ -6,20 +6,25 @@ import type {
   AdminRoleDetail,
   AdminRoleCreateRequest,
   AdminRoleUpdateRequest,
+  AdminRoleListQuery,
+  AdminRoleListResponse,
 } from '../../core/types'
 
 interface UseAdminRolesOptions {
   autoLoad?: boolean
   onError?: (error: any) => void
+  initialQuery?: AdminRoleListQuery
 }
 
 interface UseAdminRolesResult {
+  data: AdminRoleListResponse | null
   roles: AdminRoleSummary[]
+  query: AdminRoleListQuery
   isLoading: boolean
   isMutating: boolean
   error: any
-  listRoles: () => Promise<AdminRoleSummary[]>
-  refresh: () => Promise<AdminRoleSummary[]>
+  listRoles: (override?: AdminRoleListQuery) => Promise<AdminRoleListResponse>
+  refresh: () => Promise<AdminRoleListResponse>
   createRole: (payload: AdminRoleCreateRequest) => Promise<AdminRoleDetail>
   updateRole: (roleId: string, payload: AdminRoleUpdateRequest) => Promise<AdminRoleDetail>
   deleteRole: (roleId: string) => Promise<void>
@@ -30,7 +35,17 @@ export function useAdminRoles(options: UseAdminRolesOptions = {}): UseAdminRoles
   const optionsRef = useRef(options)
   optionsRef.current = options
 
-  const [roles, setRoles] = useState<AdminRoleSummary[]>([])
+  const initialQueryRef = useRef<AdminRoleListQuery>({
+    page: options.initialQuery?.page ?? 1,
+    pageSize: options.initialQuery?.pageSize ?? 25,
+    search: options.initialQuery?.search,
+    isSystemRole: options.initialQuery?.isSystemRole,
+    sort: options.initialQuery?.sort ?? 'name',
+  })
+
+  const queryRef = useRef<AdminRoleListQuery>(initialQueryRef.current)
+  const [query, setQuery] = useState<AdminRoleListQuery>(initialQueryRef.current)
+  const [data, setData] = useState<AdminRoleListResponse | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isMutating, setIsMutating] = useState(false)
   const [error, setError] = useState<any>(null)
@@ -42,26 +57,23 @@ export function useAdminRoles(options: UseAdminRolesOptions = {}): UseAdminRoles
     return normalized
   }, [])
 
-  const fetchRoles = useCallback(async (): Promise<AdminRoleSummary[]> => {
+  const listRoles = useCallback(async (override?: AdminRoleListQuery): Promise<AdminRoleListResponse> => {
+    const nextQuery = { ...queryRef.current, ...override }
+    queryRef.current = nextQuery
+    setQuery(nextQuery)
+    setIsLoading(true)
+    setError(null)
+
     try {
-      const result = await authManager.listAdminRoles()
-      setRoles(result)
-      setError(null)
-      return result
+      const response = await authManager.listAdminRoles(nextQuery)
+      setData(response)
+      return response
     } catch (err) {
       throw handleError(err)
-    }
-  }, [authManager, handleError])
-
-  const listRoles = useCallback(async (): Promise<AdminRoleSummary[]> => {
-    setIsLoading(true)
-
-    try {
-      return await fetchRoles()
     } finally {
       setIsLoading(false)
     }
-  }, [fetchRoles])
+  }, [authManager, handleError])
 
   useEffect(() => {
     if (optionsRef.current.autoLoad) {
@@ -69,9 +81,9 @@ export function useAdminRoles(options: UseAdminRolesOptions = {}): UseAdminRoles
     }
   }, [listRoles])
 
-  const refresh = useCallback(async (): Promise<AdminRoleSummary[]> => {
-    return await fetchRoles()
-  }, [fetchRoles])
+  const refresh = useCallback(async (): Promise<AdminRoleListResponse> => {
+    return await listRoles()
+  }, [listRoles])
 
   const createRole = useCallback(async (payload: AdminRoleCreateRequest): Promise<AdminRoleDetail> => {
     setIsMutating(true)
@@ -79,14 +91,14 @@ export function useAdminRoles(options: UseAdminRolesOptions = {}): UseAdminRoles
 
     try {
       const detail = await authManager.createAdminRole(payload)
-      await fetchRoles()
+      await listRoles()
       return detail
     } catch (err) {
       throw handleError(err)
     } finally {
       setIsMutating(false)
     }
-  }, [authManager, fetchRoles, handleError])
+  }, [authManager, listRoles, handleError])
 
   const updateRole = useCallback(async (roleId: string, payload: AdminRoleUpdateRequest): Promise<AdminRoleDetail> => {
     setIsMutating(true)
@@ -94,14 +106,14 @@ export function useAdminRoles(options: UseAdminRolesOptions = {}): UseAdminRoles
 
     try {
       const detail = await authManager.updateAdminRole(roleId, payload)
-      await fetchRoles()
+      await listRoles()
       return detail
     } catch (err) {
       throw handleError(err)
     } finally {
       setIsMutating(false)
     }
-  }, [authManager, fetchRoles, handleError])
+  }, [authManager, listRoles, handleError])
 
   const deleteRole = useCallback(async (roleId: string): Promise<void> => {
     setIsMutating(true)
@@ -109,16 +121,18 @@ export function useAdminRoles(options: UseAdminRolesOptions = {}): UseAdminRoles
 
     try {
       await authManager.deleteAdminRole(roleId)
-      await fetchRoles()
+      await listRoles()
     } catch (err) {
       throw handleError(err)
     } finally {
       setIsMutating(false)
     }
-  }, [authManager, fetchRoles, handleError])
+  }, [authManager, listRoles, handleError])
 
   return {
-    roles,
+    data,
+    roles: data?.roles ?? [],
+    query,
     isLoading,
     isMutating,
     error,

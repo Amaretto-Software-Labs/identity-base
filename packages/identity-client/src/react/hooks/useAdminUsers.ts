@@ -46,6 +46,8 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}): UseAdminUsers
     search: options.initialQuery?.search,
     role: options.initialQuery?.role,
     locked: options.initialQuery?.locked,
+    deleted: options.initialQuery?.deleted,
+    sort: options.initialQuery?.sort ?? 'createdAt:desc',
   })
 
   const queryRef = useRef<AdminUserListQuery>(initialQueryRef.current)

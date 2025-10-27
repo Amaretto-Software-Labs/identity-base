@@ -165,10 +165,11 @@ namespace Identity.Base.Admin.Features.AdminUsers;
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            var term = query.Search.Trim().ToLowerInvariant();
+            var pattern = CreateSearchPattern(query.Search);
             usersQuery = usersQuery.Where(user =>
-                (user.Email != null && user.Email.ToLower().Contains(term)) ||
-                (user.DisplayName != null && user.DisplayName.ToLower().Contains(term)));
+                EF.Functions.ILike(user.Email ?? string.Empty, pattern) ||
+                EF.Functions.ILike(user.DisplayName ?? string.Empty, pattern) ||
+                EF.Functions.ILike(user.UserName ?? string.Empty, pattern));
         }
 
         if (query.Locked.HasValue)
@@ -200,27 +201,43 @@ namespace Identity.Base.Admin.Features.AdminUsers;
                 return Results.Ok(AdminUserListResponse.Empty(page, pageSize));
             }
 
-            var userIdsWithRole = await roleDbContext.UserRoles
-                .Where(userRole => userRole.RoleId == roleId)
-                .Select(userRole => userRole.UserId)
-                .Distinct()
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
+            usersQuery = usersQuery.Where(user =>
+                roleDbContext.UserRoles.Any(userRole => userRole.RoleId == roleId && userRole.UserId == user.Id));
+        }
 
-            if (userIdsWithRole.Count == 0)
-            {
-                return Results.Ok(AdminUserListResponse.Empty(page, pageSize));
-            }
-
-            usersQuery = usersQuery.Where(user => userIdsWithRole.Contains(user.Id));
+        if (query.Deleted.HasValue)
+        {
+            usersQuery = query.Deleted.Value
+                ? usersQuery.Where(user =>
+                    user.LockoutEnabled &&
+                    user.LockoutEnd.HasValue &&
+                    user.LockoutEnd == SoftDeleteLockoutEnd)
+                : usersQuery.Where(user =>
+                    !user.LockoutEnabled ||
+                    !user.LockoutEnd.HasValue ||
+                    user.LockoutEnd != SoftDeleteLockoutEnd);
         }
 
         var total = await usersQuery.CountAsync(cancellationToken).ConfigureAwait(false);
 
+        var orderedQuery = query.Sort switch
+        {
+            "createdAt" or "createdAt:asc" => usersQuery
+                .OrderBy(user => user.CreatedAt)
+                .ThenBy(user => user.Id),
+            "email:desc" => usersQuery
+                .OrderByDescending(user => user.Email ?? user.UserName ?? string.Empty)
+                .ThenBy(user => user.Id),
+            "email" or "email:asc" => usersQuery
+                .OrderBy(user => user.Email ?? user.UserName ?? string.Empty)
+                .ThenBy(user => user.Id),
+            _ => usersQuery
+                .OrderByDescending(user => user.CreatedAt)
+                .ThenBy(user => user.Id)
+        };
+
         var skip = (page - 1) * pageSize;
-        var users = await usersQuery
-            .OrderBy(user => user.Email ?? user.UserName)
-            .ThenBy(user => user.Id)
+        var users = await orderedQuery
             .Skip(skip)
             .Take(pageSize)
             .ToListAsync(cancellationToken)
@@ -951,6 +968,22 @@ namespace Identity.Base.Admin.Features.AdminUsers;
 
     private static IResult? EnsureSuccess(IdentityResult result)
         => result.Succeeded ? null : Results.ValidationProblem(result.ToDictionary());
+
+    private static string CreateSearchPattern(string value)
+    {
+        var trimmed = value.Trim();
+        if (trimmed.Length == 0)
+        {
+            return "%";
+        }
+
+        var escaped = trimmed
+            .Replace(@"\", @"\\", StringComparison.Ordinal)
+            .Replace("%", @"\%", StringComparison.Ordinal)
+            .Replace("_", @"\_", StringComparison.Ordinal);
+
+        return $"%{escaped}%";
+    }
 }
 
 internal sealed record AdminUserListQuery
@@ -964,6 +997,10 @@ internal sealed record AdminUserListQuery
     public string? Role { get; init; }
 
     public bool? Locked { get; init; }
+
+    public bool? Deleted { get; init; }
+
+    public string? Sort { get; init; }
 }
 
 internal sealed record AdminUserListResponse(int Page, int PageSize, int TotalCount, IReadOnlyList<AdminUserSummary> Users)
