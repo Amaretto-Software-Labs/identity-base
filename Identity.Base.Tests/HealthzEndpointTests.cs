@@ -50,7 +50,6 @@ public class HealthzEndpointTests : IClassFixture<IdentityApiFactory>
 
         var checks = payload.RootElement.GetProperty("checks").EnumerateArray().Select(element => element.GetProperty("name").GetString()).ToList();
         checks.Should().Contain("database");
-        checks.Should().Contain("mailjet");
         checks.Should().Contain("externalProviders");
     }
 }
@@ -99,7 +98,7 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
 
             services.PostConfigure<RegistrationOptions>(options =>
             {
-                options.ConfirmationUrlTemplate = "https://tests.example.com/confirm?token={token}&email={email}";
+                options.ConfirmationUrlTemplate = "https://tests.example.com/confirm?token={token}&userId={userId}";
                 options.PasswordResetUrlTemplate = "https://tests.example.com/reset?token={token}&email={email}";
                 options.ProfileFields = new List<RegistrationProfileFieldOptions>
                 {

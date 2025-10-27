@@ -1,5 +1,6 @@
+import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { IdentityProvider } from '@identity-base/react-client'
+import { IdentityProvider, useIdentityContext } from '@identity-base/react-client'
 import AppLayout from './components/AppLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import HomePage from './pages/HomePage'
@@ -9,7 +10,21 @@ import DashboardPage from './pages/DashboardPage'
 import OrganizationAdminPage from './pages/OrganizationAdminPage'
 import AcceptInvitationPage from './pages/AcceptInvitationPage'
 import AuthorizeCallbackPage from './pages/AuthorizeCallbackPage'
+import ConfirmEmailPage from './pages/ConfirmEmailPage'
+import { setAuthManager } from './auth/manager'
 import { CONFIG } from './config'
+
+function AuthManagerBridge() {
+  const { authManager } = useIdentityContext()
+
+  useEffect(() => {
+    if (authManager) {
+      setAuthManager(authManager)
+    }
+  }, [authManager])
+
+  return null
+}
 
 export default function App() {
   return (
@@ -53,9 +68,10 @@ export default function App() {
           />
         </Route>
         <Route path="auth/callback" element={<AuthorizeCallbackPage />} />
+        <Route path="auth/confirm" element={<ConfirmEmailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <AuthManagerBridge />
     </IdentityProvider>
   )
 }
-

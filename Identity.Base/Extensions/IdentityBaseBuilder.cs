@@ -112,6 +112,31 @@ public sealed class IdentityBaseBuilder
         return this;
     }
 
+    public IdentityBaseBuilder UseMailJetEmailSender()
+    {
+        Services.Replace(ServiceDescriptor.Scoped<ITemplatedEmailSender, MailJetEmailSender>());
+        Services.AddOptions<MailJetOptions>()
+            .BindConfiguration(MailJetOptions.SectionName)
+            .ValidateDataAnnotations();
+        Services.AddSingleton<IValidateOptions<MailJetOptions>, MailJetOptionsValidator>();
+        Services.AddHealthChecks().AddCheck<MailJetOptionsHealthCheck>("mailjet");
+        Services.PostConfigure<MailJetOptions>(options => options.Enabled = true);
+        return this;
+    }
+
+    public IdentityBaseBuilder UseTemplatedEmailSender<TSender>() where TSender : class, ITemplatedEmailSender
+    {
+        Services.Replace(ServiceDescriptor.Scoped<ITemplatedEmailSender, TSender>());
+        return this;
+    }
+
+    public IdentityBaseBuilder UseTemplatedEmailSender(Func<IServiceProvider, ITemplatedEmailSender> factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        Services.Replace(ServiceDescriptor.Scoped(typeof(ITemplatedEmailSender), factory));
+        return this;
+    }
+
     public IdentityBaseBuilder AfterRoleSeeding(Func<IServiceProvider, CancellationToken, Task> callback)
     {
         ArgumentNullException.ThrowIfNull(callback);
@@ -522,7 +547,7 @@ public sealed class IdentityBaseBuilder
         Services.AddSingleton<ILogSanitizer, LogSanitizer>();
         Services.AddSingleton<IExternalReturnUrlValidator, ExternalReturnUrlValidator>();
         Services.AddSingleton<IExternalCallbackUriFactory, ExternalCallbackUriFactory>();
-        Services.AddScoped<ITemplatedEmailSender, MailJetEmailSender>();
+        Services.TryAddScoped<ITemplatedEmailSender, NoOpTemplatedEmailSender>();
         Services.AddScoped<IAccountEmailService, AccountEmailService>();
         Services.AddScoped<ExternalAuthenticationService>();
         Services.AddScoped<IAuditLogger, AuditLogger>();
@@ -558,7 +583,6 @@ public sealed class IdentityBaseBuilder
         Services
             .AddHealthChecks()
             .AddDbContextCheck<AppDbContext>("database")
-            .AddCheck<MailJetOptionsHealthCheck>("mailjet")
             .AddCheck<ExternalProvidersHealthCheck>("externalProviders");
     }
 
@@ -605,11 +629,6 @@ public sealed class IdentityBaseBuilder
                 .ValidateOnStart();
 
             services
-                .AddOptions<MailJetOptions>()
-                .BindConfiguration(MailJetOptions.SectionName)
-                .ValidateDataAnnotations();
-
-            services
                 .AddOptions<OpenIddictOptions>()
                 .BindConfiguration(OpenIddictOptions.SectionName)
                 .ValidateDataAnnotations();
@@ -625,7 +644,6 @@ public sealed class IdentityBaseBuilder
                 .ValidateDataAnnotations();
 
             services.AddSingleton<IValidateOptions<RegistrationOptions>, RegistrationOptionsValidator>();
-            services.AddSingleton<IValidateOptions<MailJetOptions>, MailJetOptionsValidator>();
             services.AddSingleton<IValidateOptions<MfaOptions>, MfaOptionsValidator>();
             services.AddSingleton<IValidateOptions<ExternalProviderOptions>, ExternalProviderOptionsValidator>();
             services.AddSingleton<IValidateOptions<OpenIddictOptions>, OpenIddictOptionsValidator>();

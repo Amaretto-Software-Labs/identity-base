@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using Identity.Base.Data;
+using Identity.Base.Features.Email;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -52,7 +53,7 @@ public class RegistrationEndpointTests : IClassFixture<IdentityApiFactory>
 
         var email = _factory.EmailSender.Sent.Should().ContainSingle().Subject;
         email.ToEmail.Should().Be(uniqueEmail);
-        email.TemplateId.Should().Be(1234);
+        email.TemplateKey.Should().Be(TemplatedEmailKeys.AccountConfirmation);
         email.Variables.Should().ContainKey("confirmationUrl");
     }
 }

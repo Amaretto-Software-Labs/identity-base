@@ -1,4 +1,5 @@
 import { CONFIG } from '../config'
+import { getAuthManager } from '../auth/manager'
 
 interface ApiError {
   title?: string
@@ -13,12 +14,27 @@ export async function apiFetch<T>(
   options: RequestInit & { parse?: 'json' | 'text' } = {},
 ): Promise<T> {
   const { parse = 'json', headers, ...init } = options
+
+  const requestHeaders: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...headers,
+  }
+
+  const authManager = getAuthManager()
+  if (authManager) {
+    try {
+      const token = await authManager.getAccessToken()
+      if (token) {
+        requestHeaders['Authorization'] = `Bearer ${token}`
+      }
+    } catch {
+      // Swallow token retrieval errors; the request will proceed unauthenticated.
+    }
+  }
+
   const response = await fetch(`${CONFIG.apiBase}${path}`, {
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
-    },
+    headers: requestHeaders,
     ...init,
   })
 
@@ -57,4 +73,3 @@ export function renderApiError(error: unknown): string {
 
   return 'Unexpected error occurred.'
 }
-

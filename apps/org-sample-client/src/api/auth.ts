@@ -13,3 +13,9 @@ export function registerUser(payload: RegisterRequest) {
   })
 }
 
+export function confirmEmail(payload: { userId: string, token: string }) {
+  return apiFetch<void>(API_ROUTES.confirmEmail, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}

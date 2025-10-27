@@ -8,7 +8,7 @@ public sealed class RegistrationOptions
 
     [Required]
     [MaxLength(512)]
-    public string ConfirmationUrlTemplate { get; set; } = "https://localhost/confirm?token={token}&email={email}";
+    public string ConfirmationUrlTemplate { get; set; } = "https://localhost/confirm?token={token}&userId={userId}";
 
     [Required]
     [MaxLength(512)]

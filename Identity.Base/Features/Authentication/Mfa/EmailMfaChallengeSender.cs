@@ -9,16 +9,13 @@ namespace Identity.Base.Features.Authentication.Mfa;
 internal sealed class EmailMfaChallengeSender : IMfaChallengeSender
 {
     private readonly ITemplatedEmailSender _emailSender;
-    private readonly MailJetOptions _mailJetOptions;
     private readonly IOptions<MfaOptions> _mfaOptions;
 
     public EmailMfaChallengeSender(
         ITemplatedEmailSender emailSender,
-        IOptions<MailJetOptions> mailJetOptions,
         IOptions<MfaOptions> mfaOptions)
     {
         _emailSender = emailSender;
-        _mailJetOptions = mailJetOptions.Value;
         _mfaOptions = mfaOptions;
     }
 
@@ -29,11 +26,6 @@ internal sealed class EmailMfaChallengeSender : IMfaChallengeSender
         if (string.IsNullOrWhiteSpace(user.Email) || !user.EmailConfirmed)
         {
             throw new InvalidOperationException("User does not have a confirmed email address.");
-        }
-
-        if (_mailJetOptions.Templates.MfaChallenge <= 0)
-        {
-            throw new InvalidOperationException("MFA challenge email template is not configured.");
         }
 
         if (!_mfaOptions.Value.Email.Enabled)
@@ -49,9 +41,9 @@ internal sealed class EmailMfaChallengeSender : IMfaChallengeSender
         };
 
         var email = new TemplatedEmail(
+            TemplatedEmailKeys.EmailMfaChallenge,
             user.Email!,
             user.DisplayName ?? user.Email!,
-            _mailJetOptions.Templates.MfaChallenge,
             variables,
             "Your verification code");
 

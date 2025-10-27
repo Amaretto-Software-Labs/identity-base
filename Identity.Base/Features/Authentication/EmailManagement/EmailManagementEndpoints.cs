@@ -56,13 +56,12 @@ public static class EmailManagementEndpoints
             return Results.ValidationProblem(validationResult.ToDictionary());
         }
 
-        var email = DecodeEmail(request.Email);
         if (!TryDecodeToken(request.Token, out var token))
         {
             return Results.Problem("Invalid email confirmation token.", statusCode: StatusCodes.Status400BadRequest);
         }
 
-        var user = await userManager.FindByEmailAsync(email);
+        var user = await userManager.FindByIdAsync(request.UserId);
         if (user is null)
         {
             return Results.Problem("Invalid email confirmation token.", statusCode: StatusCodes.Status400BadRequest);
@@ -225,7 +224,7 @@ public static class EmailManagementEndpoints
     }
 }
 
-internal sealed record ConfirmEmailRequest(string Email, string Token);
+internal sealed record ConfirmEmailRequest(string UserId, string Token);
 
 internal sealed record ResendConfirmationRequest(string Email);
 
@@ -237,7 +236,7 @@ internal sealed class ConfirmEmailRequestValidator : AbstractValidator<ConfirmEm
 {
     public ConfirmEmailRequestValidator()
     {
-        RuleFor(x => x.Email)
+        RuleFor(x => x.UserId)
             .NotEmpty();
 
         RuleFor(x => x.Token)

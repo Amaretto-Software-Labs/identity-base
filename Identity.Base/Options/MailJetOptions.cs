@@ -8,7 +8,8 @@ public sealed class MailJetOptions
 {
     public const string SectionName = "MailJet";
 
-    [EmailAddress]
+    public bool Enabled { get; set; } = false;
+
     public string FromEmail { get; set; } = string.Empty;
 
     [MaxLength(128)]
@@ -43,6 +44,11 @@ internal sealed class MailJetOptionsValidator : IValidateOptions<MailJetOptions>
 {
     public ValidateOptionsResult Validate(string? name, MailJetOptions options)
     {
+        if (!options.Enabled)
+        {
+            return ValidateOptionsResult.Success;
+        }
+
         var missing = new List<string>();
         if (string.IsNullOrWhiteSpace(options.ApiKey))
         {

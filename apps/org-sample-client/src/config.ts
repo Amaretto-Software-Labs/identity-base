@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE = 'https://localhost:5001'
+const DEFAULT_API_BASE = 'https://localhost:8182'
 
 export const CONFIG = {
   apiBase: (import.meta.env.VITE_API_BASE as string | undefined) ?? DEFAULT_API_BASE,
@@ -12,6 +12,7 @@ export const CONFIG = {
 
 export const API_ROUTES = {
   register: '/auth/register',
+  confirmEmail: '/auth/confirm-email',
   profileSchema: '/sample/registration/profile-fields',
   profile: '/users/me',
   organizationsMe: '/users/me/organizations',
@@ -22,4 +23,3 @@ export const API_ROUTES = {
   invitations: (organizationId: string) => `/sample/organizations/${organizationId}/invitations`,
   claimInvitation: '/sample/invitations/claim',
 }
-

@@ -1,18 +1,18 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useLogin } from '@identity-base/react-client'
+import { useLogin, useIdentityContext } from '@identity-base/react-client'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { authManager } = useIdentityContext()
   const { login, isLoading, error } = useLogin({
     onSuccess: (response) => {
       if (response.requiresTwoFactor) {
         navigate('/dashboard', { replace: true })
       } else {
-        const redirectTo = (location.state as { from?: string } | null)?.from ?? '/dashboard'
-        navigate(redirectTo, { replace: true })
+        authManager.startAuthorization()
       }
     },
   })
@@ -80,4 +80,3 @@ export default function LoginPage() {
     </div>
   )
 }
-

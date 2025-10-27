@@ -26,16 +26,23 @@ internal sealed class MailJetEmailSender : ITemplatedEmailSender
 
     public async Task SendAsync(TemplatedEmail email, CancellationToken cancellationToken = default)
     {
-        if (email.TemplateId <= 0)
+        if (!_options.Enabled)
         {
-            throw new InvalidOperationException("MailJet templated emails require a positive template id.");
+            _logger.LogWarning("MailJet sender is disabled. Skipping email to {Email} (template {TemplateKey}).", _sanitizer.RedactEmail(email.ToEmail), email.TemplateKey);
+            return;
         }
 
         cancellationToken.ThrowIfCancellationRequested();
 
+        var templateId = ResolveTemplateId(email.TemplateKey);
+        if (templateId <= 0)
+        {
+            throw new InvalidOperationException($"MailJet template '{email.TemplateKey}' is not configured.");
+        }
+
         var client = CreateClient();
 
-        var message = BuildTemplatedEmail(email);
+        var message = BuildTemplatedEmail(email, templateId);
 
         try
         {
@@ -57,7 +64,7 @@ internal sealed class MailJetEmailSender : ITemplatedEmailSender
                 }
             }
 
-            _logger.LogInformation("MailJet email dispatched to {Email} using template {TemplateId}", _sanitizer.RedactEmail(email.ToEmail), email.TemplateId);
+            _logger.LogInformation("MailJet email dispatched to {Email} using template {TemplateKey} (Id {TemplateId})", _sanitizer.RedactEmail(email.ToEmail), email.TemplateKey, templateId);
         }
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
@@ -68,13 +75,13 @@ internal sealed class MailJetEmailSender : ITemplatedEmailSender
 
     private MailjetClient CreateClient() => new(_options.ApiKey, _options.ApiSecret);
 
-    private TransactionalEmail BuildTemplatedEmail(TemplatedEmail email)
+    private TransactionalEmail BuildTemplatedEmail(TemplatedEmail email, long templateId)
     {
         var builder = new TransactionalEmailBuilder()
             .WithFrom(new SendContact(_options.FromEmail, _options.FromName))
             .WithSubject(email.Subject ?? string.Empty)
             .WithTo(new SendContact(email.ToEmail, email.ToName))
-            .WithTemplateId(email.TemplateId)
+            .WithTemplateId(templateId)
             .WithTemplateLanguage(true)
             .WithVariables(email.Variables);
 
@@ -84,5 +91,16 @@ internal sealed class MailJetEmailSender : ITemplatedEmailSender
         }
 
         return builder.Build();
+    }
+
+    private long ResolveTemplateId(string templateKey)
+    {
+        return templateKey switch
+        {
+            TemplatedEmailKeys.AccountConfirmation => _options.Templates.Confirmation,
+            TemplatedEmailKeys.PasswordReset => _options.Templates.PasswordReset,
+            TemplatedEmailKeys.EmailMfaChallenge => _options.Templates.MfaChallenge,
+            _ => 0
+        };
     }
 }

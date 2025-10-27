@@ -16,6 +16,11 @@ internal sealed class MailJetOptionsHealthCheck : IHealthCheck
     public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
     {
         var options = _options.Value;
+        if (!options.Enabled)
+        {
+            return Task.FromResult(HealthCheckResult.Healthy("MailJet disabled."));
+        }
+
         if (string.IsNullOrWhiteSpace(options.ApiKey) || string.IsNullOrWhiteSpace(options.ApiSecret) || string.IsNullOrWhiteSpace(options.FromEmail))
         {
             return Task.FromResult(HealthCheckResult.Degraded("MailJet configuration is incomplete."));

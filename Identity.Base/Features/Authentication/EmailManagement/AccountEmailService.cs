@@ -22,7 +22,6 @@ internal sealed class AccountEmailService : IAccountEmailService
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ITemplatedEmailSender _emailSender;
     private readonly RegistrationOptions _registrationOptions;
-    private readonly MailJetOptions _mailJetOptions;
     private readonly ILogger<AccountEmailService> _logger;
     private readonly ILogSanitizer _sanitizer;
 
@@ -30,28 +29,24 @@ internal sealed class AccountEmailService : IAccountEmailService
         UserManager<ApplicationUser> userManager,
         ITemplatedEmailSender emailSender,
         IOptions<RegistrationOptions> registrationOptions,
-        IOptions<MailJetOptions> mailJetOptions,
         ILogger<AccountEmailService> logger,
         ILogSanitizer sanitizer)
     {
         _userManager = userManager;
         _emailSender = emailSender;
         _registrationOptions = registrationOptions.Value;
-        _mailJetOptions = mailJetOptions.Value;
         _logger = logger;
         _sanitizer = sanitizer;
     }
 
     public async Task SendConfirmationEmailAsync(ApplicationUser user, CancellationToken cancellationToken = default)
     {
-        if (_mailJetOptions.Templates.Confirmation <= 0)
-        {
-            throw new InvalidOperationException("Confirmation template is not configured.");
-        }
-
         var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
         var encodedToken = Encode(token);
-        var confirmationUrl = BuildUrl(_registrationOptions.ConfirmationUrlTemplate, encodedToken, user.Email!);
+        var confirmationUrl = BuildUrl(
+            _registrationOptions.ConfirmationUrlTemplate,
+            ("token", encodedToken),
+            ("userId", user.Id.ToString()));
 
         var variables = new Dictionary<string, object?>
         {
@@ -61,9 +56,9 @@ internal sealed class AccountEmailService : IAccountEmailService
         };
 
         var email = new TemplatedEmail(
+            TemplatedEmailKeys.AccountConfirmation,
             user.Email!,
             user.DisplayName ?? user.Email!,
-            _mailJetOptions.Templates.Confirmation,
             variables,
             "Confirm your Identity Base account");
 
@@ -72,14 +67,12 @@ internal sealed class AccountEmailService : IAccountEmailService
 
     public async Task SendPasswordResetEmailAsync(ApplicationUser user, CancellationToken cancellationToken = default)
     {
-        if (_mailJetOptions.Templates.PasswordReset <= 0)
-        {
-            throw new InvalidOperationException("Password reset template is not configured.");
-        }
-
         var token = await _userManager.GeneratePasswordResetTokenAsync(user);
         var encodedToken = Encode(token);
-        var resetUrl = BuildUrl(_registrationOptions.PasswordResetUrlTemplate, encodedToken, user.Email!);
+        var resetUrl = BuildUrl(
+            _registrationOptions.PasswordResetUrlTemplate,
+            ("token", encodedToken),
+            ("email", WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(user.Email!))));
 
         var variables = new Dictionary<string, object?>
         {
@@ -89,9 +82,9 @@ internal sealed class AccountEmailService : IAccountEmailService
         };
 
         var email = new TemplatedEmail(
+            TemplatedEmailKeys.PasswordReset,
             user.Email!,
             user.DisplayName ?? user.Email!,
-            _mailJetOptions.Templates.PasswordReset,
             variables,
             "Reset your Identity Base password");
 
@@ -103,11 +96,11 @@ internal sealed class AccountEmailService : IAccountEmailService
         try
         {
             await _emailSender.SendAsync(email, cancellationToken);
-            _logger.LogInformation("Dispatched email template {TemplateId} to {Recipient}", email.TemplateId, _sanitizer.RedactEmail(recipient));
+            _logger.LogInformation("Dispatched email template {TemplateKey} to {Recipient}", email.TemplateKey, _sanitizer.RedactEmail(recipient));
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
-            _logger.LogError(exception, "Failed to send email template {TemplateId} to {Recipient}", email.TemplateId, _sanitizer.RedactEmail(recipient));
+            _logger.LogError(exception, "Failed to send email template {TemplateKey} to {Recipient}", email.TemplateKey, _sanitizer.RedactEmail(recipient));
             throw;
         }
     }
@@ -115,8 +108,14 @@ internal sealed class AccountEmailService : IAccountEmailService
     private static string Encode(string value)
         => WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(value));
 
-    private static string BuildUrl(string template, string token, string email)
-        => template
-            .Replace("{token}", token, StringComparison.Ordinal)
-            .Replace("{email}", WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(email)), StringComparison.Ordinal);
+    private static string BuildUrl(string template, params (string Placeholder, string Value)[] replacements)
+    {
+        var result = template;
+        foreach (var (placeholder, value) in replacements)
+        {
+            result = result.Replace("{" + placeholder + "}", value, StringComparison.Ordinal);
+        }
+
+        return result;
+    }
 }

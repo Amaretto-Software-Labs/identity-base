@@ -6,8 +6,8 @@ public interface ITemplatedEmailSender
 }
 
 public sealed record TemplatedEmail(
+    string TemplateKey,
     string ToEmail,
     string ToName,
-    long TemplateId,
     IDictionary<string, object?> Variables,
     string? Subject = null);

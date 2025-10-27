@@ -36,12 +36,11 @@ public class EmailManagementEndpointsTests : IClassFixture<IdentityApiFactory>
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
         var encodedToken = Encode(token);
-        var encodedEmail = Encode(email);
 
         using var client = CreateClient();
         var response = await client.PostAsJsonAsync("/auth/confirm-email", new
         {
-            email = encodedEmail,
+            userId = user.Id,
             token = encodedToken
         });
 

@@ -40,9 +40,9 @@ internal sealed class RegistrationOptionsValidator : IValidateOptions<Registrati
         }
 
         if (!options.ConfirmationUrlTemplate.Contains("{token}", StringComparison.Ordinal) ||
-            !options.ConfirmationUrlTemplate.Contains("{email}", StringComparison.Ordinal))
+            !options.ConfirmationUrlTemplate.Contains("{userId}", StringComparison.Ordinal))
         {
-            return ValidateOptionsResult.Fail("Registration confirmation URL template must contain {token} and {email} placeholders.");
+            return ValidateOptionsResult.Fail("Registration confirmation URL template must contain {token} and {userId} placeholders.");
         }
 
         if (!options.PasswordResetUrlTemplate.Contains("{token}", StringComparison.Ordinal) ||
