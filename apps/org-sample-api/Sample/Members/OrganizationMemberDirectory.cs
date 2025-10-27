@@ -25,16 +25,16 @@ public sealed class OrganizationMemberDirectory
 
     public async Task<IReadOnlyList<OrganizationMemberDetail>> GetMembersAsync(Guid organizationId, CancellationToken cancellationToken = default)
     {
-        var memberships = await _membershipService.GetMembersAsync(organizationId, cancellationToken).ConfigureAwait(false);
-        if (memberships.Count == 0)
+        var members = await LoadAllMembersAsync(organizationId, cancellationToken).ConfigureAwait(false);
+        if (members.Count == 0)
         {
             return Array.Empty<OrganizationMemberDetail>();
         }
 
-        var userLookup = await LoadUserLookupAsync(memberships, cancellationToken).ConfigureAwait(false);
+        var userLookup = await LoadUserLookupAsync(members, cancellationToken).ConfigureAwait(false);
 
-        return memberships
-            .Select(membership => Map(membership, userLookup))
+        return members
+            .Select(member => Map(member, userLookup))
             .ToList();
     }
 
@@ -57,10 +57,57 @@ public sealed class OrganizationMemberDirectory
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return Map(membership, userInfo);
+        var memberItem = new OrganizationMemberListItem
+        {
+            OrganizationId = membership.OrganizationId,
+            UserId = membership.UserId,
+            TenantId = membership.TenantId,
+            IsPrimary = membership.IsPrimary,
+            RoleIds = membership.RoleAssignments.Select(assignment => assignment.RoleId).ToArray(),
+            CreatedAtUtc = membership.CreatedAtUtc,
+            UpdatedAtUtc = membership.UpdatedAtUtc,
+            Email = userInfo?.Email,
+            DisplayName = userInfo?.DisplayName
+        };
+
+        return Map(memberItem, userInfo);
     }
 
-    private async Task<Dictionary<Guid, UserProjection>> LoadUserLookupAsync(IEnumerable<OrganizationMembership> memberships, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<OrganizationMemberListItem>> LoadAllMembersAsync(Guid organizationId, CancellationToken cancellationToken)
+    {
+        var result = new List<OrganizationMemberListItem>();
+        var page = 1;
+        OrganizationMemberListResult? current;
+
+        do
+        {
+            current = await _membershipService.GetMembersAsync(new OrganizationMemberListRequest
+            {
+                OrganizationId = organizationId,
+                Page = page,
+                PageSize = 200
+            }, cancellationToken).ConfigureAwait(false);
+
+            if (current.Members.Count == 0)
+            {
+                break;
+            }
+
+            result.AddRange(current.Members);
+
+            if (current.Page * current.PageSize >= current.TotalCount)
+            {
+                break;
+            }
+
+            page++;
+        }
+        while (true);
+
+        return result;
+    }
+
+    private async Task<Dictionary<Guid, UserProjection>> LoadUserLookupAsync(IEnumerable<OrganizationMemberListItem> memberships, CancellationToken cancellationToken)
     {
         var userIds = memberships
             .Select(membership => membership.UserId)
@@ -81,20 +128,20 @@ public sealed class OrganizationMemberDirectory
         return users.ToDictionary(user => user.Id);
     }
 
-    private static OrganizationMemberDetail Map(OrganizationMembership membership, Dictionary<Guid, UserProjection> userLookup)
+    private static OrganizationMemberDetail Map(OrganizationMemberListItem membership, Dictionary<Guid, UserProjection> userLookup)
     {
         userLookup.TryGetValue(membership.UserId, out var user);
         return Map(membership, user);
     }
 
-    private static OrganizationMemberDetail Map(OrganizationMembership membership, UserProjection? user)
+    private static OrganizationMemberDetail Map(OrganizationMemberListItem membership, UserProjection? user)
     {
         return new OrganizationMemberDetail
         {
             OrganizationId = membership.OrganizationId,
             UserId = membership.UserId,
             IsPrimary = membership.IsPrimary,
-            RoleIds = membership.RoleAssignments.Select(assignment => assignment.RoleId).ToArray(),
+            RoleIds = membership.RoleIds.ToArray(),
             CreatedAtUtc = membership.CreatedAtUtc,
             UpdatedAtUtc = membership.UpdatedAtUtc,
             Email = user?.Email,

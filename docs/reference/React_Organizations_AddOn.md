@@ -22,11 +22,14 @@ membership and active-organization flows.
   requires an interactive authorization round-trip.
 
 - `useOrganizationMembers()`  
-  Fetches `/organizations/{id}/members` and provides utilities to update or remove memberships via
-  the standard Identity.Base endpoints.
+  Fetches paginated `/organizations/{id}/members` results and exposes helpers for filtering,
+  sorting, virtualization, and member management. The hook returns the current query state,
+  total count, page metadata, `ensurePage()` for prefetching, `getMemberAt()` for virtualized
+  lists, and `updateMember()` / `removeMember()` facades over the Identity.Base endpoints.
 
 - Exported types such as `Membership`, `OrganizationSummary`, `OrganizationRole`, and
-  `OrganizationMember` for convenience in strongly typed apps.
+  `OrganizationMember` for convenience in strongly typed apps, plus paging helpers like
+  `OrganizationMemberQuery`, `OrganizationMemberQueryState`, and `OrganizationMembersPage`.
 
 ## Usage
 

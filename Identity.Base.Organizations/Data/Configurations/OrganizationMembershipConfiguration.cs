@@ -23,6 +23,12 @@ public sealed class OrganizationMembershipConfiguration : IEntityTypeConfigurati
         builder.HasIndex(membership => new { membership.UserId, membership.TenantId })
             .HasDatabaseName("IX_OrganizationMemberships_User_Tenant");
 
+        builder.HasIndex(membership => new { membership.OrganizationId, membership.CreatedAtUtc })
+            .HasDatabaseName("IX_OrganizationMemberships_Organization_Created");
+
+        builder.HasIndex(membership => new { membership.OrganizationId, membership.UserId })
+            .HasDatabaseName("IX_OrganizationMemberships_Organization_User");
+
         builder.HasOne(membership => membership.Organization)
             .WithMany(organization => organization.Memberships)
             .HasForeignKey(membership => membership.OrganizationId)

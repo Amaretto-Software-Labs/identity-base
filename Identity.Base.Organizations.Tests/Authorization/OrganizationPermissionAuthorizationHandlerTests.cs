@@ -56,8 +56,8 @@ internal sealed class StubMembershipService : IOrganizationMembershipService
     public Task<IReadOnlyList<OrganizationMembership>> GetMembershipsForUserAsync(Guid userId, Guid? tenantId, CancellationToken cancellationToken = default)
         => throw new NotImplementedException();
 
-    public Task<IReadOnlyList<OrganizationMembership>> GetMembersAsync(Guid organizationId, CancellationToken cancellationToken = default)
-        => throw new NotImplementedException();
+    public Task<OrganizationMemberListResult> GetMembersAsync(OrganizationMemberListRequest request, CancellationToken cancellationToken = default)
+        => Task.FromResult(OrganizationMemberListResult.Empty(request.Page < 1 ? 1 : request.Page, request.PageSize < 1 ? 1 : request.PageSize));
 
     public Task<OrganizationMembership> UpdateMembershipAsync(OrganizationMembershipUpdateRequest request, CancellationToken cancellationToken = default)
         => throw new NotImplementedException();

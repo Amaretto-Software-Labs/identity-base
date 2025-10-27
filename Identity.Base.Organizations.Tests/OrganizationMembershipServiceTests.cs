@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Identity.Base.Data;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Domain;
@@ -13,8 +14,9 @@ public class OrganizationMembershipServiceTests
     [Fact]
     public async Task AddMemberAsync_CreatesMembershipAndAssignments()
     {
-        await using var context = CreateContext(out var organization, out var role);
-        var service = new OrganizationMembershipService(context, NullLogger<OrganizationMembershipService>.Instance);
+        await using var context = CreateContext(out var appContext, out var organization, out var role);
+        await using var appDbContext = appContext;
+        var service = new OrganizationMembershipService(context, appDbContext, NullLogger<OrganizationMembershipService>.Instance);
 
         var membership = await service.AddMemberAsync(new OrganizationMembershipRequest
         {
@@ -35,8 +37,9 @@ public class OrganizationMembershipServiceTests
     [Fact]
     public async Task AddMemberAsync_PreventsDuplicateMembership()
     {
-        await using var context = CreateContext(out var organization, out _);
-        var service = new OrganizationMembershipService(context, NullLogger<OrganizationMembershipService>.Instance);
+        await using var context = CreateContext(out var appContext, out var organization, out _);
+        await using var appDbContext = appContext;
+        var service = new OrganizationMembershipService(context, appDbContext, NullLogger<OrganizationMembershipService>.Instance);
         var userId = Guid.NewGuid();
 
         await service.AddMemberAsync(new OrganizationMembershipRequest
@@ -55,8 +58,9 @@ public class OrganizationMembershipServiceTests
     [Fact]
     public async Task UpdateMembershipAsync_SetsPrimaryAndUpdatesRoles()
     {
-        await using var context = CreateContext(out var organization, out var role);
-        var service = new OrganizationMembershipService(context, NullLogger<OrganizationMembershipService>.Instance);
+        await using var context = CreateContext(out var appContext, out var organization, out var role);
+        await using var appDbContext = appContext;
+        var service = new OrganizationMembershipService(context, appDbContext, NullLogger<OrganizationMembershipService>.Instance);
         var userId = Guid.NewGuid();
 
         await service.AddMemberAsync(new OrganizationMembershipRequest
@@ -80,8 +84,9 @@ public class OrganizationMembershipServiceTests
     [Fact]
     public async Task RemoveMemberAsync_DeletesMembership()
     {
-        await using var context = CreateContext(out var organization, out _);
-        var service = new OrganizationMembershipService(context, NullLogger<OrganizationMembershipService>.Instance);
+        await using var context = CreateContext(out var appContext, out var organization, out _);
+        await using var appDbContext = appContext;
+        var service = new OrganizationMembershipService(context, appDbContext, NullLogger<OrganizationMembershipService>.Instance);
         var userId = Guid.NewGuid();
 
         await service.AddMemberAsync(new OrganizationMembershipRequest
@@ -95,12 +100,17 @@ public class OrganizationMembershipServiceTests
         (await context.OrganizationMemberships.CountAsync()).Should().Be(0);
     }
 
-    private static OrganizationDbContext CreateContext(out Organization organization, out OrganizationRole role)
+    private static OrganizationDbContext CreateContext(out AppDbContext appContext, out Organization organization, out OrganizationRole role)
     {
         var options = new DbContextOptionsBuilder<OrganizationDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
         var context = new OrganizationDbContext(options);
+
+        var appOptions = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        appContext = new AppDbContext(appOptions);
 
         organization = new Organization
         {

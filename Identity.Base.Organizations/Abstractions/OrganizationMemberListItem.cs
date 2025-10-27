@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 
-namespace Identity.Base.Organizations.Api.Models;
+namespace Identity.Base.Organizations.Abstractions;
 
-public sealed class OrganizationMembershipDto
+public sealed class OrganizationMemberListItem
 {
     public Guid OrganizationId { get; init; }
 

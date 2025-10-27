@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Domain;
 
 namespace Identity.Base.Organizations.Api.Models;
@@ -36,7 +37,40 @@ internal static class OrganizationApiMapper
             IsPrimary = membership.IsPrimary,
             RoleIds = membership.RoleAssignments.Select(assignment => assignment.RoleId).ToArray(),
             CreatedAtUtc = membership.CreatedAtUtc,
-            UpdatedAtUtc = membership.UpdatedAtUtc
+            UpdatedAtUtc = membership.UpdatedAtUtc,
+            Email = null,
+            DisplayName = null
+        };
+    }
+
+    public static OrganizationMembershipDto ToMembershipDto(OrganizationMemberListItem member)
+    {
+        ArgumentNullException.ThrowIfNull(member);
+
+        return new OrganizationMembershipDto
+        {
+            OrganizationId = member.OrganizationId,
+            UserId = member.UserId,
+            TenantId = member.TenantId,
+            IsPrimary = member.IsPrimary,
+            RoleIds = member.RoleIds,
+            CreatedAtUtc = member.CreatedAtUtc,
+            UpdatedAtUtc = member.UpdatedAtUtc,
+            Email = member.Email,
+            DisplayName = member.DisplayName
+        };
+    }
+
+    public static OrganizationMemberListResponse ToMemberListResponse(OrganizationMemberListResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        return new OrganizationMemberListResponse
+        {
+            Page = result.Page,
+            PageSize = result.PageSize,
+            TotalCount = result.TotalCount,
+            Members = result.Members.Select(ToMembershipDto).ToArray()
         };
     }
 

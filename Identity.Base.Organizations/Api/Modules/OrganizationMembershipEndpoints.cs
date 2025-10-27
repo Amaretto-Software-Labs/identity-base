@@ -19,7 +19,13 @@ public static class OrganizationMembershipEndpoints
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        endpoints.MapGet("/organizations/{organizationId:guid}/members", async (Guid organizationId, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationMembershipService membershipService, CancellationToken cancellationToken) =>
+        endpoints.MapGet("/organizations/{organizationId:guid}/members", async (
+            Guid organizationId,
+            [AsParameters] OrganizationMemberListQuery query,
+            ClaimsPrincipal principal,
+            IOrganizationScopeResolver scopeResolver,
+            IOrganizationMembershipService membershipService,
+            CancellationToken cancellationToken) =>
         {
             var scopeResult = await EnsureActorInScopeAsync(principal, scopeResolver, organizationId, null, cancellationToken).ConfigureAwait(false);
             if (scopeResult is not null)
@@ -27,8 +33,19 @@ public static class OrganizationMembershipEndpoints
                 return scopeResult;
             }
 
-            var members = await membershipService.GetMembersAsync(organizationId, cancellationToken).ConfigureAwait(false);
-            return Results.Ok(members.Select(OrganizationApiMapper.ToMembershipDto));
+            var request = new OrganizationMemberListRequest
+            {
+                OrganizationId = organizationId,
+                Page = query.Page,
+                PageSize = query.PageSize,
+                Search = query.Search,
+                RoleId = query.RoleId,
+                IsPrimary = query.IsPrimary,
+                Sort = ResolveSort(query.Sort)
+            };
+
+            var members = await membershipService.GetMembersAsync(request, cancellationToken).ConfigureAwait(false);
+            return Results.Ok(OrganizationApiMapper.ToMemberListResponse(members));
         })
         .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.read"));
 
@@ -155,6 +172,23 @@ public static class OrganizationMembershipEndpoints
         }
 
         return null;
+    }
+
+    private static OrganizationMemberSort ResolveSort(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return OrganizationMemberSort.CreatedAtDescending;
+        }
+
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "createdat" => OrganizationMemberSort.CreatedAtAscending,
+            "createdat:asc" => OrganizationMemberSort.CreatedAtAscending,
+            "createdat:desc" => OrganizationMemberSort.CreatedAtDescending,
+            "-createdat" => OrganizationMemberSort.CreatedAtDescending,
+            _ => OrganizationMemberSort.CreatedAtDescending
+        };
     }
 
     private static bool TryGetUserId(ClaimsPrincipal principal, out Guid userId)

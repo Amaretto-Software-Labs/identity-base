@@ -14,7 +14,7 @@ public interface IOrganizationMembershipService
 
     Task<IReadOnlyList<OrganizationMembership>> GetMembershipsForUserAsync(Guid userId, Guid? tenantId, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<OrganizationMembership>> GetMembersAsync(Guid organizationId, CancellationToken cancellationToken = default);
+    Task<OrganizationMemberListResult> GetMembersAsync(OrganizationMemberListRequest request, CancellationToken cancellationToken = default);
 
     Task<OrganizationMembership> UpdateMembershipAsync(OrganizationMembershipUpdateRequest request, CancellationToken cancellationToken = default);
 

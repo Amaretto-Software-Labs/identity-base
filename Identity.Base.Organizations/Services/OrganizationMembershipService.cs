@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Identity.Base.Data;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Domain;
@@ -14,11 +15,16 @@ namespace Identity.Base.Organizations.Services;
 public sealed class OrganizationMembershipService : IOrganizationMembershipService
 {
     private readonly OrganizationDbContext _dbContext;
+    private readonly AppDbContext _appDbContext;
     private readonly ILogger<OrganizationMembershipService>? _logger;
 
-    public OrganizationMembershipService(OrganizationDbContext dbContext, ILogger<OrganizationMembershipService>? logger = null)
+    public OrganizationMembershipService(
+        OrganizationDbContext dbContext,
+        AppDbContext appDbContext,
+        ILogger<OrganizationMembershipService>? logger = null)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        _appDbContext = appDbContext ?? throw new ArgumentNullException(nameof(appDbContext));
         _logger = logger;
     }
 
@@ -159,23 +165,151 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
             .ConfigureAwait(false);
     }
 
-    public async Task<IReadOnlyList<OrganizationMembership>> GetMembersAsync(Guid organizationId, CancellationToken cancellationToken = default)
+    public async Task<OrganizationMemberListResult> GetMembersAsync(OrganizationMemberListRequest request, CancellationToken cancellationToken = default)
     {
-        if (organizationId == Guid.Empty)
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (request.OrganizationId == Guid.Empty)
         {
-            return Array.Empty<OrganizationMembership>();
+            throw new ArgumentException("Organization identifier is required.", nameof(request));
         }
 
-        return await _dbContext.OrganizationMemberships
-            .Include(membership => membership.RoleAssignments)
-                .ThenInclude(assignment => assignment.Role)
+        const int defaultPageSize = 25;
+        const int maxPageSize = 200;
+
+        var page = request.Page < 1 ? 1 : request.Page;
+        var pageSize = request.PageSize < 1 ? defaultPageSize : Math.Min(request.PageSize, maxPageSize);
+
+        var membershipQuery = _dbContext.OrganizationMemberships
             .AsNoTracking()
-            .Where(membership => membership.OrganizationId == organizationId)
-            .OrderByDescending(membership => membership.IsPrimary)
-            .ThenBy(membership => membership.UserId)
+            .Where(membership => membership.OrganizationId == request.OrganizationId);
+
+        if (request.IsPrimary.HasValue)
+        {
+            membershipQuery = membershipQuery.Where(membership => membership.IsPrimary == request.IsPrimary.Value);
+        }
+
+        if (request.RoleId.HasValue)
+        {
+            var roleId = request.RoleId.Value;
+            membershipQuery = membershipQuery.Where(membership =>
+                membership.RoleAssignments.Any(assignment => assignment.RoleId == roleId));
+        }
+
+        List<Guid>? userFilter = null;
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var pattern = CreateSearchPattern(request.Search);
+            userFilter = await _appDbContext.Users
+                .AsNoTracking()
+                .Where(user =>
+                    EF.Functions.ILike(user.Email ?? string.Empty, pattern) ||
+                    EF.Functions.ILike(user.DisplayName ?? string.Empty, pattern) ||
+                    EF.Functions.ILike(user.UserName ?? string.Empty, pattern))
+                .Select(user => user.Id)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            if (userFilter.Count == 0)
+            {
+                return OrganizationMemberListResult.Empty(page, pageSize);
+            }
+
+            membershipQuery = membershipQuery.Where(membership => userFilter.Contains(membership.UserId));
+        }
+
+        var totalCount = await membershipQuery.CountAsync(cancellationToken).ConfigureAwait(false);
+        if (totalCount == 0)
+        {
+            return OrganizationMemberListResult.Empty(page, pageSize);
+        }
+
+        var maxPage = (int)Math.Ceiling(totalCount / (double)pageSize);
+        if (page > maxPage)
+        {
+            page = maxPage;
+        }
+
+        var skip = (page - 1) * pageSize;
+
+        var membershipWithRoles = membershipQuery.Include(membership => membership.RoleAssignments);
+
+        var orderedQuery = request.Sort switch
+        {
+            OrganizationMemberSort.CreatedAtAscending => membershipWithRoles
+                .OrderBy(membership => membership.IsPrimary)
+                .ThenBy(membership => membership.CreatedAtUtc)
+                .ThenBy(membership => membership.UserId),
+            _ => membershipWithRoles
+                .OrderByDescending(membership => membership.IsPrimary)
+                .ThenByDescending(membership => membership.CreatedAtUtc)
+                .ThenBy(membership => membership.UserId)
+        };
+
+        var memberships = await orderedQuery
+            .Skip(skip)
+            .Take(pageSize)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        var pageUserIds = memberships
+            .Select(membership => membership.UserId)
+            .Distinct()
+            .ToList();
+
+        var userLookup = await _appDbContext.Users
+            .AsNoTracking()
+            .Where(user => pageUserIds.Contains(user.Id))
+            .Select(user => new UserProjection(user.Id, user.Email, user.DisplayName))
+            .ToDictionaryAsync(user => user.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        var members = memberships
+            .Select(membership =>
+            {
+                userLookup.TryGetValue(membership.UserId, out var user);
+                return new OrganizationMemberListItem
+                {
+                    OrganizationId = membership.OrganizationId,
+                    UserId = membership.UserId,
+                    TenantId = membership.TenantId,
+                    IsPrimary = membership.IsPrimary,
+                    RoleIds = membership.RoleAssignments.Select(assignment => assignment.RoleId).ToArray(),
+                    CreatedAtUtc = membership.CreatedAtUtc,
+                    UpdatedAtUtc = membership.UpdatedAtUtc,
+                    Email = user?.Email,
+                    DisplayName = user?.DisplayName
+                };
+            })
+            .ToList();
+
+        _logger?.LogDebug(
+            "Loaded {MemberCount} organization members for organization {OrganizationId} on page {Page} of {TotalPages}",
+            members.Count,
+            request.OrganizationId,
+            page,
+            maxPage);
+
+        return new OrganizationMemberListResult(page, pageSize, totalCount, members);
     }
+
+    private static string CreateSearchPattern(string rawSearch)
+    {
+        var trimmed = rawSearch.Trim();
+        if (trimmed.Length == 0)
+        {
+            return "%";
+        }
+
+        var escaped = trimmed
+            .Replace(@"\", @"\\", StringComparison.Ordinal)
+            .Replace("%", @"\%", StringComparison.Ordinal)
+            .Replace("_", @"\_", StringComparison.Ordinal);
+
+        return $"%{escaped}%";
+    }
+
+    private sealed record UserProjection(Guid Id, string? Email, string? DisplayName);
 
     public async Task<OrganizationMembership> UpdateMembershipAsync(OrganizationMembershipUpdateRequest request, CancellationToken cancellationToken = default)
     {
