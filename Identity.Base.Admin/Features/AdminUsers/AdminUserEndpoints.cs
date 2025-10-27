@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Identity.Base.Admin.Authorization;
 using Identity.Base.Admin.Configuration;
+using Identity.Base.Admin.Diagnostics;
+using Identity.Base.Admin.Options;
 using Identity.Base.Data;
 using Identity.Base.Extensions;
 using Identity.Base.Features.Authentication.EmailManagement;
@@ -20,6 +23,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Admin.Features.AdminUsers;
@@ -151,8 +155,13 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         [AsParameters] AdminUserListQuery query,
         AppDbContext appDbContext,
         IRoleDbContext roleDbContext,
+        ILoggerFactory loggerFactory,
+        IOptions<AdminDiagnosticsOptions> diagnosticsOptions,
         CancellationToken cancellationToken)
     {
+        var logger = loggerFactory.CreateLogger(typeof(AdminUserEndpoints).FullName!);
+        var slowQueryThresholdMs = Math.Max(0, diagnosticsOptions.Value.SlowQueryThreshold.TotalMilliseconds);
+        var stopwatch = Stopwatch.StartNew();
         var page = query.Page < 1 ? 1 : query.Page;
         var pageSize = query.PageSize switch
         {
@@ -288,6 +297,36 @@ namespace Identity.Base.Admin.Features.AdminUsers;
                 roles,
                 IsSoftDeleted(user));
         }).ToList();
+
+        stopwatch.Stop();
+        var elapsedMs = stopwatch.Elapsed.TotalMilliseconds;
+
+        var tags = AdminMetrics.BuildUserQueryTags(query);
+        AdminMetrics.UsersListDuration.Record(elapsedMs, tags);
+        AdminMetrics.UsersListResultCount.Record(items.Count, tags);
+
+        logger.LogInformation(
+            "Listed admin users in {ElapsedMs} ms (page {Page}/{PageSize}, total {TotalCount}, returned {ReturnedCount}, search={HasSearch}, role={HasRole}, locked={LockedFilter}, deleted={DeletedFilter}, sort={Sort})",
+            elapsedMs,
+            page,
+            pageSize,
+            total,
+            items.Count,
+            string.IsNullOrWhiteSpace(query.Search) ? "false" : "true",
+            string.IsNullOrWhiteSpace(query.Role) ? "false" : "true",
+            query.Locked.HasValue ? (query.Locked.Value ? "locked" : "unlocked") : "all",
+            query.Deleted.HasValue ? (query.Deleted.Value ? "deleted" : "active") : "all",
+            query.Sort ?? "createdAt:desc");
+
+        if (slowQueryThresholdMs > 0 && elapsedMs > slowQueryThresholdMs)
+        {
+            logger.LogWarning(
+                "Admin users list query exceeded threshold: {ElapsedMs} ms > {Threshold} ms (page {Page}/{PageSize}, filters applied)",
+                elapsedMs,
+                slowQueryThresholdMs,
+                page,
+                pageSize);
+        }
 
         return Results.Ok(new AdminUserListResponse(page, pageSize, total, items));
     }

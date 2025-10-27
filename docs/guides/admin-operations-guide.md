@@ -17,6 +17,7 @@ This guide walks operators through enabling and using the Identity Base admin su
    - Define admin-facing permissions under `Permissions:Definitions` in configuration.
    - Verify `Roles:Definitions` maps each role to the required permission set (e.g., `identity.admin` role includes `users.*` and `roles.*`).
    - Set `Roles:DefaultAdminRoles` to assign the admin role automatically when you seed or create an administrator.
+   - Tune diagnostic logging thresholds via `Identity:Admin:Diagnostics:SlowQueryThreshold` (defaults to `00:00:00.500`).
 
 2. **Seeding Admin Accounts**
    - Use `IdentitySeed` options to create a bootstrap admin account on startup, or register an account manually and assign roles via `/admin/users/{id}/roles` once you have an initial admin.

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -7,6 +8,10 @@ using Microsoft.EntityFrameworkCore;
 using Identity.Base.Admin.Authorization;
 using Identity.Base.Admin.Configuration;
 using Identity.Base.Roles.Abstractions;
+using Identity.Base.Admin.Diagnostics;
+using Identity.Base.Admin.Options;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Admin.Features.AdminRoles;
 
@@ -31,8 +36,13 @@ internal static class AdminPermissionEndpoints
     private static async Task<IResult> ListPermissionsAsync(
         [AsParameters] AdminPermissionListQuery query,
         IRoleDbContext roleDbContext,
+        ILoggerFactory loggerFactory,
+        IOptions<AdminDiagnosticsOptions> diagnosticsOptions,
         CancellationToken cancellationToken)
     {
+        var logger = loggerFactory.CreateLogger(typeof(AdminPermissionEndpoints).FullName!);
+        var slowQueryThresholdMs = Math.Max(0, diagnosticsOptions.Value.SlowQueryThreshold.TotalMilliseconds);
+        var stopwatch = Stopwatch.StartNew();
         var page = query.Page < 1 ? 1 : query.Page;
         var pageSize = query.PageSize switch
         {
@@ -89,6 +99,33 @@ internal static class AdminPermissionEndpoints
             permission.Name,
             permission.Description,
             permission.RoleCount)).ToList();
+
+        stopwatch.Stop();
+        var elapsedMs = stopwatch.Elapsed.TotalMilliseconds;
+
+        var tags = AdminMetrics.BuildPermissionQueryTags(query);
+        AdminMetrics.PermissionsListDuration.Record(elapsedMs, tags);
+        AdminMetrics.PermissionsListResultCount.Record(items.Count, tags);
+
+        logger.LogInformation(
+            "Listed admin permissions in {ElapsedMs} ms (page {Page}/{PageSize}, total {TotalCount}, returned {ReturnedCount}, search={HasSearch}, sort={Sort})",
+            elapsedMs,
+            page,
+            pageSize,
+            total,
+            items.Count,
+            string.IsNullOrWhiteSpace(query.Search) ? "false" : "true",
+            query.Sort ?? "name");
+
+        if (slowQueryThresholdMs > 0 && elapsedMs > slowQueryThresholdMs)
+        {
+            logger.LogWarning(
+                "Admin permissions list query exceeded threshold: {ElapsedMs} ms > {Threshold} ms (page {Page}/{PageSize})",
+                elapsedMs,
+                slowQueryThresholdMs,
+                page,
+                pageSize);
+        }
 
         return Results.Ok(new AdminPermissionListResponse(page, pageSize, total, items));
     }

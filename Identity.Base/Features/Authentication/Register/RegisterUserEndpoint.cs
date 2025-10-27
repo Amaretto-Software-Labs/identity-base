@@ -62,7 +62,7 @@ public static class RegisterUserEndpoint
             return Results.ValidationProblem(createResult.ToDictionary());
         }
 
-        var logger = loggerFactory.CreateLogger("RegisterUserEndpoint");
+        var logger = loggerFactory.CreateLogger(typeof(RegisterUserEndpoint).FullName!);
 
         try
         {

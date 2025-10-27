@@ -13,6 +13,7 @@ public static class ServiceCollectionExtensions
     public static IdentityRolesBuilder AddIdentityAdmin(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<AdminApiOptions>(configuration.GetSection(AdminApiOptions.SectionName));
+        services.Configure<AdminDiagnosticsOptions>(configuration.GetSection(AdminDiagnosticsOptions.SectionName));
 
         var rolesBuilder = services.AddIdentityRoles(configuration);
 

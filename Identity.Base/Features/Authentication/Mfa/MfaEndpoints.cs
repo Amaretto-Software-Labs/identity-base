@@ -315,7 +315,7 @@ public static class MfaEndpoints
             return Results.Unauthorized();
         }
 
-        var logger = loggerFactory.CreateLogger("MfaChallenge");
+        var logger = loggerFactory.CreateLogger(typeof(MfaEndpoints).FullName!);
 
         var provider = method switch
         {

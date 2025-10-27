@@ -107,7 +107,7 @@ public static class EmailManagementEndpoints
             return Results.Ok(new { message = "Email already confirmed." });
         }
 
-        var logger = loggerFactory.CreateLogger("EmailManagementEndpoints");
+        var logger = loggerFactory.CreateLogger(typeof(EmailManagementEndpoints).FullName!);
 
         try
         {
@@ -143,7 +143,7 @@ public static class EmailManagementEndpoints
             return Results.Accepted();
         }
 
-        var logger = loggerFactory.CreateLogger("EmailManagementEndpoints");
+        var logger = loggerFactory.CreateLogger(typeof(EmailManagementEndpoints).FullName!);
 
         try
         {
