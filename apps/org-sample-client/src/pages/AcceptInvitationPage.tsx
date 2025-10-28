@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useAuth } from '@identity-base/react-client'
+import { useOrganizations } from '@identity-base/react-organizations'
 import { claimInvitation } from '../api/organizations'
 import { renderApiError } from '../api/client'
 
 export default function AcceptInvitationPage() {
   const { refreshUser } = useAuth()
+  const { reloadMemberships } = useOrganizations()
   const [code, setCode] = useState('')
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -26,6 +28,7 @@ export default function AcceptInvitationPage() {
       if (response.requiresTokenRefresh) {
         await refreshUser()
       }
+      await reloadMemberships().catch(() => undefined)
 
       setStatus(
         `Added to ${response.organizationName} (${response.organizationSlug}). ${
@@ -91,4 +94,3 @@ export default function AcceptInvitationPage() {
     </div>
   )
 }
-

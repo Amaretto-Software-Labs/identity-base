@@ -2,13 +2,16 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLogin, useIdentityContext } from '@identity-base/react-client'
+import { useOrganizations } from '@identity-base/react-organizations'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const { authManager } = useIdentityContext()
+  const { reloadMemberships } = useOrganizations()
   const { login, isLoading, error } = useLogin({
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       if (response.requiresTwoFactor) {
+        await reloadMemberships().catch(() => undefined)
         navigate('/dashboard', { replace: true })
       } else {
         authManager.startAuthorization()

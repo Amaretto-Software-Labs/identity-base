@@ -1,13 +1,16 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthorization } from '@identity-base/react-client'
+import { useOrganizations } from '@identity-base/react-organizations'
 
 export default function AuthorizeCallbackPage() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const handledRef = useRef(false)
+  const { reloadMemberships } = useOrganizations()
   const { handleCallback, isLoading, error } = useAuthorization({
-    onSuccess: () => {
+    onSuccess: async () => {
+      await reloadMemberships().catch(() => undefined)
       navigate('/dashboard', { replace: true })
     },
   })
@@ -63,4 +66,3 @@ export default function AuthorizeCallbackPage() {
     </div>
   )
 }
-
