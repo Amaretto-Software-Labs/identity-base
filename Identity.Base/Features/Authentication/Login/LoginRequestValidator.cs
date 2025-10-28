@@ -11,8 +11,7 @@ internal sealed class LoginRequestValidator : AbstractValidator<LoginRequest>
             .EmailAddress();
 
         RuleFor(x => x.Password)
-            .NotEmpty()
-            .MinimumLength(12);
+            .NotEmpty();
 
         RuleFor(x => x.ClientId)
             .NotEmpty();

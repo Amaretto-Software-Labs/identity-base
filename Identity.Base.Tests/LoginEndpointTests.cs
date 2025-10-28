@@ -145,6 +145,30 @@ public class LoginEndpointTests : IClassFixture<IdentityApiFactory>
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
+    [Fact]
+    public async Task Login_ReturnsInvalidCredentials_ForIncorrectShortPassword()
+    {
+        const string email = "login-shortpass@example.com";
+        const string actualPassword = "StrongPass!2345";
+
+        await SeedUserAsync(email, actualPassword, confirmEmail: true);
+
+        using var client = CreateClientWithCookies();
+
+        var response = await client.PostAsJsonAsync("/auth/login", new
+        {
+            email,
+            password = "Bad1!",
+            clientId = "spa-client"
+        });
+
+        var payload = await response.Content.ReadFromJsonAsync<JsonDocument>();
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest, payload?.RootElement.ToString());
+        payload.Should().NotBeNull();
+        payload!.RootElement.GetProperty("detail").GetString()
+            .Should().Be("Invalid credentials.");
+    }
+
     private HttpClient CreateClientWithCookies()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions

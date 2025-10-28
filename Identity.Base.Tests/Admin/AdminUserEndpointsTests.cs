@@ -5,10 +5,12 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Identity.Base.Identity;
+using Identity.Base.Data;
 using Identity.Base.Roles.Abstractions;
 using Identity.Base.Roles.Configuration;
 using Identity.Base.Roles.Services;
@@ -94,6 +96,44 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
 
         var response = await client.GetAsync("/admin/users");
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task ListUsers_CapsPageSize_AndAppliesSorting()
+    {
+        var (_, token) = await CreateAdminUserAndTokenAsync("admin-paging@example.com", "AdminPass!2345", includeAdminScope: true);
+
+        List<string> expectedEmails;
+        int expectedTotal;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await SeedUsersAsync(dbContext, prefix: "paging-user", count: 110);
+
+            expectedTotal = await dbContext.Users.CountAsync();
+            expectedEmails = await dbContext.Users
+                .AsNoTracking()
+                .OrderBy(user => user.Email ?? user.UserName ?? string.Empty)
+                .ThenBy(user => user.Id)
+                .Select(user => user.Email ?? user.UserName ?? string.Empty)
+                .Skip(100)
+                .Take(100)
+                .ToListAsync();
+        }
+
+        using var client = CreateAuthorizedClient(token);
+        var response = await client.GetAsync("/admin/users?page=2&pageSize=500&sort=email:asc");
+        var responseBody = await response.Content.ReadAsStringAsync();
+        response.StatusCode.Should().Be(HttpStatusCode.OK, responseBody);
+
+        var payload = JsonSerializer.Deserialize<AdminUserListDto>(responseBody, JsonOptions);
+        payload.Should().NotBeNull();
+        payload!.Page.Should().Be(2);
+        payload.PageSize.Should().Be(100); // capped at MaxPageSize
+        payload.TotalCount.Should().Be(expectedTotal);
+        payload.Users.Should().HaveCount(expectedEmails.Count);
+        payload.Users.Select(user => user.Email ?? user.DisplayName ?? string.Empty)
+            .Should().BeEquivalentTo(expectedEmails, options => options.WithStrictOrdering());
     }
 
     [Fact]
@@ -391,6 +431,49 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
 
         return (existing!.Id, accessToken!);
     }
+
+    private static async Task SeedUsersAsync(AppDbContext context, string prefix, int count)
+    {
+        var existing = await context.Users
+            .Where(user => user.Email != null && user.Email.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .ToListAsync();
+
+        if (existing.Count > 0)
+        {
+            context.Users.RemoveRange(existing);
+            await context.SaveChangesAsync();
+        }
+
+        var baseTime = DateTimeOffset.UtcNow.AddMinutes(-count - 10);
+        for (var index = 0; index < count; index++)
+        {
+            var email = $"{prefix}-{index:000}@example.com";
+            var normalized = email.ToUpperInvariant();
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                Email = email,
+                NormalizedEmail = normalized,
+                UserName = email,
+                NormalizedUserName = normalized,
+                DisplayName = $"Paging User {index:000}",
+                EmailConfirmed = true,
+                SecurityStamp = Guid.NewGuid().ToString("N"),
+                ConcurrencyStamp = Guid.NewGuid().ToString("N")
+            };
+
+            SetCreatedAt(user, baseTime.AddMinutes(index));
+            context.Users.Add(user);
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    private static readonly PropertyInfo CreatedAtProperty = typeof(ApplicationUser)
+        .GetProperty(nameof(ApplicationUser.CreatedAt), BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)!;
+
+    private static void SetCreatedAt(ApplicationUser user, DateTimeOffset value)
+        => CreatedAtProperty.SetValue(user, value);
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 

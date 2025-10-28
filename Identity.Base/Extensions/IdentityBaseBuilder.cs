@@ -540,6 +540,7 @@ public sealed class IdentityBaseBuilder
         Services.AddScoped<IValidator<RegisterUserRequest>, RegisterUserRequestValidator>();
         Services.AddScoped<IValidator<MfaChallengeRequest>, MfaChallengeRequestValidator>();
         Services.AddScoped<IValidator<UpdateProfileRequest>, UpdateProfileRequestValidator>();
+        Services.AddScoped<IValidator<ChangePasswordRequest>, ChangePasswordRequestValidator>();
     }
 
     private void RegisterApplicationServices()

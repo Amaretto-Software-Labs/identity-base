@@ -11,11 +11,12 @@ using FluentAssertions;
 using Identity.Base.Identity;
 using Identity.Base.Roles.Abstractions;
 using Identity.Base.Roles.Configuration;
+using Identity.Base.Roles.Entities;
 using Identity.Base.Roles.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using OpenIddict.Abstractions;
 
 namespace Identity.Base.Tests.Admin;
@@ -43,6 +44,44 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
         var payload = JsonSerializer.Deserialize<AdminRoleListResponseDto>(responseBody, JsonOptions);
         payload.Should().NotBeNull(responseBody);
         payload!.Roles.Should().Contain(role => role.Name == "IdentityAdmin");
+    }
+
+    [Fact]
+    public async Task ListRoles_CapsPageSize_AndAppliesSorting()
+    {
+        var (_, token) = await CreateAdminUserAndTokenAsync("roles-paging-admin@example.com", "AdminPass!2345");
+
+        List<string> expectedNames;
+        int expectedTotal;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var roleDb = scope.ServiceProvider.GetRequiredService<IRoleDbContext>();
+            await SeedRolesAsync(roleDb, prefix: "paging-role", count: 210);
+
+            expectedTotal = await roleDb.Roles.CountAsync();
+            expectedNames = await roleDb.Roles
+                .AsNoTracking()
+                .OrderByDescending(role => role.Name)
+                .ThenBy(role => role.Id)
+                .Select(role => role.Name)
+                .Skip(200)
+                .Take(200)
+                .ToListAsync();
+        }
+
+        using var client = CreateAuthorizedClient(token);
+        var response = await client.GetAsync("/admin/roles?page=2&pageSize=500&sort=name:desc");
+        var responseBody = await response.Content.ReadAsStringAsync();
+        response.StatusCode.Should().Be(HttpStatusCode.OK, responseBody);
+
+        var payload = JsonSerializer.Deserialize<AdminRoleListResponseDto>(responseBody, JsonOptions);
+        payload.Should().NotBeNull();
+        payload!.Page.Should().Be(2);
+        payload.PageSize.Should().Be(200);
+        payload.TotalCount.Should().Be(expectedTotal);
+        payload.Roles.Should().HaveCount(expectedNames.Count);
+        payload.Roles.Select(role => role.Name)
+            .Should().BeEquivalentTo(expectedNames, options => options.WithStrictOrdering());
     }
 
     [Fact]
@@ -144,6 +183,53 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
 
         var response = await client.DeleteAsync($"/admin/roles/{roleId:D}");
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    private static async Task SeedRolesAsync(IRoleDbContext context, string prefix, int count)
+    {
+        var existing = await context.Roles
+            .Where(role => role.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .ToListAsync();
+
+        if (existing.Count > 0)
+        {
+            var existingIds = existing.Select(role => role.Id).ToList();
+
+            var assignments = await context.UserRoles
+                .Where(userRole => existingIds.Contains(userRole.RoleId))
+                .ToListAsync();
+            if (assignments.Count > 0)
+            {
+                context.UserRoles.RemoveRange(assignments);
+            }
+
+            var rolePermissions = await context.RolePermissions
+                .Where(permission => existingIds.Contains(permission.RoleId))
+                .ToListAsync();
+            if (rolePermissions.Count > 0)
+            {
+                context.RolePermissions.RemoveRange(rolePermissions);
+            }
+
+            context.Roles.RemoveRange(existing);
+            await context.SaveChangesAsync();
+        }
+
+        for (var index = 0; index < count; index++)
+        {
+            var role = new Role
+            {
+                Id = Guid.NewGuid(),
+                Name = $"{prefix}-{index:000}",
+                Description = "Paging role sample",
+                IsSystemRole = false,
+                ConcurrencyStamp = Guid.NewGuid().ToString("N")
+            };
+
+            context.Roles.Add(role);
+        }
+
+        await context.SaveChangesAsync();
     }
 
     private async Task<(Guid RoleId, string RoleName, string ConcurrencyStamp, string AccessToken)> CreateRoleAsync(string adminEmail, string adminPassword, IEnumerable<string>? permissions = null)

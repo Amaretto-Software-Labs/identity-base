@@ -42,6 +42,14 @@ public static class UserEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithTags("Users");
 
+        group.MapPost("/me/change-password", ChangePasswordAsync)
+            .WithName("ChangePassword")
+            .WithSummary("Changes the current user's password.")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .WithTags("Users");
+
         return group;
     }
 
@@ -134,6 +142,41 @@ public static class UserEndpoints
             user.ConcurrencyStamp ?? string.Empty,
             user.TwoFactorEnabled));
     }
+
+    private static async Task<IResult> ChangePasswordAsync(
+        HttpContext context,
+        ChangePasswordRequest request,
+        IValidator<ChangePasswordRequest> validator,
+        UserManager<ApplicationUser> userManager,
+        SignInManager<ApplicationUser> signInManager,
+        IAuditLogger auditLogger,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var validation = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
+        if (!validation.IsValid)
+        {
+            return Results.ValidationProblem(validation.ToDictionary());
+        }
+
+        var user = await userManager.GetUserAsync(context.User).ConfigureAwait(false);
+        if (user is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var result = await userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword).ConfigureAwait(false);
+        if (!result.Succeeded)
+        {
+            return Results.ValidationProblem(result.ToDictionary());
+        }
+
+        await signInManager.RefreshSignInAsync(user).ConfigureAwait(false);
+        await auditLogger.LogAsync(AuditEventTypes.PasswordChanged, user.Id, new { ChangedAtUtc = DateTimeOffset.UtcNow }, cancellationToken).ConfigureAwait(false);
+
+        return Results.NoContent();
+    }
 }
 
 internal sealed record UserProfileResponse(
@@ -203,5 +246,30 @@ internal sealed class UpdateProfileRequestValidator : AbstractValidator<UpdatePr
                     }
                 }
             });
+    }
+}
+
+internal sealed class ChangePasswordRequest
+{
+    public string CurrentPassword { get; init; } = string.Empty;
+
+    public string NewPassword { get; init; } = string.Empty;
+
+    public string ConfirmNewPassword { get; init; } = string.Empty;
+}
+
+internal sealed class ChangePasswordRequestValidator : AbstractValidator<ChangePasswordRequest>
+{
+    public ChangePasswordRequestValidator()
+    {
+        RuleFor(x => x.CurrentPassword)
+            .NotEmpty();
+
+        RuleFor(x => x.NewPassword)
+            .NotEmpty();
+
+        RuleFor(x => x.ConfirmNewPassword)
+            .Equal(x => x.NewPassword)
+            .WithMessage("Passwords do not match.");
     }
 }
