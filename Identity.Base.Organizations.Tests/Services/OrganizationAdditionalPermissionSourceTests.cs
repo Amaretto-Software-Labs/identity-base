@@ -1,4 +1,5 @@
-using FluentAssertions;
+using System.Linq;
+using Shouldly;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Domain;
 using Identity.Base.Organizations.Services;
@@ -16,8 +17,8 @@ public class OrganizationAdditionalPermissionSourceTests
 
         var permissions = await source.GetAdditionalPermissionsAsync(Guid.Empty);
 
-        permissions.Should().BeEmpty();
-        resolver.Requests.Should().BeEmpty();
+        permissions.ShouldBeEmpty();
+        resolver.Requests.ShouldBeEmpty();
     }
 
     [Fact]
@@ -29,8 +30,8 @@ public class OrganizationAdditionalPermissionSourceTests
 
         var permissions = await source.GetAdditionalPermissionsAsync(Guid.NewGuid());
 
-        permissions.Should().BeEmpty();
-        resolver.Requests.Should().BeEmpty();
+        permissions.ShouldBeEmpty();
+        resolver.Requests.ShouldBeEmpty();
     }
 
     [Fact]
@@ -46,8 +47,9 @@ public class OrganizationAdditionalPermissionSourceTests
             var userId = Guid.NewGuid();
             var permissions = await source.GetAdditionalPermissionsAsync(userId);
 
-            permissions.Should().BeEquivalentTo(new[] { "organization.members.manage" });
-            resolver.Requests.Should().ContainSingle(request => request.OrganizationId == organizationId && request.UserId == userId);
+            permissions.ToArray().ShouldBe(new[] { "organization.members.manage" });
+            resolver.Requests.ShouldContain(request => request.OrganizationId == organizationId && request.UserId == userId);
+            resolver.Requests.Count(request => request.OrganizationId == organizationId && request.UserId == userId).ShouldBe(1);
         }
     }
 

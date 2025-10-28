@@ -34,7 +34,7 @@ public static class AuthorizeEndpoint
             throw new InvalidOperationException("Unable to retrieve the OpenID Connect request.");
         }
 
-        if (request.HasPrompt(OpenIddictConstants.Prompts.Login))
+        if (request.HasPromptValue(OpenIddictConstants.PromptValues.Login))
         {
             await context.SignOutAsync(IdentityConstants.ApplicationScheme);
             return Results.Challenge(new AuthenticationProperties
@@ -46,7 +46,7 @@ public static class AuthorizeEndpoint
         var authenticateResult = await context.AuthenticateAsync(IdentityConstants.ApplicationScheme);
         if (!authenticateResult.Succeeded || authenticateResult.Principal is null)
         {
-            if (request.HasPrompt(OpenIddictConstants.Prompts.None))
+            if (request.HasPromptValue(OpenIddictConstants.PromptValues.None))
             {
                 var properties = new AuthenticationProperties(new Dictionary<string, string?>
                 {
@@ -82,7 +82,7 @@ public static class AuthorizeEndpoint
 
         var principal = await signInManager.CreateUserPrincipalAsync(user);
 
-        if (request.HasPrompt(OpenIddictConstants.Prompts.Consent))
+        if (request.HasPromptValue(OpenIddictConstants.PromptValues.Consent))
         {
             principal.SetClaim("consent_granted", bool.TrueString);
         }

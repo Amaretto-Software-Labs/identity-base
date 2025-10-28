@@ -10,7 +10,7 @@ using Identity.Base.Roles.Entities;
 using Identity.Base.Roles.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using FluentAssertions;
+using Shouldly;
 
 namespace Identity.Base.Tests.Roles;
 
@@ -55,8 +55,12 @@ public class PermissionClaimsAugmentorTests
         await augmentor.AugmentAsync(user, principal);
 
         var permissionClaims = principal.FindAll(RoleClaimTypes.Permissions).ToList();
-        permissionClaims.Should().HaveCount(1);
-        permissionClaims[0].Value.Split(' ').Should().BeEquivalentTo(new[] { "users.read", "users.update" });
+        permissionClaims.Count.ShouldBe(1);
+        permissionClaims[0].Value
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .OrderBy(value => value)
+            .ToArray()
+            .ShouldBe(new[] { "users.read", "users.update" }.OrderBy(value => value).ToArray());
     }
 
     [Fact]
@@ -92,6 +96,9 @@ public class PermissionClaimsAugmentorTests
             .Value
             .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        permissions.Should().BeEquivalentTo(new[] { "users.read", "users.update", "users.delete" });
+        permissions
+            .OrderBy(value => value)
+            .ToArray()
+            .ShouldBe(new[] { "users.read", "users.update", "users.delete" }.OrderBy(value => value).ToArray());
     }
 }

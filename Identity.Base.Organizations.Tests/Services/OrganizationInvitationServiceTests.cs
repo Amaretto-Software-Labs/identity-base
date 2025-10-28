@@ -1,4 +1,5 @@
-using FluentAssertions;
+using System.Linq;
+using Shouldly;
 using Identity.Base.Identity;
 using Identity.Base.Logging;
 using Identity.Base.Organizations.Abstractions;
@@ -30,9 +31,10 @@ public class OrganizationInvitationServiceTests
             CancellationToken.None);
 
         // Assert
-        invitation.OrganizationId.Should().Be(organization.Id);
-        invitation.RoleIds.Should().BeEquivalentTo(roleIds);
-        store.Created.Should().ContainSingle(record => record.Code == invitation.Code);
+        invitation.OrganizationId.ShouldBe(organization.Id);
+        invitation.RoleIds.OrderBy(id => id).ToArray().ShouldBe(roleIds.OrderBy(id => id).ToArray());
+        var storedRecord = store.Created.ShouldHaveSingleItem();
+        storedRecord.Code.ShouldBe(invitation.Code);
     }
 
     [Fact]
@@ -61,7 +63,7 @@ public class OrganizationInvitationServiceTests
             CancellationToken.None);
 
         // Assert
-        await act.Should().ThrowAsync<OrganizationInvitationAlreadyExistsException>();
+        await Should.ThrowAsync<OrganizationInvitationAlreadyExistsException>(act);
     }
 
     [Fact]
@@ -91,11 +93,11 @@ public class OrganizationInvitationServiceTests
         var acceptance = await harness.Service.AcceptAsync(invitation.Code, user, CancellationToken.None);
 
         // Assert
-        acceptance.Should().NotBeNull();
-        acceptance!.OrganizationId.Should().Be(organization.Id);
-        acceptance.WasExistingMember.Should().BeFalse();
-        membershipService.AddedMembershipRequest.Should().NotBeNull();
-        membershipService.UpdatedMembershipRequest.Should().BeNull();
+        acceptance.ShouldNotBeNull();
+        acceptance!.OrganizationId.ShouldBe(organization.Id);
+        acceptance.WasExistingMember.ShouldBeFalse();
+        membershipService.AddedMembershipRequest.ShouldNotBeNull();
+        membershipService.UpdatedMembershipRequest.ShouldBeNull();
     }
 
     [Fact]
@@ -144,11 +146,14 @@ public class OrganizationInvitationServiceTests
         var acceptance = await harness.Service.AcceptAsync(invitation.Code, existingUser, CancellationToken.None);
 
         // Assert
-        acceptance.Should().NotBeNull();
-        acceptance!.WasExistingMember.Should().BeTrue();
-        membershipService.AddedMembershipRequest.Should().BeNull();
-        membershipService.UpdatedMembershipRequest.Should().NotBeNull();
-        membershipService.UpdatedMembershipRequest!.RoleIds.Should().BeEquivalentTo(roles.Select(role => role.Id));
+        acceptance.ShouldNotBeNull();
+        acceptance!.WasExistingMember.ShouldBeTrue();
+        membershipService.AddedMembershipRequest.ShouldBeNull();
+        membershipService.UpdatedMembershipRequest.ShouldNotBeNull();
+        membershipService.UpdatedMembershipRequest!.RoleIds!
+            .OrderBy(id => id)
+            .ToArray()
+            .ShouldBe(roles.Select(role => role.Id).OrderBy(id => id).ToArray());
     }
 
     private static (Organization Organization, List<OrganizationRole> Roles) CreateOrganization(Guid? organizationId = null)

@@ -3,7 +3,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using FluentAssertions;
+using Shouldly;
 using Identity.Base.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -28,18 +28,18 @@ public class ProfileEndpointsTests : IClassFixture<IdentityApiFactory>
         client.BaseAddress = new Uri("https://localhost");
 
         var response = await client.GetAsync("/auth/profile-schema");
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
-        document.Should().NotBeNull();
+        document.ShouldNotBeNull();
 
         var fields = document!.RootElement.GetProperty("fields").EnumerateArray().ToList();
-        fields.Should().HaveCountGreaterOrEqualTo(1);
+        fields.Count.ShouldBeGreaterThanOrEqualTo(1);
 
         var displayNameField = fields.FirstOrDefault(element => element.GetProperty("name").GetString() == "displayName");
-        displayNameField.ValueKind.Should().NotBe(JsonValueKind.Undefined);
-        displayNameField.GetProperty("displayName").GetString().Should().Be("Display Name");
-        displayNameField.GetProperty("required").GetBoolean().Should().BeTrue();
+        displayNameField.ValueKind.ShouldNotBe(JsonValueKind.Undefined);
+        displayNameField.GetProperty("displayName").GetString().ShouldBe("Display Name");
+        displayNameField.GetProperty("required").GetBoolean().ShouldBeTrue();
     }
 
     [Fact]
@@ -57,13 +57,14 @@ public class ProfileEndpointsTests : IClassFixture<IdentityApiFactory>
         using var client = await CreateAuthenticatedClientAsync(email, password);
 
         var response = await client.GetAsync("/users/me");
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var payload = await response.Content.ReadFromJsonAsync<UserProfilePayload>();
-        payload.Should().NotBeNull();
-        payload!.Email.Should().Be(email);
-        payload.DisplayName.Should().Be("Profile Test");
-        payload.Metadata.Should().ContainKey("displayName").WhoseValue.Should().Be("Profile Test");
+        payload.ShouldNotBeNull();
+        payload!.Email.ShouldBe(email);
+        payload.DisplayName.ShouldBe("Profile Test");
+        payload.Metadata.ShouldContainKey("displayName");
+        payload.Metadata["displayName"].ShouldBe("Profile Test");
     }
 
     [Fact]
@@ -81,7 +82,7 @@ public class ProfileEndpointsTests : IClassFixture<IdentityApiFactory>
         using var client = await CreateAuthenticatedClientAsync(email, password);
 
         var current = await client.GetFromJsonAsync<UserProfilePayload>("/users/me");
-        current.Should().NotBeNull();
+        current.ShouldNotBeNull();
 
         var updateResponse = await client.PutAsJsonAsync("/users/me/profile", new
         {
@@ -94,19 +95,19 @@ public class ProfileEndpointsTests : IClassFixture<IdentityApiFactory>
         });
 
         var updateBody = await updateResponse.Content.ReadAsStringAsync();
-        updateResponse.StatusCode.Should().Be(HttpStatusCode.OK, updateBody);
+        updateResponse.StatusCode.ShouldBe(HttpStatusCode.OK, updateBody);
 
         var updated = await updateResponse.Content.ReadFromJsonAsync<UserProfilePayload>();
-        updated.Should().NotBeNull();
-        updated!.DisplayName.Should().Be("Updated Name");
-        updated.Metadata["company"].Should().Be("Updated Co");
-        updated.ConcurrencyStamp.Should().NotBe(current.ConcurrencyStamp);
+        updated.ShouldNotBeNull();
+        updated!.DisplayName.ShouldBe("Updated Name");
+        updated.Metadata["company"].ShouldBe("Updated Co");
+        updated.ConcurrencyStamp.ShouldNotBe(current.ConcurrencyStamp);
 
         using var scope = _factory.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var user = await userManager.FindByEmailAsync(email);
-        user.Should().NotBeNull();
-        user!.ProfileMetadata.Values["displayName"].Should().Be("Updated Name");
+        user.ShouldNotBeNull();
+        user!.ProfileMetadata.Values["displayName"].ShouldBe("Updated Name");
     }
 
     [Fact]
@@ -133,7 +134,7 @@ public class ProfileEndpointsTests : IClassFixture<IdentityApiFactory>
             concurrencyStamp = Guid.NewGuid().ToString("N")
         });
 
-        updateResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        updateResponse.StatusCode.ShouldBe(HttpStatusCode.Conflict);
     }
 
     [Fact]
@@ -160,10 +161,10 @@ public class ProfileEndpointsTests : IClassFixture<IdentityApiFactory>
             concurrencyStamp = current!.ConcurrencyStamp
         });
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var problem = await response.Content.ReadFromJsonAsync<JsonDocument>();
-        problem.Should().NotBeNull();
-        problem!.RootElement.GetProperty("errors").TryGetProperty("metadata.displayName", out _).Should().BeTrue();
+        problem.ShouldNotBeNull();
+        problem!.RootElement.GetProperty("errors").TryGetProperty("metadata.displayName", out _).ShouldBeTrue();
     }
 
     private async Task SeedUserAsync(string email, string password, IDictionary<string, string?> metadata)
@@ -184,9 +185,9 @@ public class ProfileEndpointsTests : IClassFixture<IdentityApiFactory>
             };
 
             var result = await userManager.CreateAsync(user, password);
-            result.Succeeded.Should().BeTrue();
+            result.Succeeded.ShouldBeTrue();
             user = await userManager.FindByEmailAsync(email);
-            user.Should().NotBeNull();
+            user.ShouldNotBeNull();
         }
 
         user = user ?? throw new InvalidOperationException("Failed to seed user.");
@@ -198,7 +199,7 @@ public class ProfileEndpointsTests : IClassFixture<IdentityApiFactory>
         }
 
         var updateResult = await userManager.UpdateAsync(user);
-        updateResult.Succeeded.Should().BeTrue();
+        updateResult.Succeeded.ShouldBeTrue();
     }
 
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string email, string password)
@@ -219,7 +220,7 @@ public class ProfileEndpointsTests : IClassFixture<IdentityApiFactory>
         });
 
         var body = await loginResponse.Content.ReadAsStringAsync();
-        loginResponse.IsSuccessStatusCode.Should().BeTrue(body);
+        loginResponse.IsSuccessStatusCode.ShouldBeTrue(body);
 
         return client;
     }

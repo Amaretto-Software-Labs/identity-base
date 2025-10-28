@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Domain;
 using Identity.Base.Organizations.Services;
@@ -16,7 +16,7 @@ public class OrganizationScopeResolverTests
 
         var result = await resolver.IsInScopeAsync(userId, organizationId);
 
-        result.Should().BeTrue();
+        result.ShouldBeTrue();
     }
 
     [Fact]
@@ -27,7 +27,7 @@ public class OrganizationScopeResolverTests
 
         var result = await resolver.IsInScopeAsync(Guid.NewGuid(), organizationId);
 
-        result.Should().BeFalse();
+        result.ShouldBeFalse();
     }
 
     private static OrganizationDbContext CreateContext(out Guid organizationId, out Guid userId)

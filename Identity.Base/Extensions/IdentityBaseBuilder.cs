@@ -446,7 +446,7 @@ public sealed class IdentityBaseBuilder
             {
                 options.SetAuthorizationEndpointUris("/connect/authorize")
                        .SetTokenEndpointUris("/connect/token")
-                       .SetUserinfoEndpointUris("/connect/userinfo")
+                    .SetUserInfoEndpointUris("/connect/userinfo")
                        .SetIntrospectionEndpointUris("/connect/introspect");
 
                 options.AllowAuthorizationCodeFlow()

@@ -1,8 +1,9 @@
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using FluentAssertions;
+using Shouldly;
 using Identity.Base.Identity;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
@@ -33,26 +34,27 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
         client.BaseAddress = new Uri("https://localhost");
 
         var startResponse = await client.GetAsync("/auth/external/google/start?returnUrl=/client/callback&email=login-new@example.com&name=Login%20User");
-        startResponse.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        startResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
         var callbackLocation = startResponse.Headers.Location;
-        callbackLocation.Should().NotBeNull();
+        callbackLocation.ShouldNotBeNull();
 
         var callbackResponse = await client.GetAsync(callbackLocation);
-        callbackResponse.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        callbackResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
         var finalLocation = callbackResponse.Headers.Location;
-        finalLocation.Should().NotBeNull();
+        finalLocation.ShouldNotBeNull();
 
         var uri = new Uri(client.BaseAddress!, finalLocation!);
         var query = QueryHelpers.ParseQuery(uri.Query);
-        query["status"].ToString().Should().Be("success");
-        query["requiresTwoFactor"].ToString().Should().Be("false");
+        query["status"].ToString().ShouldBe("success");
+        query["requiresTwoFactor"].ToString().ShouldBe("false");
 
         using var scope = _factory.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var user = await userManager.FindByEmailAsync("login-new@example.com");
-        user.Should().NotBeNull();
+        user.ShouldNotBeNull();
         var logins = await userManager.GetLoginsAsync(user!);
-        logins.Should().ContainSingle(login => login.LoginProvider == GoogleDefaults.AuthenticationScheme);
+        logins.ShouldContain(login => login.LoginProvider == GoogleDefaults.AuthenticationScheme);
+        logins.Count(login => login.LoginProvider == GoogleDefaults.AuthenticationScheme).ShouldBe(1);
     }
 
     [Fact]
@@ -69,7 +71,7 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
         var encoded = Uri.EscapeDataString("https://localhost:3000/auth/external-complete");
         var response = await client.GetAsync($"/auth/external/google/start?returnUrl={encoded}&email=absolute@example.com&name=Absolute");
 
-        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        response.StatusCode.ShouldBe(HttpStatusCode.Redirect);
     }
 
     [Fact]
@@ -88,11 +90,11 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
 
         var response = await client.SendAsync(request);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        response.StatusCode.ShouldBe(HttpStatusCode.Redirect);
         var location = response.Headers.Location;
-        location.Should().NotBeNull();
-        location!.Host.Should().Be("localhost");
-        location.Scheme.Should().Be("https");
+        location.ShouldNotBeNull();
+        location!.Host.ShouldBe("localhost");
+        location.Scheme.ShouldBe("https");
     }
 
     [Theory]
@@ -112,7 +114,7 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
         var encoded = Uri.EscapeDataString(unsafeReturnUrl);
         var response = await client.GetAsync($"/auth/external/google/start?returnUrl={encoded}&email=malicious@example.com&name=bad");
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
@@ -125,36 +127,37 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
 
         using var client = await CreateAuthenticatedClientAsync(email, password);
         var linkStart = await client.GetAsync("/auth/external/google/start?mode=link&returnUrl=/link/result&email=link@example.com&name=Linked");
-        linkStart.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        linkStart.StatusCode.ShouldBe(HttpStatusCode.Redirect);
         var callback = linkStart.Headers.Location;
-        callback.Should().NotBeNull();
+        callback.ShouldNotBeNull();
 
         var callbackResponse = await client.GetAsync(callback);
-        callbackResponse.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        callbackResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
         var finalLocation = callbackResponse.Headers.Location;
         var finalUri = new Uri(client.BaseAddress!, finalLocation!);
         var query = QueryHelpers.ParseQuery(finalUri.Query);
-        query["status"].ToString().Should().Be("linked");
+        query["status"].ToString().ShouldBe("linked");
 
         using (var scope = _factory.Services.CreateScope())
         {
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var user = await userManager.FindByEmailAsync(email);
-            user.Should().NotBeNull();
+            user.ShouldNotBeNull();
             var logins = await userManager.GetLoginsAsync(user!);
-            logins.Should().ContainSingle(login => login.LoginProvider == GoogleDefaults.AuthenticationScheme);
+            logins.ShouldContain(login => login.LoginProvider == GoogleDefaults.AuthenticationScheme);
+            logins.Count(login => login.LoginProvider == GoogleDefaults.AuthenticationScheme).ShouldBe(1);
         }
 
         var unlinkResponse = await client.DeleteAsync("/auth/external/google");
-        unlinkResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        unlinkResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         using (var scope = _factory.Services.CreateScope())
         {
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var user = await userManager.FindByEmailAsync(email);
-            user.Should().NotBeNull();
+            user.ShouldNotBeNull();
             var logins = await userManager.GetLoginsAsync(user!);
-            logins.Should().BeEmpty();
+            logins.ShouldBeEmpty();
         }
     }
 
@@ -174,7 +177,7 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
             };
 
             var result = await userManager.CreateAsync(user, password);
-            result.Succeeded.Should().BeTrue();
+            result.Succeeded.ShouldBeTrue();
         }
         else if (!user.EmailConfirmed)
         {
@@ -200,7 +203,7 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
         });
 
         var body = await loginResponse.Content.ReadAsStringAsync();
-        loginResponse.IsSuccessStatusCode.Should().BeTrue(body);
+        loginResponse.IsSuccessStatusCode.ShouldBeTrue(body);
         return client;
     }
 }

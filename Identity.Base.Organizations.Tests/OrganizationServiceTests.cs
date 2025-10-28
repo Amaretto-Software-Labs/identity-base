@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Domain;
@@ -24,10 +24,11 @@ public class OrganizationServiceTests
             DisplayName = "  Example Org  "
         });
 
-        organization.Slug.Should().Be("my-org");
-        organization.DisplayName.Should().Be("Example Org");
-        organization.Status.Should().Be(OrganizationStatus.Active);
-        organization.CreatedAtUtc.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
+        organization.Slug.ShouldBe("my-org");
+        organization.DisplayName.ShouldBe("Example Org");
+        organization.Status.ShouldBe(OrganizationStatus.Active);
+        var now = DateTimeOffset.UtcNow;
+        organization.CreatedAtUtc.ShouldBeInRange(now - TimeSpan.FromSeconds(5), now + TimeSpan.FromSeconds(5));
     }
 
     [Fact]
@@ -38,8 +39,7 @@ public class OrganizationServiceTests
 
         await service.CreateAsync(new OrganizationCreateRequest { Slug = "dup", DisplayName = "One" });
 
-        await FluentActions.Invoking(() => service.CreateAsync(new OrganizationCreateRequest { Slug = "DUP", DisplayName = "Two" }))
-            .Should().ThrowAsync<InvalidOperationException>();
+        await Should.ThrowAsync<InvalidOperationException>(() => service.CreateAsync(new OrganizationCreateRequest { Slug = "DUP", DisplayName = "Two" }));
     }
 
     [Fact]
@@ -56,9 +56,10 @@ public class OrganizationServiceTests
             Metadata = new OrganizationMetadata(new Dictionary<string, string?> { ["plan"] = "pro" })
         });
 
-        updated.DisplayName.Should().Be("Updated");
-        updated.Metadata.Values.Should().ContainKey("plan").WhoseValue.Should().Be("pro");
-        updated.UpdatedAtUtc.Should().NotBeNull();
+        updated.DisplayName.ShouldBe("Updated");
+        updated.Metadata.Values.ShouldContainKey("plan");
+        updated.Metadata.Values["plan"].ShouldBe("pro");
+        updated.UpdatedAtUtc.ShouldNotBeNull();
     }
 
     [Fact]
@@ -71,8 +72,8 @@ public class OrganizationServiceTests
         await service.ArchiveAsync(organization.Id);
 
         var reloaded = await context.Organizations.FindAsync(organization.Id);
-        reloaded!.Status.Should().Be(OrganizationStatus.Archived);
-        reloaded.ArchivedAtUtc.Should().NotBeNull();
+        reloaded!.Status.ShouldBe(OrganizationStatus.Archived);
+        reloaded.ArchivedAtUtc.ShouldNotBeNull();
     }
 
     private static OrganizationDbContext CreateContext()

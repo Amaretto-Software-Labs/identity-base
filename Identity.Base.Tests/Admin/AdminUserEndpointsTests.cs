@@ -8,7 +8,7 @@ using System.Net.Http.Json;
 using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
-using FluentAssertions;
+using Shouldly;
 using Identity.Base.Identity;
 using Identity.Base.Data;
 using Identity.Base.Roles.Abstractions;
@@ -49,14 +49,14 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var response = await client.GetAsync("/admin/users?page=1&pageSize=10");
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var payload = await response.Content.ReadFromJsonAsync<AdminUserListDto>(JsonOptions);
-        payload.Should().NotBeNull();
-        payload!.TotalCount.Should().BeGreaterThan(0);
-        payload.Users.Should().Contain(item => string.Equals(item.Email, email, StringComparison.OrdinalIgnoreCase));
+        payload.ShouldNotBeNull();
+        payload!.TotalCount.ShouldBeGreaterThan(0);
+        payload.Users.ShouldContain(item => string.Equals(item.Email, email, StringComparison.OrdinalIgnoreCase));
         var adminEntry = payload.Users.First(item => string.Equals(item.Email, email, StringComparison.OrdinalIgnoreCase));
-        adminEntry.Roles.Should().Contain("IdentityAdmin");
+        adminEntry.Roles.ShouldContain("IdentityAdmin");
     }
 
     [Fact]
@@ -75,13 +75,13 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var response = await client.GetAsync($"/admin/users/{userId:D}");
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var payload = await response.Content.ReadFromJsonAsync<AdminUserDetailDto>(JsonOptions);
-        payload.Should().NotBeNull();
-        payload!.Email.Should().Be(email);
-        payload.Roles.Should().Contain("IdentityAdmin");
-        payload.Metadata.Should().NotBeNull();
+        payload.ShouldNotBeNull();
+        payload!.Email.ShouldBe(email);
+        payload.Roles.ShouldContain("IdentityAdmin");
+        payload.Metadata.ShouldNotBeNull();
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
         using var client = CreateAuthorizedClient(token);
 
         var response = await client.GetAsync("/admin/users");
-        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     [Fact]
@@ -124,16 +124,17 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
         using var client = CreateAuthorizedClient(token);
         var response = await client.GetAsync("/admin/users?page=2&pageSize=500&sort=email:asc");
         var responseBody = await response.Content.ReadAsStringAsync();
-        response.StatusCode.Should().Be(HttpStatusCode.OK, responseBody);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, responseBody);
 
         var payload = JsonSerializer.Deserialize<AdminUserListDto>(responseBody, JsonOptions);
-        payload.Should().NotBeNull();
-        payload!.Page.Should().Be(2);
-        payload.PageSize.Should().Be(100); // capped at MaxPageSize
-        payload.TotalCount.Should().Be(expectedTotal);
-        payload.Users.Should().HaveCount(expectedEmails.Count);
+        payload.ShouldNotBeNull();
+        payload!.Page.ShouldBe(2);
+        payload.PageSize.ShouldBe(100); // capped at MaxPageSize
+        payload.TotalCount.ShouldBe(expectedTotal);
+        payload.Users.Count.ShouldBe(expectedEmails.Count);
         payload.Users.Select(user => user.Email ?? user.DisplayName ?? string.Empty)
-            .Should().BeEquivalentTo(expectedEmails, options => options.WithStrictOrdering());
+            .ToList()
+            .ShouldBe(expectedEmails);
     }
 
     [Fact]
@@ -160,24 +161,25 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
         };
 
         var response = await client.PostAsJsonAsync("/admin/users", request, JsonOptions);
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         var createdId = ExtractUserId(response);
 
-        _factory.EmailSender.Sent.Should().HaveCount(2);
+        _factory.EmailSender.Sent.Count.ShouldBe(2);
 
         using var scope = _factory.Services.CreateScope();
         await scope.ServiceProvider.SeedIdentityRolesAsync();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var created = await userManager.FindByIdAsync(createdId.ToString());
-        created.Should().NotBeNull();
-        created!.EmailConfirmed.Should().BeFalse();
+        created.ShouldNotBeNull();
+        created!.EmailConfirmed.ShouldBeFalse();
 
         var detail = await client.GetFromJsonAsync<AdminUserDetailDto>($"/admin/users/{createdId:D}", JsonOptions);
-        detail.Should().NotBeNull();
-        detail!.Email.Should().Be("new-user@example.com");
-        detail.Roles.Should().Contain("SupportAgent");
-        detail.Metadata.Should().ContainKey("company").WhoseValue.Should().Be("Acme");
+        detail.ShouldNotBeNull();
+        detail!.Email.ShouldBe("new-user@example.com");
+        detail.Roles.ShouldContain("SupportAgent");
+        detail.Metadata.ShouldContainKey("company");
+        detail.Metadata["company"].ShouldBe("Acme");
     }
 
     [Fact]
@@ -196,11 +198,11 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
             }
         }, JsonOptions);
 
-        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        createResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
         var createdId = ExtractUserId(createResponse);
 
         var detail = await client.GetFromJsonAsync<AdminUserDetailDto>($"/admin/users/{createdId:D}", JsonOptions);
-        detail.Should().NotBeNull();
+        detail.ShouldNotBeNull();
 
         var updateRequest = new
         {
@@ -218,15 +220,15 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
         };
 
         var updateResponse = await client.PutAsJsonAsync($"/admin/users/{createdId:D}", updateRequest, JsonOptions);
-        updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        updateResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var updated = await updateResponse.Content.ReadFromJsonAsync<AdminUserDetailDto>(JsonOptions);
-        updated.Should().NotBeNull();
-        updated!.DisplayName.Should().Be("After");
-        updated.EmailConfirmed.Should().BeTrue();
-        updated.Metadata["company"].Should().Be("AfterCo");
-        updated.PhoneNumber.Should().Be("+1000000000");
-        updated.PhoneNumberConfirmed.Should().BeTrue();
+        updated.ShouldNotBeNull();
+        updated!.DisplayName.ShouldBe("After");
+        updated.EmailConfirmed.ShouldBeTrue();
+        updated.Metadata["company"].ShouldBe("AfterCo");
+        updated.PhoneNumber.ShouldBe("+1000000000");
+        updated.PhoneNumberConfirmed.ShouldBeTrue();
     }
 
     [Fact]
@@ -237,27 +239,27 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
 
         var createResponse = await client.PostAsJsonAsync("/admin/users", new { Email = "lock-user@example.com" }, JsonOptions);
         var createBody = await createResponse.Content.ReadAsStringAsync();
-        createResponse.StatusCode.Should().Be(HttpStatusCode.Created, createBody);
+        createResponse.StatusCode.ShouldBe(HttpStatusCode.Created, createBody);
         var createdId = ExtractUserId(createResponse);
 
         var lockResponse = await client.PostAsJsonAsync($"/admin/users/{createdId:D}/lock", new { Minutes = 5 }, JsonOptions);
-        lockResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        lockResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         using (var scope = _factory.Services.CreateScope())
         {
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var user = await userManager.FindByIdAsync(createdId.ToString());
-            user!.LockoutEnd.Should().NotBeNull();
+            user!.LockoutEnd.ShouldNotBeNull();
         }
 
         var unlockResponse = await client.PostAsync($"/admin/users/{createdId:D}/unlock", null);
-        unlockResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        unlockResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         using (var scope = _factory.Services.CreateScope())
         {
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var user = await userManager.FindByIdAsync(createdId.ToString());
-            user!.LockoutEnd.Should().BeNull();
+            user!.LockoutEnd.ShouldBeNull();
         }
     }
 
@@ -270,13 +272,13 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
 
         var createResponse = await client.PostAsJsonAsync("/admin/users", new { Email = "reset-user@example.com" }, JsonOptions);
         var createBody = await createResponse.Content.ReadAsStringAsync();
-        createResponse.StatusCode.Should().Be(HttpStatusCode.Created, createBody);
+        createResponse.StatusCode.ShouldBe(HttpStatusCode.Created, createBody);
         var createdId = ExtractUserId(createResponse);
 
         var response = await client.PostAsync($"/admin/users/{createdId:D}/force-password-reset", null);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
 
-        _factory.EmailSender.Sent.Should().ContainSingle();
+        _factory.EmailSender.Sent.ShouldHaveSingleItem();
     }
 
     [Fact]
@@ -287,7 +289,7 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
 
         var createResponse = await client.PostAsJsonAsync("/admin/users", new { Email = "mfa-user@example.com" }, JsonOptions);
         var createBody = await createResponse.Content.ReadAsStringAsync();
-        createResponse.StatusCode.Should().Be(HttpStatusCode.Created, createBody);
+        createResponse.StatusCode.ShouldBe(HttpStatusCode.Created, createBody);
         var createdId = ExtractUserId(createResponse);
 
         using (var scope = _factory.Services.CreateScope())
@@ -298,13 +300,13 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
         }
 
         var response = await client.PostAsync($"/admin/users/{createdId:D}/mfa/reset", null);
-        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         using (var scope = _factory.Services.CreateScope())
         {
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var user = await userManager.FindByIdAsync(createdId.ToString());
-            user!.TwoFactorEnabled.Should().BeFalse();
+            user!.TwoFactorEnabled.ShouldBeFalse();
         }
     }
 
@@ -317,13 +319,13 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
 
         var createResponse = await client.PostAsJsonAsync("/admin/users", new { Email = "confirm-user@example.com" }, JsonOptions);
         var createBody = await createResponse.Content.ReadAsStringAsync();
-        createResponse.StatusCode.Should().Be(HttpStatusCode.Created, createBody);
+        createResponse.StatusCode.ShouldBe(HttpStatusCode.Created, createBody);
         var createdId = ExtractUserId(createResponse);
 
         var response = await client.PostAsync($"/admin/users/{createdId:D}/resend-confirmation", null);
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
 
-        _factory.EmailSender.Sent.Should().ContainSingle();
+        _factory.EmailSender.Sent.ShouldHaveSingleItem();
     }
 
     [Fact]
@@ -334,15 +336,16 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
 
         var createResponse = await client.PostAsJsonAsync("/admin/users", new { Email = "roles-user@example.com" }, JsonOptions);
         var createBody = await createResponse.Content.ReadAsStringAsync();
-        createResponse.StatusCode.Should().Be(HttpStatusCode.Created, createBody);
+        createResponse.StatusCode.ShouldBe(HttpStatusCode.Created, createBody);
         var createdId = ExtractUserId(createResponse);
 
         var updateResponse = await client.PutAsJsonAsync($"/admin/users/{createdId:D}/roles", new { Roles = new[] { "SupportAgent" } }, JsonOptions);
-        updateResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        updateResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var rolesResponse = await client.GetFromJsonAsync<AdminUserRolesResponse>($"/admin/users/{createdId:D}/roles", JsonOptions);
-        rolesResponse.Should().NotBeNull();
-        rolesResponse!.Roles.Should().BeEquivalentTo(new[] { "SupportAgent" });
+        rolesResponse.ShouldNotBeNull();
+        rolesResponse!.Roles.OrderBy(role => role).ToArray()
+            .ShouldBe(new[] { "SupportAgent" }.OrderBy(role => role).ToArray());
     }
 
     [Fact]
@@ -353,22 +356,22 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
 
         var createResponse = await client.PostAsJsonAsync("/admin/users", new { Email = "delete-user@example.com" }, JsonOptions);
         var createBody = await createResponse.Content.ReadAsStringAsync();
-        createResponse.StatusCode.Should().Be(HttpStatusCode.Created, createBody);
+        createResponse.StatusCode.ShouldBe(HttpStatusCode.Created, createBody);
         var createdId = ExtractUserId(createResponse);
 
         var deleteResponse = await client.DeleteAsync($"/admin/users/{createdId:D}");
-        deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        deleteResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var deletedDetail = await client.GetFromJsonAsync<AdminUserDetailDto>($"/admin/users/{createdId:D}", JsonOptions);
-        deletedDetail.Should().NotBeNull();
-        deletedDetail!.IsDeleted.Should().BeTrue();
+        deletedDetail.ShouldNotBeNull();
+        deletedDetail!.IsDeleted.ShouldBeTrue();
 
         var restoreResponse = await client.PostAsync($"/admin/users/{createdId:D}/restore", null);
-        restoreResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        restoreResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var restoredDetail = await client.GetFromJsonAsync<AdminUserDetailDto>($"/admin/users/{createdId:D}", JsonOptions);
-        restoredDetail.Should().NotBeNull();
-        restoredDetail!.IsDeleted.Should().BeFalse();
+        restoredDetail.ShouldNotBeNull();
+        restoredDetail!.IsDeleted.ShouldBeFalse();
     }
     private async Task<(Guid UserId, string AccessToken)> CreateAdminUserAndTokenAsync(string email, string password, bool includeAdminScope)
     {
@@ -376,7 +379,7 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
         await scope.ServiceProvider.SeedIdentityRolesAsync();
         var roleContext = scope.ServiceProvider.GetRequiredService<IRoleDbContext>();
         var seededRoles = await roleContext.Roles.Select(r => r.Name).ToListAsync();
-        seededRoles.Should().Contain("IdentityAdmin");
+        seededRoles.ShouldContain("IdentityAdmin");
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var roleAssignmentService = scope.ServiceProvider.GetRequiredService<IRoleAssignmentService>();
 
@@ -396,7 +399,7 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
             };
 
             var createResult = await userManager.CreateAsync(user, password);
-            createResult.Succeeded.Should().BeTrue(createResult.Errors.FirstOrDefault()?.Description);
+            createResult.Succeeded.ShouldBeTrue(createResult.Errors.FirstOrDefault()?.Description);
 
             await roleAssignmentService.AssignRolesAsync(user.Id, new[] { "IdentityAdmin" });
             existing = user;
@@ -423,11 +426,11 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
         }));
 
         var tokenPayload = await tokenResponse.Content.ReadFromJsonAsync<JsonDocument>();
-        tokenResponse.StatusCode.Should().Be(HttpStatusCode.OK, tokenPayload?.RootElement.ToString());
-        tokenPayload.Should().NotBeNull();
+        tokenResponse.StatusCode.ShouldBe(HttpStatusCode.OK, tokenPayload?.RootElement.ToString());
+        tokenPayload.ShouldNotBeNull();
 
         var accessToken = tokenPayload!.RootElement.GetProperty("access_token").GetString();
-        accessToken.Should().NotBeNullOrWhiteSpace();
+        accessToken.ShouldNotBeNullOrWhiteSpace();
 
         return (existing!.Id, accessToken!);
     }

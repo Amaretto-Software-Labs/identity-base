@@ -62,7 +62,7 @@ Identity.sln
 - Minimal APIs support: `Microsoft.AspNetCore.Authentication.JwtBearer`, `Microsoft.Extensions.Options.ConfigurationExtensions`.
 - Email: `Mailjet.Api` (3.0.0) with `Microsoft.AspNetCore.Identity.UI.Services`.
 - Observability/Logging: `Serilog.AspNetCore`, `Serilog.Sinks.Console`, enrichers for EF migrations.
-- Testing: `xUnit`, `FluentAssertions`, `Microsoft.AspNetCore.Mvc.Testing`, `Testcontainers.PostgreSql`.
+- Testing: `xUnit`, `Shouldly`, `Microsoft.AspNetCore.Mvc.Testing`, `Testcontainers.PostgreSql`.
 - Sample harness: Vite, React 18, React Router, TailwindCSS, Axios/Fetch wrappers, Cypress or Playwright for E2E.
 - External providers: `Microsoft.AspNetCore.Authentication.Google`, `.MicrosoftAccount`, `.OpenIdConnect` (Apple), plus provider-specific SDKs as required.
 

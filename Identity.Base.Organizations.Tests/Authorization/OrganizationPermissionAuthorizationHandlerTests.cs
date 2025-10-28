@@ -1,6 +1,6 @@
 using System;
 using System.Security.Claims;
-using FluentAssertions;
+using Shouldly;
 using Identity.Base.Organizations.Authorization;
 using Identity.Base.Organizations.Claims;
 using Identity.Base.Organizations.Services;
@@ -27,7 +27,7 @@ public class OrganizationPermissionAuthorizationHandlerTests
 
         await handler.HandleAsync(context);
 
-        context.HasSucceeded.Should().BeTrue();
+        context.HasSucceeded.ShouldBeTrue();
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public class OrganizationPermissionAuthorizationHandlerTests
 
         await handler.HandleAsync(context);
 
-        context.HasSucceeded.Should().BeFalse();
+        context.HasSucceeded.ShouldBeFalse();
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public class OrganizationPermissionAuthorizationHandlerTests
 
         await handler.HandleAsync(context);
 
-        context.HasSucceeded.Should().BeTrue();
+        context.HasSucceeded.ShouldBeTrue();
     }
 }
 

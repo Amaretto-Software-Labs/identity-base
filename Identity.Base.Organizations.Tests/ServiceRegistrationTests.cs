@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Identity.Base.Identity;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Data;
@@ -23,11 +23,11 @@ public class ServiceRegistrationTests
         services.AddIdentityBaseOrganizations(options =>
             options.UseInMemoryDatabase("test"));
 
-        services.Should().Contain(descriptor => descriptor.ServiceType == typeof(IOrganizationService));
-        services.Should().Contain(descriptor => descriptor.ServiceType == typeof(IOrganizationMembershipService));
-        services.Should().Contain(descriptor => descriptor.ServiceType == typeof(IOrganizationRoleService));
-        services.Should().Contain(descriptor => descriptor.ServiceType == typeof(IPermissionClaimFormatter)
+        services.ShouldContain(descriptor => descriptor.ServiceType == typeof(IOrganizationService));
+        services.ShouldContain(descriptor => descriptor.ServiceType == typeof(IOrganizationMembershipService));
+        services.ShouldContain(descriptor => descriptor.ServiceType == typeof(IOrganizationRoleService));
+        services.ShouldContain(descriptor => descriptor.ServiceType == typeof(IPermissionClaimFormatter)
                                              && descriptor.ImplementationType == typeof(OrganizationClaimFormatter));
-        services.Should().Contain(descriptor => descriptor.ServiceType == typeof(DbContextOptions<OrganizationDbContext>));
+        services.ShouldContain(descriptor => descriptor.ServiceType == typeof(DbContextOptions<OrganizationDbContext>));
     }
 }

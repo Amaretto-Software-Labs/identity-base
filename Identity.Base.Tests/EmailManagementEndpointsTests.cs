@@ -5,7 +5,7 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text;
 using System.Threading.Tasks;
-using FluentAssertions;
+using Shouldly;
 using Identity.Base.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -44,11 +44,11 @@ public class EmailManagementEndpointsTests : IClassFixture<IdentityApiFactory>
             token = encodedToken
         });
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var refreshedUser = await userManager.FindByEmailAsync(email);
-        refreshedUser.Should().NotBeNull();
-        refreshedUser!.EmailConfirmed.Should().BeTrue();
+        refreshedUser.ShouldNotBeNull();
+        refreshedUser!.EmailConfirmed.ShouldBeTrue();
     }
 
     [Fact]
@@ -64,9 +64,9 @@ public class EmailManagementEndpointsTests : IClassFixture<IdentityApiFactory>
         using var client = CreateClient();
         var response = await client.PostAsJsonAsync("/auth/resend-confirmation", new { email });
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
-        emailSender.Sent.Count.Should().BeGreaterThan(beforeCount);
-        emailSender.Sent.Last().ToEmail.Should().Be(email);
+        response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        emailSender.Sent.Count.ShouldBeGreaterThan(beforeCount);
+        emailSender.Sent.Last().ToEmail.ShouldBe(email);
     }
 
     [Fact]
@@ -82,9 +82,9 @@ public class EmailManagementEndpointsTests : IClassFixture<IdentityApiFactory>
         using var client = CreateClient();
         var response = await client.PostAsJsonAsync("/auth/forgot-password", new { email });
 
-        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
-        emailSender.Sent.Count.Should().BeGreaterThan(beforeCount);
-        emailSender.Sent.Last().ToEmail.Should().Be(email);
+        response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        emailSender.Sent.Count.ShouldBeGreaterThan(beforeCount);
+        emailSender.Sent.Last().ToEmail.ShouldBe(email);
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public class EmailManagementEndpointsTests : IClassFixture<IdentityApiFactory>
                 password = newPassword
             });
 
-            resetResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            resetResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
 
         using var loginClient = CreateClient();
@@ -122,7 +122,7 @@ public class EmailManagementEndpointsTests : IClassFixture<IdentityApiFactory>
             clientId = "spa-client"
         });
 
-        loginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        loginResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     private HttpClient CreateClient()
@@ -153,7 +153,7 @@ public class EmailManagementEndpointsTests : IClassFixture<IdentityApiFactory>
             };
 
             var result = await userManager.CreateAsync(user, password);
-            result.Succeeded.Should().BeTrue();
+            result.Succeeded.ShouldBeTrue();
         }
         else if (confirmEmail && !user.EmailConfirmed)
         {

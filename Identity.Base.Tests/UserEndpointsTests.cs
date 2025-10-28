@@ -5,7 +5,7 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
-using FluentAssertions;
+using Shouldly;
 using Identity.Base.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -45,7 +45,7 @@ public class UserEndpointsTests : IClassFixture<IdentityApiFactory>
         }, JsonOptions);
 
         var payload = await response.Content.ReadAsStringAsync();
-        response.StatusCode.Should().Be(HttpStatusCode.NoContent, payload);
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent, payload);
 
         // old password should no longer work
         using (var unauthenticatedClient = _factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -63,7 +63,7 @@ public class UserEndpointsTests : IClassFixture<IdentityApiFactory>
             });
 
             var oldPayload = await oldLogin.Content.ReadAsStringAsync();
-            oldLogin.StatusCode.Should().Be(HttpStatusCode.BadRequest, oldPayload);
+            oldLogin.StatusCode.ShouldBe(HttpStatusCode.BadRequest, oldPayload);
         }
 
         using (var unauthenticatedClient = _factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -81,7 +81,7 @@ public class UserEndpointsTests : IClassFixture<IdentityApiFactory>
             });
 
             var newPayload = await newLogin.Content.ReadAsStringAsync();
-            newLogin.StatusCode.Should().Be(HttpStatusCode.OK, newPayload);
+            newLogin.StatusCode.ShouldBe(HttpStatusCode.OK, newPayload);
         }
     }
 
@@ -102,7 +102,7 @@ public class UserEndpointsTests : IClassFixture<IdentityApiFactory>
             confirmNewPassword = "AnotherStrongPass!2345"
         }, JsonOptions);
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
@@ -122,12 +122,12 @@ public class UserEndpointsTests : IClassFixture<IdentityApiFactory>
             confirmNewPassword = "short"
         }, JsonOptions);
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
         var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-        problem.Should().NotBeNull();
-        problem!.Errors.Should().NotBeEmpty();
-        problem.Errors.SelectMany(kvp => kvp.Value).Should().Contain(error => error.Contains("Passwords must be at least", StringComparison.OrdinalIgnoreCase));
+        problem.ShouldNotBeNull();
+        problem!.Errors.ShouldNotBeEmpty();
+        problem.Errors.SelectMany(kvp => kvp.Value).ShouldContain(error => error.Contains("Passwords must be at least", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -148,11 +148,11 @@ public class UserEndpointsTests : IClassFixture<IdentityApiFactory>
             confirmNewPassword = candidatePassword + "mismatch"
         }, JsonOptions);
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
         var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-        problem.Should().NotBeNull();
-        problem!.Errors.Should().ContainKey("ConfirmNewPassword");
+        problem.ShouldNotBeNull();
+        problem!.Errors.ShouldContainKey("ConfirmNewPassword");
     }
 
     private async Task SeedUserAsync(string email, string password, bool confirmEmail)
@@ -172,7 +172,7 @@ public class UserEndpointsTests : IClassFixture<IdentityApiFactory>
             };
 
             var createResult = await userManager.CreateAsync(user, password);
-            createResult.Succeeded.Should().BeTrue(createResult.Errors.FirstOrDefault()?.Description);
+            createResult.Succeeded.ShouldBeTrue(createResult.Errors.FirstOrDefault()?.Description);
         }
         else
         {
@@ -200,7 +200,7 @@ public class UserEndpointsTests : IClassFixture<IdentityApiFactory>
         }, JsonOptions);
 
         var payload = await loginResponse.Content.ReadAsStringAsync();
-        loginResponse.StatusCode.Should().Be(HttpStatusCode.OK, payload);
+        loginResponse.StatusCode.ShouldBe(HttpStatusCode.OK, payload);
 
         return client;
     }

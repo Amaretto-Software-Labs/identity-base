@@ -75,7 +75,7 @@ Introduce Serilog logging baseline and initial test project.
 
 **Acceptance Criteria**
 - Serilog configured with console sink and request logging.
-- `Identity.Base.Tests` project created with xUnit + FluentAssertions references and sample test verifying `/healthz`.
+- `Identity.Base.Tests` project created with xUnit + Shouldly references and sample test verifying `/healthz`.
 - CI placeholder workflow documented (GitHub Actions or equivalent) describing build/test steps.
 
 **Tasks**

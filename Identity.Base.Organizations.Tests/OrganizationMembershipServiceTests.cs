@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Identity.Base.Data;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Data;
@@ -26,12 +26,13 @@ public class OrganizationMembershipServiceTests
             RoleIds = new[] { role.Id }
         });
 
-        membership.IsPrimary.Should().BeTrue();
-        membership.RoleAssignments.Should().ContainSingle().Which.RoleId.Should().Be(role.Id);
+        membership.IsPrimary.ShouldBeTrue();
+        var assignment = membership.RoleAssignments.ShouldHaveSingleItem();
+        assignment.RoleId.ShouldBe(role.Id);
 
         var stored = await context.OrganizationMemberships.Include(m => m.RoleAssignments).FirstOrDefaultAsync();
-        stored.Should().NotBeNull();
-        stored!.RoleAssignments.Should().ContainSingle();
+        stored.ShouldNotBeNull();
+        stored!.RoleAssignments.ShouldHaveSingleItem();
     }
 
     [Fact]
@@ -48,11 +49,11 @@ public class OrganizationMembershipServiceTests
             UserId = userId
         });
 
-        await FluentActions.Invoking(() => service.AddMemberAsync(new OrganizationMembershipRequest
+        await Should.ThrowAsync<InvalidOperationException>(() => service.AddMemberAsync(new OrganizationMembershipRequest
         {
             OrganizationId = organization.Id,
             UserId = userId
-        })).Should().ThrowAsync<InvalidOperationException>();
+        }));
     }
 
     [Fact]
@@ -77,8 +78,9 @@ public class OrganizationMembershipServiceTests
             RoleIds = new[] { role.Id }
         });
 
-        updated.IsPrimary.Should().BeTrue();
-        updated.RoleAssignments.Should().ContainSingle().Which.RoleId.Should().Be(role.Id);
+        updated.IsPrimary.ShouldBeTrue();
+        var updatedAssignment = updated.RoleAssignments.ShouldHaveSingleItem();
+        updatedAssignment.RoleId.ShouldBe(role.Id);
     }
 
     [Fact]
@@ -97,7 +99,7 @@ public class OrganizationMembershipServiceTests
 
         await service.RemoveMemberAsync(organization.Id, userId);
 
-        (await context.OrganizationMemberships.CountAsync()).Should().Be(0);
+        (await context.OrganizationMemberships.CountAsync()).ShouldBe(0);
     }
 
     private static OrganizationDbContext CreateContext(out AppDbContext appContext, out Organization organization, out OrganizationRole role)

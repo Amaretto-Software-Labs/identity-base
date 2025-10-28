@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Identity.Base.Logging;
 using Xunit;
 
@@ -14,13 +14,13 @@ public class LogSanitizerTests
     [InlineData("invalid", "[redacted]")]
     public void RedactEmail_MasksLocalPart(string input, string expected)
     {
-        _sanitizer.RedactEmail(input).Should().Be(expected);
+        _sanitizer.RedactEmail(input).ShouldBe(expected);
     }
 
     [Fact]
     public void RedactEmail_AllowsNull()
     {
-        _sanitizer.RedactEmail(null).Should().BeNull();
+        _sanitizer.RedactEmail(null).ShouldBeNull();
     }
 
     [Theory]
@@ -29,12 +29,12 @@ public class LogSanitizerTests
     [InlineData("abc", "[redacted]")]
     public void RedactPhoneNumber_ShowsLastDigits(string input, string expected)
     {
-        _sanitizer.RedactPhoneNumber(input).Should().Be(expected);
+        _sanitizer.RedactPhoneNumber(input).ShouldBe(expected);
     }
 
     [Fact]
     public void RedactToken_AlwaysRedacts()
     {
-        _sanitizer.RedactToken("secret").Should().Be("[redacted]");
+        _sanitizer.RedactToken("secret").ShouldBe("[redacted]");
     }
 }

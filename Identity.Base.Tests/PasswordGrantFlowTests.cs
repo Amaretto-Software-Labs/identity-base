@@ -6,7 +6,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using FluentAssertions;
+using Shouldly;
 using Identity.Base.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -54,10 +54,10 @@ public class PasswordGrantFlowTests : IClassFixture<IdentityApiFactory>
 
         var response = await client.SendAsync(request);
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var json = await response.Content.ReadFromJsonAsync<JsonDocument>();
-        json.Should().NotBeNull();
-        json!.RootElement.GetProperty("access_token").GetString().Should().NotBeNull();
+        json.ShouldNotBeNull();
+        json!.RootElement.GetProperty("access_token").GetString().ShouldNotBeNull();
     }
 
     [Fact]
@@ -83,10 +83,10 @@ public class PasswordGrantFlowTests : IClassFixture<IdentityApiFactory>
 
         var response = await client.SendAsync(request);
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var json = await response.Content.ReadFromJsonAsync<JsonDocument>();
-        json.Should().NotBeNull();
-        json!.RootElement.GetProperty("error").GetString().Should().Be("unauthorized_client");
+        json.ShouldNotBeNull();
+        json!.RootElement.GetProperty("error").GetString().ShouldBe("unauthorized_client");
     }
 
     private async Task SeedUserAsync(string email, string password)
@@ -105,7 +105,7 @@ public class PasswordGrantFlowTests : IClassFixture<IdentityApiFactory>
             };
 
             var result = await userManager.CreateAsync(user, password);
-            result.Succeeded.Should().BeTrue();
+            result.Succeeded.ShouldBeTrue();
         }
         else if (!user.EmailConfirmed)
         {

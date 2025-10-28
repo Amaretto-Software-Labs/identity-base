@@ -11,7 +11,7 @@ using Identity.Base.Roles.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using FluentAssertions;
+using Shouldly;
 
 namespace Identity.Base.Tests.Roles;
 
@@ -56,9 +56,9 @@ public class DefaultUserRoleAssignmentListenerTests
         await listener.OnUserCreatedAsync(user);
 
         var userRoles = await context.UserRoles.Where(ur => ur.UserId == user.Id).ToListAsync();
-        userRoles.Should().HaveCount(1);
+        userRoles.Count.ShouldBe(1);
         var role = await context.Roles.FindAsync(userRoles[0].RoleId);
-        role!.Name.Should().Be("StandardUser");
+        role!.Name.ShouldBe("StandardUser");
     }
 
     [Fact]
@@ -75,6 +75,6 @@ public class DefaultUserRoleAssignmentListenerTests
         await listener.OnUserCreatedAsync(user);
 
         var userRoles = await context.UserRoles.Where(ur => ur.UserId == user.Id).ToListAsync();
-        userRoles.Should().BeEmpty();
+        userRoles.ShouldBeEmpty();
     }
 }

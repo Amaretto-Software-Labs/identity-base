@@ -7,7 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using FluentAssertions;
+using Shouldly;
 using Identity.Base.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -39,11 +39,11 @@ public class LoginEndpointTests : IClassFixture<IdentityApiFactory>
         using var client = CreateClientWithCookies();
 
         var discovery = await client.GetAsync("/.well-known/openid-configuration");
-        discovery.StatusCode.Should().Be(HttpStatusCode.OK, "discovery endpoint should be available");
+        discovery.StatusCode.ShouldBe(HttpStatusCode.OK, "discovery endpoint should be available");
         var discoveryDocument = await discovery.Content.ReadFromJsonAsync<JsonDocument>();
-        discoveryDocument.Should().NotBeNull();
+        discoveryDocument.ShouldNotBeNull();
         discoveryDocument!.RootElement.GetProperty("authorization_endpoint").GetString()
-            .Should().Be("https://localhost/connect/authorize");
+            .ShouldBe("https://localhost/connect/authorize");
 
         var loginResponse = await client.PostAsJsonAsync("/auth/login", new
         {
@@ -53,7 +53,7 @@ public class LoginEndpointTests : IClassFixture<IdentityApiFactory>
         });
 
         var loginPayload = await loginResponse.Content.ReadFromJsonAsync<JsonDocument>();
-        loginResponse.StatusCode.Should().Be(HttpStatusCode.OK, loginPayload?.RootElement.ToString());
+        loginResponse.StatusCode.ShouldBe(HttpStatusCode.OK, loginPayload?.RootElement.ToString());
 
         var pkce = PkceData.Create();
         var state = Guid.NewGuid().ToString("N");
@@ -72,18 +72,17 @@ public class LoginEndpointTests : IClassFixture<IdentityApiFactory>
 
         using var authorizeResponse = await client.GetAsync(authorizeUrl);
         var authorizePayload = await authorizeResponse.Content.ReadAsStringAsync();
-        authorizeResponse.StatusCode.Should().Be(
+        authorizeResponse.StatusCode.ShouldBe(
             HttpStatusCode.Redirect,
-            "Response content: {0}",
-            authorizePayload);
-        authorizeResponse.Headers.Location.Should().NotBeNull();
+            $"Response content: {authorizePayload}");
+        authorizeResponse.Headers.Location.ShouldNotBeNull();
 
         var location = authorizeResponse.Headers.Location!;
         var callbackQuery = QueryHelpers.ParseQuery(location.Query);
 
-        callbackQuery.Should().ContainKey(OpenIddictConstants.Parameters.Code);
-        callbackQuery.Should().ContainKey(OpenIddictConstants.Parameters.State);
-        callbackQuery[OpenIddictConstants.Parameters.State].ToString().Should().Be(state);
+        callbackQuery.ShouldContainKey(OpenIddictConstants.Parameters.Code);
+        callbackQuery.ShouldContainKey(OpenIddictConstants.Parameters.State);
+        callbackQuery[OpenIddictConstants.Parameters.State].ToString().ShouldBe(state);
 
         var authorizationCode = callbackQuery[OpenIddictConstants.Parameters.Code].ToString();
 
@@ -98,13 +97,13 @@ public class LoginEndpointTests : IClassFixture<IdentityApiFactory>
         }));
 
         var tokenPayloadJson = await tokenResponse.Content.ReadAsStringAsync();
-        tokenResponse.IsSuccessStatusCode.Should().BeTrue(tokenPayloadJson);
+        tokenResponse.IsSuccessStatusCode.ShouldBeTrue(tokenPayloadJson);
 
         var tokenPayload = JsonSerializer.Deserialize<TokenResponse>(tokenPayloadJson, JsonOptions);
-        tokenPayload.Should().NotBeNull();
-        tokenPayload!.AccessToken.Should().NotBeNullOrWhiteSpace();
-        tokenPayload.RefreshToken.Should().NotBeNullOrWhiteSpace();
-        tokenPayload.TokenType.Should().Be("Bearer");
+        tokenPayload.ShouldNotBeNull();
+        tokenPayload!.AccessToken.ShouldNotBeNullOrWhiteSpace();
+        tokenPayload.RefreshToken.ShouldNotBeNullOrWhiteSpace();
+        tokenPayload.TokenType.ShouldBe("Bearer");
 
         using var refreshResponse = await client.PostAsync("/connect/token", new FormUrlEncodedContent(new Dictionary<string, string>
         {
@@ -114,13 +113,13 @@ public class LoginEndpointTests : IClassFixture<IdentityApiFactory>
         }));
 
         var refreshPayloadJson = await refreshResponse.Content.ReadAsStringAsync();
-        refreshResponse.IsSuccessStatusCode.Should().BeTrue(refreshPayloadJson);
+        refreshResponse.IsSuccessStatusCode.ShouldBeTrue(refreshPayloadJson);
 
         var refreshPayload = JsonSerializer.Deserialize<TokenResponse>(refreshPayloadJson, JsonOptions);
-        refreshPayload.Should().NotBeNull();
-        refreshPayload!.AccessToken.Should().NotBeNullOrWhiteSpace();
-        refreshPayload.RefreshToken.Should().NotBeNullOrWhiteSpace();
-        refreshPayload.AccessToken.Should().NotBe(tokenPayload.AccessToken);
+        refreshPayload.ShouldNotBeNull();
+        refreshPayload!.AccessToken.ShouldNotBeNullOrWhiteSpace();
+        refreshPayload.RefreshToken.ShouldNotBeNullOrWhiteSpace();
+        refreshPayload.AccessToken.ShouldNotBe(tokenPayload.AccessToken);
     }
 
     [Fact]
@@ -141,8 +140,8 @@ public class LoginEndpointTests : IClassFixture<IdentityApiFactory>
         });
 
         var payloadJson = await response.Content.ReadAsStringAsync();
-        response.IsSuccessStatusCode.Should().BeFalse(payloadJson);
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.IsSuccessStatusCode.ShouldBeFalse(payloadJson);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
@@ -163,10 +162,10 @@ public class LoginEndpointTests : IClassFixture<IdentityApiFactory>
         });
 
         var payload = await response.Content.ReadFromJsonAsync<JsonDocument>();
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest, payload?.RootElement.ToString());
-        payload.Should().NotBeNull();
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, payload?.RootElement.ToString());
+        payload.ShouldNotBeNull();
         payload!.RootElement.GetProperty("detail").GetString()
-            .Should().Be("Invalid credentials.");
+            .ShouldBe("Invalid credentials.");
     }
 
     private HttpClient CreateClientWithCookies()
@@ -197,7 +196,7 @@ public class LoginEndpointTests : IClassFixture<IdentityApiFactory>
             };
 
             var createResult = await userManager.CreateAsync(user, password);
-            createResult.Succeeded.Should().BeTrue();
+            createResult.Succeeded.ShouldBeTrue();
         }
         else if (confirmEmail && !user.EmailConfirmed)
         {

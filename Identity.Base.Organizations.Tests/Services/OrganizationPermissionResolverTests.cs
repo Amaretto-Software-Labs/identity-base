@@ -1,4 +1,5 @@
-using FluentAssertions;
+using System.Linq;
+using Shouldly;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Domain;
@@ -33,7 +34,8 @@ public class OrganizationPermissionResolverTests
 
         var permissions = await resolver.GetPermissionsAsync(organizationId, userId);
 
-        permissions.Should().BeEquivalentTo(new[] { "users.read", permissionName });
+        permissions.OrderBy(x => x).ToArray()
+            .ShouldBe(new[] { "users.read", permissionName }.OrderBy(x => x).ToArray());
     }
 
     [Fact]
@@ -55,7 +57,7 @@ public class OrganizationPermissionResolverTests
 
         var permissions = await resolver.GetOrganizationPermissionsAsync(organizationId, userId);
 
-        permissions.Should().BeEmpty();
+        permissions.ShouldBeEmpty();
     }
 
     private static OrganizationDbContext CreateOrganizationDbContext()

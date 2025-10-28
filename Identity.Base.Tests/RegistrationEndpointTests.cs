@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using FluentAssertions;
+using Shouldly;
 using Identity.Base.Data;
 using Identity.Base.Features.Email;
 using Microsoft.EntityFrameworkCore;
@@ -47,13 +47,13 @@ public class RegistrationEndpointTests : IClassFixture<IdentityApiFactory>
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         var createdUser = await dbContext.Users.SingleAsync(user => user.Email == uniqueEmail);
-        createdUser.DisplayName.Should().Be("New User");
-        createdUser.ProfileMetadata.Values.Should().ContainKey("company");
-        createdUser.ProfileMetadata.Values["company"].Should().Be("Acme");
+        createdUser.DisplayName.ShouldBe("New User");
+        createdUser.ProfileMetadata.Values.ShouldContainKey("company");
+        createdUser.ProfileMetadata.Values["company"].ShouldBe("Acme");
 
-        var email = _factory.EmailSender.Sent.Should().ContainSingle().Subject;
-        email.ToEmail.Should().Be(uniqueEmail);
-        email.TemplateKey.Should().Be(TemplatedEmailKeys.AccountConfirmation);
-        email.Variables.Should().ContainKey("confirmationUrl");
+        var email = _factory.EmailSender.Sent.ShouldHaveSingleItem();
+        email.ToEmail.ShouldBe(uniqueEmail);
+        email.TemplateKey.ShouldBe(TemplatedEmailKeys.AccountConfirmation);
+        email.Variables.ShouldContainKey("confirmationUrl");
     }
 }

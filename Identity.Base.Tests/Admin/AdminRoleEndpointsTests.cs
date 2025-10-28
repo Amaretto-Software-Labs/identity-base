@@ -7,7 +7,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
-using FluentAssertions;
+using Shouldly;
 using Identity.Base.Identity;
 using Identity.Base.Roles.Abstractions;
 using Identity.Base.Roles.Configuration;
@@ -39,11 +39,11 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
         using var client = CreateAuthorizedClient(token);
         var response = await client.GetAsync("/admin/roles");
         var responseBody = await response.Content.ReadAsStringAsync();
-        response.StatusCode.Should().Be(HttpStatusCode.OK, responseBody);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, responseBody);
 
         var payload = JsonSerializer.Deserialize<AdminRoleListResponseDto>(responseBody, JsonOptions);
-        payload.Should().NotBeNull(responseBody);
-        payload!.Roles.Should().Contain(role => role.Name == "IdentityAdmin");
+        payload.ShouldNotBeNull(responseBody);
+        payload!.Roles.ShouldContain(role => role.Name == "IdentityAdmin");
     }
 
     [Fact]
@@ -72,16 +72,17 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
         using var client = CreateAuthorizedClient(token);
         var response = await client.GetAsync("/admin/roles?page=2&pageSize=500&sort=name:desc");
         var responseBody = await response.Content.ReadAsStringAsync();
-        response.StatusCode.Should().Be(HttpStatusCode.OK, responseBody);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, responseBody);
 
         var payload = JsonSerializer.Deserialize<AdminRoleListResponseDto>(responseBody, JsonOptions);
-        payload.Should().NotBeNull();
-        payload!.Page.Should().Be(2);
-        payload.PageSize.Should().Be(200);
-        payload.TotalCount.Should().Be(expectedTotal);
-        payload.Roles.Should().HaveCount(expectedNames.Count);
+        payload.ShouldNotBeNull();
+        payload!.Page.ShouldBe(2);
+        payload.PageSize.ShouldBe(200);
+        payload.TotalCount.ShouldBe(expectedTotal);
+        payload.Roles.Count.ShouldBe(expectedNames.Count);
         payload.Roles.Select(role => role.Name)
-            .Should().BeEquivalentTo(expectedNames, options => options.WithStrictOrdering());
+            .ToList()
+            .ShouldBe(expectedNames);
     }
 
     [Fact]
@@ -98,16 +99,17 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
         }, JsonOptions);
 
         var payload = await response.Content.ReadAsStringAsync();
-        response.StatusCode.Should().Be(HttpStatusCode.Created, payload);
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, payload);
 
         var created = await response.Content.ReadFromJsonAsync<AdminRoleDetailDto>(JsonOptions);
-        created.Should().NotBeNull();
-        created!.Permissions.Should().BeEquivalentTo(new[] { "users.read", "users.update" });
+        created.ShouldNotBeNull();
+        created!.Permissions.OrderBy(permission => permission).ToArray()
+            .ShouldBe(new[] { "users.read", "users.update" }.OrderBy(permission => permission).ToArray());
 
         using var scope = _factory.Services.CreateScope();
         var roleDb = scope.ServiceProvider.GetRequiredService<IRoleDbContext>();
         var role = await roleDb.Roles.FirstOrDefaultAsync(r => r.Name == "SupportSupervisor");
-        role.Should().NotBeNull();
+        role.ShouldNotBeNull();
     }
 
     [Fact]
@@ -123,7 +125,7 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
         };
 
         var response = await client.PutAsJsonAsync($"/admin/roles/{roleId:D}", badRequest, JsonOptions);
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
 
         var updateResponse = await client.PutAsJsonAsync($"/admin/roles/{roleId:D}", new
         {
@@ -133,10 +135,10 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
         }, JsonOptions);
 
         var payload = await updateResponse.Content.ReadAsStringAsync();
-        updateResponse.StatusCode.Should().Be(HttpStatusCode.OK, payload);
+        updateResponse.StatusCode.ShouldBe(HttpStatusCode.OK, payload);
         var updated = await updateResponse.Content.ReadFromJsonAsync<AdminRoleDetailDto>(JsonOptions);
-        updated.Should().NotBeNull();
-        updated!.Description.Should().Be("Updated description");
+        updated.ShouldNotBeNull();
+        updated!.Description.ShouldBe("Updated description");
     }
 
     [Fact]
@@ -147,13 +149,13 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
 
         var listResponse = await client.GetAsync("/admin/roles");
         var listBody = await listResponse.Content.ReadAsStringAsync();
-        listResponse.StatusCode.Should().Be(HttpStatusCode.OK, listBody);
+        listResponse.StatusCode.ShouldBe(HttpStatusCode.OK, listBody);
         var list = JsonSerializer.Deserialize<AdminRoleListResponseDto>(listBody, JsonOptions);
-        list.Should().NotBeNull(listBody);
+        list.ShouldNotBeNull(listBody);
         var systemRole = list!.Roles.First(role => role.Name == "IdentityAdmin");
 
         var response = await client.DeleteAsync($"/admin/roles/{systemRole.Id:D}");
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
     }
 
     [Fact]
@@ -172,7 +174,7 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
 
         using var client = CreateAuthorizedClient(token);
         var response = await client.DeleteAsync($"/admin/roles/{roleId:D}");
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
     }
 
     [Fact]
@@ -182,7 +184,7 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
         using var client = CreateAuthorizedClient(token);
 
         var response = await client.DeleteAsync($"/admin/roles/{roleId:D}");
-        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
 
     private static async Task SeedRolesAsync(IRoleDbContext context, string prefix, int count)
@@ -246,9 +248,9 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
         }, JsonOptions);
 
         var payload = await response.Content.ReadAsStringAsync();
-        response.StatusCode.Should().Be(HttpStatusCode.Created, payload);
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, payload);
         var detail = await response.Content.ReadFromJsonAsync<AdminRoleDetailDto>(JsonOptions);
-        detail.Should().NotBeNull();
+        detail.ShouldNotBeNull();
         return (detail!.Id, roleName, detail.ConcurrencyStamp, token);
     }
 
@@ -271,7 +273,7 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
             };
 
             var result = await userManager.CreateAsync(user, password);
-            result.Succeeded.Should().BeTrue(result.Errors.FirstOrDefault()?.Description);
+            result.Succeeded.ShouldBeTrue(result.Errors.FirstOrDefault()?.Description);
             await roleAssignment.AssignRolesAsync(user.Id, new[] { "IdentityAdmin" });
             existing = user;
         }
@@ -297,7 +299,7 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
         }));
 
         var payloadJson = await tokenResponse.Content.ReadAsStringAsync();
-        tokenResponse.StatusCode.Should().Be(HttpStatusCode.OK, payloadJson);
+        tokenResponse.StatusCode.ShouldBe(HttpStatusCode.OK, payloadJson);
         var tokenPayload = JsonDocument.Parse(payloadJson);
         var accessToken = tokenPayload.RootElement.GetProperty("access_token").GetString();
         return (existing!.Id, accessToken!);

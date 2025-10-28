@@ -6,7 +6,7 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using FluentAssertions;
+using Shouldly;
 using Identity.Base.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.WebUtilities;
@@ -44,7 +44,7 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
             [OpenIddictConstants.Parameters.ClientId] = "spa-client",
             [OpenIddictConstants.Parameters.RedirectUri] = redirectUri,
             [OpenIddictConstants.Parameters.Scope] = "openid profile email",
-            [OpenIddictConstants.Parameters.Prompt] = OpenIddictConstants.Prompts.None,
+            [OpenIddictConstants.Parameters.Prompt] = OpenIddictConstants.PromptValues.None,
             [OpenIddictConstants.Parameters.State] = state,
             [OpenIddictConstants.Parameters.CodeChallenge] = pkce.CodeChallenge,
             [OpenIddictConstants.Parameters.CodeChallengeMethod] = OpenIddictConstants.CodeChallengeMethods.Sha256
@@ -53,16 +53,16 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
         var authorizeUrl = QueryHelpers.AddQueryString("/connect/authorize", query);
 
         using var response = await client.GetAsync(authorizeUrl);
-        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
-        response.Headers.Location.Should().NotBeNull();
+        response.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        response.Headers.Location.ShouldNotBeNull();
 
         var location = response.Headers.Location!;
-        location.AbsoluteUri.Should().StartWith(redirectUri);
+        location.AbsoluteUri.ShouldStartWith(redirectUri);
 
         var callbackQuery = QueryHelpers.ParseQuery(location.Query);
-        callbackQuery[OpenIddictConstants.Parameters.Error].ToString().Should().Be(OpenIddictConstants.Errors.LoginRequired);
-        callbackQuery[OpenIddictConstants.Parameters.State].ToString().Should().Be(state);
-        callbackQuery.Should().ContainKey(OpenIddictConstants.Parameters.ErrorDescription);
+        callbackQuery[OpenIddictConstants.Parameters.Error].ToString().ShouldBe(OpenIddictConstants.Errors.LoginRequired);
+        callbackQuery[OpenIddictConstants.Parameters.State].ToString().ShouldBe(state);
+        callbackQuery.ShouldContainKey(OpenIddictConstants.Parameters.ErrorDescription);
     }
 
     [Fact]
@@ -89,8 +89,8 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
 
         using var response = await client.GetAsync(authorizeUrl);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-        response.Headers.WwwAuthenticate.ToString().Should().Contain("login_required");
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        response.Headers.WwwAuthenticate.ToString().ShouldContain("login_required");
     }
 
     [Fact]
@@ -115,18 +115,18 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
             [OpenIddictConstants.Parameters.CodeChallenge] = pkce.CodeChallenge,
             [OpenIddictConstants.Parameters.CodeChallengeMethod] = OpenIddictConstants.CodeChallengeMethods.Sha256,
             [OpenIddictConstants.Parameters.State] = state,
-            [OpenIddictConstants.Parameters.Prompt] = OpenIddictConstants.Prompts.Consent
+            [OpenIddictConstants.Parameters.Prompt] = OpenIddictConstants.PromptValues.Consent
         });
 
         using var response = await client.GetAsync(authorizeUrl);
-        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
-        response.Headers.Location.Should().NotBeNull();
+        response.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        response.Headers.Location.ShouldNotBeNull();
 
         var location = response.Headers.Location!;
         var callbackQuery = QueryHelpers.ParseQuery(location.Query);
 
-        callbackQuery.Should().ContainKey(OpenIddictConstants.Parameters.Code);
-        callbackQuery[OpenIddictConstants.Parameters.State].ToString().Should().Be(state);
+        callbackQuery.ShouldContainKey(OpenIddictConstants.Parameters.Code);
+        callbackQuery[OpenIddictConstants.Parameters.State].ToString().ShouldBe(state);
     }
 
     [Fact]
@@ -155,12 +155,12 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
 
         using (var authorizeResponse = await client.GetAsync(authorizeUrl))
         {
-            authorizeResponse.StatusCode.Should().Be(HttpStatusCode.Redirect);
+            authorizeResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
         }
 
         using (var logoutResponse = await client.PostAsync("/auth/logout", new StringContent(string.Empty)))
         {
-            logoutResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            logoutResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
 
         var secondAuthorizeUrl = QueryHelpers.AddQueryString("/connect/authorize", new Dictionary<string, string?>
@@ -175,7 +175,7 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
         });
 
         using var unauthorizedResponse = await client.GetAsync(secondAuthorizeUrl);
-        unauthorizedResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        unauthorizedResponse.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
     private async Task SeedUserAsync(string email, string password, bool confirmEmail)
@@ -194,7 +194,7 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
             };
 
             var createResult = await userManager.CreateAsync(user, password);
-            createResult.Succeeded.Should().BeTrue();
+            createResult.Succeeded.ShouldBeTrue();
         }
         else if (confirmEmail && !user.EmailConfirmed)
         {
@@ -227,7 +227,7 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
         });
 
         var loginPayload = await loginResponse.Content.ReadAsStringAsync();
-        loginResponse.IsSuccessStatusCode.Should().BeTrue(loginPayload);
+        loginResponse.IsSuccessStatusCode.ShouldBeTrue(loginPayload);
 
         return client;
     }

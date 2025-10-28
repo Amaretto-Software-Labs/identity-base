@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using FluentAssertions;
+using Shouldly;
 using Microsoft.Extensions.DependencyInjection;
 using OpenIddict.Abstractions;
 using Xunit;
@@ -22,7 +22,7 @@ public class OpenIddictSeedingTests : IClassFixture<IdentityApiFactory>
         var applicationManager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
 
         var application = await applicationManager.FindByClientIdAsync("test-client");
-        application.Should().NotBeNull();
+        application.ShouldNotBeNull();
     }
 
     [Fact]
@@ -32,7 +32,7 @@ public class OpenIddictSeedingTests : IClassFixture<IdentityApiFactory>
         var scopeManager = scope.ServiceProvider.GetRequiredService<IOpenIddictScopeManager>();
 
         var scopeEntity = await scopeManager.FindByNameAsync("identity.api");
-        scopeEntity.Should().NotBeNull();
+        scopeEntity.ShouldNotBeNull();
     }
 
     [Fact]
@@ -42,13 +42,13 @@ public class OpenIddictSeedingTests : IClassFixture<IdentityApiFactory>
         var applicationManager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
 
         var allowed = await applicationManager.FindByClientIdAsync("test-client");
-        allowed.Should().NotBeNull();
+        allowed.ShouldNotBeNull();
         var allowedPermissions = await applicationManager.GetPermissionsAsync(allowed!);
-        allowedPermissions.Should().Contain(OpenIddictConstants.Permissions.GrantTypes.Password);
+        allowedPermissions.ShouldContain(OpenIddictConstants.Permissions.GrantTypes.Password);
 
         var disallowed = await applicationManager.FindByClientIdAsync("spa-client");
-        disallowed.Should().NotBeNull();
+        disallowed.ShouldNotBeNull();
         var disallowedPermissions = await applicationManager.GetPermissionsAsync(disallowed!);
-        disallowedPermissions.Should().NotContain(OpenIddictConstants.Permissions.GrantTypes.Password);
+        disallowedPermissions.ShouldNotContain(OpenIddictConstants.Permissions.GrantTypes.Password);
     }
 }

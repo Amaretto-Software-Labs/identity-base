@@ -8,7 +8,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using FluentAssertions;
+using Shouldly;
 using Identity.Base.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -39,12 +39,12 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
         using var client = await CreateAuthenticatedClientAsync(email, password);
 
         using var enrollResponse = await client.PostAsync("/auth/mfa/enroll", null);
-        enrollResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        enrollResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var enrollPayload = await enrollResponse.Content.ReadFromJsonAsync<JsonDocument>();
-        enrollPayload.Should().NotBeNull();
-        enrollPayload!.RootElement.TryGetProperty("sharedKey", out _).Should().BeTrue();
-        enrollPayload.RootElement.TryGetProperty("authenticatorUri", out _).Should().BeTrue();
+        enrollPayload.ShouldNotBeNull();
+        enrollPayload!.RootElement.TryGetProperty("sharedKey", out _).ShouldBeTrue();
+        enrollPayload.RootElement.TryGetProperty("authenticatorUri", out _).ShouldBeTrue();
 
         var code = await GenerateAuthenticatorCodeAsync(email);
 
@@ -53,13 +53,13 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
             code
         });
 
-        verifyResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        verifyResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
         var payload = await verifyResponse.Content.ReadFromJsonAsync<JsonDocument>();
-        payload.Should().NotBeNull();
-        payload!.RootElement.TryGetProperty("recoveryCodes", out var codesElement).Should().BeTrue();
-        codesElement.GetArrayLength().Should().Be(10);
+        payload.ShouldNotBeNull();
+        payload!.RootElement.TryGetProperty("recoveryCodes", out var codesElement).ShouldBeTrue();
+        codesElement.GetArrayLength().ShouldBe(10);
 
-        (await GetUserAsync(email)).TwoFactorEnabled.Should().BeTrue();
+        (await GetUserAsync(email)).TwoFactorEnabled.ShouldBeTrue();
     }
 
     [Fact]
@@ -84,19 +84,19 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
             clientId = "spa-client"
         });
 
-        loginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        loginResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
         var loginPayload = await loginResponse.Content.ReadFromJsonAsync<JsonDocument>();
-        loginPayload.Should().NotBeNull();
-        loginPayload!.RootElement.GetProperty("requiresTwoFactor").GetBoolean().Should().BeTrue();
+        loginPayload.ShouldNotBeNull();
+        loginPayload!.RootElement.GetProperty("requiresTwoFactor").GetBoolean().ShouldBeTrue();
         var methods = loginPayload.RootElement.GetProperty("methods").EnumerateArray().Select(element => element!.GetString()).ToList();
-        methods.Should().Contain("authenticator");
-        methods.Should().Contain("sms");
-        methods.Should().Contain("email");
+        methods.ShouldContain("authenticator");
+        methods.ShouldContain("sms");
+        methods.ShouldContain("email");
 
         var code = await GenerateAuthenticatorCodeAsync(email);
         var verifyResponse = await client.PostAsJsonAsync("/auth/mfa/verify", new { code, rememberMachine = true });
         var verifyBody = await verifyResponse.Content.ReadAsStringAsync();
-        verifyResponse.StatusCode.Should().Be(HttpStatusCode.OK, verifyBody);
+        verifyResponse.StatusCode.ShouldBe(HttpStatusCode.OK, verifyBody);
 
         // After successful MFA, user should be able to hit authorize endpoint.
         var pkce = MfaPkceData.Create();
@@ -112,7 +112,7 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
         });
 
         using var authorizeResponse = await client.GetAsync(authorizeUrl);
-        authorizeResponse.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        authorizeResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
     }
 
     [Fact]
@@ -126,9 +126,9 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
         using var client = await CreateAuthenticatedClientAsync(email, password);
 
         var disableResponse = await client.PostAsync("/auth/mfa/disable", null);
-        disableResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        disableResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        (await GetUserAsync(email)).TwoFactorEnabled.Should().BeFalse();
+        (await GetUserAsync(email)).TwoFactorEnabled.ShouldBeFalse();
     }
 
     [Fact]
@@ -142,16 +142,16 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
         using var client = await CreateAuthenticatedClientAsync(email, password);
 
         var initialCodes = await client.PostAsync("/auth/mfa/recovery-codes", null);
-        initialCodes.StatusCode.Should().Be(HttpStatusCode.OK);
+        initialCodes.StatusCode.ShouldBe(HttpStatusCode.OK);
         var initialPayload = await initialCodes.Content.ReadFromJsonAsync<JsonDocument>();
         var firstCode = initialPayload!.RootElement.GetProperty("recoveryCodes")[0].GetString();
 
         var secondResponse = await client.PostAsync("/auth/mfa/recovery-codes", null);
-        secondResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        secondResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
         var secondPayload = await secondResponse.Content.ReadFromJsonAsync<JsonDocument>();
         var secondFirstCode = secondPayload!.RootElement.GetProperty("recoveryCodes")[0].GetString();
 
-        secondFirstCode.Should().NotBe(firstCode);
+        secondFirstCode.ShouldNotBe(firstCode);
     }
 
     [Fact]
@@ -166,8 +166,8 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
         {
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var storedUser = await userManager.FindByEmailAsync(email);
-            storedUser.Should().NotBeNull();
-            (await userManager.SetTwoFactorEnabledAsync(storedUser!, true)).Succeeded.Should().BeTrue();
+            storedUser.ShouldNotBeNull();
+            (await userManager.SetTwoFactorEnabledAsync(storedUser!, true)).Succeeded.ShouldBeTrue();
         }
 
         using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -185,21 +185,21 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
             clientId = "spa-client"
         });
 
-        loginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        loginResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
         var loginPayload = await loginResponse.Content.ReadFromJsonAsync<JsonDocument>();
-        loginPayload.Should().NotBeNull();
-        loginPayload!.RootElement.GetProperty("requiresTwoFactor").GetBoolean().Should().BeTrue();
+        loginPayload.ShouldNotBeNull();
+        loginPayload!.RootElement.GetProperty("requiresTwoFactor").GetBoolean().ShouldBeTrue();
 
         _factory.SmsChallengeSender.Clear();
 
         var challengeResponse = await client.PostAsJsonAsync("/auth/mfa/challenge", new { method = "sms" });
-        challengeResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        challengeResponse.StatusCode.ShouldBe(HttpStatusCode.Accepted);
 
-        _factory.SmsChallengeSender.Challenges.Should().NotBeEmpty();
+        _factory.SmsChallengeSender.Challenges.ShouldNotBeEmpty();
         var challenge = _factory.SmsChallengeSender.Challenges.Last();
 
         var verifyResponse = await client.PostAsJsonAsync("/auth/mfa/verify", new { code = challenge.Code, method = "sms" });
-        verifyResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        verifyResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -216,8 +216,8 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
         {
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var storedUser = await userManager.FindByEmailAsync(email);
-            storedUser.Should().NotBeNull();
-            (await userManager.SetTwoFactorEnabledAsync(storedUser!, true)).Succeeded.Should().BeTrue();
+            storedUser.ShouldNotBeNull();
+            (await userManager.SetTwoFactorEnabledAsync(storedUser!, true)).Succeeded.ShouldBeTrue();
         }
 
         using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -235,23 +235,23 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
             clientId = "spa-client"
         });
 
-        loginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        loginResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
         var loginPayload = await loginResponse.Content.ReadFromJsonAsync<JsonDocument>();
-        loginPayload.Should().NotBeNull();
-        loginPayload!.RootElement.GetProperty("requiresTwoFactor").GetBoolean().Should().BeTrue();
+        loginPayload.ShouldNotBeNull();
+        loginPayload!.RootElement.GetProperty("requiresTwoFactor").GetBoolean().ShouldBeTrue();
 
         var challengeResponse = await client.PostAsJsonAsync("/auth/mfa/challenge", new { method = "email" });
         var challengeBody = await challengeResponse.Content.ReadAsStringAsync();
-        challengeResponse.StatusCode.Should().Be(HttpStatusCode.Accepted, challengeBody);
+        challengeResponse.StatusCode.ShouldBe(HttpStatusCode.Accepted, challengeBody);
 
-        _factory.EmailSender.Sent.Should().NotBeEmpty();
+        _factory.EmailSender.Sent.ShouldNotBeEmpty();
         var emailPayload = _factory.EmailSender.Sent.Last();
-        emailPayload.Variables.Should().ContainKey("code");
+        emailPayload.Variables.ShouldContainKey("code");
         var challengeCode = emailPayload.Variables["code"]?.ToString();
-        challengeCode.Should().NotBeNullOrWhiteSpace();
+        challengeCode.ShouldNotBeNullOrWhiteSpace();
 
         var verifyResponse = await client.PostAsJsonAsync("/auth/mfa/verify", new { code = challengeCode, method = "email" });
-        verifyResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        verifyResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     private async Task EnableMfaForUserAsync(string email, string password)
@@ -279,9 +279,9 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
             };
 
             var result = await userManager.CreateAsync(user, password);
-            result.Succeeded.Should().BeTrue();
+            result.Succeeded.ShouldBeTrue();
             user = await userManager.FindByEmailAsync(email);
-            user.Should().NotBeNull();
+            user.ShouldNotBeNull();
         }
         else if (confirmEmail && !user.EmailConfirmed)
         {
@@ -300,9 +300,9 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
         if (string.IsNullOrWhiteSpace(user.PhoneNumber))
         {
             var phoneResult = await userManager.SetPhoneNumberAsync(user, "+15005550006");
-            phoneResult.Succeeded.Should().BeTrue();
+            phoneResult.Succeeded.ShouldBeTrue();
             user = await userManager.FindByEmailAsync(email);
-            user.Should().NotBeNull();
+            user.ShouldNotBeNull();
         }
 
         if (!user!.PhoneNumberConfirmed)
@@ -319,9 +319,9 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
         using var scope = _factory.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var user = await userManager.FindByEmailAsync(email);
-        user.Should().NotBeNull();
+        user.ShouldNotBeNull();
         var key = await userManager.GetAuthenticatorKeyAsync(user!);
-        key.Should().NotBeNullOrWhiteSpace();
+        key.ShouldNotBeNullOrWhiteSpace();
         return GenerateTotp(key!);
     }
 
@@ -395,7 +395,7 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
         using var scope = _factory.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var user = await userManager.FindByEmailAsync(email);
-        user.Should().NotBeNull();
+        user.ShouldNotBeNull();
         return user!;
     }
 
@@ -416,7 +416,7 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
             clientId = "spa-client"
         });
 
-        loginResponse.IsSuccessStatusCode.Should().BeTrue();
+        loginResponse.IsSuccessStatusCode.ShouldBeTrue();
 
         var payloadDocument = await loginResponse.Content.ReadFromJsonAsync<JsonDocument>();
         if (payloadDocument is not null &&
@@ -425,7 +425,7 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
         {
             var code = await GenerateAuthenticatorCodeAsync(email);
             var verifyResponse = await client.PostAsJsonAsync("/auth/mfa/verify", new { code });
-            verifyResponse.IsSuccessStatusCode.Should().BeTrue();
+            verifyResponse.IsSuccessStatusCode.ShouldBeTrue();
         }
 
         return client;

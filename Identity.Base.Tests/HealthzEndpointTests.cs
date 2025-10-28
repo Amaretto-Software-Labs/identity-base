@@ -3,7 +3,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
-using FluentAssertions;
+using Shouldly;
 using Identity.Base.Data;
 using Identity.Base.Features.Authentication.Mfa;
 using Identity.Base.Features.Email;
@@ -42,15 +42,15 @@ public class HealthzEndpointTests : IClassFixture<IdentityApiFactory>
 
         var response = await client.GetAsync("/healthz");
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         using var payload = await response.Content.ReadFromJsonAsync<JsonDocument>();
-        payload.Should().NotBeNull();
-        payload!.RootElement.GetProperty("status").GetString().Should().Be("Healthy");
+        payload.ShouldNotBeNull();
+        payload!.RootElement.GetProperty("status").GetString().ShouldBe("Healthy");
 
         var checks = payload.RootElement.GetProperty("checks").EnumerateArray().Select(element => element.GetProperty("name").GetString()).ToList();
-        checks.Should().Contain("database");
-        checks.Should().Contain("externalProviders");
+        checks.ShouldContain("database");
+        checks.ShouldContain("externalProviders");
     }
 }
 

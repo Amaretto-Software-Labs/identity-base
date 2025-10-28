@@ -6,7 +6,7 @@ using Identity.Base.Roles.Entities;
 using Identity.Base.Roles.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using FluentAssertions;
+using Shouldly;
 
 namespace Identity.Base.Tests.Roles;
 
@@ -41,8 +41,8 @@ public class RoleAssignmentServiceTests
 
         // Assert
         var userRoles = await context.UserRoles.Where(ur => ur.UserId == userId).ToListAsync();
-        userRoles.Should().HaveCount(1);
-        userRoles[0].RoleId.Should().Be(roleB.Id);
+        userRoles.Count.ShouldBe(1);
+        userRoles[0].RoleId.ShouldBe(roleB.Id);
     }
 
     [Fact]
@@ -77,6 +77,9 @@ public class RoleAssignmentServiceTests
         var permissions = await service.GetEffectivePermissionsAsync(userId);
 
         // Assert
-        permissions.Should().BeEquivalentTo(new[] { "users.read", "users.update" });
+        permissions
+            .OrderBy(permission => permission)
+            .ToArray()
+            .ShouldBe(new[] { "users.read", "users.update" }.OrderBy(permission => permission).ToArray());
     }
 }

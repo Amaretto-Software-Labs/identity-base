@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentAssertions;
+using Shouldly;
 using Identity.Base.Roles.Services;
 
 namespace Identity.Base.Tests.Roles;
@@ -22,7 +23,7 @@ public class CompositePermissionResolverTests
         var resolver = new CompositePermissionResolver(baseService, additionalSources);
         var permissions = await resolver.GetEffectivePermissionsAsync(Guid.NewGuid());
 
-        permissions.Should().BeEquivalentTo(new[]
+        permissions.ToArray().ShouldBe(new[]
         {
             "users.read",
             "users.update",
@@ -44,7 +45,7 @@ public class CompositePermissionResolverTests
         var resolver = new CompositePermissionResolver(baseService, additionalSources);
         var permissions = await resolver.GetEffectivePermissionsAsync(userId);
 
-        permissions.Should().BeEquivalentTo(new[] { "users.read", "users.manage" });
+        permissions.ToArray().ShouldBe(new[] { "users.read", "users.manage" });
     }
 
     private sealed class StubRoleAssignmentService : IRoleAssignmentService

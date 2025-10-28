@@ -1,4 +1,5 @@
-using FluentAssertions;
+using System.Linq;
+using Shouldly;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Domain;
@@ -27,9 +28,10 @@ public class OrganizationRoleServiceTests
             Name = "Manager"
         });
 
-        role.OrganizationId.Should().Be(organization.Id);
-        role.Name.Should().Be("Manager");
-        role.CreatedAtUtc.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
+        role.OrganizationId.ShouldBe(organization.Id);
+        role.Name.ShouldBe("Manager");
+        var now = DateTimeOffset.UtcNow;
+        role.CreatedAtUtc.ShouldBeInRange(now - TimeSpan.FromSeconds(5), now + TimeSpan.FromSeconds(5));
     }
 
     [Fact]
@@ -43,7 +45,7 @@ public class OrganizationRoleServiceTests
         await service.CreateAsync(new OrganizationRoleCreateRequest { OrganizationId = null, Name = "Shared" });
 
         var roles = await service.ListAsync(null, organization.Id);
-        roles.Should().HaveCount(2);
+        roles.Count.ShouldBe(2);
     }
 
     [Fact]
@@ -56,7 +58,7 @@ public class OrganizationRoleServiceTests
         var role = await service.CreateAsync(new OrganizationRoleCreateRequest { OrganizationId = organization.Id, Name = "Temp" });
         await service.DeleteAsync(role.Id);
 
-        (await context.OrganizationRoles.CountAsync()).Should().Be(0);
+        (await context.OrganizationRoles.CountAsync()).ShouldBe(0);
     }
 
     [Fact]
@@ -106,16 +108,16 @@ public class OrganizationRoleServiceTests
         var service = CreateService(context, roleContext);
         var permissions = await service.GetPermissionsAsync(role.Id, organization.Id);
 
-        permissions.Effective.Should().BeEquivalentTo(new[]
+        permissions.Effective.OrderBy(x => x).ToArray().ShouldBe(new[]
         {
             "organization.roles.manage",
             "organization.roles.read",
-        });
+        }.OrderBy(x => x).ToArray());
 
-        permissions.Explicit.Should().BeEquivalentTo(new[]
+        permissions.Explicit.OrderBy(x => x).ToArray().ShouldBe(new[]
         {
             "organization.roles.manage",
-        });
+        }.OrderBy(x => x).ToArray());
     }
 
     [Fact]
@@ -169,33 +171,33 @@ public class OrganizationRoleServiceTests
 
         var afterUpdate = await service.GetPermissionsAsync(role.Id, organization.Id);
 
-        afterUpdate.Effective.Should().BeEquivalentTo(new[]
+        afterUpdate.Effective.OrderBy(x => x).ToArray().ShouldBe(new[]
         {
             "organization.roles.audit",
             "organization.roles.manage",
             "organization.roles.read",
-        });
+        }.OrderBy(x => x).ToArray());
 
-        afterUpdate.Explicit.Should().BeEquivalentTo(new[]
+        afterUpdate.Explicit.OrderBy(x => x).ToArray().ShouldBe(new[]
         {
             "organization.roles.audit",
             "organization.roles.manage",
-        });
+        }.OrderBy(x => x).ToArray());
 
         await service.UpdatePermissionsAsync(role.Id, organization.Id, new[] { "organization.roles.audit" });
 
         var afterRemoval = await service.GetPermissionsAsync(role.Id, organization.Id);
 
-        afterRemoval.Effective.Should().BeEquivalentTo(new[]
+        afterRemoval.Effective.OrderBy(x => x).ToArray().ShouldBe(new[]
         {
             "organization.roles.audit",
             "organization.roles.read",
-        });
+        }.OrderBy(x => x).ToArray());
 
-        afterRemoval.Explicit.Should().BeEquivalentTo(new[]
+        afterRemoval.Explicit.OrderBy(x => x).ToArray().ShouldBe(new[]
         {
             "organization.roles.audit",
-        });
+        }.OrderBy(x => x).ToArray());
     }
 
     private static OrganizationDbContext CreateContext(out Organization organization)
