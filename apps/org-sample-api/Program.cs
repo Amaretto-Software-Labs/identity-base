@@ -1,4 +1,5 @@
 using OrgSampleApi.Hosting;
+using OrgSampleApi.Hosting.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddOrgSampleServices();

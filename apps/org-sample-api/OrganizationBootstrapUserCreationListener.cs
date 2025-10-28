@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using Identity.Base.Abstractions;
 using Identity.Base.Identity;
 using Identity.Base.Options;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -22,22 +23,31 @@ public sealed class OrganizationBootstrapUserCreationListener : IUserCreationLis
     private readonly IOptions<OrganizationBootstrapOptions> _defaults;
     private readonly IOptions<IdentitySeedOptions> _seedOptions;
     private readonly ILogger<OrganizationBootstrapUserCreationListener> _logger;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
     public OrganizationBootstrapUserCreationListener(
         OrganizationBootstrapService bootstrapService,
         IOptions<OrganizationBootstrapOptions> defaults,
         IOptions<IdentitySeedOptions> seedOptions,
-        ILogger<OrganizationBootstrapUserCreationListener> logger)
+        ILogger<OrganizationBootstrapUserCreationListener> logger,
+        IHttpContextAccessor httpContextAccessor)
     {
         _bootstrapService = bootstrapService ?? throw new ArgumentNullException(nameof(bootstrapService));
         _defaults = defaults ?? throw new ArgumentNullException(nameof(defaults));
         _seedOptions = seedOptions ?? throw new ArgumentNullException(nameof(seedOptions));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
     }
 
     public async Task OnUserCreatedAsync(ApplicationUser user, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(user);
+
+        if (HasInvitationCode())
+        {
+            _logger.LogDebug("Skipping organization bootstrap for user {UserId} because an invitation code is present.", user.Id);
+            return;
+        }
 
         var request = ResolveFromMetadata(user.ProfileMetadata);
         if (request is null && ShouldUseDefaults(user))
@@ -170,5 +180,19 @@ public sealed class OrganizationBootstrapUserCreationListener : IUserCreationLis
             name,
             defaults.Slug,
             metadata);
+    }
+
+    private bool HasInvitationCode()
+    {
+        var context = _httpContextAccessor.HttpContext;
+        if (context?.Items.TryGetValue(Sample.OrgSampleHttpContextKeys.InvitationCode, out var value) == true)
+        {
+            if (value is Guid guid && guid != Guid.Empty)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

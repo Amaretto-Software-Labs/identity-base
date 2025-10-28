@@ -4,39 +4,43 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Identity.Base.Identity;
+using Identity.Base.Logging;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Domain;
 using Microsoft.Extensions.Logging;
 
-namespace OrgSampleApi.Sample.Invitations;
+namespace Identity.Base.Organizations.Services;
 
-public sealed class InvitationService
+public sealed class OrganizationInvitationService
 {
     private static readonly TimeSpan DefaultLifetime = TimeSpan.FromDays(7);
     private static readonly TimeSpan MinimumLifetime = TimeSpan.FromHours(1);
     private static readonly TimeSpan MaximumLifetime = TimeSpan.FromDays(30);
 
-    private readonly IInvitationStore _store;
+    private readonly IOrganizationInvitationStore _store;
     private readonly IOrganizationService _organizationService;
     private readonly IOrganizationMembershipService _membershipService;
     private readonly IOrganizationRoleService _roleService;
-    private readonly ILogger<InvitationService> _logger;
+    private readonly ILogger<OrganizationInvitationService> _logger;
+    private readonly ILogSanitizer _logSanitizer;
 
-    public InvitationService(
-        IInvitationStore store,
+    public OrganizationInvitationService(
+        IOrganizationInvitationStore store,
         IOrganizationService organizationService,
         IOrganizationMembershipService membershipService,
         IOrganizationRoleService roleService,
-        ILogger<InvitationService> logger)
+        ILogger<OrganizationInvitationService> logger,
+        ILogSanitizer logSanitizer)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _organizationService = organizationService ?? throw new ArgumentNullException(nameof(organizationService));
         _membershipService = membershipService ?? throw new ArgumentNullException(nameof(membershipService));
         _roleService = roleService ?? throw new ArgumentNullException(nameof(roleService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _logSanitizer = logSanitizer ?? throw new ArgumentNullException(nameof(logSanitizer));
     }
 
-    public async Task<InvitationRecord> CreateAsync(
+    public async Task<OrganizationInvitationRecord> CreateAsync(
         Guid organizationId,
         string email,
         IReadOnlyCollection<Guid> roleIds,
@@ -64,9 +68,15 @@ public sealed class InvitationService
         var normalizedRoles = NormalizeRoleIds(roleIds);
         await EnsureRolesExistAsync(normalizedRoles, organization, cancellationToken).ConfigureAwait(false);
 
+        var hasActiveInvitation = await _store.HasActiveInvitationAsync(organization.Id, normalizedEmail, cancellationToken).ConfigureAwait(false);
+        if (hasActiveInvitation)
+        {
+            throw new OrganizationInvitationAlreadyExistsException(normalizedEmail);
+        }
+
         var lifetime = ResolveLifetime(expiresInHours);
 
-        var record = new InvitationRecord
+        var record = new OrganizationInvitationRecord
         {
             Code = Guid.NewGuid(),
             OrganizationId = organization.Id,
@@ -85,12 +95,12 @@ public sealed class InvitationService
             "Created invitation {InvitationCode} for organization {OrganizationId} ({Email}).",
             record.Code,
             organization.Id,
-            normalizedEmail);
+            _logSanitizer.RedactEmail(normalizedEmail));
 
         return record;
     }
 
-    public Task<IReadOnlyCollection<InvitationRecord>> ListAsync(Guid organizationId, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyCollection<OrganizationInvitationRecord>> ListAsync(Guid organizationId, CancellationToken cancellationToken = default)
         => _store.ListAsync(organizationId, cancellationToken);
 
     public async Task<bool> RevokeAsync(Guid organizationId, Guid code, CancellationToken cancellationToken = default)
@@ -102,14 +112,17 @@ public sealed class InvitationService
         }
 
         await _store.RemoveAsync(code, cancellationToken).ConfigureAwait(false);
-        _logger.LogInformation("Revoked invitation {InvitationCode} for organization {OrganizationId}.", code, organizationId);
+        _logger.LogInformation(
+            "Revoked invitation {InvitationCode} for organization {OrganizationId}.",
+            code,
+            organizationId);
         return true;
     }
 
-    public Task<InvitationRecord?> FindAsync(Guid code, CancellationToken cancellationToken = default)
+    public Task<OrganizationInvitationRecord?> FindAsync(Guid code, CancellationToken cancellationToken = default)
         => _store.FindAsync(code, cancellationToken);
 
-    public async Task<InvitationAcceptanceResult?> AcceptAsync(Guid code, ApplicationUser user, CancellationToken cancellationToken = default)
+    public async Task<OrganizationInvitationAcceptanceResult?> AcceptAsync(Guid code, ApplicationUser user, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(user);
 
@@ -130,6 +143,8 @@ public sealed class InvitationService
             await _store.RemoveAsync(code, cancellationToken).ConfigureAwait(false);
             return null;
         }
+
+        var wasExistingUser = user.CreatedAt <= invitation.CreatedAtUtc;
 
         var membership = await _membershipService.GetMembershipAsync(invitation.OrganizationId, user.Id, cancellationToken).ConfigureAwait(false);
         var roleIds = invitation.RoleIds ?? Array.Empty<Guid>();
@@ -174,13 +189,14 @@ public sealed class InvitationService
             code,
             invitation.OrganizationId);
 
-        return new InvitationAcceptanceResult
+        return new OrganizationInvitationAcceptanceResult
         {
             OrganizationId = organization.Id,
             OrganizationSlug = organization.Slug,
             OrganizationName = organization.DisplayName,
             RoleIds = roleIds,
-            WasExistingMember = membership is not null
+            WasExistingMember = membership is not null,
+            WasExistingUser = wasExistingUser
         };
     }
 
@@ -247,4 +263,3 @@ public sealed class InvitationService
         }
     }
 }
-

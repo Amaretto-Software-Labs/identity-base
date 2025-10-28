@@ -45,6 +45,8 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<OrganizationClaimFormatter>();
         services.TryAddScoped<IOrganizationPermissionResolver, OrganizationPermissionResolver>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IAdditionalPermissionSource, OrganizationAdditionalPermissionSource>());
+        services.TryAddScoped<IOrganizationInvitationStore, OrganizationInvitationStore>();
+        services.TryAddScoped<OrganizationInvitationService>();
 
         services.TryAddScoped<IValidator<CreateOrganizationRequest>, CreateOrganizationRequestValidator>();
         services.TryAddScoped<IValidator<UpdateOrganizationRequest>, UpdateOrganizationRequestValidator>();
@@ -53,6 +55,7 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<IValidator<CreateOrganizationRoleRequest>, CreateOrganizationRoleRequestValidator>();
         services.TryAddScoped<IValidator<UpdateOrganizationRolePermissionsRequest>, UpdateOrganizationRolePermissionsRequestValidator>();
         services.TryAddScoped<IValidator<SetActiveOrganizationRequest>, SetActiveOrganizationRequestValidator>();
+        services.TryAddScoped<IValidator<CreateOrganizationInvitationRequest>, CreateOrganizationInvitationRequestValidator>();
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, OrganizationMigrationHostedService>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, OrganizationSeedHostedService>());

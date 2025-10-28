@@ -101,4 +101,24 @@ internal static class OrganizationApiMapper
             Explicit = permissionSet.Explicit.ToArray()
         };
     }
+
+    public static OrganizationInvitationDto ToInvitationDto(OrganizationInvitationRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        return new OrganizationInvitationDto
+        {
+            Code = record.Code,
+            OrganizationId = record.OrganizationId,
+            OrganizationSlug = record.OrganizationSlug,
+            OrganizationName = record.OrganizationName,
+            Email = record.Email,
+            RoleIds = record.RoleIds,
+            CreatedBy = record.CreatedBy,
+            CreatedAtUtc = record.CreatedAtUtc,
+            ExpiresAtUtc = record.ExpiresAtUtc,
+            UsedAtUtc = record.UsedAtUtc,
+            UsedByUserId = record.UsedByUserId
+        };
+    }
 }

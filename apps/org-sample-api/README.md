@@ -72,6 +72,6 @@ You can list or revoke invites with:
 - `GET /sample/registration/profile-fields` – exposes the registration profile schema so a client can build the registration form dynamically.
 
 ## Notes
-- The invitation store persists to PostgreSQL via the sample `OrgSampleDbContext`; delete rows manually if you need to reset invites.
+- Invitation persistence now comes from the shared `Identity.Base.Organizations` package. The hosted migration service applies the invitation schema alongside the other organization tables on startup.
 - No automated tests are provided for this sample host by design. Use it as a reference or starting point for your own integration tests.
 - All admin and organization endpoints require an authenticated user with the corresponding RBAC permissions; use the seeded admin user defined under `IdentitySeed` or create new roles as needed.

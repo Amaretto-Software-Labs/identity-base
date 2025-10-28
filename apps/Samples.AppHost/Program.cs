@@ -15,9 +15,10 @@ var sampleApi = builder.AddProject("sample-api", "../sample-api/SampleApi.csproj
     .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
     .WithEnvironment("ASPNETCORE_URLS", "https://localhost:8199")
     .WithHttpsEndpoint(port: 8199, name:"https", isProxied: false)
-    .WithExternalHttpEndpoints();
+    .WithExternalHttpEndpoints()
+    .WaitFor(orgSampleApi);
 
-builder.AddNpmApp("org-sample-client", "../org-sample-client", "dev")
+var orgSampleApp = builder.AddNpmApp("org-sample-client", "../org-sample-client", "dev")
     .WithEnvironment("VITE_API_BASE", "https://localhost:8182")
     .WithEnvironment("VITE_CLIENT_ID", "org-sample-client")
     .WithEnvironment("VITE_AUTHORIZE_REDIRECT", "http://localhost:5173/auth/callback")
@@ -34,6 +35,7 @@ builder.AddNpmApp("sample-client", "../sample-client", "dev")
     .WithEnvironment("HOST", "0.0.0.0")
     .WithHttpEndpoint(port: 5174, env: "PORT", isProxied: false)
     .WithExternalHttpEndpoints()
-    .WaitFor(sampleApi);
+    .WaitFor(sampleApi)
+    .WaitFor(orgSampleApp);
 
 builder.Build().Run();

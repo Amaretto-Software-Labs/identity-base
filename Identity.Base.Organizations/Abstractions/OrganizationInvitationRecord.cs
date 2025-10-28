@@ -1,8 +1,8 @@
 using System;
 
-namespace OrgSampleApi.Sample.Invitations;
+namespace Identity.Base.Organizations.Abstractions;
 
-public sealed class InvitationRecord
+public sealed class OrganizationInvitationRecord
 {
     public Guid Code { get; init; }
 
@@ -21,5 +21,8 @@ public sealed class InvitationRecord
     public DateTimeOffset CreatedAtUtc { get; init; }
 
     public DateTimeOffset ExpiresAtUtc { get; init; }
-}
 
+    public DateTimeOffset? UsedAtUtc { get; init; }
+
+    public Guid? UsedByUserId { get; init; }
+}

@@ -1,8 +1,8 @@
 using System;
 
-namespace OrgSampleApi.Sample.Data;
+namespace Identity.Base.Organizations.Data.Entities;
 
-public sealed class OrganizationInvitation
+public sealed class OrganizationInvitationEntity
 {
     public Guid Code { get; set; }
 
@@ -21,5 +21,8 @@ public sealed class OrganizationInvitation
     public DateTimeOffset CreatedAtUtc { get; set; }
 
     public DateTimeOffset ExpiresAtUtc { get; set; }
-}
 
+    public DateTimeOffset? UsedAtUtc { get; set; }
+
+    public Guid? UsedByUserId { get; set; }
+}

@@ -1,9 +1,9 @@
 using System;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
-namespace OrgSampleApi.Sample.Data;
+namespace Identity.Base.Organizations.Data.ValueComparers;
 
-internal static class OrgSampleValueComparers
+internal static class OrganizationInvitationValueComparers
 {
     public static ValueComparer<Guid[]> RoleIds { get; } = new(
         (left, right) => SequenceEqual(left, right),
@@ -40,9 +40,9 @@ internal static class OrgSampleValueComparers
         }
 
         var hash = new HashCode();
-        for (var index = 0; index < normalized.Length; index++)
+        foreach (var item in normalized)
         {
-            hash.Add(normalized[index]);
+            hash.Add(item);
         }
 
         return hash.ToHashCode();

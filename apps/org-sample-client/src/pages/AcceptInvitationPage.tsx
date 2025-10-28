@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '@identity-base/react-client'
 import { useOrganizations } from '@identity-base/react-organizations'
 import { claimInvitation } from '../api/organizations'
@@ -7,24 +8,25 @@ import { renderApiError } from '../api/client'
 export default function AcceptInvitationPage() {
   const { refreshUser } = useAuth()
   const { reloadMemberships } = useOrganizations()
+  const [searchParams] = useSearchParams()
   const [code, setCode] = useState('')
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const autoProcessedRef = useRef(false)
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+  const submitInvitation = async (inviteCode: string) => {
     setStatus(null)
     setError(null)
 
-    if (!code) {
+    if (!inviteCode) {
       setError('Provide an invitation code.')
       return
     }
 
     setIsSubmitting(true)
     try {
-      const response = await claimInvitation({ code })
+      const response = await claimInvitation({ code: inviteCode })
       if (response.requiresTokenRefresh) {
         await refreshUser()
       }
@@ -41,6 +43,22 @@ export default function AcceptInvitationPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  useEffect(() => {
+    const codeParam = searchParams.get('code')?.trim()
+    if (!codeParam || autoProcessedRef.current) {
+      return
+    }
+
+    setCode(codeParam)
+    autoProcessedRef.current = true
+    void submitInvitation(codeParam)
+  }, [searchParams])
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    await submitInvitation(code)
   }
 
   return (

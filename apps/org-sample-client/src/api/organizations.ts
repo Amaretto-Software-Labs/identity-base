@@ -6,6 +6,7 @@ import type {
   InvitationResponse,
   CreateInvitationRequest,
   ClaimInvitationRequest,
+  InvitationDetailsResponse,
 } from './types'
 
 export function getOrganization(organizationId: string) {
@@ -59,9 +60,14 @@ export function claimInvitation(payload: ClaimInvitationRequest) {
     organizationName: string
     roleIds: string[]
     wasExistingMember: boolean
+    wasExistingUser: boolean
     requiresTokenRefresh: boolean
   }>(API_ROUTES.claimInvitation, {
     method: 'POST',
     body: JSON.stringify(payload),
   })
+}
+
+export function getInvitationDetails(code: string) {
+  return apiFetch<InvitationDetailsResponse>(API_ROUTES.invitationInfo(code))
 }

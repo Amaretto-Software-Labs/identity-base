@@ -19,6 +19,8 @@ public class OrganizationDbContext(DbContextOptions<OrganizationDbContext> optio
 
     public DbSet<OrganizationRolePermission> OrganizationRolePermissions => Set<OrganizationRolePermission>();
 
+    public DbSet<Entities.OrganizationInvitationEntity> OrganizationInvitations => Set<Entities.OrganizationInvitationEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

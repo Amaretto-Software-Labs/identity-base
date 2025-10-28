@@ -49,7 +49,10 @@ export function OrganizationInvitationsPanel({
       setInviteEmail('')
       setInviteRoleIds([])
       setInviteExpiry(48)
-      onStatusMessage?.(`Invitation created for ${response.email}.`)
+      const message = response.isExistingUser
+        ? `Invitation created for ${response.email}. Share the claim link with the recipient.`
+        : `Invitation created for ${response.email}. Share the registration link with the recipient.`
+      onStatusMessage?.(message)
     } catch (err) {
       setError(renderApiError(err))
     } finally {
@@ -172,6 +175,8 @@ export function OrganizationInvitationsPanel({
                   <th className="px-3 py-2 text-left font-medium text-slate-700">Email</th>
                   <th className="px-3 py-2 text-left font-medium text-slate-700">Roles</th>
                   <th className="px-3 py-2 text-left font-medium text-slate-700">Expires</th>
+                  <th className="px-3 py-2 text-left font-medium text-slate-700">User</th>
+                  <th className="px-3 py-2 text-left font-medium text-slate-700">Links</th>
                   <th className="px-3 py-2" />
                 </tr>
               </thead>
@@ -189,6 +194,33 @@ export function OrganizationInvitationsPanel({
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-600">
                       {dayjs(invitation.expiresAtUtc).format('YYYY-MM-DD HH:mm')}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-600">
+                      {invitation.isExistingUser ? 'Registered user' : 'New user'}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-slate-600">
+                      <div className="flex flex-col gap-1">
+                        {invitation.registerUrl && (
+                          <a
+                            href={invitation.registerUrl}
+                            className="text-slate-700 underline"
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Registration link
+                          </a>
+                        )}
+                        {invitation.claimUrl && (
+                          <a
+                            href={invitation.claimUrl}
+                            className="text-slate-700 underline"
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Claim link
+                          </a>
+                        )}
+                      </div>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2">
                       <button

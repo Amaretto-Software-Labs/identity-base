@@ -12,6 +12,7 @@ export const CONFIG = {
 
 export const API_ROUTES = {
   register: '/auth/register',
+  registerWithInvitation: '/sample/invitations/register',
   confirmEmail: '/auth/confirm-email',
   profileSchema: '/sample/registration/profile-fields',
   profile: '/users/me',
@@ -24,5 +25,6 @@ export const API_ROUTES = {
   organizationRolePermissions: (organizationId: string, roleId: string) =>
     `/organizations/${organizationId}/roles/${roleId}/permissions`,
   invitations: (organizationId: string) => `/sample/organizations/${organizationId}/invitations`,
+  invitationInfo: (code: string) => `/sample/invitations/${code}`,
   claimInvitation: '/sample/invitations/claim',
 }

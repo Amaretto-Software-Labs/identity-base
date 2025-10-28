@@ -21,10 +21,19 @@ public sealed class InvitationResponse
     public Guid[] RoleIds { get; init; } = Array.Empty<Guid>();
 
     public DateTimeOffset ExpiresAtUtc { get; init; }
+
+    public string OrganizationName { get; init; } = string.Empty;
+
+    public string OrganizationSlug { get; init; } = string.Empty;
+
+    public bool IsExistingUser { get; init; }
+
+    public string? RegisterUrl { get; init; }
+
+    public string? ClaimUrl { get; init; }
 }
 
 public sealed class ClaimInvitationRequest
 {
     public Guid Code { get; set; }
 }
-

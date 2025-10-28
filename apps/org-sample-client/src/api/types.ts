@@ -21,6 +21,13 @@ export interface RegisterResponse {
   correlationId: string
 }
 
+export interface InvitationRegisterRequest {
+  invitationCode: string
+  email: string
+  password: string
+  metadata: Record<string, string | null>
+}
+
 export interface OrganizationSummary {
   id: string
   slug: string
@@ -71,6 +78,11 @@ export interface InvitationResponse {
   email: string
   roleIds: string[]
   expiresAtUtc: string
+  organizationName: string
+  organizationSlug: string
+  isExistingUser: boolean
+  registerUrl?: string | null
+  claimUrl?: string | null
 }
 
 export interface CreateInvitationRequest {
@@ -81,4 +93,17 @@ export interface CreateInvitationRequest {
 
 export interface ClaimInvitationRequest {
   code: string
+}
+
+export interface InvitationDetailsResponse {
+  code: string
+  email: string
+  organizationId: string
+  organizationName: string
+  organizationSlug: string
+  roleIds: string[]
+  expiresAtUtc: string
+  isExistingUser: boolean
+  claimUrl?: string | null
+  registerUrl?: string | null
 }
