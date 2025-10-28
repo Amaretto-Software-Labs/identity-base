@@ -8,32 +8,46 @@ on:
   workflow_dispatch:
     inputs:
       package-version:
-        description: 'Semantic version to pack (e.g., 1.0.0-alpha.1)'
-        required: true
+        description: 'Optional override for the package version (SemVer 2.0)'
+        required: false
         type: string
       publish-to-nuget:
-        description: 'Push packed packages to NuGet using secrets.NUGET_API_KEY'
+        description: 'Publish packed NuGet packages (requires secrets.NUGET_API_KEY)'
         required: false
         default: false
         type: boolean
+      publish-to-npm:
+        description: 'Publish the React client to npm (requires secrets.NPM_TOKEN)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
 
 jobs:
   build:
     if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
-    env:
-      DOTNET_CLI_TELEMETRY_OPTOUT: 1
-      DOTNET_NOLOGO: 1
-      PACKAGE_VERSION: 1.0.0-alpha.${{ github.run_number }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Nerdbank.GitVersioning tool
+        run: dotnet tool install --global nbgv --version 3.6.139
 
       - name: Restore
         run: dotnet restore Identity.sln
@@ -44,48 +58,104 @@ jobs:
       - name: Test
         run: dotnet test Identity.sln --configuration Release --no-build --verbosity normal
 
-      - name: Pack Identity.Base libraries
+      - name: Determine package version
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: version
         run: |
-          dotnet pack Identity.Base/Identity.Base.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
-          dotnet pack Identity.Base.Roles/Identity.Base.Roles.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
-          dotnet pack Identity.Base.Admin/Identity.Base.Admin.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
-          dotnet pack Identity.Base.AspNet/Identity.Base.AspNet.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
+          PACKAGE_VERSION=$(nbgv get-version -v SemVer2)
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> "$GITHUB_ENV"
+          echo "package-version=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Pack Identity.Base libraries
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          dotnet pack Identity.Base/Identity.Base.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
+          dotnet pack Identity.Base.Roles/Identity.Base.Roles.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
+          dotnet pack Identity.Base.Admin/Identity.Base.Admin.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
+          dotnet pack Identity.Base.Organizations/Identity.Base.Organizations.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
+          dotnet pack Identity.Base.AspNet/Identity.Base.AspNet.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
 
       - name: Upload NuGet artifacts
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
-          name: nuget-packages
+          name: nuget-packages-${{ steps.version.outputs.package-version }}
           path: artifacts/*
 
       - name: Install npm dependencies
         working-directory: packages/identity-client
         run: npm ci
 
+      - name: Align npm package version
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
+        working-directory: packages/identity-client
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const version = process.env.PACKAGE_VERSION;
+          if (!version) {
+            throw new Error('PACKAGE_VERSION environment variable is not set.');
+          }
+          const pkgPath = 'package.json';
+          const lockPath = 'package-lock.json';
+          const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+          pkg.version = version;
+          fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+          if (fs.existsSync(lockPath)) {
+            const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+            lock.version = version;
+            if (lock.packages && lock.packages['']) {
+              lock.packages[''].version = version;
+            }
+            fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n');
+          }
+          NODE
+
       - name: Build React client package
         working-directory: packages/identity-client
         run: npm run build
 
       - name: Upload React package artifacts
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
-          name: identity-react-client
+          name: identity-react-client-${{ steps.version.outputs.package-version }}
           path: packages/identity-client/dist/**
 
   release:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    env:
-      DOTNET_CLI_TELEMETRY_OPTOUT: 1
-      DOTNET_NOLOGO: 1
-      PACKAGE_VERSION: ${{ github.event.inputs.package-version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Nerdbank.GitVersioning tool
+        run: dotnet tool install --global nbgv --version 3.6.139
+
+      - name: Determine package version
+        id: release-version
+        run: |
+          if [ -n "${{ github.event.inputs.package-version }}" ]; then
+            PACKAGE_VERSION="${{ github.event.inputs.package-version }}"
+          else
+            PACKAGE_VERSION=$(nbgv get-version -v SemVer2)
+          fi
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> "$GITHUB_ENV"
+          echo "package-version=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Restore
         run: dotnet restore Identity.sln
@@ -98,20 +168,47 @@ jobs:
 
       - name: Pack Identity.Base libraries
         run: |
-          dotnet pack Identity.Base/Identity.Base.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
-          dotnet pack Identity.Base.Roles/Identity.Base.Roles.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
-          dotnet pack Identity.Base.Admin/Identity.Base.Admin.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
-          dotnet pack Identity.Base.AspNet/Identity.Base.AspNet.csproj --configuration Release -p:PackageVersion=$PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
+          dotnet pack Identity.Base/Identity.Base.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
+          dotnet pack Identity.Base.Roles/Identity.Base.Roles.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
+          dotnet pack Identity.Base.Admin/Identity.Base.Admin.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
+          dotnet pack Identity.Base.Organizations/Identity.Base.Organizations.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
+          dotnet pack Identity.Base.AspNet/Identity.Base.AspNet.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: nuget-packages-${{ env.PACKAGE_VERSION }}
+          name: nuget-packages-${{ steps.release-version.outputs.package-version }}
           path: artifacts/*
 
       - name: Install npm dependencies
         working-directory: packages/identity-client
         run: npm ci
+
+      - name: Align npm package version
+        env:
+          PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
+        working-directory: packages/identity-client
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const version = process.env.PACKAGE_VERSION;
+          if (!version) {
+            throw new Error('PACKAGE_VERSION environment variable is not set.');
+          }
+          const pkgPath = 'package.json';
+          const lockPath = 'package-lock.json';
+          const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+          pkg.version = version;
+          fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+          if (fs.existsSync(lockPath)) {
+            const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+            lock.version = version;
+            if (lock.packages && lock.packages['']) {
+              lock.packages[''].version = version;
+            }
+            fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n');
+          }
+          NODE
 
       - name: Build React client package
         working-directory: packages/identity-client
@@ -120,21 +217,18 @@ jobs:
       - name: Upload React package artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: identity-react-client-${{ env.PACKAGE_VERSION }}
+          name: identity-react-client-${{ steps.release-version.outputs.package-version }}
           path: packages/identity-client/dist/**
 
       - name: Publish React client to npm
-        if: github.event.inputs.publish-to-nuget == 'true'
+        if: github.event.inputs.publish-to-npm == 'true'
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         working-directory: packages/identity-client
-        run: |
-          npm version $PACKAGE_VERSION --no-git-tag-version
-          npm publish --access public
+        run: npm publish --access public
 
       - name: Publish packages to NuGet
         if: github.event.inputs.publish-to-nuget == 'true'
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        run: |
-          dotnet nuget push artifacts/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: dotnet nuget push artifacts/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
