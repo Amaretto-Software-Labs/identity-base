@@ -225,7 +225,12 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         working-directory: packages/identity-client
-        run: npm publish --access public
+        run: |
+          cat <<EOF > ~/.npmrc
+          //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}
+          always-auth=true
+          EOF
+          npm publish --access public
 
       - name: Publish packages to NuGet
         if: github.event.inputs.publish-to-nuget == 'true'
