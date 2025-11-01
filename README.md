@@ -47,6 +47,9 @@ Key documents:
 | Package | Description |
 | --- | --- |
 | [`Identity.Base`](https://www.nuget.org/packages/Identity.Base) | Core Identity/OpenIddict services, EF Core context & migrations, MFA, external providers, DI extensions. |
+| [`Identity.Base.Roles`](https://www.nuget.org/packages/Identity.Base.Roles) | Role and permission management primitives (DbContext, seed helpers, configuration). |
+| [`Identity.Base.Admin`](https://www.nuget.org/packages/Identity.Base.Admin) | Admin API extensions layered on Identity Base + roles. |
+| [`Identity.Base.Organizations`](https://www.nuget.org/packages/Identity.Base.Organizations) | Organizations, memberships, and organization-scoped role tooling. |
 | [`Identity.Base.AspNet`](https://www.nuget.org/packages/Identity.Base.AspNet) | ASP.NET Core helpers for microservices consuming Identity Base tokens via JWT bearer authentication. |
 | [`Identity.Base.Email.MailJet`](https://www.nuget.org/packages/Identity.Base.Email.MailJet) | Optional Mailjet integration (email sender, options, health checks). |
 
@@ -54,8 +57,11 @@ Install via .NET CLI (replace `<latest>` with the published version):
 
 ```bash
 dotnet add package Identity.Base --version <latest>
+# Add-on packages as needed:
+dotnet add package Identity.Base.Roles --version <latest>
+dotnet add package Identity.Base.Admin --version <latest>
+dotnet add package Identity.Base.Organizations --version <latest>
 dotnet add package Identity.Base.AspNet --version <latest>
-# Optional email sender
 dotnet add package Identity.Base.Email.MailJet --version <latest>
 ```
 
