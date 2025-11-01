@@ -1,12 +1,12 @@
 using System.Linq;
+using Identity.Base.Features.Email;
 using Identity.Base.Logging;
-using Identity.Base.Options;
 using Mailjet.Client;
 using Mailjet.Client.TransactionalEmails;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Identity.Base.Features.Email;
+namespace Identity.Base.Email.MailJet;
 
 internal sealed class MailJetEmailSender : ITemplatedEmailSender
 {
@@ -40,8 +40,7 @@ internal sealed class MailJetEmailSender : ITemplatedEmailSender
             throw new InvalidOperationException($"MailJet template '{email.TemplateKey}' is not configured.");
         }
 
-        var client = CreateClient();
-
+        var client = new MailjetClient(_options.ApiKey, _options.ApiSecret);
         var message = BuildTemplatedEmail(email, templateId);
 
         try
@@ -72,8 +71,6 @@ internal sealed class MailJetEmailSender : ITemplatedEmailSender
             throw;
         }
     }
-
-    private MailjetClient CreateClient() => new(_options.ApiKey, _options.ApiSecret);
 
     private TransactionalEmail BuildTemplatedEmail(TemplatedEmail email, long templateId)
     {

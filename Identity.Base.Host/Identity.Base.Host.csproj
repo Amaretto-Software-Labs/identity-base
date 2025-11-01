@@ -11,6 +11,7 @@
     <ProjectReference Include="../Identity.Base.AspNet/Identity.Base.AspNet.csproj" />
     <ProjectReference Include="../Identity.Base.Admin/Identity.Base.Admin.csproj" />
     <ProjectReference Include="../Identity.Base.Roles/Identity.Base.Roles.csproj" />
+    <ProjectReference Include="..\Identity.Base.Email.MailJet\Identity.Base.Email.MailJet.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,7 +1,7 @@
 [![CI](https://github.com/Amaretto-Software-Labs/identity-base/actions/workflows/ci.yml/badge.svg)](https://github.com/Amaretto-Software-Labs/identity-base/actions/workflows/ci.yml)
 # Identity Base
 
-Identity Base is a modular Identity + OpenID Connect platform for .NET 9. It packages ASP.NET Core Identity, EF Core migrations, OpenIddict server setup, MFA, external providers (Google, Microsoft, Apple), MailJet-powered email flows, and deployment-ready defaults. The recommended architecture is a dedicated Identity Host that runs all identity surfaces, a fleet of JWT-protected microservices, and a React 19 SPA consuming the APIs.
+Identity Base is a modular Identity + OpenID Connect platform for .NET 9. It packages ASP.NET Core Identity, EF Core migrations, OpenIddict server setup, MFA, external providers (Google, Microsoft, Apple), optional Mailjet email delivery, and deployment-ready defaults. The recommended architecture is a dedicated Identity Host that runs all identity surfaces, a fleet of JWT-protected microservices, and a React 19 SPA consuming the APIs.
 
 The project is open source under the MIT License.
 
@@ -11,7 +11,7 @@ The project is open source under the MIT License.
 - **Identity & OpenIddict orchestration** – password + authorization-code PKCE flow, refresh tokens, configured scopes, client seeding.
 - **Multi-factor authentication** – authenticator apps, SMS, email challenges, and recovery code support.
 - **External providers** – Google, Microsoft, Apple, plus fluent extension points for additional providers.
-- **MailJet email integration** – confirmation, password reset, MFA challenge templates, error reporting.
+- **Mailjet email integration** – available via the optional `Identity.Base.Email.MailJet` package for confirmation, password reset, and MFA challenges.
 - **Extensible DI surface** – option validators, templated email sender, MFA challenge senders, audit logging, return URL validation.
 - **Secure defaults** – password grant gating, return URL normalization, request logging with redaction, dedicated health checks.
 
@@ -46,12 +46,15 @@ Key documents:
 | --- | --- |
 | [`Identity.Base`](https://www.nuget.org/packages/Identity.Base) | Core Identity/OpenIddict services, EF Core context & migrations, MFA, external providers, DI extensions. |
 | [`Identity.Base.AspNet`](https://www.nuget.org/packages/Identity.Base.AspNet) | ASP.NET Core helpers for microservices consuming Identity Base tokens via JWT bearer authentication. |
+| [`Identity.Base.Email.MailJet`](https://www.nuget.org/packages/Identity.Base.Email.MailJet) | Optional Mailjet integration (email sender, options, health checks). |
 
 Install via .NET CLI (replace `<latest>` with the published version):
 
 ```bash
 dotnet add package Identity.Base --version <latest>
 dotnet add package Identity.Base.AspNet --version <latest>
+# Optional email sender
+dotnet add package Identity.Base.Email.MailJet --version <latest>
 ```
 
 Manual package builds are available through the GitHub Actions **CI** workflow (see [Release Checklist](docs/release/release-checklist.md)).
@@ -72,7 +75,7 @@ The host wires the full pipeline:
 
 The host applies all bundled migrations on startup (Identity, Roles, Organizations) and seeds the admin account based on configuration. No manual `dotnet ef database update` is required unless you add custom entities.
 
-Follow the [Getting Started guide](docs/guides/getting-started.md) for configuration schema, MailJet setup, and OpenIddict application registration.
+If you install the Mailjet add-on, call `identity.UseMailJetEmailSender();` (or `builder.Services.AddMailJetEmailSender(...)`) when configuring services. Follow the [Getting Started guide](docs/guides/getting-started.md) for configuration schema, Mailjet setup, and OpenIddict application registration.
 
 ### 2. Secure .NET microservices
 
@@ -120,14 +123,14 @@ The hooks exposed by the packages (`useLogin`, `useOrganizations`, `useOrganizat
 ### Prerequisites
 - .NET 9 SDK
 - PostgreSQL 16 (local or Docker)
-- MailJet credentials (or MailHog for local stubbing)
+- Optional: Mailjet credentials (or MailHog for local stubbing)
 - Node.js 20 / npm 10 if you run the React clients
 
 ### Configuration snapshot
 
 ### Configuration snapshot
 - `Registration` – profile fields, confirmation/reset URL templates (embed `{token}` + `{userId}`).
-- `MailJet` – API keys, sender info, template IDs (confirmation/reset/MFA).
+- `MailJet` – API keys, sender info, template IDs (confirmation/reset/MFA). Only required when the Mailjet package is enabled.
 - `Mfa` – issuer name, email/SMS toggles, Twilio credentials (if SMS is enabled).
 - `ExternalProviders` – Google/Microsoft/Apple client IDs, secrets, scopes, callback paths.
 - `OpenIddict` – client applications, scopes, server key provider (development, file-system, Azure Key Vault).

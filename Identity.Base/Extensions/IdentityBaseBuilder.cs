@@ -58,13 +58,13 @@ public sealed class IdentityBaseBuilder
         _options = options;
     }
 
-    internal IServiceCollection Services { get; }
+    public IServiceCollection Services { get; }
 
     internal IdentityBaseModelCustomizationOptions ModelCustomizationOptions => _modelCustomizationOptions;
 
     internal IdentityBaseSeedCallbacks SeedCallbacks => _seedCallbacks;
 
-    internal IConfiguration Configuration { get; }
+    public IConfiguration Configuration { get; }
 
     internal IWebHostEnvironment Environment { get; }
 
@@ -109,18 +109,6 @@ public sealed class IdentityBaseBuilder
     {
         ArgumentNullException.ThrowIfNull(configure);
         _modelCustomizationOptions.AddIdentityRolesDbContextCustomization(configure);
-        return this;
-    }
-
-    public IdentityBaseBuilder UseMailJetEmailSender()
-    {
-        Services.Replace(ServiceDescriptor.Scoped<ITemplatedEmailSender, MailJetEmailSender>());
-        Services.AddOptions<MailJetOptions>()
-            .BindConfiguration(MailJetOptions.SectionName)
-            .ValidateDataAnnotations();
-        Services.AddSingleton<IValidateOptions<MailJetOptions>, MailJetOptionsValidator>();
-        Services.AddHealthChecks().AddCheck<MailJetOptionsHealthCheck>("mailjet");
-        Services.PostConfigure<MailJetOptions>(options => options.Enabled = true);
         return this;
     }
 
@@ -339,6 +327,7 @@ public sealed class IdentityBaseBuilder
             action(Services, Configuration);
         }
     }
+
 
     private ExternalProviderFlags ConfigureOptions()
     {
@@ -652,4 +641,9 @@ public sealed class IdentityBaseBuilder
             services.AddSingleton<IValidateOptions<CorsSettings>, CorsSettingsValidator>();
         }
     }
+
+    internal IServiceCollection GetServices() => Services;
+
+    internal IConfiguration GetConfiguration() => Configuration;
+
 }

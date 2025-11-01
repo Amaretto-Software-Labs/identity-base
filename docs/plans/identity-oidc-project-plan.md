@@ -129,7 +129,7 @@ Identity.sln
 
 ## Email Delivery (MailJet)
 - Implement `MailJetEmailSender` per guide in `Identity.Base/Features/Email`:
-  - Bind `MailJetOptions` from configuration and enforce template-only sends.
+  - Bind `MailJetOptions` from configuration (provided by the optional Mailjet package) and enforce template-only sends.
   - Support template variables for confirmation/reset flows (e.g., `verificationLink`, `displayName`).
 - Register as both `IEmailSender` and a custom `ITemplatedEmailSender`; injection into registration/password services.
 - Configure template IDs for confirmation/password flows in every environment and ensure error reporting inbox is monitored.

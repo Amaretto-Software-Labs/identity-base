@@ -47,6 +47,7 @@ cd IdentityHost
 dotnet add package Identity.Base
 dotnet add package Identity.Base.Admin
 dotnet add package Identity.Base.Organizations
+dotnet add package Identity.Base.Email.MailJet # optional Mailjet sender
 ```
 
 - `Identity.Base` provides the core identity, OpenIddict, MFA, and email flows.
@@ -58,6 +59,7 @@ dotnet add package Identity.Base.Organizations
 ```csharp
 using Identity.Base.Admin.Configuration;
 using Identity.Base.Admin.Endpoints;
+using Identity.Base.Email.MailJet;
 using Identity.Base.Extensions;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Endpoints;
@@ -68,8 +70,9 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Core identity surface (Identity, OpenIddict, MFA, mail, external providers)
-builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
+// Core identity surface (Identity, OpenIddict, MFA, external providers)
+var identityBuilder = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
+identityBuilder.UseMailJetEmailSender(); // optional Mailjet integration
 
 // Admin API (includes Identity.Base.Roles registration)
 var adminBuilder = builder.Services.AddIdentityAdmin(builder.Configuration);
@@ -148,6 +151,7 @@ Populate the generated `appsettings.json` with the minimal sections shown below.
     ]
   },
   "MailJet": {
+    "Enabled": true,
     "FromEmail": "noreply@example.com",
     "FromName": "Identity Base",
     "ApiKey": "your-mailjet-key",
@@ -241,7 +245,7 @@ Populate the generated `appsettings.json` with the minimal sections shown below.
 
 - Ensure the `OpenIddict` client matches the React app redirect URL.
 - Confirmation and password reset templates must include `{token}` and `{userId}` placeholders to match the email flows.
-- Add MailJet and MFA secrets to user secrets or environment variables in production.
+- Configure Mailjet secrets only if the Mailjet add-on is enabled; otherwise you can omit the section or leave `Enabled` false. Add MFA secrets to user secrets or environment variables in production.
 - Expand the `Permissions`/`Roles` lists as you add downstream authorization requirements.
 
 ### 3.4 Prepare Database Schema

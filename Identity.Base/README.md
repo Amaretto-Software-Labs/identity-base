@@ -1,6 +1,6 @@
 # Identity.Base
 
-Identity.Base is a reusable Identity + OpenIddict service library for .NET 9.0. It bundles ASP.NET Core Identity, EF Core migrations, OpenIddict server configuration, MFA, external providers, and email integrations into ergonomic extension methods that can be hosted by any ASP.NET Core application.
+Identity.Base is a reusable Identity + OpenIddict service library for .NET 9.0. It bundles ASP.NET Core Identity, EF Core migrations, OpenIddict server configuration, MFA, external providers, and optional email integrations into ergonomic extension methods that can be hosted by any ASP.NET Core application.
 
 ## Getting Started
 
@@ -14,7 +14,8 @@ identity
     {
         // register custom external providers here
         return auth.AddOAuth("GitHub", options => { /* ... */ });
-    });
+    })
+    .UseMailJetEmailSender();          // optional add-on package
 
 var app = builder.Build();
 app.UseApiPipeline(); // Add request logging middleware if desired
@@ -23,7 +24,7 @@ app.MapApiEndpoints();
 app.Run();
 ```
 
-By default the Identity Host (or any consumer calling `AddIdentityBase`) applies the packaged EF Core migrations during startup. You only need to generate custom migrations when you extend the provided DbContexts.
+By default the Identity Host (or any consumer calling `AddIdentityBase`) applies the packaged EF Core migrations during startup. You only need to generate custom migrations when you extend the provided DbContexts. Enable Mailjet delivery by referencing `Identity.Base.Email.MailJet` and calling `UseMailJetEmailSender()`.
 
 See the repository README for the full architecture, configuration schemas, and microservice/React integration guides.
 

@@ -1,5 +1,6 @@
 using Identity.Base.Admin.Configuration;
 using Identity.Base.Admin.Endpoints;
+using Identity.Base.Email.MailJet;
 using Identity.Base.Extensions;
 using Identity.Base.Options;
 using Identity.Base.Roles;
@@ -27,7 +28,8 @@ var identityBuilder = builder.Services.AddIdentityBase(builder.Configuration, bu
 identityBuilder
     .AddGoogleAuth()
     .AddMicrosoftAuth()
-    .AddAppleAuth();
+    .AddAppleAuth()
+    .UseMailJetEmailSender();
 
 var rolesBuilder = builder.Services.AddIdentityAdmin(builder.Configuration);
 

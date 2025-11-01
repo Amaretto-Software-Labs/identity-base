@@ -25,6 +25,7 @@ This walkthrough shows how to stand up Identity Base as a service using only the
 ### 2.1 Add NuGet Packages
 ```bash
 dotnet add package Identity.Base
+dotnet add package Identity.Base.Email.MailJet # optional Mailjet sender
 ```
 
 ### 2.2 Configure `Program.cs`
@@ -34,8 +35,11 @@ using Identity.Base.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Registers Identity Base services, including AppDbContext, Identity, OpenIddict, mail, MFA, etc.
-builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
+// Registers Identity Base services, including AppDbContext, Identity, OpenIddict, MFA, etc.
+var identity = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
+
+// Optional: enable Mailjet email delivery if the add-on package is installed
+identity.UseMailJetEmailSender();
 
 var app = builder.Build();
 
@@ -72,6 +76,7 @@ Add an `appsettings.json` (or edit the existing file) with at least the followin
     "AllowedOrigins": ["https://localhost:5173", "http://localhost:5173"]
   },
   "MailJet": {
+    "Enabled": true,
     "FromEmail": "noreply@example.com",
     "FromName": "Identity Base",
     "ApiKey": "your-mailjet-key",
@@ -126,7 +131,8 @@ Key sections:
 - `ConnectionStrings:Primary` – required for the internal `AppDbContext`.
 - `IdentitySeed` – optionally bootstrap an admin user.
 - `Registration` – confirmation and password reset URLs must include `{token}` **and** `{userId}` placeholders.
-- `MailJet`, `Mfa`, `ExternalProviders` – supply credentials/enabled flags as needed.
+- `MailJet` (optional) – configure only when the Mailjet package is referenced. Leave `Enabled` as `false` to skip sends.
+- `Mfa`, `ExternalProviders` – supply credentials/enabled flags as needed.
 - `OpenIddict` – register clients, scopes, and key management strategy.
 
 ### 2.4 Apply the Core Migrations

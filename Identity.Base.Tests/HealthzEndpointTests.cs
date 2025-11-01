@@ -7,6 +7,7 @@ using Shouldly;
 using Identity.Base.Data;
 using Identity.Base.Features.Authentication.Mfa;
 using Identity.Base.Features.Email;
+using Identity.Base.Email.MailJet;
 using Identity.Base.Identity;
 using Identity.Base.Options;
 using Identity.Base.Tests.Fakes;

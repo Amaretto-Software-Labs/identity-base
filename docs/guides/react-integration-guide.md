@@ -12,7 +12,7 @@ This document walks a junior front-end developer through everything required to 
 | npm | 10.x | Ships with Node 20 |
 | .NET SDK | 9.0.x | Builds the Identity Base host & your API |
 | PostgreSQL | 16.x | Identity Base stores users & clients here |
-| MailJet account | Optional for local, required for real email | Configure API Key/Secret & template IDs |
+| MailJet account | Optional (only when using the Mailjet email package) | Configure API Key/Secret & template IDs |
 
 You also need an Identity Base deployment (local host app or shared environment). Follow [docs/guides/getting-started.md](./getting-started.md) to run the host locally if needed.
 
@@ -40,7 +40,7 @@ Configure the host (`Identity.Base.Host/appsettings.Development.json`) with:
 
 - `Registration:ConfirmationUrlTemplate`
 - `Registration:PasswordResetUrlTemplate`
-- MailJet API credentials + template IDs (`Confirmation`, `PasswordReset`, `MfaChallenge`)
+- MailJet API credentials + template IDs (`Confirmation`, `PasswordReset`, `MfaChallenge`) when the Mailjet add-on is enabled
 - CORS allowed origins (`http://localhost:5173` for local React app)
 - External provider credentials if applicable
 

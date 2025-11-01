@@ -12,7 +12,6 @@ These remain `public` so consumers can author custom `IConfigureOptions<>` imple
 - `RegistrationOptions` / `RegistrationProfileFieldOptions`
 - `MfaOptions` / `EmailChallengeOptions` / `SmsChallengeOptions`
 - `ExternalProviderOptions` / provider-specific option records
-- `MailJetOptions`
 - `OpenIddictOptions`, `OpenIddictApplicationOptions`, `OpenIddictScopeOptions`
 - `OpenIddictServerKeyOptions` plus nested descriptors
 - `CorsSettings`
@@ -36,4 +35,5 @@ Consumers can replace default services by implementing the following interfaces:
 - `IExternalReturnUrlValidator`
 - `IExternalCallbackUriFactory`
 
-The library now keeps concrete implementations (`MailJetEmailSender`, `TwilioMfaChallengeSender`, `AuditLogger`, etc.) internal while still registering them by default through the builder. This limits the public API to dependency boundaries that hosts are expected to customise.
+The library keeps concrete implementations (`TwilioMfaChallengeSender`, `AuditLogger`, etc.) internal while still registering them by default through the builder. Email providers ship as optional packages (for example, `Identity.Base.Email.MailJet`). This limits the public API to dependency boundaries that hosts are expected to customise.
+- `IdentityBaseBuilder.Services` and `.Configuration` (introduced to support optional add-ons such as Mailjet).

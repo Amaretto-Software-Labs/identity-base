@@ -4,7 +4,7 @@ This guide explains how to build and run Identity Base using Docker. The reposit
 
 ## Prerequisites
 - Docker Desktop 4.0+ or compatible engine
-- Optional: a MailJet account if you want to exercise real email delivery (otherwise configure MailHog or stub values)
+- Optional: a Mailjet account if you want to exercise real email delivery (otherwise configure MailHog or stub values)
 
 ## 1. Configure Environment Variables
 
@@ -16,7 +16,7 @@ cp .env.example .env
 
 Required settings:
 - `CONNECTIONSTRINGS__PRIMARY` – points to the Postgres instance (`Host=postgres;Port=5432;Database=identity;Username=identity;Password=identity` works for the compose stack).
-- `MAILJET__*` – MailJet API credentials and template IDs. Supply real values for production or leave the defaults to satisfy option validation (email sends will fail if the keys are invalid).
+- `MAILJET__*` – Mailjet API credentials and template IDs. Supply real values for production or leave the defaults to satisfy option validation (email sends will fail if the keys are invalid).
 - `MFA__ISSUER` – label displayed in authenticator apps.
 - `EXTERNALPROVIDERS__*` – toggle and configure social login providers when available.
 
@@ -44,7 +44,7 @@ docker compose -f docker-compose.local.yml --env-file .env up --build
 Services:
 - `identity-api` – the Identity Base container listening on `http://localhost:8080`.
 - `postgres` – PostgreSQL 16 with data persisted in the `postgres-data` volume.
-- `mailhog` – accessible at `http://localhost:8025` for inspecting email traffic (you still need valid MailJet settings for the app to start; use MailHog to observe delivery attempts).
+- `mailhog` – accessible at `http://localhost:8025` for inspecting email traffic (enable the Mailjet package and set `MailJet:Enabled=true` if you want the host to send real messages).
 
 Stop the stack with:
 
@@ -68,7 +68,7 @@ You should see checks for `database`, `mailjet`, and `externalProviders`.
 
 | Issue | Resolution |
 | --- | --- |
-| API exits immediately with MailJet validation errors | Ensure `.env` contains non-empty `MAILJET__*` values. For local testing you can set any numeric template IDs and placeholder keys; email sends will fail but the service will start. |
+| API exits immediately with Mailjet validation errors | Ensure `.env` contains non-empty `MAILJET__*` values. For local testing you can set any numeric template IDs and placeholder keys; email sends will fail but the service will start. |
 | Cannot connect to Postgres | Confirm `CONNECTIONSTRINGS__PRIMARY` uses the `postgres` hostname and that the container is healthy (`docker compose ps`). |
 | Need HTTPS locally | Terminate TLS with a reverse proxy (e.g., Traefik, Caddy) and forward plain HTTP to the container’s `8080` port, or override `ASPNETCORE_URLS` to use `https://` with mounted certificates. |
 | Social login callbacks fail | Set the respective provider environment variables and ensure the redirect URIs registered with the provider match your compose hostname (e.g., `http://localhost:8080`). |

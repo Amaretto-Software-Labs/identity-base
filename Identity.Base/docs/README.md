@@ -26,7 +26,7 @@ Identity Base is a .NET 9 minimal API that centralises authentication, user mana
 - `Registration` options drive dynamic profile metadata. Configure fields under `Registration:ProfileFields` and ensure both confirmation and password reset URL templates include `{token}` and `{userId}` placeholders.
 - `/auth/register` accepts payloads `{ email, password, metadata }`; metadata keys must match configured fields. Successful requests return `202 Accepted` with a correlation identifier and trigger a confirmation email.
 - `IdentitySeed` options allow optional super-admin creation. Set `IdentitySeed:Enabled` to `true` and provide credentials (disabled by default).
-- MailJet delivery requires valid API credentials and template id; replace the placeholders in configuration before running the service and, if desired, enable `MailJet:ErrorReporting` to route failures to an operational inbox.
+- Mailjet delivery requires valid API credentials and template id; replace the placeholders in configuration before running the service and, if desired, enable `MailJet:ErrorReporting` to route failures to an operational inbox. Install the `Identity.Base.Email.MailJet` package and call `UseMailJetEmailSender()` to opt in.
 - CORS is centrally configured via the `Cors` section; update `AllowedOrigins` to include every trusted frontend origin.
 
 ## Database & Migrations
@@ -53,6 +53,7 @@ Identity Base is a .NET 9 minimal API that centralises authentication, user mana
     "AllowedOrigins": ["https://localhost:3000", "https://localhost:5001"]
   },
   "MailJet": {
+    "Enabled": true,
     "FromEmail": "noreply@example.com",
     "FromName": "Identity Base",
     "ApiKey": "YOUR_MAILJET_API_KEY",

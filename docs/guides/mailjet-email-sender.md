@@ -1,6 +1,8 @@
 # MailJet Email Sender Implementation Guide
 
-This document explains how to implement a MailJet-backed email sender in an ASP.NET Core application. It includes enough detail that a junior engineer can recreate the integration, configure templated emails, and troubleshoot common issues. The guidance is intentionally project-agnostic—adapt the file paths and namespaces to match your solution structure.
+This document explains how to implement a MailJet-backed email sender in an ASP.NET Core application. The repository now ships an optional package (`Identity.Base.Email.MailJet`) that already implements these steps—use this guide if you need to understand or extend that integration, or if you are wiring Mailjet into another host.
+
+> Quick start: `dotnet add package Identity.Base.Email.MailJet` and call `identity.UseMailJetEmailSender();` when configuring services.
 
 ## Dependencies
 - `Mailjet.Api` NuGet package version `3.0.0` (brings in `Mailjet.Client` and transactional email builders).

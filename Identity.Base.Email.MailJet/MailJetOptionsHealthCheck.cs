@@ -1,8 +1,7 @@
-using Identity.Base.Options;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 
-namespace Identity.Base.Health;
+namespace Identity.Base.Email.MailJet;
 
 internal sealed class MailJetOptionsHealthCheck : IHealthCheck
 {
