@@ -72,7 +72,7 @@ internal sealed class AccountEmailService : IAccountEmailService
         var resetUrl = BuildUrl(
             _registrationOptions.PasswordResetUrlTemplate,
             ("token", encodedToken),
-            ("email", WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(user.Email!))));
+            ("userId", user.Id.ToString()));
 
         var variables = new Dictionary<string, object?>
         {

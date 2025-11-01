@@ -99,7 +99,7 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
             services.PostConfigure<RegistrationOptions>(options =>
             {
                 options.ConfirmationUrlTemplate = "https://tests.example.com/confirm?token={token}&userId={userId}";
-                options.PasswordResetUrlTemplate = "https://tests.example.com/reset?token={token}&email={email}";
+                options.PasswordResetUrlTemplate = "https://tests.example.com/reset?token={token}&userId={userId}";
                 options.ProfileFields = new List<RegistrationProfileFieldOptions>
                 {
                     new() { Name = "displayName", DisplayName = "Display Name", Required = true, MaxLength = 128, Pattern = null! },

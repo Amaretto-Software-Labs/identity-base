@@ -8,9 +8,9 @@ export default function ResetPasswordPage() {
   const navigate = useNavigate()
 
   const token = searchParams.get('token') ?? ''
-  const email = searchParams.get('email') ?? ''
+  const userId = searchParams.get('userId') ?? ''
 
-  const isInvalidLink = useMemo(() => token.length === 0 || email.length === 0, [token, email])
+  const isInvalidLink = useMemo(() => token.length === 0 || userId.length === 0, [token, userId])
 
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -27,7 +27,7 @@ export default function ResetPasswordPage() {
       return
     }
 
-    await resetPassword({ email, token, password })
+    await resetPassword({ userId, token, password })
   }
 
   if (isInvalidLink) {

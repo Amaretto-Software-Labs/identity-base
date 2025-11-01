@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using FluentValidation;
 using Identity.Base.Extensions;
@@ -175,8 +176,7 @@ public static class EmailManagementEndpoints
             return Results.Problem("Invalid password reset token.", statusCode: StatusCodes.Status400BadRequest);
         }
 
-        var email = DecodeEmail(request.Email);
-        var user = await userManager.FindByEmailAsync(email);
+        var user = await userManager.FindByIdAsync(request.UserId);
         if (user is null)
         {
             return Results.Problem("Invalid password reset token.", statusCode: StatusCodes.Status400BadRequest);
@@ -189,24 +189,6 @@ public static class EmailManagementEndpoints
         }
 
         return Results.Ok(new { message = "Password reset successful." });
-    }
-
-    private static string DecodeEmail(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return value;
-        }
-
-        try
-        {
-            var bytes = WebEncoders.Base64UrlDecode(value);
-            return Encoding.UTF8.GetString(bytes);
-        }
-        catch (FormatException)
-        {
-            return value;
-        }
     }
 
     private static bool TryDecodeToken(string token, out string decoded)
@@ -230,7 +212,7 @@ internal sealed record ResendConfirmationRequest(string Email);
 
 internal sealed record ForgotPasswordRequest(string Email);
 
-internal sealed record ResetPasswordRequest(string Email, string Token, string Password);
+internal sealed record ResetPasswordRequest(string UserId, string Token, string Password);
 
 internal sealed class ConfirmEmailRequestValidator : AbstractValidator<ConfirmEmailRequest>
 {
@@ -268,8 +250,11 @@ internal sealed class ResetPasswordRequestValidator : AbstractValidator<ResetPas
 {
     public ResetPasswordRequestValidator()
     {
-        RuleFor(x => x.Email)
+        RuleFor(x => x.UserId)
             .NotEmpty();
+        RuleFor(x => x.UserId)
+            .Must(value => Guid.TryParse(value, out _))
+            .WithMessage("UserId must be a valid GUID.");
 
         RuleFor(x => x.Token)
             .NotEmpty();

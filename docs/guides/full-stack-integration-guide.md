@@ -141,8 +141,8 @@ Populate the generated `appsettings.json` with the minimal sections shown below.
     "Roles": ["IdentityAdmin"]
   },
   "Registration": {
-    "ConfirmationUrlTemplate": "https://localhost:5001/account/confirm?token={token}&email={email}",
-    "PasswordResetUrlTemplate": "https://localhost:5001/reset-password?token={token}&email={email}",
+    "ConfirmationUrlTemplate": "https://localhost:5001/account/confirm?token={token}&userId={userId}",
+    "PasswordResetUrlTemplate": "https://localhost:5001/reset-password?token={token}&userId={userId}",
     "ProfileFields": [
       { "Name": "displayName", "DisplayName": "Display Name", "Required": true, "MaxLength": 128 }
     ]
@@ -240,6 +240,7 @@ Populate the generated `appsettings.json` with the minimal sections shown below.
 ```
 
 - Ensure the `OpenIddict` client matches the React app redirect URL.
+- Confirmation and password reset templates must include `{token}` and `{userId}` placeholders to match the email flows.
 - Add MailJet and MFA secrets to user secrets or environment variables in production.
 - Expand the `Permissions`/`Roles` lists as you add downstream authorization requirements.
 
@@ -418,7 +419,7 @@ The provider automatically refreshes organization data when the user signs in or
 | --- | --- | --- |
 | Registration | `useRegister`, `authManager.getProfileSchema()` | Render dynamic metadata fields defined in `Registration:ProfileFields`. |
 | Login + MFA | `useLogin`, `useMfa()` | Handle `requiresTwoFactor`, drive challenge + verification steps. |
-| Forgot / Reset Password | `useForgotPassword`, `useResetPassword` | Parse `token` & `email` query params during reset. |
+| Forgot / Reset Password | `useForgotPassword`, `useResetPassword` | Parse `token` & `userId` query params during reset. |
 | Profile | `useProfile()` | Allow metadata updates via `authManager.updateProfile`. |
 | Organization Management | `useOrganizationList`, `useOrganizationMembers` from `@identity-base/react-organizations` | Surface CRUD and membership flows aligned with your permissions. |
 | Admin User Management | Direct calls to `/admin/users` (fetch, assign roles) | Include admin-only UI guards by checking `authManager.hasPermission('users.manage-roles')`. |

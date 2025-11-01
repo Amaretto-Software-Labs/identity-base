@@ -17,13 +17,15 @@ identity
     });
 
 var app = builder.Build();
-app.UseApiPipeline(appBuilder => appBuilder.UseSerilogRequestLogging());
+app.UseApiPipeline(); // Add request logging middleware if desired
 app.MapControllers();
 app.MapApiEndpoints();
 app.Run();
 ```
 
-See the repository README for complete instructions, configuration schemas, and database migration guidance.
+By default the Identity Host (or any consumer calling `AddIdentityBase`) applies the packaged EF Core migrations during startup. You only need to generate custom migrations when you extend the provided DbContexts.
+
+See the repository README for the full architecture, configuration schemas, and microservice/React integration guides.
 
 ## Documentation
 - [Getting Started](https://github.com/Amaretto-Software-Labs/identity-base/blob/main/docs/guides/getting-started.md)

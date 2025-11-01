@@ -62,8 +62,8 @@ Add an `appsettings.json` (or edit the existing file) with at least the followin
     "Roles": ["IdentityAdmin"]
   },
   "Registration": {
-    "ConfirmationUrlTemplate": "https://localhost:5001/account/confirm?token={token}&email={email}",
-    "PasswordResetUrlTemplate": "https://localhost:5001/reset-password?token={token}&email={email}",
+    "ConfirmationUrlTemplate": "https://localhost:5001/account/confirm?token={token}&userId={userId}",
+    "PasswordResetUrlTemplate": "https://localhost:5001/reset-password?token={token}&userId={userId}",
     "ProfileFields": [
       { "Name": "displayName", "DisplayName": "Display Name", "Required": true, "MaxLength": 128 }
     ]
@@ -125,6 +125,7 @@ Add an `appsettings.json` (or edit the existing file) with at least the followin
 Key sections:
 - `ConnectionStrings:Primary` – required for the internal `AppDbContext`.
 - `IdentitySeed` – optionally bootstrap an admin user.
+- `Registration` – confirmation and password reset URLs must include `{token}` **and** `{userId}` placeholders.
 - `MailJet`, `Mfa`, `ExternalProviders` – supply credentials/enabled flags as needed.
 - `OpenIddict` – register clients, scopes, and key management strategy.
 

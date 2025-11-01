@@ -49,7 +49,7 @@ export interface ForgotPasswordRequest {
 }
 
 export interface ResetPasswordRequest {
-  email: string
+  userId: string
   token: string
   password: string
 }

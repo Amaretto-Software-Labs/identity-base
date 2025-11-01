@@ -23,7 +23,7 @@ Identity Base is a .NET 9 minimal API that centralises authentication, user mana
 
 ## Identity & Registration
 - ASP.NET Core Identity is configured with GUID keys, strict password policy (12+ characters, upper/lower/digit), and enforced email confirmation.
-- `Registration` options drive dynamic profile metadata. Configure fields under `Registration:ProfileFields` and the confirmation URL template with `{token}` and `{email}` placeholders.
+- `Registration` options drive dynamic profile metadata. Configure fields under `Registration:ProfileFields` and ensure both confirmation and password reset URL templates include `{token}` and `{userId}` placeholders.
 - `/auth/register` accepts payloads `{ email, password, metadata }`; metadata keys must match configured fields. Successful requests return `202 Accepted` with a correlation identifier and trigger a confirmation email.
 - `IdentitySeed` options allow optional super-admin creation. Set `IdentitySeed:Enabled` to `true` and provide credentials (disabled by default).
 - MailJet delivery requires valid API credentials and template id; replace the placeholders in configuration before running the service and, if desired, enable `MailJet:ErrorReporting` to route failures to an operational inbox.
@@ -42,7 +42,8 @@ Identity Base is a .NET 9 minimal API that centralises authentication, user mana
     "Primary": "Host=localhost;Port=5432;Database=identity;Username=identity;Password=identity"
   },
   "Registration": {
-    "ConfirmationUrlTemplate": "https://localhost:5001/account/confirm?token={token}&email={email}",
+    "ConfirmationUrlTemplate": "https://localhost:5001/account/confirm?token={token}&userId={userId}",
+    "PasswordResetUrlTemplate": "https://localhost:5001/reset-password?token={token}&userId={userId}",
     "ProfileFields": [
       { "Name": "displayName", "DisplayName": "Display Name", "Required": true, "MaxLength": 128 },
       { "Name": "company", "DisplayName": "Company", "Required": false, "MaxLength": 128 }

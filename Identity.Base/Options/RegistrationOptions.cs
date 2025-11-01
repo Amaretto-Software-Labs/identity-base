@@ -12,7 +12,7 @@ public sealed class RegistrationOptions
 
     [Required]
     [MaxLength(512)]
-    public string PasswordResetUrlTemplate { get; set; } = "https://localhost/reset-password?token={token}&email={email}";
+    public string PasswordResetUrlTemplate { get; set; } = "https://localhost/reset-password?token={token}&userId={userId}";
 
     [MinLength(0)]
     public IList<RegistrationProfileFieldOptions> ProfileFields { get; set; } = new List<RegistrationProfileFieldOptions>();

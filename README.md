@@ -1,7 +1,7 @@
 [![CI](https://github.com/Amaretto-Software-Labs/identity-base/actions/workflows/ci.yml/badge.svg)](https://github.com/Amaretto-Software-Labs/identity-base/actions/workflows/ci.yml)
 # Identity Base
 
-Identity Base is a modular Identity + OpenID Connect platform for .NET 9. It packages ASP.NET Core Identity, EF Core migrations, OpenIddict server setup, MFA, external providers (Google, Microsoft, Apple), MailJet-powered email flows, and deployment-ready defaults. Hosts can self-run the identity server or embed its capabilities through NuGet packages.
+Identity Base is a modular Identity + OpenID Connect platform for .NET 9. It packages ASP.NET Core Identity, EF Core migrations, OpenIddict server setup, MFA, external providers (Google, Microsoft, Apple), MailJet-powered email flows, and deployment-ready defaults. The recommended architecture is a dedicated Identity Host that runs all identity surfaces, a fleet of JWT-protected microservices, and a React 19 SPA consuming the APIs.
 
 The project is open source under the MIT License.
 
@@ -21,12 +21,14 @@ The project is open source under the MIT License.
 
 | Path | Purpose |
 | --- | --- |
-| `Identity.Base/` | Core class library (Identity, OpenIddict, EF Core, MFA, email) packaged for NuGet. |
-| `Identity.Base.Host/` | Minimal ASP.NET Core host that composes the library for local runs, migrations, and integration tests. |
-| `Identity.Base.AspNet/` | Optional NuGet package to simplify JWT bearer authentication for downstream APIs. |
-| `Identity.Base.Tests/` | Integration and feature tests (xUnit + WebApplicationFactory). |
-| `docs/` | Architecture, engineering principles, sprint plans, onboarding, configuration guides. |
-| `apps/` | Sample applications, including a JWT-consuming API. |
+| `Identity.Base/` | Core class library (Identity, OpenIddict, EF Core, MFA, email) published to NuGet. |
+| `Identity.Base.Host/` | Opinionated ASP.NET Core host wired for local development and integration tests. Applies migrations and seeding on startup. |
+| `Identity.Base.Admin/` | Admin API/RBAC extensions layered on the core package. |
+| `Identity.Base.Organizations/` | Multi-tenant organization, membership, and role tooling. |
+| `Identity.Base.AspNet/` | Helpers that let microservices validate Identity Base-issued JWTs. |
+| `apps/` | Sample APIs that demonstrate bearer auth and organization scenarios. |
+| `docs/` | Architecture, engineering principles, sprint plans, onboarding, full-stack integration guides. |
+| `packages/` | React client packages (`@identity-base/react-client`, `@identity-base/react-organizations`). |
 
 Key documents:
 - [Project Plan](docs/plans/identity-oidc-project-plan.md)
@@ -43,7 +45,7 @@ Key documents:
 | Package | Description |
 | --- | --- |
 | [`Identity.Base`](https://www.nuget.org/packages/Identity.Base) | Core Identity/OpenIddict services, EF Core context & migrations, MFA, external providers, DI extensions. |
-| [`Identity.Base.AspNet`](https://www.nuget.org/packages/Identity.Base.AspNet) | ASP.NET Core helpers for APIs consuming Identity Base tokens via JWT bearer authentication. |
+| [`Identity.Base.AspNet`](https://www.nuget.org/packages/Identity.Base.AspNet) | ASP.NET Core helpers for microservices consuming Identity Base tokens via JWT bearer authentication. |
 
 Install via .NET CLI (replace `<latest>` with the published version):
 
@@ -58,7 +60,7 @@ Manual package builds are available through the GitHub Actions **CI** workflow (
 
 ## Quick Start
 
-### 1. Self-host the Identity server
+### 1. Identity Host (all identity + admin endpoints)
 
 ```bash
 dotnet restore Identity.sln
@@ -68,24 +70,11 @@ dotnet run --project Identity.Base.Host/Identity.Base.Host.csproj
 
 The host wires the full pipeline:
 
-```csharp
-var identity = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
+The host applies all bundled migrations on startup (Identity, Roles, Organizations) and seeds the admin account based on configuration. No manual `dotnet ef database update` is required unless you add custom entities.
 
-identity
-    .AddConfiguredExternalProviders() // Google/Microsoft/Apple based on configuration
-    .AddExternalAuthProvider("github", auth =>
-        auth.AddOAuth("GitHub", options => { /* custom provider */ }));
+Follow the [Getting Started guide](docs/guides/getting-started.md) for configuration schema, MailJet setup, and OpenIddict application registration.
 
-var app = builder.Build();
-app.UseApiPipeline(appBuilder => appBuilder.UseSerilogRequestLogging());
-app.MapControllers();
-app.MapApiEndpoints();
-app.Run();
-```
-
-Follow the [Getting Started guide](docs/guides/getting-started.md) for database setup, MailJet configuration, MFA, and OpenIddict seeding.
-
-### 2. Integrate with an existing API
+### 2. Secure .NET microservices
 
 ```csharp
 // Program.cs
@@ -101,7 +90,28 @@ app.MapGet("/api/protected", () => "Secure content")
    .RequireAuthorization(policy => policy.RequireScope("identity.api"));
 ```
 
-Refer to the [Identity.Base.AspNet README](Identity.Base.AspNet/README.md) for advanced configuration, scope handling, and troubleshooting.
+See [Identity.Base.AspNet/README.md](Identity.Base.AspNet/README.md) for detailed options, scope helpers, and troubleshooting.
+
+### 3. React 19 SPA
+
+Install the published React packages and wrap your app with both providers:
+
+```bash
+npm install @identity-base/react-client @identity-base/react-organizations
+```
+
+```tsx
+import { IdentityProvider } from '@identity-base/react-client';
+import { OrganizationsProvider } from '@identity-base/react-organizations';
+
+<IdentityProvider config={identityConfig}>
+  <OrganizationsProvider apiBase={identityConfig.apiBase}>
+    <App />
+  </OrganizationsProvider>
+</IdentityProvider>
+```
+
+The hooks exposed by the packages (`useLogin`, `useOrganizations`, `useOrganizationMembers`, etc.) orchestrate the full identity and organization flows. The [Full Stack Integration Guide](docs/guides/full-stack-integration-guide.md) walks through setting up the Identity Host, microservices, and the SPA end-to-end.
 
 ---
 
@@ -110,32 +120,25 @@ Refer to the [Identity.Base.AspNet README](Identity.Base.AspNet/README.md) for a
 ### Prerequisites
 - .NET 9 SDK
 - PostgreSQL 16 (local or Docker)
-- MailJet credentials for outbound email (required for runtime startup)
-
-### Database & migrations
-
-```bash
-dotnet ef database update \
-  --project Identity.Base/Identity.Base.csproj \
-  --startup-project Identity.Base.Host/Identity.Base.Host.csproj
-```
-
-Connection strings live under `ConnectionStrings:Primary`. In development we default to `identity/identity` credentials.
+- MailJet credentials (or MailHog for local stubbing)
+- Node.js 20 / npm 10 if you run the React clients
 
 ### Configuration snapshot
-- `Registration` – profile fields, confirmation/reset URL templates.
+
+### Configuration snapshot
+- `Registration` – profile fields, confirmation/reset URL templates (embed `{token}` + `{userId}`).
 - `MailJet` – API keys, sender info, template IDs (confirmation/reset/MFA).
 - `Mfa` – issuer name, email/SMS toggles, Twilio credentials (if SMS is enabled).
 - `ExternalProviders` – Google/Microsoft/Apple client IDs, secrets, scopes, callback paths.
 - `OpenIddict` – client applications, scopes, server key provider (development, file-system, Azure Key Vault).
 - `Cors` – allowed origins for browser clients.
 
-Full option reference is documented in [docs/guides/getting-started.md](docs/guides/getting-started.md).
+Full option reference lives in [docs/guides/getting-started.md](docs/guides/getting-started.md). For the full architecture walk-through (Identity Host + microservices + React 19), see [docs/guides/full-stack-integration-guide.md](docs/guides/full-stack-integration-guide.md).
 
 ---
 
 ## Testing & Tooling
-- Run `dotnet test Identity.sln` (44 integration tests) before submitting changes.
+- Run `dotnet test Identity.sln` (integration + unit suites) before submitting changes.
 - The host project uses EF Core InMemory for tests; design-time factory enables CLI tooling.
 - CI (GitHub Actions) builds, tests, and packs both packages for every push/PR. Manual releases are triggered via **Run workflow** with a semantic version.
 
@@ -147,7 +150,7 @@ Full option reference is documented in [docs/guides/getting-started.md](docs/gui
 3. Smoke test the packages locally before pushing to NuGet.
 4. Tag the release and publish notes referencing the changelog.
 
-Process details: [Release Checklist](docs/release/release-checklist.md).
+Process details: [Release Checklist](docs/release/release-checklist.md). The Identity Host and sample APIs rely on automatic migrations at startup; ensure deployments allow database schema updates during boot or pipe the migrations through your existing release automation.
 
 ---
 

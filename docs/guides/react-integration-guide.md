@@ -129,7 +129,7 @@ Implement the following pages/components.
 - POST to `/auth/register`; show the correlation ID returned and prompt users to confirm email.
 
 ### 5.2 Email confirmation (optional UI)
-- When users click the email link, send them to a simple “confirmation success” page that calls `POST /auth/confirm-email` with the `token` & `email` from the query string.
+- When users click the email link, send them to a simple “confirmation success” page that calls `POST /auth/confirm-email` with the `token` & `userId` from the query string.
 
 ### 5.3 Login
 - Use `useLogin` hook.
@@ -138,7 +138,7 @@ Implement the following pages/components.
 
 ### 5.4 Forgot password & reset password
 - Forgot password page: call `useForgotPassword().requestReset(email)`.
-- Reset password page: read `token` and `email` from query string, validate new password inputs, and call `useResetPassword().resetPassword({ email, token, password })`.
+- Reset password page: read `token` and `userId` from query string, validate new password inputs, and call `useResetPassword().resetPassword({ userId, token, password })`.
 
 ### 5.5 MFA flows
 - Challenge page: call `useMfa().sendChallenge` (for SMS/email) and `useMfa().verify` with the chosen method.
