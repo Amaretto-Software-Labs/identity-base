@@ -5,6 +5,7 @@ using Identity.Base.Admin.Endpoints;
 using Microsoft.AspNetCore.Builder;
 using OrgSampleApi.Hosting.Configuration;
 using OrgSampleApi.Hosting.Endpoints;
+using Serilog;
 
 namespace OrgSampleApi.Hosting;
 
@@ -24,12 +25,7 @@ internal static class OrgSampleApiHostBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        if (app.Environment.IsDevelopment())
-        {
-            app.MapOpenApi();
-        }
-
-        app.UseApiPipeline();
+        app.UseApiPipeline(appBuilder => appBuilder.UseSerilogRequestLogging());
 
         app.MapControllers();
         app.MapApiEndpoints();

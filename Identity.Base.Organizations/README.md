@@ -42,7 +42,7 @@ var organizationsBuilder = builder.Services.AddIdentityBaseOrganizations(options
 });
 
 var app = builder.Build();
-app.UseApiPipeline();
+app.UseApiPipeline(appBuilder => appBuilder.UseSerilogRequestLogging());
 app.MapApiEndpoints();
 app.MapIdentityRolesUserEndpoints();
 app.MapIdentityBaseOrganizationEndpoints();

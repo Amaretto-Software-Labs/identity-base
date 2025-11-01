@@ -61,7 +61,7 @@ rolesBuilder.AddDbContext<IdentityRolesDbContext>((provider, options) =>
 
 var app = builder.Build();
 
-app.UseApiPipeline();
+app.UseApiPipeline(appBuilder => appBuilder.UseSerilogRequestLogging());
 
 app.MapControllers();
 app.MapApiEndpoints();

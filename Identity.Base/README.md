@@ -17,7 +17,7 @@ identity
     });
 
 var app = builder.Build();
-app.UseApiPipeline();
+app.UseApiPipeline(appBuilder => appBuilder.UseSerilogRequestLogging());
 app.MapControllers();
 app.MapApiEndpoints();
 app.Run();

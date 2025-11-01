@@ -39,12 +39,14 @@ builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
 
 var app = builder.Build();
 
-app.UseApiPipeline();         // HTTPS redirection, Serilog, CORS, auth, etc.
+app.UseApiPipeline();         // HTTPS redirection, CORS, auth, etc.
 app.MapControllers();         // enables controller discovery if you add any
 app.MapApiEndpoints();        // Identity Base authentication/profile endpoints
 
 await app.RunAsync();
 ```
+
+> Need structured request logging? Pass your own middleware: `app.UseApiPipeline(app => app.UseSerilogRequestLogging());` or plug in your preferred logging framework.
 
 ### 2.3 Provide Configuration
 Add an `appsettings.json` (or edit the existing file) with at least the following sections. Adjust values to match your environment:

@@ -114,7 +114,7 @@ await using (var scope = app.Services.CreateAsyncScope())
     }
 }
 
-app.UseApiPipeline();                   // HTTPS redirection, problem details, auth, etc.
+app.UseApiPipeline(appBuilder => appBuilder.UseSerilogRequestLogging()); // Plug in your preferred request logging
 app.MapControllers();                   // Allow MVC controllers if you add any
 app.MapApiEndpoints();                  // Core Identity Base endpoints
 app.MapIdentityRolesUserEndpoints();    // GET /users/me/permissions and scope helpers
