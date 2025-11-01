@@ -8,6 +8,11 @@
     <RootNamespace>Identity.Base.Email.MailJet</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <PackageId>Identity.Base.Email.MailJet</PackageId>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Optional Mailjet email sender integration for Identity Base hosts.</Description>
+    <Authors>Identity Base Maintainers</Authors>
+    <PackageTags>identity;mailjet;email;aspnetcore</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,6 +21,10 @@
 
   <ItemGroup>
     <ProjectReference Include="../Identity.Base/Identity.Base.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="" />
   </ItemGroup>
 
 </Project>
