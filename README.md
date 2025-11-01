@@ -1,4 +1,11 @@
 [![CI](https://github.com/Amaretto-Software-Labs/identity-base/actions/workflows/ci.yml/badge.svg)](https://github.com/Amaretto-Software-Labs/identity-base/actions/workflows/ci.yml)
+
+[![NuGet version](https://img.shields.io/nuget/v/Identity.Base?style=flat-square&logo=nuget)](https://www.nuget.org/packages/Identity.Base)
+[![NuGet downloads](https://img.shields.io/nuget/dt/Identity.Base?style=flat-square&logo=nuget&label=downloads)](https://www.nuget.org/packages/Identity.Base)
+[![npm version](https://img.shields.io/npm/v/@identity-base/react-client?style=flat-square&logo=npm)](https://www.npmjs.com/package/@identity-base/react-client)
+[![npm downloads](https://img.shields.io/npm/dt/@identity-base/react-client?style=flat-square&logo=npm&label=downloads)](https://www.npmjs.com/package/@identity-base/react-client)
+[![npm downloads/month](https://img.shields.io/npm/dm/@identity-base/react-client?style=flat-square&logo=npm&label=downloads/month)](https://www.npmjs.com/package/@identity-base/react-client)
+
 # Identity Base
 
 Identity Base is a modular Identity + OpenID Connect platform for .NET 9. It packages ASP.NET Core Identity, EF Core migrations, OpenIddict server setup, MFA, external providers (Google, Microsoft, Apple), optional Mailjet email delivery, and deployment-ready defaults. The recommended architecture is a dedicated Identity Host that runs all identity surfaces, a fleet of JWT-protected microservices, and a React 19 SPA consuming the APIs.

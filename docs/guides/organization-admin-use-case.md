@@ -2,7 +2,7 @@
 
 This guide captures the end-to-end scenario described in planning: users register, create or join organizations, organization administrators manage memberships/roles, and a separate admin surface can oversee the entire system.
 
-> ✅ Sample implementation: the repository includes `apps/org-sample-api` (PostgreSQL-backed API host) and `apps/org-sample-client` (React SPA) that together exercise every workflow described below—registration with organization metadata, organization switching, invitation management, and invite redemption. To run everything (including the original sample API/client) from one process, use the Aspire host at `apps/Samples.AppHost`.
+> ✅ Sample implementation: `apps/org-sample-api` + `apps/org-sample-client` implement registration, organization creation, invites, and member management end-to-end. See also [docs/guides/organization-onboarding-flow.md](organization-onboarding-flow.md) for a step-by-step walkthrough.
 
 ## Scenario Snapshot
 
