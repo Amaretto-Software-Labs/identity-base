@@ -21,11 +21,13 @@ The project is open source under the MIT License.
 
 | Path | Purpose |
 | --- | --- |
-| `Identity.Base/` | Core class library (Identity, OpenIddict, EF Core, MFA, email) published to NuGet. |
-| `Identity.Base.Host/` | Opinionated ASP.NET Core host wired for local development and integration tests. Applies migrations and seeding on startup. |
+| `Identity.Base/` | Core class library (Identity, OpenIddict, EF Core, MFA) published to NuGet. |
+| `Identity.Base.Roles/` | Role-based access control primitives (roles, permissions, seeding helpers). |
 | `Identity.Base.Admin/` | Admin API/RBAC extensions layered on the core package. |
 | `Identity.Base.Organizations/` | Multi-tenant organization, membership, and role tooling. |
 | `Identity.Base.AspNet/` | Helpers that let microservices validate Identity Base-issued JWTs. |
+| `Identity.Base.Email.MailJet/` | Optional Mailjet email sender and configuration add-on. |
+| `Identity.Base.Host/` | Opinionated ASP.NET Core host wired for local development and integration tests. Applies migrations and seeding on startup. |
 | `apps/` | Sample APIs that demonstrate bearer auth and organization scenarios. |
 | `docs/` | Architecture, engineering principles, sprint plans, onboarding, full-stack integration guides. |
 | `packages/` | React client packages (`@identity-base/react-client`, `@identity-base/react-organizations`). |
