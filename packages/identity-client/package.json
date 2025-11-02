@@ -1,6 +1,6 @@
 {
   "name": "@identity-base/react-client",
-  "version": "1.0.0",
+  "version": "0.4.0",
   "description": "Headless React authentication client for Identity.Base",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

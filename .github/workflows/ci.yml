@@ -68,14 +68,16 @@ jobs:
 
       - name: Pack Identity.Base libraries
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
         run: |
-          dotnet pack Identity.Base/Identity.Base.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
-          dotnet pack Identity.Base.Roles/Identity.Base.Roles.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
-          dotnet pack Identity.Base.Admin/Identity.Base.Admin.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
-          dotnet pack Identity.Base.Organisations/Identity.Base.Organisations.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
-          dotnet pack Identity.Base.AspNet/Identity.Base.AspNet.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
-          dotnet pack Identity.Base.Email.MailJet/Identity.Base.Email.MailJet.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
-          dotnet pack Identity.Base.Email.MailJet/Identity.Base.Email.MailJet.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
+          dotnet pack Identity.Base/Identity.Base.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -p:PackageVersion=$PACKAGE_VERSION -p:Version=$PACKAGE_VERSION -o artifacts
+          dotnet pack Identity.Base.Roles/Identity.Base.Roles.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -p:PackageVersion=$PACKAGE_VERSION -p:Version=$PACKAGE_VERSION -o artifacts
+          dotnet pack Identity.Base.Admin/Identity.Base.Admin.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -p:PackageVersion=$PACKAGE_VERSION -p:Version=$PACKAGE_VERSION -o artifacts
+          dotnet pack Identity.Base.Organisations/Identity.Base.Organisations.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -p:PackageVersion=$PACKAGE_VERSION -p:Version=$PACKAGE_VERSION -o artifacts
+          dotnet pack Identity.Base.AspNet/Identity.Base.AspNet.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -p:PackageVersion=$PACKAGE_VERSION -p:Version=$PACKAGE_VERSION -o artifacts
+          dotnet pack Identity.Base.Email.MailJet/Identity.Base.Email.MailJet.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -p:PackageVersion=$PACKAGE_VERSION -p:Version=$PACKAGE_VERSION -o artifacts
+          dotnet pack Identity.Base.Email.MailJet/Identity.Base.Email.MailJet.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -p:PackageVersion=$PACKAGE_VERSION -p:Version=$PACKAGE_VERSION -o artifacts
 
       - name: Upload NuGet artifacts
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -135,12 +137,21 @@ jobs:
           const lockPath = 'package-lock.json';
           const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
           pkg.version = version;
+          if (pkg.peerDependencies && pkg.peerDependencies['@identity-base/react-client']) {
+            pkg.peerDependencies['@identity-base/react-client'] = version;
+          }
           fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
           if (fs.existsSync(lockPath)) {
             const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
             lock.version = version;
             if (lock.packages && lock.packages['']) {
               lock.packages[''].version = version;
+              if (lock.packages[''].peerDependencies && lock.packages[''].peerDependencies['@identity-base/react-client']) {
+                lock.packages[''].peerDependencies['@identity-base/react-client'] = version;
+              }
+            }
+            if (lock.packages && lock.packages['../identity-client']) {
+              lock.packages['../identity-client'].version = version;
             }
             fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n');
           }
@@ -218,13 +229,15 @@ jobs:
         run: dotnet test Identity.sln --configuration Release --no-build --verbosity normal
 
       - name: Pack Identity.Base libraries
+        env:
+          PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
         run: |
-          dotnet pack Identity.Base/Identity.Base.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
-          dotnet pack Identity.Base.Roles/Identity.Base.Roles.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
-          dotnet pack Identity.Base.Admin/Identity.Base.Admin.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
-          dotnet pack Identity.Base.Organisations/Identity.Base.Organisations.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
-          dotnet pack Identity.Base.AspNet/Identity.Base.AspNet.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
-          dotnet pack Identity.Base.Email.MailJet/Identity.Base.Email.MailJet.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
+          dotnet pack Identity.Base/Identity.Base.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -p:PackageVersion=$PACKAGE_VERSION -p:Version=$PACKAGE_VERSION -o artifacts
+          dotnet pack Identity.Base.Roles/Identity.Base.Roles.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -p:PackageVersion=$PACKAGE_VERSION -p:Version=$PACKAGE_VERSION -o artifacts
+          dotnet pack Identity.Base.Admin/Identity.Base.Admin.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -p:PackageVersion=$PACKAGE_VERSION -p:Version=$PACKAGE_VERSION -o artifacts
+          dotnet pack Identity.Base.Organisations/Identity.Base.Organisations.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -p:PackageVersion=$PACKAGE_VERSION -p:Version=$PACKAGE_VERSION -o artifacts
+          dotnet pack Identity.Base.AspNet/Identity.Base.AspNet.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -p:PackageVersion=$PACKAGE_VERSION -p:Version=$PACKAGE_VERSION -o artifacts
+          dotnet pack Identity.Base.Email.MailJet/Identity.Base.Email.MailJet.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -p:PackageVersion=$PACKAGE_VERSION -p:Version=$PACKAGE_VERSION -o artifacts
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
@@ -304,12 +317,21 @@ jobs:
           const lockPath = 'package-lock.json';
           const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
           pkg.version = version;
+          if (pkg.peerDependencies && pkg.peerDependencies['@identity-base/react-client']) {
+            pkg.peerDependencies['@identity-base/react-client'] = version;
+          }
           fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
           if (fs.existsSync(lockPath)) {
             const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
             lock.version = version;
             if (lock.packages && lock.packages['']) {
               lock.packages[''].version = version;
+              if (lock.packages[''].peerDependencies && lock.packages[''].peerDependencies['@identity-base/react-client']) {
+                lock.packages[''].peerDependencies['@identity-base/react-client'] = version;
+              }
+            }
+            if (lock.packages && lock.packages['../identity-client']) {
+              lock.packages['../identity-client'].version = version;
             }
             fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n');
           }
