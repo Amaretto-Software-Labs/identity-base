@@ -2,12 +2,12 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLogin, useIdentityContext } from '@identity-base/react-client'
-import { useOrganizations } from '@identity-base/react-organizations'
+import { useOrganisations } from '@identity-base/react-organisations'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const { authManager } = useIdentityContext()
-  const { reloadMemberships } = useOrganizations()
+  const { reloadMemberships } = useOrganisations()
   const { login, isLoading, error } = useLogin({
     onSuccess: async (response) => {
       if (response.requiresTwoFactor) {
@@ -32,7 +32,7 @@ export default function LoginPage() {
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold text-slate-900">Sign in</h1>
         <p className="text-sm text-slate-600">
-          Use the credentials created during registration. After sign-in the dashboard will display your active organization.
+          Use the credentials created during registration. After sign-in the dashboard will display your active organisation.
         </p>
       </header>
 

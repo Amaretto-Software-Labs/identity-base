@@ -22,9 +22,9 @@ public sealed class InvitationResponse
 
     public DateTimeOffset ExpiresAtUtc { get; init; }
 
-    public string OrganizationName { get; init; } = string.Empty;
+    public string OrganisationName { get; init; } = string.Empty;
 
-    public string OrganizationSlug { get; init; } = string.Empty;
+    public string OrganisationSlug { get; init; } = string.Empty;
 
     public bool IsExistingUser { get; init; }
 

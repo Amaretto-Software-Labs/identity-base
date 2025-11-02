@@ -46,13 +46,13 @@ The `IdentityHost` project centralizes Identity Base. Each API surface lives in 
 cd IdentityHost
 dotnet add package Identity.Base
 dotnet add package Identity.Base.Admin
-dotnet add package Identity.Base.Organizations
+dotnet add package Identity.Base.Organisations
 dotnet add package Identity.Base.Email.MailJet # optional Mailjet sender
 ```
 
 - `Identity.Base` provides the core identity, OpenIddict, MFA, and email flows.
 - `Identity.Base.Admin` layers admin authorization and endpoints on top of RBAC (it implicitly registers `Identity.Base.Roles`).
-- `Identity.Base.Organizations` adds organization, membership, and organization-scoped role management.
+- `Identity.Base.Organisations` adds organisation, membership, and organisation-scoped role management.
 
 ### 3.2 Replace `Program.cs`
 
@@ -61,9 +61,9 @@ using Identity.Base.Admin.Configuration;
 using Identity.Base.Admin.Endpoints;
 using Identity.Base.Email.MailJet;
 using Identity.Base.Extensions;
-using Identity.Base.Organizations.Data;
-using Identity.Base.Organizations.Endpoints;
-using Identity.Base.Organizations.Extensions;
+using Identity.Base.Organisations.Data;
+using Identity.Base.Organisations.Endpoints;
+using Identity.Base.Organisations.Extensions;
 using Identity.Base.Roles;
 using Identity.Base.Roles.Endpoints;
 using Microsoft.EntityFrameworkCore;
@@ -82,16 +82,16 @@ adminBuilder.AddDbContext<IdentityRolesDbContext>((provider, options) =>
     options.UseNpgsql(connectionString, sql => sql.EnableRetryOnFailure());
 });
 
-// Organizations (multi-tenant entities, memberships, organization roles)
-var organizationsBuilder = builder.Services.AddIdentityBaseOrganizations(options =>
+// Organisations (multi-tenant entities, memberships, organisation roles)
+var organisationsBuilder = builder.Services.AddIdentityBaseOrganisations(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("Primary")!;
     options.UseNpgsql(connectionString);
 });
 
-// Optional: extend organization model or seeding pipeline here
-// organizationsBuilder.ConfigureOrganizationModel(modelBuilder => { ... });
-// organizationsBuilder.AfterOrganizationSeed(async (sp, ct) => { ... });
+// Optional: extend organisation model or seeding pipeline here
+// organisationsBuilder.ConfigureOrganisationModel(modelBuilder => { ... });
+// organisationsBuilder.AfterOrganisationSeed(async (sp, ct) => { ... });
 
 var app = builder.Build();
 
@@ -110,10 +110,10 @@ await using (var scope = app.Services.CreateAsyncScope())
         await services.SeedIdentityRolesAsync();
     }
 
-    var organizationContext = services.GetService<OrganizationDbContext>();
-    if (organizationContext is not null)
+    var organisationContext = services.GetService<OrganisationDbContext>();
+    if (organisationContext is not null)
     {
-        await organizationContext.Database.MigrateAsync();
+        await organisationContext.Database.MigrateAsync();
     }
 }
 
@@ -122,7 +122,7 @@ app.MapControllers();                   // Allow MVC controllers if you add any
 app.MapApiEndpoints();                  // Core Identity Base endpoints
 app.MapIdentityRolesUserEndpoints();    // GET /users/me/permissions and scope helpers
 app.MapIdentityAdminEndpoints();        // /admin/users, /admin/roles
-app.MapIdentityBaseOrganizationEndpoints(); // /organizations + membership management
+app.MapIdentityBaseOrganisationEndpoints(); // /organisations + membership management
 app.MapHealthChecks("/healthz");
 
 await app.RunAsync();
@@ -183,7 +183,7 @@ Populate the generated `appsettings.json` with the minimal sections shown below.
     "Scopes": [
       { "Name": "identity.api", "DisplayName": "Identity API" },
       { "Name": "identity.admin", "DisplayName": "Identity Admin" },
-      { "Name": "organizations.manage", "DisplayName": "Organization Management" }
+      { "Name": "organisations.manage", "DisplayName": "Organisation Management" }
     ],
     "Applications": [
       {
@@ -203,7 +203,7 @@ Populate the generated `appsettings.json` with the minimal sections shown below.
           "scopes:offline_access",
           "scopes:identity.api",
           "scopes:identity.admin",
-          "scopes:organizations.manage"
+          "scopes:organisations.manage"
         ],
         "Requirements": ["requirements:pkce"]
       }
@@ -213,8 +213,8 @@ Populate the generated `appsettings.json` with the minimal sections shown below.
     "Definitions": [
       { "Name": "users.read", "Description": "List and view users" },
       { "Name": "users.manage-roles", "Description": "Assign user roles" },
-      { "Name": "organizations.read", "Description": "Read organizations" },
-      { "Name": "organizations.manage", "Description": "Manage organizations and memberships" }
+      { "Name": "organisations.read", "Description": "Read organisations" },
+      { "Name": "organisations.manage", "Description": "Manage organisations and memberships" }
     ]
   },
   "Roles": {
@@ -231,8 +231,8 @@ Populate the generated `appsettings.json` with the minimal sections shown below.
         "Permissions": [
           "users.read",
           "users.manage-roles",
-          "organizations.read",
-          "organizations.manage"
+          "organisations.read",
+          "organisations.manage"
         ],
         "IsSystemRole": true
       }
@@ -250,7 +250,7 @@ Populate the generated `appsettings.json` with the minimal sections shown below.
 
 ### 3.4 Prepare Database Schema
 
-Identity Base, Identity Base Roles, and Identity Base Organizations all ship their migrations inside the packages. The startup routine in `Program.cs` calls `Database.MigrateAsync()` for each DbContext, so the Identity Host automatically creates or updates the schema every time it boots. There is no manual `dotnet ef database update` workflow.
+Identity Base, Identity Base Roles, and Identity Base Organisations all ship their migrations inside the packages. The startup routine in `Program.cs` calls `Database.MigrateAsync()` for each DbContext, so the Identity Host automatically creates or updates the schema every time it boots. There is no manual `dotnet ef database update` workflow.
 
 Only generate migrations if you extend the supplied contexts with custom entities. In that case, run `dotnet ef migrations add ...` within your host project and the startup block will pick up those additional migrations too.
 
@@ -261,8 +261,8 @@ dotnet run
 ```
 
 - `https://localhost:5001/healthz` should report healthy checks.
-- `POST /auth/register`, `POST /auth/login`, `/admin/users`, and `/organizations` are now available.
-- Sign in with the seeded admin account to exercise the admin and organization surfaces.
+- `POST /auth/register`, `POST /auth/login`, `/admin/users`, and `/organisations` are now available.
+- Sign in with the seeded admin account to exercise the admin and organisation surfaces.
 
 ---
 
@@ -315,7 +315,7 @@ npm install
 ### 5.2 Install Identity Base Packages
 
 ```bash
-npm install @identity-base/react-client @identity-base/react-organizations
+npm install @identity-base/react-client @identity-base/react-organisations
 ```
 
 Both packages declare React 18/19 peer dependencies, so your Vite app must use React 19 (`"react": "^19.0.0"` in `package.json`).
@@ -328,11 +328,11 @@ Create `.env.local`:
 VITE_IDENTITY_API_BASE=https://localhost:5001
 VITE_IDENTITY_CLIENT_ID=spa-client
 VITE_IDENTITY_REDIRECT_URI=http://localhost:5173/auth/callback
-VITE_IDENTITY_SCOPE="openid profile email offline_access identity.api identity.admin organizations.manage"
+VITE_IDENTITY_SCOPE="openid profile email offline_access identity.api identity.admin organisations.manage"
 VITE_IDENTITY_LOG_LEVEL=debug
 ```
 
-### 5.4 Bootstrap Identity & Organization Providers
+### 5.4 Bootstrap Identity & Organisation Providers
 
 `src/config.ts`:
 
@@ -353,50 +353,50 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { IdentityProvider } from '@identity-base/react-client';
-import { OrganizationsProvider } from '@identity-base/react-organizations';
+import { OrganisationsProvider } from '@identity-base/react-organisations';
 import App from './App';
 import { identityConfig } from './config';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <IdentityProvider config={identityConfig}>
-      <OrganizationsProvider apiBase={identityConfig.apiBase}>
+      <OrganisationsProvider apiBase={identityConfig.apiBase}>
         <BrowserRouter>
           <App />
         </BrowserRouter>
-      </OrganizationsProvider>
+      </OrganisationsProvider>
     </IdentityProvider>
   </React.StrictMode>,
 );
 ```
 
-`OrganizationsProvider` consumes the user’s tokens from `@identity-base/react-client`, loads the caller’s organization memberships, and exposes helper hooks for switching organizations or managing memberships. Provide `apiBase` whenever the SPA’s origin differs from the Identity Host.
+`OrganisationsProvider` consumes the user’s tokens from `@identity-base/react-client`, loads the caller’s organisation memberships, and exposes helper hooks for switching organisations or managing memberships. Provide `apiBase` whenever the SPA’s origin differs from the Identity Host.
 
-### 5.5 Organization Hooks in Practice
+### 5.5 Organisation Hooks in Practice
 
-Use the exported hooks to access membership data, list organization members, and switch the active organization context.
+Use the exported hooks to access membership data, list organisation members, and switch the active organisation context.
 
 ```tsx
-import { useOrganizations, useOrganizationMembers, useOrganizationSwitcher } from '@identity-base/react-organizations';
+import { useOrganisations, useOrganisationMembers, useOrganisationSwitcher } from '@identity-base/react-organisations';
 
-export function OrganizationDashboard() {
-  const { memberships, activeOrganizationId, switchActiveOrganization, isLoadingOrganizations } = useOrganizations();
-  const { members, isLoading: isLoadingMembers } = useOrganizationMembers(activeOrganizationId ?? undefined);
-  const { isSwitching } = useOrganizationSwitcher();
+export function OrganisationDashboard() {
+  const { memberships, activeOrganisationId, switchActiveOrganisation, isLoadingOrganisations } = useOrganisations();
+  const { members, isLoading: isLoadingMembers } = useOrganisationMembers(activeOrganisationId ?? undefined);
+  const { isSwitching } = useOrganisationSwitcher();
 
-  if (isLoadingOrganizations) return <p>Loading organizations…</p>;
-  if (!activeOrganizationId) return <p>Select an organization to continue.</p>;
+  if (isLoadingOrganisations) return <p>Loading organisations…</p>;
+  if (!activeOrganisationId) return <p>Select an organisation to continue.</p>;
 
   return (
     <>
       <select
-        value={activeOrganizationId}
-        onChange={(event) => switchActiveOrganization(event.target.value)}
+        value={activeOrganisationId}
+        onChange={(event) => switchActiveOrganisation(event.target.value)}
         disabled={isSwitching}
       >
         {memberships.map((membership) => (
-          <option key={membership.organizationId} value={membership.organizationId}>
-            {membership.organizationId}
+          <option key={membership.organisationId} value={membership.organisationId}>
+            {membership.organisationId}
           </option>
         ))}
       </select>
@@ -415,7 +415,7 @@ export function OrganizationDashboard() {
 }
 ```
 
-The provider automatically refreshes organization data when the user signs in or switches organizations and persists the active organization in `localStorage`. Downstream API calls can include the active organization ID in headers or query parameters if required by your microservices.
+The provider automatically refreshes organisation data when the user signs in or switches organisations and persists the active organisation in `localStorage`. Downstream API calls can include the active organisation ID in headers or query parameters if required by your microservices.
 
 ### 5.6 Implement Core Screens
 
@@ -425,7 +425,7 @@ The provider automatically refreshes organization data when the user signs in or
 | Login + MFA | `useLogin`, `useMfa()` | Handle `requiresTwoFactor`, drive challenge + verification steps. |
 | Forgot / Reset Password | `useForgotPassword`, `useResetPassword` | Parse `token` & `userId` query params during reset. |
 | Profile | `useProfile()` | Allow metadata updates via `authManager.updateProfile`. |
-| Organization Management | `useOrganizationList`, `useOrganizationMembers` from `@identity-base/react-organizations` | Surface CRUD and membership flows aligned with your permissions. |
+| Organisation Management | `useOrganisationList`, `useOrganisationMembers` from `@identity-base/react-organisations` | Surface CRUD and membership flows aligned with your permissions. |
 | Admin User Management | Direct calls to `/admin/users` (fetch, assign roles) | Include admin-only UI guards by checking `authManager.hasPermission('users.manage-roles')`. |
 | Domain APIs | Fetch from microservices such as `/orders`, `/inventory` | Attach access tokens from the React client (hooks expose `getAccessToken`). |
 
@@ -464,7 +464,7 @@ export function RequirePermission({ permission, children }: { permission: string
 }
 ```
 
-Use `RequirePermission` around admin and organization components to enforce RBAC consistently with the backend.
+Use `RequirePermission` around admin and organisation components to enforce RBAC consistently with the backend.
 
 ### 5.8 Run the SPA
 
@@ -482,7 +482,7 @@ Vite serves the app on `http://localhost:5173` by default. Proxy protected API r
 2. In `IdentityHost`, run `dotnet run`. Verify `GET /healthz` returns `Healthy`.
 3. In `identity-spa`, run `npm run dev`. Confirm the React app loads at `http://localhost:5173`.
 4. Register a new user; complete login and MFA if enabled.
-5. Sign in with the seeded admin account (`admin@example.com`), navigate to admin pages, and verify role assignment + organization management endpoints respond.
+5. Sign in with the seeded admin account (`admin@example.com`), navigate to admin pages, and verify role assignment + organisation management endpoints respond.
 6. Hit each protected microservice endpoint (for example `/orders`) to validate `Identity.Base.AspNet` authentication and scope enforcement.
 
 ---

@@ -17,7 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Identity.Base\Identity.Base.csproj" />
     <ProjectReference Include="..\..\Identity.Base.Admin\Identity.Base.Admin.csproj" />
-    <ProjectReference Include="..\..\Identity.Base.Organizations\Identity.Base.Organizations.csproj" />
+    <ProjectReference Include="..\..\Identity.Base.Organisations\Identity.Base.Organisations.csproj" />
     <ProjectReference Include="..\..\Identity.Base.Roles\Identity.Base.Roles.csproj" />
   </ItemGroup>
 

@@ -3,23 +3,23 @@ import { useAuth } from '@identity-base/react-client'
 
 const nextSteps = [
   {
-    title: 'Register with organization metadata',
-    description: 'The registration flow asks for organization slug/name and seeds you as the OrgOwner.',
+    title: 'Register with organisation metadata',
+    description: 'The registration flow asks for organisation slug/name and seeds you as the OrgOwner.',
     to: '/register',
   },
   {
     title: 'Sign in and explore the dashboard',
-    description: 'Switch active organizations, inspect memberships, and refresh claims.',
+    description: 'Switch active organisations, inspect memberships, and refresh claims.',
     to: '/dashboard',
   },
   {
     title: 'Invite collaborators',
     description: 'Create invitation codes for additional users, assign org roles, and track pending invites.',
-    to: '/organizations/current',
+    to: '/organisations/current',
   },
   {
     title: 'Claim an invitation',
-    description: 'Redeem a code after signing in to join another organization with pre-assigned roles.',
+    description: 'Redeem a code after signing in to join another organisation with pre-assigned roles.',
     to: '/invitations/claim',
   },
 ]
@@ -32,13 +32,13 @@ export default function HomePage() {
       <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <header className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Identity Base sample</p>
-          <h1 className="text-3xl font-bold text-slate-900">Multi-organization SaaS walkthrough</h1>
+          <h1 className="text-3xl font-bold text-slate-900">Multi-organisation SaaS walkthrough</h1>
         </header>
         <p className="text-slate-700">
-          This frontend pairs with <span className="font-mono">apps/org-sample-api</span> to demonstrate the full organization
-          scenario: users register with organization metadata, automatically become organization admins, invite teammates, and
-          switch active organizations. The UI leans on <code>@identity-base/react-client</code> for authentication state and the
-          sample REST endpoints for organization workflows.
+          This frontend pairs with <span className="font-mono">apps/org-sample-api</span> to demonstrate the full organisation
+          scenario: users register with organisation metadata, automatically become organisation admins, invite teammates, and
+          switch active organisations. The UI leans on <code>@identity-base/react-client</code> for authentication state and the
+          sample REST endpoints for organisation workflows.
         </p>
 
         <div className="rounded-md border border-slate-100 bg-slate-50 p-4">
@@ -64,7 +64,7 @@ export default function HomePage() {
           {nextSteps.map((step) => (
             <Link
               key={step.title}
-              to={step.to === '/organizations/current' ? '/dashboard' : step.to}
+              to={step.to === '/organisations/current' ? '/dashboard' : step.to}
               className="block rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
             >
               <h3 className="text-lg font-semibold text-slate-900">{step.title}</h3>
@@ -78,18 +78,18 @@ export default function HomePage() {
         <h2 className="text-xl font-semibold text-slate-900">API endpoints in play</h2>
         <ul className="list-disc space-y-2 pl-6 text-sm text-slate-600">
           <li>
-            <code>/auth/register</code> – extends registration with organization metadata and seeds OrgOwner role via hosted
+            <code>/auth/register</code> – extends registration with organisation metadata and seeds OrgOwner role via hosted
             callbacks.
           </li>
           <li>
-            <code>/users/me/organizations</code> + <code>/users/me/organizations/active</code> – list and switch memberships.
+            <code>/users/me/organisations</code> + <code>/users/me/organisations/active</code> – list and switch memberships.
           </li>
           <li>
-            <code>{'/organizations/{id}'}</code>, <code>{'/organizations/{id}/members'}</code>, <code>{'/organizations/{id}/roles'}</code>
-            {' '}– manage organization surface secured via permission scopes.
+            <code>{'/organisations/{id}'}</code>, <code>{'/organisations/{id}/members'}</code>, <code>{'/organisations/{id}/roles'}</code>
+            {' '}– manage organisation surface secured via permission scopes.
           </li>
           <li>
-            <code>{'/sample/organizations/{id}/invitations'}</code> – sample API overlay storing invitations in Postgres.
+            <code>{'/sample/organisations/{id}/invitations'}</code> – sample API overlay storing invitations in Postgres.
           </li>
           <li>
             <code>/sample/invitations/claim</code> – attach accepted invitations to the signed-in user.

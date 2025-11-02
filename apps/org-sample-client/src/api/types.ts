@@ -28,7 +28,7 @@ export interface InvitationRegisterRequest {
   metadata: Record<string, string | null>
 }
 
-export interface OrganizationSummary {
+export interface OrganisationSummary {
   id: string
   slug: string
   displayName: string
@@ -37,7 +37,7 @@ export interface OrganizationSummary {
 }
 
 export interface Membership {
-  organizationId: string
+  organisationId: string
   userId: string
   tenantId: string | null
   isPrimary: boolean
@@ -46,26 +46,26 @@ export interface Membership {
   updatedAtUtc: string | null
 }
 
-export interface OrganizationDetails extends OrganizationSummary {
-  roles: OrganizationRole[]
-  members: OrganizationMember[]
+export interface OrganisationDetails extends OrganisationSummary {
+  roles: OrganisationRole[]
+  members: OrganisationMember[]
 }
 
-export interface OrganizationRole {
+export interface OrganisationRole {
   id: string
   name: string
   description?: string | null
   isSystemRole: boolean
 }
 
-export interface OrganizationRolePermissions {
+export interface OrganisationRolePermissions {
   effective: string[]
   explicit: string[]
 }
 
-export interface OrganizationMember {
+export interface OrganisationMember {
   userId: string
-  organizationId: string
+  organisationId: string
   isPrimary: boolean
   roleIds: string[]
   createdAtUtc: string
@@ -78,8 +78,8 @@ export interface InvitationResponse {
   email: string
   roleIds: string[]
   expiresAtUtc: string
-  organizationName: string
-  organizationSlug: string
+  organisationName: string
+  organisationSlug: string
   isExistingUser: boolean
   registerUrl?: string | null
   claimUrl?: string | null
@@ -98,9 +98,9 @@ export interface ClaimInvitationRequest {
 export interface InvitationDetailsResponse {
   code: string
   email: string
-  organizationId: string
-  organizationName: string
-  organizationSlug: string
+  organisationId: string
+  organisationName: string
+  organisationSlug: string
   roleIds: string[]
   expiresAtUtc: string
   isExistingUser: boolean

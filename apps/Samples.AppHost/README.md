@@ -2,8 +2,8 @@
 
 This Aspire app host runs the entire sample landscape:
 
-- `org-sample-api` – the PostgreSQL-backed Identity/Base organizations sample.
-- `org-sample-client` – React SPA demonstrating multi-organization flows.
+- `org-sample-api` – the PostgreSQL-backed Identity/Base organisations sample.
+- `org-sample-client` – React SPA demonstrating multi-organisation flows.
 - `sample-api` & `sample-client` – the lightweight API/SPA pair that ships with the repository.
 - `identity-postgres` – shared PostgreSQL instance (single database `identity_org_sample`).
 

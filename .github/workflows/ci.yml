@@ -72,7 +72,7 @@ jobs:
           dotnet pack Identity.Base/Identity.Base.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
           dotnet pack Identity.Base.Roles/Identity.Base.Roles.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
           dotnet pack Identity.Base.Admin/Identity.Base.Admin.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
-          dotnet pack Identity.Base.Organizations/Identity.Base.Organizations.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
+          dotnet pack Identity.Base.Organisations/Identity.Base.Organisations.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
           dotnet pack Identity.Base.AspNet/Identity.Base.AspNet.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
           dotnet pack Identity.Base.Email.MailJet/Identity.Base.Email.MailJet.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
           dotnet pack Identity.Base.Email.MailJet/Identity.Base.Email.MailJet.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
@@ -88,8 +88,8 @@ jobs:
         working-directory: packages/identity-client
         run: npm ci
 
-      - name: Install npm dependencies (organizations)
-        working-directory: packages/identity-react-organizations
+      - name: Install npm dependencies (organisations)
+        working-directory: packages/identity-react-organisations
         run: npm ci
 
       - name: Align npm package version
@@ -119,11 +119,11 @@ jobs:
           }
           NODE
 
-      - name: Align npm package version (organizations)
+      - name: Align npm package version (organisations)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
-        working-directory: packages/identity-react-organizations
+        working-directory: packages/identity-react-organisations
         run: |
           node - <<'NODE'
           const fs = require('fs');
@@ -150,8 +150,8 @@ jobs:
         working-directory: packages/identity-client
         run: npm run build
 
-      - name: Build React organizations package
-        working-directory: packages/identity-react-organizations
+      - name: Build React organisations package
+        working-directory: packages/identity-react-organisations
         run: npm run build
 
       - name: Upload React package artifacts
@@ -161,12 +161,12 @@ jobs:
           name: identity-react-client-${{ steps.version.outputs.package-version }}
           path: packages/identity-client/dist/**
 
-      - name: Upload organizations React package artifacts
+      - name: Upload organisations React package artifacts
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
-          name: identity-react-organizations-${{ steps.version.outputs.package-version }}
-          path: packages/identity-react-organizations/dist/**
+          name: identity-react-organisations-${{ steps.version.outputs.package-version }}
+          path: packages/identity-react-organisations/dist/**
 
   release:
     if: github.event_name == 'workflow_dispatch'
@@ -222,7 +222,7 @@ jobs:
           dotnet pack Identity.Base/Identity.Base.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
           dotnet pack Identity.Base.Roles/Identity.Base.Roles.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
           dotnet pack Identity.Base.Admin/Identity.Base.Admin.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
-          dotnet pack Identity.Base.Organizations/Identity.Base.Organizations.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
+          dotnet pack Identity.Base.Organisations/Identity.Base.Organisations.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
           dotnet pack Identity.Base.AspNet/Identity.Base.AspNet.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
           dotnet pack Identity.Base.Email.MailJet/Identity.Base.Email.MailJet.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -o artifacts
 
@@ -259,8 +259,8 @@ jobs:
         working-directory: packages/identity-client
         run: npm ci
 
-      - name: Install npm dependencies (organizations)
-        working-directory: packages/identity-react-organizations
+      - name: Install npm dependencies (organisations)
+        working-directory: packages/identity-react-organisations
         run: npm ci
 
       - name: Align npm package version
@@ -289,10 +289,10 @@ jobs:
           }
           NODE
 
-      - name: Align npm package version (organizations)
+      - name: Align npm package version (organisations)
         env:
           PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
-        working-directory: packages/identity-react-organizations
+        working-directory: packages/identity-react-organisations
         run: |
           node - <<'NODE'
           const fs = require('fs');
@@ -319,8 +319,8 @@ jobs:
         working-directory: packages/identity-client
         run: npm run build
 
-      - name: Build React organizations package
-        working-directory: packages/identity-react-organizations
+      - name: Build React organisations package
+        working-directory: packages/identity-react-organisations
         run: npm run build
 
       - name: Upload React package artifacts
@@ -329,11 +329,11 @@ jobs:
           name: identity-react-client-${{ steps.release-version.outputs.package-version }}
           path: packages/identity-client/dist/**
 
-      - name: Upload organizations React package artifacts
+      - name: Upload organisations React package artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: identity-react-organizations-${{ steps.release-version.outputs.package-version }}
-          path: packages/identity-react-organizations/dist/**
+          name: identity-react-organisations-${{ steps.release-version.outputs.package-version }}
+          path: packages/identity-react-organisations/dist/**
 
       - name: Publish React packages to npm
         if: github.event.inputs.publish-to-npm == 'true'
@@ -347,7 +347,7 @@ jobs:
           pushd packages/identity-client >/dev/null
           npm publish --access public
           popd >/dev/null
-          pushd packages/identity-react-organizations >/dev/null
+          pushd packages/identity-react-organisations >/dev/null
           npm publish --access public
           popd >/dev/null
 

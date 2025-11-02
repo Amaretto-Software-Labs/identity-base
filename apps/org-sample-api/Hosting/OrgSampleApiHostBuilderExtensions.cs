@@ -1,5 +1,5 @@
 using Identity.Base.Extensions;
-using Identity.Base.Organizations.Extensions;
+using Identity.Base.Organisations.Extensions;
 using Identity.Base.Roles.Endpoints;
 using Identity.Base.Admin.Endpoints;
 using Microsoft.AspNetCore.Builder;
@@ -31,7 +31,7 @@ internal static class OrgSampleApiHostBuilderExtensions
         app.MapApiEndpoints();
         app.MapIdentityAdminEndpoints();
         app.MapIdentityRolesUserEndpoints();
-        app.MapIdentityBaseOrganizationEndpoints();
+        app.MapIdentityBaseOrganisationEndpoints();
         app.MapOrgSampleEndpoints();
     }
 }

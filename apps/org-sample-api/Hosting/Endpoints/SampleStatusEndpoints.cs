@@ -17,11 +17,11 @@ internal static class SampleStatusEndpoints
 
         group.MapGet("/status", () => Results.Ok(new
         {
-            Message = "Organization sample API is running.",
+            Message = "Organisation sample API is running.",
             Timestamp = DateTimeOffset.UtcNow
         }));
 
-        group.MapGet("/defaults", (IOptions<OrganizationBootstrapOptions> options) =>
+        group.MapGet("/defaults", (IOptions<OrganisationBootstrapOptions> options) =>
         {
             var defaults = options.Value;
             return Results.Ok(new

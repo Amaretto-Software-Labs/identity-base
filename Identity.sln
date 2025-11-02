@@ -15,9 +15,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Identity.Base.Roles.Tools",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Identity.Base.Admin", "Identity.Base.Admin\Identity.Base.Admin.csproj", "{1F8068E1-9DED-423C-966F-0B62238C507D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Identity.Base.Organizations", "Identity.Base.Organizations\Identity.Base.Organizations.csproj", "{A97E48EE-70DA-45AA-9D52-4487BDB5C3C4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Identity.Base.Organisations", "Identity.Base.Organisations\Identity.Base.Organisations.csproj", "{A97E48EE-70DA-45AA-9D52-4487BDB5C3C4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Identity.Base.Organizations.Tests", "Identity.Base.Organizations.Tests\Identity.Base.Organizations.Tests.csproj", "{785C7293-9B5B-459A-B09C-4F785AD5A3F4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Identity.Base.Organisations.Tests", "Identity.Base.Organisations.Tests\Identity.Base.Organisations.Tests.csproj", "{785C7293-9B5B-459A-B09C-4F785AD5A3F4}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "apps", "apps", "{1787FE1D-075E-9E68-7218-25F1BD1BBEAB}"
 EndProject

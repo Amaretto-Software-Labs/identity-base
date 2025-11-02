@@ -10,7 +10,7 @@ using Identity.Base.Features.Authentication.EmailManagement;
 using Identity.Base.Identity;
 using Identity.Base.Logging;
 using Identity.Base.Options;
-using Identity.Base.Organizations.Services;
+using Identity.Base.Organisations.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
@@ -31,7 +31,7 @@ internal static class SampleRegistrationEndpoints
         group.MapPost("/invitations/register", HandleInvitationRegistrationAsync)
             .AllowAnonymous()
             .WithName("RegisterWithInvitation")
-            .WithSummary("Registers a new user through an invitation and assigns organization membership.")
+            .WithSummary("Registers a new user through an invitation and assigns organisation membership.")
             .Produces(StatusCodes.Status202Accepted)
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status404NotFound);
@@ -43,7 +43,7 @@ internal static class SampleRegistrationEndpoints
         HttpContext httpContext,
         InvitationRegistrationRequest request,
         IValidator<InvitationRegistrationRequest> validator,
-        OrganizationInvitationService invitationService,
+        OrganisationInvitationService invitationService,
         UserManager<ApplicationUser> userManager,
         IAccountEmailService accountEmailService,
         IOptions<RegistrationOptions> registrationOptions,

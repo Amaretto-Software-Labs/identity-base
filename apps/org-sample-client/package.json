@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@identity-base/react-client": "file:../../packages/identity-client",
-    "@identity-base/react-organizations": "file:../../packages/identity-react-organizations",
+    "@identity-base/react-organisations": "file:../../packages/identity-react-organisations",
     "@tanstack/react-virtual": "^3.10.9",
     "@types/qrcode": "^1.5.5",
     "axios": "^1.12.2",

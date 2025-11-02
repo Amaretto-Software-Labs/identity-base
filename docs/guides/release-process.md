@@ -13,8 +13,8 @@ This repository uses [Nerdbank.GitVersioning (NBGV)](https://github.com/dotnet/N
 1. `build` job restores, builds, and tests the solution on every PR and `main` push.
 2. When running on `main`, the job also:
    - Computes the current SemVer using `nbgv`.
-   - Packs the NuGet projects (`Identity.Base`, `Identity.Base.Roles`, `Identity.Base.Admin`, `Identity.Base.AspNet`, `Identity.Base.Organizations`) with `ContinuousIntegrationBuild=true`.
-   - Builds the React packages in `packages/identity-client/dist` and `packages/identity-react-organizations/dist`.
+   - Packs the NuGet projects (`Identity.Base`, `Identity.Base.Roles`, `Identity.Base.Admin`, `Identity.Base.AspNet`, `Identity.Base.Organisations`) with `ContinuousIntegrationBuild=true`.
+   - Builds the React packages in `packages/identity-client/dist` and `packages/identity-react-organisations/dist`.
    - Uploads each artefact set with versioned names for inspection.
 
 No packages are published automatically during validation runs.

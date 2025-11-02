@@ -1,14 +1,14 @@
 import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { IdentityProvider, useIdentityContext } from '@identity-base/react-client'
-import { OrganizationsProvider } from '@identity-base/react-organizations'
+import { OrganisationsProvider } from '@identity-base/react-organisations'
 import AppLayout from './components/AppLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import HomePage from './pages/HomePage'
 import RegisterPage from './pages/RegisterPage'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
-import OrganizationAdminPage from './pages/OrganizationAdminPage'
+import OrganisationAdminPage from './pages/OrganisationAdminPage'
 import AcceptInvitationPage from './pages/AcceptInvitationPage'
 import AuthorizeCallbackPage from './pages/AuthorizeCallbackPage'
 import ConfirmEmailPage from './pages/ConfirmEmailPage'
@@ -38,7 +38,7 @@ export default function App() {
         tokenStorage: 'localStorage',
       }}
     >
-      <OrganizationsProvider apiBase={CONFIG.apiBase}>
+      <OrganisationsProvider apiBase={CONFIG.apiBase}>
         <Routes>
           <Route element={<AppLayout />}>
             <Route index element={<HomePage />} />
@@ -53,10 +53,10 @@ export default function App() {
               )}
             />
             <Route
-              path="organizations/:organizationId"
+              path="organisations/:organisationId"
               element={(
                 <ProtectedRoute>
-                  <OrganizationAdminPage />
+                  <OrganisationAdminPage />
                 </ProtectedRoute>
               )}
             />
@@ -74,7 +74,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <AuthManagerBridge />
-      </OrganizationsProvider>
+      </OrganisationsProvider>
     </IdentityProvider>
   )
 }

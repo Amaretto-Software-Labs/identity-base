@@ -4,7 +4,7 @@ import { registerUser, registerUserWithInvitation } from '../api/auth'
 import type { ProfileSchemaField, InvitationDetailsResponse } from '../api/types'
 import { useProfileSchema } from '../hooks/useProfileSchema'
 import { renderApiError } from '../api/client'
-import { getInvitationDetails } from '../api/organizations'
+import { getInvitationDetails } from '../api/organisations'
 
 interface FieldState {
   value: string
@@ -117,7 +117,7 @@ export default function RegisterPage() {
         <h1 className="text-xl font-semibold text-amber-900">Account already exists</h1>
         <p>
           The invitation for <span className="font-semibold">{invitationInfo.email}</span> is for an existing user. Please sign in and use the claim link below to join
-          <span className="font-semibold"> {invitationInfo.organizationName}</span>.
+          <span className="font-semibold"> {invitationInfo.organisationName}</span>.
         </p>
         {invitationInfo.claimUrl && (
           <a
@@ -137,12 +137,12 @@ export default function RegisterPage() {
         <h1 className="text-2xl font-semibold text-slate-900">Create an account</h1>
         {invitationInfo ? (
           <p className="text-sm text-slate-600">
-            You&apos;ve been invited to join <span className="font-semibold">{invitationInfo.organizationName}</span>. Complete registration to join this organization after confirming your email.
+            You&apos;ve been invited to join <span className="font-semibold">{invitationInfo.organisationName}</span>. Complete registration to join this organisation after confirming your email.
           </p>
         ) : (
           <p className="text-sm text-slate-600">
-            Provide your email, password, and the requested organization metadata. The bootstrap service will create that
-            organization and assign you the OrgOwner role after confirmation.
+            Provide your email, password, and the requested organisation metadata. The bootstrap service will create that
+            organisation and assign you the OrgOwner role after confirmation.
           </p>
         )}
         {invitationError && (
@@ -188,7 +188,7 @@ export default function RegisterPage() {
 
         {invitationInfo ? null : (
           <fieldset className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <legend className="px-2 text-sm font-semibold text-slate-800">Organization metadata</legend>
+            <legend className="px-2 text-sm font-semibold text-slate-800">Organisation metadata</legend>
             {isLoading ? (
               <p className="text-sm text-slate-600">Loading schema…</p>
             ) : (
