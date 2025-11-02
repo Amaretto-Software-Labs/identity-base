@@ -1,7 +1,8 @@
 # Changelog
 
-## [0.4.0] - 2025-11-01
+## [0.4.0] - 2025-11-02
 ### Highlights
+- Fixed missing `identity.permissions` claim on authorization-code/hybrid sign-ins by running registered claims augmentors for those flows.
 - Renamed all Organisation packages, namespaces, endpoints, and React components to use British spelling.
 - Modularized Identity Base into reusable libraries and ASP.NET host, adding builder APIs (`AddIdentityBase`, external provider helpers) and EF support.
 - Delivered complete auth surface: registration metadata, email confirmation/reset flows, MFA (authenticator, SMS/email via Twilio/Mailjet), external providers, and authorization code PKCE.
@@ -10,4 +11,3 @@
 - Shipped Docker/docker-compose environment, sample React client harness, and documentation covering deployment, admin operations, headless React integration, and multi-tenant planning.
 
 ## Unreleased
-- _No changes yet._

@@ -128,7 +128,7 @@ internal sealed class PasswordGrantHandler : IOpenIddictServerHandler<OpenIddict
         _logger.LogInformation("Password grant succeeded for user {UserId}", user.Id);
     }
 
-    private static IEnumerable<string> GetDestinations(Claim claim)
+    internal static IEnumerable<string> GetDestinations(Claim claim)
     {
         switch (claim.Type)
         {
@@ -149,6 +149,7 @@ internal sealed class PasswordGrantHandler : IOpenIddictServerHandler<OpenIddict
                 yield break;
         }
     }
+
 
     public static OpenIddictServerHandlerDescriptor Descriptor { get; } =
         OpenIddictServerHandlerDescriptor.CreateBuilder<OpenIddictServerEvents.HandleTokenRequestContext>()

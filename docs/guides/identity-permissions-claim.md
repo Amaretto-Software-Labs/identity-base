@@ -1,0 +1,119 @@
+# Ensuring the `identity.permissions` Claim Is Populated
+
+This guide explains how to configure an ASP.NET Core host so that authenticated users receive the `identity.permissions` claim emitted by the Identity Base RBAC package. The claim is required by the admin endpoints and any downstream APIs that enforce fine-grained permissions.
+
+## 1. Required Packages
+
+Install the following NuGet packages:
+
+| Package | Purpose |
+| --- | --- |
+| `Identity.Base` | Core identity + OpenIddict services. |
+| `Identity.Base.Roles` | Permission catalog, role seeding, and the claims augmentor that issues `identity.permissions`. |
+| `Identity.Base.Admin` (optional) | Admin APIs that consume the permissions claim. |
+| `Identity.Base.AspNet` (optional) | JWT bearer helpers for downstream APIs. |
+
+## 2. Configure `Program.cs`
+
+```csharp
+using Identity.Base.Extensions;
+using Identity.Base.Roles;
+using Identity.Base.Roles.Endpoints;
+using Identity.Base.Roles.Configuration;
+using Microsoft.EntityFrameworkCore;
+
+var builder = WebApplication.CreateBuilder(args);
+
+var identity = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
+
+var rolesBuilder = builder.Services.AddIdentityRoles(builder.Configuration);
+rolesBuilder.AddDbContext<IdentityRolesDbContext>((sp, options) =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    options.UseNpgsql(configuration.GetConnectionString("Primary"));
+});
+
+var app = builder.Build();
+
+app.UseApiPipeline();
+app.MapApiEndpoints();
+app.MapIdentityRolesUserEndpoints(); // optional helper endpoint for debugging permissions
+
+await app.RunAsync();
+```
+
+Key points:
+- Call `AddIdentityRoles` **after** `AddIdentityBase` so the claims augmentor is registered.
+- Provide a persistent store (`IdentityRolesDbContext`) so role assignments and permissions can be resolved at runtime.
+- Map `MapIdentityRolesUserEndpoints()` if you want to expose `GET /users/me/permissions` for debugging.
+
+## 3. Seed Permissions and Roles
+
+The RBAC package reads configuration from the `Permissions` and `Roles` sections of `appsettings.json`. Example:
+
+```json
+"Permissions": {
+  "Definitions": [
+    { "Name": "users.read", "Description": "View users" },
+    { "Name": "users.manage", "Description": "Manage users" },
+    { "Name": "organisations.manage", "Description": "Manage organisations" }
+  ]
+},
+"Roles": {
+  "Definitions": [
+    {
+      "Name": "SupportAgent",
+      "Description": "Read-only access",
+      "Permissions": ["users.read"],
+      "IsSystemRole": false
+    },
+    {
+      "Name": "Administrator",
+      "Description": "Full access",
+      "Permissions": ["users.read", "users.manage", "organisations.manage"],
+      "IsSystemRole": true
+    }
+  ],
+  "DefaultUserRoles": ["SupportAgent"],
+  "DefaultAdminRoles": ["Administrator"]
+}
+```
+
+At startup (or as part of deployment), run the seeding helpers:
+
+```csharp
+await app.Services.SeedIdentityRolesAsync();
+```
+
+This creates the role definitions and default assignments so the permission resolver can build the user’s effective permission set.
+
+## 4. Let Startup Hosted Services Apply Migrations
+
+Calling `AddIdentityBase` automatically registers `MigrationHostedService`, which applies any pending migrations for `AppDbContext` each time the host starts. When you call `AddIdentityRoles`, it similarly registers `IdentityRolesMigrationHostedService` to keep the roles database current.
+
+Nothing else is required: ensure both DbContexts point at databases where the app has migrate permissions, and the hosted services will run before the HTTP pipeline starts handling traffic. For containerised or server environments, keep the health probes delayed until startup migrations complete.
+
+## 5. Refresh Sign-In After Role Changes
+
+Whenever you change a user’s roles or permissions, refresh their sign-in so the claims augmentor runs again:
+
+```csharp
+await signInManager.RefreshSignInAsync(user);
+```
+
+For SPA flows, request a new token via `IdentityAuthManager.refreshTokens()` (React client) to pick up the updated claim.
+
+## 6. Verify the Claim
+
+Inspect the authenticated principal (cookie or JWT) and confirm a claim exists with type `identity.permissions`. For example, the `GET /users/me/permissions` endpoint (from `MapIdentityRolesUserEndpoints`) returns the effective permission set as seen by the resolver.
+
+## 7. Troubleshooting
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| No `identity.permissions` claim | `AddIdentityRoles` not called or registrations missing | Ensure the roles package is added and the roles DbContext is configured. |
+| Claim is empty | No seeded permissions or user lacks role assignments | Seed permissions/roles and assign at least one role. |
+| Claim missing after role change | Sign-in cookie/JWT not refreshed | Call `RefreshSignInAsync` or reissue tokens. |
+| Admin API still returns 403 | Required scope not present | Check `AdminApiOptions.RequiredScope` and include it in the token. |
+
+With these steps, every authenticated user with roles will receive the `identity.permissions` claim, and admin endpoints (`RequireAdminPermission(...)`) will succeed when the user holds the necessary permission.

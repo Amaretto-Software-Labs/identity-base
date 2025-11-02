@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Shouldly;
 using Identity.Base.Identity;
+using Identity.Base.Roles.Services;
+using Identity.Base.Roles.Configuration;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
@@ -130,6 +131,69 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
     }
 
     [Fact]
+    public async Task AuthorizationCodeFlow_AddsPermissionsClaimToAccessToken()
+    {
+        const string email = "authorize-permissions@example.com";
+        const string password = "StrongPass!2345";
+        await SeedUserAsync(email, password, confirmEmail: true);
+        await AssignRoleAsync(email, "IdentityAdmin");
+
+        using var client = await CreateAuthenticatedClientAsync(email, password);
+
+        var pkce = PkceData.Create();
+        var state = Guid.NewGuid().ToString("N");
+        const string redirectUri = "https://localhost:3000/auth/callback";
+
+        var authorizeUrl = QueryHelpers.AddQueryString("/connect/authorize", new Dictionary<string, string?>
+        {
+            [OpenIddictConstants.Parameters.ResponseType] = OpenIddictConstants.ResponseTypes.Code,
+            [OpenIddictConstants.Parameters.ClientId] = "spa-client",
+            [OpenIddictConstants.Parameters.RedirectUri] = redirectUri,
+            [OpenIddictConstants.Parameters.Scope] = "openid profile identity.admin identity.api",
+            [OpenIddictConstants.Parameters.CodeChallenge] = pkce.CodeChallenge,
+            [OpenIddictConstants.Parameters.CodeChallengeMethod] = OpenIddictConstants.CodeChallengeMethods.Sha256,
+            [OpenIddictConstants.Parameters.State] = state,
+            [OpenIddictConstants.Parameters.Prompt] = OpenIddictConstants.PromptValues.Consent
+        });
+
+        using var authorizeResponse = await client.GetAsync(authorizeUrl);
+        authorizeResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        authorizeResponse.Headers.Location.ShouldNotBeNull();
+
+        var location = authorizeResponse.Headers.Location!;
+        var query = QueryHelpers.ParseQuery(location.Query);
+        var code = query[OpenIddictConstants.Parameters.Code].ToString();
+        code.ShouldNotBeNull();
+
+        using var tokenResponse = await client.PostAsync("/connect/token", new FormUrlEncodedContent(new Dictionary<string, string?>
+        {
+            [OpenIddictConstants.Parameters.GrantType] = OpenIddictConstants.GrantTypes.AuthorizationCode,
+            [OpenIddictConstants.Parameters.ClientId] = "spa-client",
+            [OpenIddictConstants.Parameters.RedirectUri] = redirectUri,
+            [OpenIddictConstants.Parameters.Code] = code,
+            [OpenIddictConstants.Parameters.CodeVerifier] = pkce.CodeVerifier
+        }));
+
+        var tokenPayload = await tokenResponse.Content.ReadAsStringAsync();
+        tokenResponse.IsSuccessStatusCode.ShouldBeTrue(tokenPayload);
+
+        var json = JsonDocument.Parse(tokenPayload);
+        var accessToken = json.RootElement.GetProperty("access_token").GetString();
+        accessToken.ShouldNotBeNull();
+
+        var parts = accessToken!.Split('.');
+        parts.Length.ShouldBeGreaterThanOrEqualTo(2);
+        var payload = Encoding.UTF8.GetString(JwtTestUtilities.Base64UrlDecode(parts[1]));
+        using var tokenJson = JsonDocument.Parse(payload);
+
+        tokenJson.RootElement.TryGetProperty("identity.permissions", out var permissionsProperty).ShouldBeTrue();
+        var permissions = permissionsProperty.GetString();
+        permissions.ShouldNotBeNull();
+        permissions!.ShouldContain("users.create");
+        permissions.ShouldContain("roles.manage");
+    }
+
+    [Fact]
     public async Task Logout_ClearsSessionAndForcesReauthentication()
     {
         const string email = "authorize-logout@example.com";
@@ -209,6 +273,19 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
         }
     }
 
+    private async Task AssignRoleAsync(string email, string roleName)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await userManager.FindByEmailAsync(email);
+        user.ShouldNotBeNull();
+
+        await scope.ServiceProvider.SeedIdentityRolesAsync();
+
+        var assignmentService = scope.ServiceProvider.GetRequiredService<IRoleAssignmentService>();
+        await assignmentService.AssignRolesAsync(user!.Id, new[] { roleName });
+    }
+
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string email, string password)
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -230,28 +307,5 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
         loginResponse.IsSuccessStatusCode.ShouldBeTrue(loginPayload);
 
         return client;
-    }
-}
-
-internal sealed record PkceData(string CodeVerifier, string CodeChallenge)
-{
-    public static PkceData Create()
-    {
-        var verifierBytes = RandomNumberGenerator.GetBytes(32);
-        var codeVerifier = Base64UrlEncode(verifierBytes);
-
-        using var sha256 = SHA256.Create();
-        var challengeBytes = sha256.ComputeHash(Encoding.ASCII.GetBytes(codeVerifier));
-        var codeChallenge = Base64UrlEncode(challengeBytes);
-
-        return new PkceData(codeVerifier, codeChallenge);
-    }
-
-    private static string Base64UrlEncode(byte[] bytes)
-    {
-        return Convert.ToBase64String(bytes)
-            .TrimEnd('=')
-            .Replace('+', '-')
-            .Replace('/', '_');
     }
 }

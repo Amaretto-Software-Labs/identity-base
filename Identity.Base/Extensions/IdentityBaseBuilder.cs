@@ -456,6 +456,7 @@ public sealed class IdentityBaseBuilder
 
                 options.AddEventHandler(PasswordFlowClientValidator.Descriptor);
                 options.AddEventHandler(PasswordGrantHandler.Descriptor);
+                options.AddEventHandler(AuthorizationCodeAugmentorHandler.Descriptor);
             })
             .AddValidation(options =>
             {
