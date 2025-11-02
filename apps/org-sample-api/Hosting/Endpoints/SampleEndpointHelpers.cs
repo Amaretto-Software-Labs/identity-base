@@ -5,7 +5,7 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Identity.Base.Options;
-using Identity.Base.Organisations.Abstractions;
+using Identity.Base.Organizations.Abstractions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using OrgSampleApi.Sample.Invitations;
@@ -16,8 +16,8 @@ internal static class SampleEndpointHelpers
 {
     public static async Task<IResult?> EnsureActorInScopeAsync(
         ClaimsPrincipal principal,
-        IOrganisationScopeResolver scopeResolver,
-        Guid organisationId,
+        IOrganizationScopeResolver scopeResolver,
+        Guid organizationId,
         CancellationToken cancellationToken)
     {
         if (!TryGetUserId(principal, out var userId))
@@ -25,12 +25,12 @@ internal static class SampleEndpointHelpers
             return Results.Unauthorized();
         }
 
-        if (organisationId == Guid.Empty)
+        if (organizationId == Guid.Empty)
         {
-            return Results.BadRequest(new Dictionary<string, string[]> { ["organisationId"] = ["Organisation identifier is required."] });
+            return Results.BadRequest(new Dictionary<string, string[]> { ["organizationId"] = ["Organization identifier is required."] });
         }
 
-        var inScope = await scopeResolver.IsInScopeAsync(userId, organisationId, cancellationToken).ConfigureAwait(false);
+        var inScope = await scopeResolver.IsInScopeAsync(userId, organizationId, cancellationToken).ConfigureAwait(false);
         if (!inScope)
         {
             return Results.Forbid();

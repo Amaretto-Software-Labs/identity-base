@@ -11,13 +11,13 @@ public sealed class IdentityBaseModelCustomizationOptions
 {
     private readonly List<Action<ModelBuilder>> _appDbContextCustomizations = new();
     private readonly List<Action<ModelBuilder>> _identityRolesDbContextCustomizations = new();
-    private readonly List<Action<ModelBuilder>> _organisationDbContextCustomizations = new();
+    private readonly List<Action<ModelBuilder>> _organizationDbContextCustomizations = new();
 
     public IReadOnlyList<Action<ModelBuilder>> AppDbContextCustomizations => _appDbContextCustomizations;
 
     public IReadOnlyList<Action<ModelBuilder>> IdentityRolesDbContextCustomizations => _identityRolesDbContextCustomizations;
 
-    public IReadOnlyList<Action<ModelBuilder>> OrganisationDbContextCustomizations => _organisationDbContextCustomizations;
+    public IReadOnlyList<Action<ModelBuilder>> OrganizationDbContextCustomizations => _organizationDbContextCustomizations;
 
     internal void AddAppDbContextCustomization(Action<ModelBuilder> customization)
     {
@@ -31,9 +31,9 @@ public sealed class IdentityBaseModelCustomizationOptions
         _identityRolesDbContextCustomizations.Add(customization);
     }
 
-    internal void AddOrganisationDbContextCustomization(Action<ModelBuilder> customization)
+    internal void AddOrganizationDbContextCustomization(Action<ModelBuilder> customization)
     {
         ArgumentNullException.ThrowIfNull(customization);
-        _organisationDbContextCustomizations.Add(customization);
+        _organizationDbContextCustomizations.Add(customization);
     }
 }

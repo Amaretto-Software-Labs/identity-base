@@ -56,7 +56,7 @@ The RBAC package reads configuration from the `Permissions` and `Roles` sections
   "Definitions": [
     { "Name": "users.read", "Description": "View users" },
     { "Name": "users.manage", "Description": "Manage users" },
-    { "Name": "organisations.manage", "Description": "Manage organisations" }
+    { "Name": "organizations.manage", "Description": "Manage organizations" }
   ]
 },
 "Roles": {
@@ -70,7 +70,7 @@ The RBAC package reads configuration from the `Permissions` and `Roles` sections
     {
       "Name": "Administrator",
       "Description": "Full access",
-      "Permissions": ["users.read", "users.manage", "organisations.manage"],
+      "Permissions": ["users.read", "users.manage", "organizations.manage"],
       "IsSystemRole": true
     }
   ],

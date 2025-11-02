@@ -4,8 +4,8 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
-using Identity.Base.Organisations.Abstractions;
-using Identity.Base.Organisations.Authorization;
+using Identity.Base.Organizations.Abstractions;
+using Identity.Base.Organizations.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
@@ -19,35 +19,35 @@ internal static class SampleMemberEndpoints
     {
         ArgumentNullException.ThrowIfNull(group);
 
-        group.MapGet("/organisations/{organisationId:guid}/members", HandleMemberListAsync)
-            .RequireAuthorization(policy => policy.RequireOrganisationPermission("organisation.members.read"));
+        group.MapGet("/organizations/{organizationId:guid}/members", HandleMemberListAsync)
+            .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.read"));
 
-        group.MapPatch("/organisations/{organisationId:guid}/members/{userId:guid}", HandleMemberPatchAsync)
-            .RequireAuthorization(policy => policy.RequireOrganisationPermission("organisation.members.manage"));
+        group.MapPatch("/organizations/{organizationId:guid}/members/{userId:guid}", HandleMemberPatchAsync)
+            .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
 
-        group.MapDelete("/organisations/{organisationId:guid}/members/{userId:guid}", HandleMemberDeleteAsync)
-            .RequireAuthorization(policy => policy.RequireOrganisationPermission("organisation.members.manage"));
+        group.MapDelete("/organizations/{organizationId:guid}/members/{userId:guid}", HandleMemberDeleteAsync)
+            .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
 
         return group;
     }
 
     private static async Task<IResult> HandleMemberListAsync(
-        Guid organisationId,
+        Guid organizationId,
         ClaimsPrincipal principal,
-        IOrganisationScopeResolver scopeResolver,
-        OrganisationMemberDirectory memberDirectory,
+        IOrganizationScopeResolver scopeResolver,
+        OrganizationMemberDirectory memberDirectory,
         CancellationToken cancellationToken)
     {
-        var scopeResult = await SampleEndpointHelpers.EnsureActorInScopeAsync(principal, scopeResolver, organisationId, cancellationToken).ConfigureAwait(false);
+        var scopeResult = await SampleEndpointHelpers.EnsureActorInScopeAsync(principal, scopeResolver, organizationId, cancellationToken).ConfigureAwait(false);
         if (scopeResult is not null)
         {
             return scopeResult;
         }
 
-        var members = await memberDirectory.GetMembersAsync(organisationId, cancellationToken).ConfigureAwait(false);
+        var members = await memberDirectory.GetMembersAsync(organizationId, cancellationToken).ConfigureAwait(false);
         return Results.Ok(members.Select(member => new
         {
-            member.OrganisationId,
+            member.OrganizationId,
             member.UserId,
             member.IsPrimary,
             member.RoleIds,
@@ -59,13 +59,13 @@ internal static class SampleMemberEndpoints
     }
 
     private static async Task<IResult> HandleMemberPatchAsync(
-        Guid organisationId,
+        Guid organizationId,
         Guid userId,
-        UpdateOrganisationMemberRequest request,
+        UpdateOrganizationMemberRequest request,
         ClaimsPrincipal principal,
-        IOrganisationScopeResolver scopeResolver,
-        IOrganisationMembershipService membershipService,
-        OrganisationMemberDirectory memberDirectory,
+        IOrganizationScopeResolver scopeResolver,
+        IOrganizationMembershipService membershipService,
+        OrganizationMemberDirectory memberDirectory,
         CancellationToken cancellationToken)
     {
         if (request is null)
@@ -73,7 +73,7 @@ internal static class SampleMemberEndpoints
             return Results.BadRequest(new ProblemDetails { Title = "Invalid update", Detail = "Request body is required.", Status = StatusCodes.Status400BadRequest });
         }
 
-        var scopeResult = await SampleEndpointHelpers.EnsureActorInScopeAsync(principal, scopeResolver, organisationId, cancellationToken).ConfigureAwait(false);
+        var scopeResult = await SampleEndpointHelpers.EnsureActorInScopeAsync(principal, scopeResolver, organizationId, cancellationToken).ConfigureAwait(false);
         if (scopeResult is not null)
         {
             return scopeResult;
@@ -89,7 +89,7 @@ internal static class SampleMemberEndpoints
             return Results.Problem(new ProblemDetails
             {
                 Title = "Cannot modify self",
-                Detail = "You cannot change your own organisation membership via this endpoint.",
+                Detail = "You cannot change your own organization membership via this endpoint.",
                 Status = StatusCodes.Status409Conflict
             });
         }
@@ -106,9 +106,9 @@ internal static class SampleMemberEndpoints
 
         try
         {
-            await membershipService.UpdateMembershipAsync(new OrganisationMembershipUpdateRequest
+            await membershipService.UpdateMembershipAsync(new OrganizationMembershipUpdateRequest
             {
-                OrganisationId = organisationId,
+                OrganizationId = organizationId,
                 UserId = userId,
                 RoleIds = request.RoleIds?.ToArray(),
                 IsPrimary = request.IsPrimary
@@ -120,22 +120,22 @@ internal static class SampleMemberEndpoints
         }
         catch (KeyNotFoundException)
         {
-            return Results.NotFound(new ProblemDetails { Title = "Membership not found", Detail = "The organisation membership could not be found.", Status = StatusCodes.Status404NotFound });
+            return Results.NotFound(new ProblemDetails { Title = "Membership not found", Detail = "The organization membership could not be found.", Status = StatusCodes.Status404NotFound });
         }
         catch (InvalidOperationException ex)
         {
             return Results.Conflict(new ProblemDetails { Title = "Membership conflict", Detail = ex.Message, Status = StatusCodes.Status409Conflict });
         }
 
-        var updated = await memberDirectory.GetMemberAsync(organisationId, userId, cancellationToken).ConfigureAwait(false);
+        var updated = await memberDirectory.GetMemberAsync(organizationId, userId, cancellationToken).ConfigureAwait(false);
         if (updated is null)
         {
-            return Results.NotFound(new ProblemDetails { Title = "Membership not found", Detail = "The organisation membership could not be found.", Status = StatusCodes.Status404NotFound });
+            return Results.NotFound(new ProblemDetails { Title = "Membership not found", Detail = "The organization membership could not be found.", Status = StatusCodes.Status404NotFound });
         }
 
         return Results.Ok(new
         {
-            updated.OrganisationId,
+            updated.OrganizationId,
             updated.UserId,
             updated.IsPrimary,
             updated.RoleIds,
@@ -147,14 +147,14 @@ internal static class SampleMemberEndpoints
     }
 
     private static async Task<IResult> HandleMemberDeleteAsync(
-        Guid organisationId,
+        Guid organizationId,
         Guid userId,
         ClaimsPrincipal principal,
-        IOrganisationScopeResolver scopeResolver,
-        IOrganisationMembershipService membershipService,
+        IOrganizationScopeResolver scopeResolver,
+        IOrganizationMembershipService membershipService,
         CancellationToken cancellationToken)
     {
-        var scopeResult = await SampleEndpointHelpers.EnsureActorInScopeAsync(principal, scopeResolver, organisationId, cancellationToken).ConfigureAwait(false);
+        var scopeResult = await SampleEndpointHelpers.EnsureActorInScopeAsync(principal, scopeResolver, organizationId, cancellationToken).ConfigureAwait(false);
         if (scopeResult is not null)
         {
             return scopeResult;
@@ -170,18 +170,18 @@ internal static class SampleMemberEndpoints
             return Results.Problem(new ProblemDetails
             {
                 Title = "Cannot remove self",
-                Detail = "You cannot remove your own membership from the organisation.",
+                Detail = "You cannot remove your own membership from the organization.",
                 Status = StatusCodes.Status409Conflict
             });
         }
 
-        var membership = await membershipService.GetMembershipAsync(organisationId, userId, cancellationToken).ConfigureAwait(false);
+        var membership = await membershipService.GetMembershipAsync(organizationId, userId, cancellationToken).ConfigureAwait(false);
         if (membership is null)
         {
-            return Results.NotFound(new ProblemDetails { Title = "Membership not found", Detail = "The organisation membership could not be found.", Status = StatusCodes.Status404NotFound });
+            return Results.NotFound(new ProblemDetails { Title = "Membership not found", Detail = "The organization membership could not be found.", Status = StatusCodes.Status404NotFound });
         }
 
-        await membershipService.RemoveMemberAsync(organisationId, userId, cancellationToken).ConfigureAwait(false);
+        await membershipService.RemoveMemberAsync(organizationId, userId, cancellationToken).ConfigureAwait(false);
         return Results.NoContent();
     }
 }

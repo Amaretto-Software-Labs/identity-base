@@ -31,13 +31,13 @@ The project is open source under the MIT License.
 | `Identity.Base/` | Core class library (Identity, OpenIddict, EF Core, MFA) published to NuGet. |
 | `Identity.Base.Roles/` | Role-based access control primitives (roles, permissions, seeding helpers). |
 | `Identity.Base.Admin/` | Admin API/RBAC extensions layered on the core package. |
-| `Identity.Base.Organisations/` | Multi-tenant organisation, membership, and role tooling. |
+| `Identity.Base.Organizations/` | Multi-tenant organization, membership, and role tooling. |
 | `Identity.Base.AspNet/` | Helpers that let microservices validate Identity Base-issued JWTs. |
 | `Identity.Base.Email.MailJet/` | Optional Mailjet email sender and configuration add-on. |
 | `Identity.Base.Host/` | Opinionated ASP.NET Core host wired for local development and integration tests. Applies migrations and seeding on startup. |
-| `apps/` | Sample APIs that demonstrate bearer auth and organisation scenarios. |
+| `apps/` | Sample APIs that demonstrate bearer auth and organization scenarios. |
 | `docs/` | Architecture, engineering principles, sprint plans, onboarding, full-stack integration guides. |
-| `packages/` | React client packages (`@identity-base/react-client`, `@identity-base/react-organisations`). |
+| `packages/` | React client packages (`@identity-base/react-client`, `@identity-base/react-organizations`). |
 
 Key documents:
 - [Project Plan](docs/plans/identity-oidc-project-plan.md)
@@ -56,7 +56,7 @@ Key documents:
 | [`Identity.Base`](https://www.nuget.org/packages/Identity.Base) | Core Identity/OpenIddict services, EF Core context & migrations, MFA, external providers, DI extensions. |
 | [`Identity.Base.Roles`](https://www.nuget.org/packages/Identity.Base.Roles) | Role and permission management primitives (DbContext, seed helpers, configuration). |
 | [`Identity.Base.Admin`](https://www.nuget.org/packages/Identity.Base.Admin) | Admin API extensions layered on Identity Base + roles. |
-| [`Identity.Base.Organisations`](https://www.nuget.org/packages/Identity.Base.Organisations) | Organisations, memberships, and organisation-scoped role tooling. |
+| [`Identity.Base.Organizations`](https://www.nuget.org/packages/Identity.Base.Organizations) | Organizations, memberships, and organization-scoped role tooling. |
 | [`Identity.Base.AspNet`](https://www.nuget.org/packages/Identity.Base.AspNet) | ASP.NET Core helpers for microservices consuming Identity Base tokens via JWT bearer authentication. |
 | [`Identity.Base.Email.MailJet`](https://www.nuget.org/packages/Identity.Base.Email.MailJet) | Optional Mailjet integration (email sender, options, health checks). |
 
@@ -67,7 +67,7 @@ dotnet add package Identity.Base --version <latest>
 # Add-on packages as needed:
 dotnet add package Identity.Base.Roles --version <latest>
 dotnet add package Identity.Base.Admin --version <latest>
-dotnet add package Identity.Base.Organisations --version <latest>
+dotnet add package Identity.Base.Organizations --version <latest>
 dotnet add package Identity.Base.AspNet --version <latest>
 dotnet add package Identity.Base.Email.MailJet --version <latest>
 ```
@@ -88,7 +88,7 @@ dotnet run --project Identity.Base.Host/Identity.Base.Host.csproj
 
 The host wires the full pipeline:
 
-The host applies all bundled migrations on startup (Identity, Roles, Organisations) and seeds the admin account based on configuration. No manual `dotnet ef database update` is required unless you add custom entities.
+The host applies all bundled migrations on startup (Identity, Roles, Organizations) and seeds the admin account based on configuration. No manual `dotnet ef database update` is required unless you add custom entities.
 
 If you install the Mailjet add-on, call `identity.UseMailJetEmailSender();` (or `builder.Services.AddMailJetEmailSender(...)`) when configuring services. Follow the [Getting Started guide](docs/guides/getting-started.md) for configuration schema, Mailjet setup, and OpenIddict application registration.
 
@@ -115,21 +115,21 @@ See [Identity.Base.AspNet/README.md](Identity.Base.AspNet/README.md) for detaile
 Install the published React packages and wrap your app with both providers:
 
 ```bash
-npm install @identity-base/react-client @identity-base/react-organisations
+npm install @identity-base/react-client @identity-base/react-organizations
 ```
 
 ```tsx
 import { IdentityProvider } from '@identity-base/react-client';
-import { OrganisationsProvider } from '@identity-base/react-organisations';
+import { OrganizationsProvider } from '@identity-base/react-organizations';
 
 <IdentityProvider config={identityConfig}>
-  <OrganisationsProvider apiBase={identityConfig.apiBase}>
+  <OrganizationsProvider apiBase={identityConfig.apiBase}>
     <App />
-  </OrganisationsProvider>
+  </OrganizationsProvider>
 </IdentityProvider>
 ```
 
-The hooks exposed by the packages (`useLogin`, `useOrganisations`, `useOrganisationMembers`, etc.) orchestrate the full identity and organisation flows. The [Full Stack Integration Guide](docs/guides/full-stack-integration-guide.md) walks through setting up the Identity Host, microservices, and the SPA end-to-end.
+The hooks exposed by the packages (`useLogin`, `useOrganizations`, `useOrganizationMembers`, etc.) orchestrate the full identity and organization flows. The [Full Stack Integration Guide](docs/guides/full-stack-integration-guide.md) walks through setting up the Identity Host, microservices, and the SPA end-to-end.
 
 ---
 

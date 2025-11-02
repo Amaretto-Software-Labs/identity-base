@@ -4,8 +4,8 @@ using FluentValidation;
 using Identity.Base.Features.Authentication.EmailManagement;
 using Identity.Base.Identity;
 using Identity.Base.Options;
-using Identity.Base.Organisations.Data;
-using Identity.Base.Organisations.Extensions;
+using Identity.Base.Organizations.Data;
+using Identity.Base.Organizations.Extensions;
 using Identity.Base.Roles;
 using Identity.Base.Admin.Configuration;
 using Identity.Base.Abstractions;
@@ -47,17 +47,17 @@ internal static class ServiceCollectionExtensions
 
     public static void AddOrgSampleOptions(this IServiceCollection services, IConfiguration configuration)
     {
-        services.Configure<OrganisationBootstrapOptions>(configuration.GetSection("SampleData:DefaultOrganisation"));
+        services.Configure<OrganizationBootstrapOptions>(configuration.GetSection("SampleData:DefaultOrganization"));
         services.Configure<InvitationLinkOptions>(configuration.GetSection("Invitations"));
     }
 
     public static void AddOrgSampleCoreServices(this IServiceCollection services)
     {
         services.AddHttpContextAccessor();
-        services.AddScoped<OrganisationBootstrapService>();
-        services.AddScoped<IUserCreationListener, OrganisationBootstrapUserCreationListener>();
+        services.AddScoped<OrganizationBootstrapService>();
+        services.AddScoped<IUserCreationListener, OrganizationBootstrapUserCreationListener>();
         services.AddScoped<IValidator<InvitationRegistrationRequest>, InvitationRegistrationRequestValidator>();
-        services.AddScoped<OrganisationMemberDirectory>();
+        services.AddScoped<OrganizationMemberDirectory>();
     }
 
     public static void ConfigureIdentityBase(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment environment)
@@ -73,21 +73,21 @@ internal static class ServiceCollectionExtensions
             ConfigureDatabase(options, connectionString);
         });
 
-        var organisationsBuilder = services.AddIdentityBaseOrganisations();
-        organisationsBuilder.AddDbContext<OrganisationDbContext>((provider, options) =>
+        var organizationsBuilder = services.AddIdentityBaseOrganizations();
+        organizationsBuilder.AddDbContext<OrganizationDbContext>((provider, options) =>
         {
             var config = provider.GetRequiredService<IConfiguration>();
             var connectionString = GetPrimaryConnectionString(config);
             ConfigureDatabase(options, connectionString);
         });
 
-        identityBuilder.AfterOrganisationSeed(async (serviceProvider, cancellationToken) =>
+        identityBuilder.AfterOrganizationSeed(async (serviceProvider, cancellationToken) =>
         {
             using var scope = serviceProvider.CreateScope();
             var scopedServices = scope.ServiceProvider;
 
             var seedOptions = scopedServices.GetRequiredService<IOptions<IdentitySeedOptions>>().Value;
-            var defaults = scopedServices.GetRequiredService<IOptions<OrganisationBootstrapOptions>>().Value;
+            var defaults = scopedServices.GetRequiredService<IOptions<OrganizationBootstrapOptions>>().Value;
 
             if (!seedOptions.Enabled || string.IsNullOrWhiteSpace(seedOptions.Email) ||
                 string.IsNullOrWhiteSpace(defaults.Slug) || string.IsNullOrWhiteSpace(defaults.DisplayName))
@@ -102,12 +102,12 @@ internal static class ServiceCollectionExtensions
                 return;
             }
 
-            var bootstrapService = scopedServices.GetRequiredService<OrganisationBootstrapService>();
+            var bootstrapService = scopedServices.GetRequiredService<OrganizationBootstrapService>();
             var metadata = defaults.Metadata ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
             var name = string.IsNullOrWhiteSpace(defaults.DisplayName) ? defaults.Slug : defaults.DisplayName;
-            var request = new OrganisationBootstrapRequest(name, defaults.Slug, metadata);
+            var request = new OrganizationBootstrapRequest(name, defaults.Slug, metadata);
 
-            await bootstrapService.EnsureOrganisationOwnerAsync(user, request, cancellationToken).ConfigureAwait(false);
+            await bootstrapService.EnsureOrganizationOwnerAsync(user, request, cancellationToken).ConfigureAwait(false);
         });
     }
 

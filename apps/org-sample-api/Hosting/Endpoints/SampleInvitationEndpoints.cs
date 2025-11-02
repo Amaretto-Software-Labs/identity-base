@@ -6,9 +6,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Identity.Base.Identity;
 using Identity.Base.Logging;
-using Identity.Base.Organisations.Abstractions;
-using Identity.Base.Organisations.Authorization;
-using Identity.Base.Organisations.Services;
+using Identity.Base.Organizations.Abstractions;
+using Identity.Base.Organizations.Authorization;
+using Identity.Base.Organizations.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -25,14 +25,14 @@ internal static class SampleInvitationEndpoints
     {
         ArgumentNullException.ThrowIfNull(group);
 
-        group.MapGet("/organisations/{organisationId:guid}/invitations", HandleInvitationListAsync)
-            .RequireAuthorization(policy => policy.RequireOrganisationPermission("organisation.members.manage"));
+        group.MapGet("/organizations/{organizationId:guid}/invitations", HandleInvitationListAsync)
+            .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
 
-        group.MapPost("/organisations/{organisationId:guid}/invitations", HandleInvitationCreateAsync)
-            .RequireAuthorization(policy => policy.RequireOrganisationPermission("organisation.members.manage"));
+        group.MapPost("/organizations/{organizationId:guid}/invitations", HandleInvitationCreateAsync)
+            .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
 
-        group.MapDelete("/organisations/{organisationId:guid}/invitations/{code:guid}", HandleInvitationDeleteAsync)
-            .RequireAuthorization(policy => policy.RequireOrganisationPermission("organisation.members.manage"));
+        group.MapDelete("/organizations/{organizationId:guid}/invitations/{code:guid}", HandleInvitationDeleteAsync)
+            .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
 
         group.MapPost("/invitations/claim", HandleInvitationClaimAsync)
             .RequireAuthorization();
@@ -44,21 +44,21 @@ internal static class SampleInvitationEndpoints
     }
 
     private static async Task<IResult> HandleInvitationListAsync(
-        Guid organisationId,
+        Guid organizationId,
         ClaimsPrincipal principal,
-        IOrganisationScopeResolver scopeResolver,
-        OrganisationInvitationService invitationService,
+        IOrganizationScopeResolver scopeResolver,
+        OrganizationInvitationService invitationService,
         UserManager<ApplicationUser> userManager,
         IOptions<InvitationLinkOptions> linkOptions,
         CancellationToken cancellationToken)
     {
-        var scopeResult = await SampleEndpointHelpers.EnsureActorInScopeAsync(principal, scopeResolver, organisationId, cancellationToken).ConfigureAwait(false);
+        var scopeResult = await SampleEndpointHelpers.EnsureActorInScopeAsync(principal, scopeResolver, organizationId, cancellationToken).ConfigureAwait(false);
         if (scopeResult is not null)
         {
             return scopeResult;
         }
 
-        var invitations = await invitationService.ListAsync(organisationId, cancellationToken).ConfigureAwait(false);
+        var invitations = await invitationService.ListAsync(organizationId, cancellationToken).ConfigureAwait(false);
         var options = linkOptions.Value;
         var response = new List<InvitationResponse>(invitations.Count);
         foreach (var invitation in invitations)
@@ -72,8 +72,8 @@ internal static class SampleInvitationEndpoints
                 Email = invitation.Email,
                 RoleIds = invitation.RoleIds,
                 ExpiresAtUtc = invitation.ExpiresAtUtc,
-                OrganisationName = invitation.OrganisationName,
-                OrganisationSlug = invitation.OrganisationSlug,
+                OrganizationName = invitation.OrganizationName,
+                OrganizationSlug = invitation.OrganizationSlug,
                 IsExistingUser = existingUser is not null,
                 RegisterUrl = registerUrl,
                 ClaimUrl = claimUrl
@@ -84,18 +84,18 @@ internal static class SampleInvitationEndpoints
     }
 
     private static async Task<IResult> HandleInvitationCreateAsync(
-        Guid organisationId,
+        Guid organizationId,
         CreateInvitationRequest request,
         ClaimsPrincipal principal,
-        IOrganisationScopeResolver scopeResolver,
-        OrganisationInvitationService invitationService,
+        IOrganizationScopeResolver scopeResolver,
+        OrganizationInvitationService invitationService,
         UserManager<ApplicationUser> userManager,
         IOptions<InvitationLinkOptions> linkOptions,
-        IOrganisationMembershipService membershipService,
-        ILogger<OrganisationInvitationService> invitationLogger,
+        IOrganizationMembershipService membershipService,
+        ILogger<OrganizationInvitationService> invitationLogger,
         CancellationToken cancellationToken)
     {
-        var scopeResult = await SampleEndpointHelpers.EnsureActorInScopeAsync(principal, scopeResolver, organisationId, cancellationToken).ConfigureAwait(false);
+        var scopeResult = await SampleEndpointHelpers.EnsureActorInScopeAsync(principal, scopeResolver, organizationId, cancellationToken).ConfigureAwait(false);
         if (scopeResult is not null)
         {
             return scopeResult;
@@ -118,13 +118,13 @@ internal static class SampleInvitationEndpoints
         var existingUser = await userManager.FindByEmailAsync(normalizedEmail).ConfigureAwait(false);
         if (existingUser is not null)
         {
-            var membership = await membershipService.GetMembershipAsync(organisationId, existingUser.Id, cancellationToken).ConfigureAwait(false);
+            var membership = await membershipService.GetMembershipAsync(organizationId, existingUser.Id, cancellationToken).ConfigureAwait(false);
             if (membership is not null)
             {
                 return Results.Conflict(new ProblemDetails
                 {
                     Title = "User already a member",
-                    Detail = "The specified user is already part of this organisation.",
+                    Detail = "The specified user is already part of this organization.",
                     Status = StatusCodes.Status409Conflict
                 });
             }
@@ -133,7 +133,7 @@ internal static class SampleInvitationEndpoints
         try
         {
             var invitation = await invitationService.CreateAsync(
-                organisationId,
+                organizationId,
                 request.Email,
                 request.RoleIds ?? Array.Empty<Guid>(),
                 actorUserId,
@@ -167,20 +167,20 @@ internal static class SampleInvitationEndpoints
                 Email = invitation.Email,
                 RoleIds = invitation.RoleIds,
                 ExpiresAtUtc = invitation.ExpiresAtUtc,
-                OrganisationName = invitation.OrganisationName,
-                OrganisationSlug = invitation.OrganisationSlug,
+                OrganizationName = invitation.OrganizationName,
+                OrganizationSlug = invitation.OrganizationSlug,
                 IsExistingUser = existingUser is not null,
                 RegisterUrl = registerUrl,
                 ClaimUrl = claimUrl
             };
 
-            return Results.Created($"/sample/organisations/{organisationId}/invitations/{invitation.Code}", response);
+            return Results.Created($"/sample/organizations/{organizationId}/invitations/{invitation.Code}", response);
         }
         catch (KeyNotFoundException)
         {
             return Results.NotFound();
         }
-        catch (OrganisationInvitationAlreadyExistsException ex)
+        catch (OrganizationInvitationAlreadyExistsException ex)
         {
             return Results.Conflict(new ProblemDetails
             {
@@ -196,20 +196,20 @@ internal static class SampleInvitationEndpoints
     }
 
     private static async Task<IResult> HandleInvitationDeleteAsync(
-        Guid organisationId,
+        Guid organizationId,
         Guid code,
         ClaimsPrincipal principal,
-        IOrganisationScopeResolver scopeResolver,
-        OrganisationInvitationService invitationService,
+        IOrganizationScopeResolver scopeResolver,
+        OrganizationInvitationService invitationService,
         CancellationToken cancellationToken)
     {
-        var scopeResult = await SampleEndpointHelpers.EnsureActorInScopeAsync(principal, scopeResolver, organisationId, cancellationToken).ConfigureAwait(false);
+        var scopeResult = await SampleEndpointHelpers.EnsureActorInScopeAsync(principal, scopeResolver, organizationId, cancellationToken).ConfigureAwait(false);
         if (scopeResult is not null)
         {
             return scopeResult;
         }
 
-        var revoked = await invitationService.RevokeAsync(organisationId, code, cancellationToken).ConfigureAwait(false);
+        var revoked = await invitationService.RevokeAsync(organizationId, code, cancellationToken).ConfigureAwait(false);
         return revoked ? Results.NoContent() : Results.NotFound();
     }
 
@@ -217,7 +217,7 @@ internal static class SampleInvitationEndpoints
         ClaimInvitationRequest request,
         ClaimsPrincipal principal,
         UserManager<ApplicationUser> userManager,
-        OrganisationInvitationService invitationService,
+        OrganizationInvitationService invitationService,
         CancellationToken cancellationToken)
     {
         if (request.Code == Guid.Empty)
@@ -241,9 +241,9 @@ internal static class SampleInvitationEndpoints
 
             return Results.Ok(new
             {
-                result.OrganisationId,
-                result.OrganisationSlug,
-                result.OrganisationName,
+                result.OrganizationId,
+                result.OrganizationSlug,
+                result.OrganizationName,
                 result.RoleIds,
                 result.WasExistingMember,
                 result.WasExistingUser,
@@ -258,7 +258,7 @@ internal static class SampleInvitationEndpoints
 
     private static async Task<IResult> HandleInvitationDetailsAsync(
         Guid code,
-        OrganisationInvitationService invitationService,
+        OrganizationInvitationService invitationService,
         UserManager<ApplicationUser> userManager,
         IOptions<InvitationLinkOptions> linkOptions,
         CancellationToken cancellationToken)
@@ -282,9 +282,9 @@ internal static class SampleInvitationEndpoints
         {
             invitation.Code,
             invitation.Email,
-            invitation.OrganisationId,
-            invitation.OrganisationName,
-            invitation.OrganisationSlug,
+            invitation.OrganizationId,
+            invitation.OrganizationName,
+            invitation.OrganizationSlug,
             invitation.RoleIds,
             invitation.ExpiresAtUtc,
             IsExistingUser = existingUser is not null,

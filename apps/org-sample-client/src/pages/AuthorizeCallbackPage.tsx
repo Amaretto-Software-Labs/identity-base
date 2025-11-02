@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthorization } from '@identity-base/react-client'
-import { useOrganisations } from '@identity-base/react-organisations'
+import { useOrganizations } from '@identity-base/react-organizations'
 
 export default function AuthorizeCallbackPage() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const handledRef = useRef(false)
-  const { reloadMemberships } = useOrganisations()
+  const { reloadMemberships } = useOrganizations()
   const { handleCallback, isLoading, error } = useAuthorization({
     onSuccess: async () => {
       await reloadMemberships().catch(() => undefined)

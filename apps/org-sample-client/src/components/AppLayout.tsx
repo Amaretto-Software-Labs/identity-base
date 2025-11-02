@@ -1,7 +1,7 @@
 import { useEffect, useState, type ChangeEvent } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth, useIdentityContext, useLogin } from '@identity-base/react-client'
-import { useOrganisations, useOrganisationSwitcher } from '@identity-base/react-organisations'
+import { useOrganizations, useOrganizationSwitcher } from '@identity-base/react-organizations'
 import { renderApiError } from '../api/client'
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -13,15 +13,15 @@ export default function AppLayout() {
   const { logout } = useLogin()
   const {
     memberships,
-    activeOrganisationId,
+    activeOrganizationId,
     isLoadingMemberships,
-    isLoadingOrganisations,
-    organisations,
-    organisationsError,
-  } = useOrganisations()
-  const { isSwitching, error: switchError, switchOrganisation } = useOrganisationSwitcher()
+    isLoadingOrganizations,
+    organizations,
+    organizationsError,
+  } = useOrganizations()
+  const { isSwitching, error: switchError, switchOrganization } = useOrganizationSwitcher()
 
-  const [selectedOrganisationId, setSelectedOrganisationId] = useState<string>('')
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState<string>('')
   const [switchStatus, setSwitchStatus] = useState<string | null>(null)
 
   useEffect(() => {
@@ -41,60 +41,60 @@ export default function AppLayout() {
   }, [switchStatus])
 
   useEffect(() => {
-    if (activeOrganisationId) {
-      setSelectedOrganisationId(activeOrganisationId)
+    if (activeOrganizationId) {
+      setSelectedOrganizationId(activeOrganizationId)
     } else if (memberships.length > 0) {
-      setSelectedOrganisationId(memberships[0].organisationId)
+      setSelectedOrganizationId(memberships[0].organizationId)
     } else {
-      setSelectedOrganisationId('')
+      setSelectedOrganizationId('')
     }
-  }, [activeOrganisationId, memberships])
+  }, [activeOrganizationId, memberships])
 
-  const handleOrganisationChange = async (event: ChangeEvent<HTMLSelectElement>) => {
-    const nextOrganisationId = event.target.value
-    setSelectedOrganisationId(nextOrganisationId)
+  const handleOrganizationChange = async (event: ChangeEvent<HTMLSelectElement>) => {
+    const nextOrganizationId = event.target.value
+    setSelectedOrganizationId(nextOrganizationId)
     setSwitchStatus(null)
 
-    if (!nextOrganisationId || nextOrganisationId === activeOrganisationId) {
+    if (!nextOrganizationId || nextOrganizationId === activeOrganizationId) {
       return
     }
 
     try {
-      const result = await switchOrganisation(nextOrganisationId)
+      const result = await switchOrganization(nextOrganizationId)
 
       if (result.requiresTokenRefresh) {
         if (result.tokensRefreshed) {
-          setSwitchStatus('Active organisation updated. Refreshing session…')
+          setSwitchStatus('Active organization updated. Refreshing session…')
         } else {
-          setSwitchStatus('Active organisation updated. Completing authorization…')
+          setSwitchStatus('Active organization updated. Completing authorization…')
           if (authManager) {
             authManager.startAuthorization()
           }
         }
       } else {
-        setSwitchStatus('Active organisation updated.')
+        setSwitchStatus('Active organization updated.')
       }
     } catch (err) {
-      setSelectedOrganisationId(activeOrganisationId ?? '')
+      setSelectedOrganizationId(activeOrganizationId ?? '')
       setSwitchStatus(null)
     }
   }
 
-  const organisationOptions = memberships.map((membership) => {
-    const summary = organisations[membership.organisationId]
-    const label = summary?.displayName ?? summary?.slug ?? membership.organisationId
+  const organizationOptions = memberships.map((membership) => {
+    const summary = organizations[membership.organizationId]
+    const label = summary?.displayName ?? summary?.slug ?? membership.organizationId
     return {
-      id: membership.organisationId,
+      id: membership.organizationId,
       label,
     }
   })
 
-  const activeOrganisation = activeOrganisationId ? organisations[activeOrganisationId] : undefined
-  const activeOrganisationLabel = activeOrganisation?.displayName ?? activeOrganisation?.slug ?? (activeOrganisationId ?? 'None')
+  const activeOrganization = activeOrganizationId ? organizations[activeOrganizationId] : undefined
+  const activeOrganizationLabel = activeOrganization?.displayName ?? activeOrganization?.slug ?? (activeOrganizationId ?? 'None')
 
-  const organisationErrorMessage = organisationsError ? renderApiError(organisationsError) : null
+  const organizationErrorMessage = organizationsError ? renderApiError(organizationsError) : null
   const switchErrorMessage = switchError ? renderApiError(switchError) : null
-  const organisationSelectorDisabled = isSwitching || isLoadingMemberships || isLoadingOrganisations
+  const organizationSelectorDisabled = isSwitching || isLoadingMemberships || isLoadingOrganizations
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -132,26 +132,26 @@ export default function AppLayout() {
                 Claim Invite
               </NavLink>
             </nav>
-            {isAuthenticated && organisationOptions.length > 0 && (
+            {isAuthenticated && organizationOptions.length > 0 && (
               <div className="flex flex-col gap-1 text-xs text-slate-200 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-wrap items-center gap-2">
-                  <label htmlFor="active-organisation" className="text-xs uppercase tracking-wide text-slate-300">
+                  <label htmlFor="active-organization" className="text-xs uppercase tracking-wide text-slate-300">
                     Active org
                   </label>
                   <select
-                    id="active-organisation"
-                    value={selectedOrganisationId}
-                    onChange={handleOrganisationChange}
-                    disabled={organisationSelectorDisabled}
+                    id="active-organization"
+                    value={selectedOrganizationId}
+                    onChange={handleOrganizationChange}
+                    disabled={organizationSelectorDisabled}
                     className="rounded-md border border-slate-600 bg-slate-900 px-2 py-1 text-xs font-medium text-white focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {organisationOptions.map((option) => (
+                    {organizationOptions.map((option) => (
                       <option key={option.id} value={option.id}>
                         {option.label}
                       </option>
                     ))}
                   </select>
-                  {(isLoadingMemberships || isLoadingOrganisations || isSwitching) && (
+                  {(isLoadingMemberships || isLoadingOrganizations || isSwitching) && (
                     <span className="text-xs text-slate-300">Updating…</span>
                   )}
                 </div>
@@ -159,8 +159,8 @@ export default function AppLayout() {
                   <span className="text-xs text-red-200">{switchErrorMessage}</span>
                 ) : switchStatus ? (
                   <span className="text-xs text-emerald-200">{switchStatus}</span>
-                ) : organisationErrorMessage ? (
-                  <span className="text-xs text-amber-200">{organisationErrorMessage}</span>
+                ) : organizationErrorMessage ? (
+                  <span className="text-xs text-amber-200">{organizationErrorMessage}</span>
                 ) : null}
               </div>
             )}
@@ -174,7 +174,7 @@ export default function AppLayout() {
                   {isAuthenticated && (
                     <p className="text-xs text-slate-300">
                       Active org:{' '}
-                      <span className="font-medium text-white">{activeOrganisationLabel}</span>
+                      <span className="font-medium text-white">{activeOrganizationLabel}</span>
                     </p>
                   )}
                 </div>

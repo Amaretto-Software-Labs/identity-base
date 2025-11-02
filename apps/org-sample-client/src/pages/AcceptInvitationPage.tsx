@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '@identity-base/react-client'
-import { useOrganisations } from '@identity-base/react-organisations'
-import { claimInvitation } from '../api/organisations'
+import { useOrganizations } from '@identity-base/react-organizations'
+import { claimInvitation } from '../api/organizations'
 import { renderApiError } from '../api/client'
 
 export default function AcceptInvitationPage() {
   const { refreshUser } = useAuth()
-  const { reloadMemberships } = useOrganisations()
+  const { reloadMemberships } = useOrganizations()
   const [searchParams] = useSearchParams()
   const [code, setCode] = useState('')
   const [status, setStatus] = useState<string | null>(null)
@@ -33,7 +33,7 @@ export default function AcceptInvitationPage() {
       await reloadMemberships().catch(() => undefined)
 
       setStatus(
-        `Added to ${response.organisationName} (${response.organisationSlug}). ${
+        `Added to ${response.organizationName} (${response.organizationSlug}). ${
           response.roleIds.length > 0 ? `Roles: ${response.roleIds.join(', ')}` : 'No roles assigned.'
         }`,
       )
@@ -66,7 +66,7 @@ export default function AcceptInvitationPage() {
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold text-slate-900">Claim an invitation</h1>
         <p className="text-sm text-slate-600">
-          If an organisation admin shared a code with you, submit it here to join their organisation. You must already be signed
+          If an organization admin shared a code with you, submit it here to join their organization. You must already be signed
           in to redeem the invitation.
         </p>
       </header>
@@ -101,12 +101,12 @@ export default function AcceptInvitationPage() {
       <section className="space-y-2 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-800">How it works</h2>
         <ol className="list-decimal space-y-1 pl-5">
-          <li>An organisation admin issues an invitation from the organisation management page.</li>
+          <li>An organization admin issues an invitation from the organization management page.</li>
           <li>
             You sign in (or register) and paste the invitation code here. The sample API validates membership and assigns the
-            requested organisation roles.
+            requested organization roles.
           </li>
-          <li>Switch to the dashboard to see the new organisation in your membership list.</li>
+          <li>Switch to the dashboard to see the new organization in your membership list.</li>
         </ol>
       </section>
     </div>

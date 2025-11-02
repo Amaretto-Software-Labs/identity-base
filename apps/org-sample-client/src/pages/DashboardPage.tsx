@@ -1,23 +1,23 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useOrganisations, useOrganisationSwitcher } from '@identity-base/react-organisations'
-import { getOrganisationRoles } from '../api/organisations'
-import type { OrganisationRole } from '../api/types'
+import { useOrganizations, useOrganizationSwitcher } from '@identity-base/react-organizations'
+import { getOrganizationRoles } from '../api/organizations'
+import type { OrganizationRole } from '../api/types'
 import { renderApiError } from '../api/client'
 
 export default function DashboardPage() {
   const {
     memberships,
-    activeOrganisationId,
+    activeOrganizationId,
     isLoadingMemberships,
     membershipError,
-    organisations,
-    isLoadingOrganisations: isLoadingOrganisationSummaries,
-    organisationsError,
-  } = useOrganisations()
-  const { isSwitching, switchOrganisation } = useOrganisationSwitcher()
+    organizations,
+    isLoadingOrganizations: isLoadingOrganizationSummaries,
+    organizationsError,
+  } = useOrganizations()
+  const { isSwitching, switchOrganization } = useOrganizationSwitcher()
 
-  const [rolesLookup, setRolesLookup] = useState<Record<string, Record<string, OrganisationRole>>>({})
+  const [rolesLookup, setRolesLookup] = useState<Record<string, Record<string, OrganizationRole>>>({})
   const [isLoadingRoles, setIsLoadingRoles] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -36,14 +36,14 @@ export default function DashboardPage() {
       setIsLoadingRoles(true)
       setRolesError(null)
 
-      const uniqueOrgIds = Array.from(new Set(memberships.map((membership) => membership.organisationId)))
-      const nextRoles: Record<string, Record<string, OrganisationRole>> = {}
+      const uniqueOrgIds = Array.from(new Set(memberships.map((membership) => membership.organizationId)))
+      const nextRoles: Record<string, Record<string, OrganizationRole>> = {}
 
       await Promise.all(
-        uniqueOrgIds.map(async (organisationId) => {
+        uniqueOrgIds.map(async (organizationId) => {
           try {
-            const roles = await getOrganisationRoles(organisationId)
-            nextRoles[organisationId] = roles.reduce<Record<string, OrganisationRole>>((acc, role) => {
+            const roles = await getOrganizationRoles(organizationId)
+            nextRoles[organizationId] = roles.reduce<Record<string, OrganizationRole>>((acc, role) => {
               acc[role.id] = role
               return acc
             }, {})
@@ -73,40 +73,40 @@ export default function DashboardPage() {
     }
   }, [memberships])
 
-  const handleSetActive = async (organisationId: string) => {
+  const handleSetActive = async (organizationId: string) => {
     setStatusMessage(null)
     setActionError(null)
 
     try {
-      const result = await switchOrganisation(organisationId)
+      const result = await switchOrganization(organizationId)
       setStatusMessage(result.requiresTokenRefresh
         ? result.tokensRefreshed
-          ? 'Active organisation updated. Refreshing session…'
-          : 'Active organisation updated. Completing authorization…'
-        : 'Active organisation updated.')
+          ? 'Active organization updated. Refreshing session…'
+          : 'Active organization updated. Completing authorization…'
+        : 'Active organization updated.')
     } catch (err) {
       setActionError(renderApiError(err))
     }
   }
 
-  const activeOrganisation = activeOrganisationId ? organisations[activeOrganisationId] : undefined
-  const activeOrganisationLabel = activeOrganisation?.displayName ?? activeOrganisation?.slug ?? (activeOrganisationId ?? 'None')
-  const organisationsErrorMessage = organisationsError ? renderApiError(organisationsError) : null
+  const activeOrganization = activeOrganizationId ? organizations[activeOrganizationId] : undefined
+  const activeOrganizationLabel = activeOrganization?.displayName ?? activeOrganization?.slug ?? (activeOrganizationId ?? 'None')
+  const organizationsErrorMessage = organizationsError ? renderApiError(organizationsError) : null
 
-  const isLoading = isLoadingMemberships || isLoadingOrganisationSummaries || isLoadingRoles
+  const isLoading = isLoadingMemberships || isLoadingOrganizationSummaries || isLoadingRoles
 
   return (
     <div className="space-y-6">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold text-slate-900">Organisation dashboard</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">Organization dashboard</h1>
         <p className="text-sm text-slate-600">
-          Review your organisation memberships, switch the active organisation (impacting tokens/claims), and jump into
-          the organisation management view to invite new users.
+          Review your organization memberships, switch the active organization (impacting tokens/claims), and jump into
+          the organization management view to invite new users.
         </p>
         <p className="text-xs text-slate-500">
-          Active organisation:{' '}
+          Active organization:{' '}
           <span className="font-medium text-slate-800">
-            {activeOrganisationLabel}
+            {activeOrganizationLabel}
           </span>
         </p>
       </header>
@@ -117,9 +117,9 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      {organisationsErrorMessage ? (
+      {organizationsErrorMessage ? (
         <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          Organisation details may be out of date. {organisationsErrorMessage}
+          Organization details may be out of date. {organizationsErrorMessage}
         </div>
       ) : null}
 
@@ -145,27 +145,27 @@ export default function DashboardPage() {
         <p className="text-sm text-slate-600">Loading memberships…</p>
       ) : memberships.length === 0 ? (
         <div className="rounded-md border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
-          You are not a member of any organisations yet. Register or ask for an invitation to get started.
+          You are not a member of any organizations yet. Register or ask for an invitation to get started.
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {memberships.map((membership) => {
-            const organisation = organisations[membership.organisationId]
-            const organisationName = organisation?.displayName ?? organisation?.slug ?? membership.organisationId
-            const organisationSlug = organisation?.slug ?? 'unknown'
-            const organisationStatus = organisation?.status ?? 'unknown'
-            const roles = rolesLookup[membership.organisationId] ?? {}
-            const isActive = activeOrganisationId === membership.organisationId
+            const organization = organizations[membership.organizationId]
+            const organizationName = organization?.displayName ?? organization?.slug ?? membership.organizationId
+            const organizationSlug = organization?.slug ?? 'unknown'
+            const organizationStatus = organization?.status ?? 'unknown'
+            const roles = rolesLookup[membership.organizationId] ?? {}
+            const isActive = activeOrganizationId === membership.organizationId
 
             return (
               <div
-                key={`${membership.organisationId}-${membership.userId}`}
+                key={`${membership.organizationId}-${membership.userId}`}
                 className="flex h-full flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
               >
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-slate-900">
-                      {organisationName}
+                      {organizationName}
                     </h2>
                     {isActive && (
                       <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
@@ -174,15 +174,15 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <p className="text-xs text-slate-500">
-                    Slug: <span className="font-mono">{organisationSlug}</span>
+                    Slug: <span className="font-mono">{organizationSlug}</span>
                   </p>
-                  <p className="text-xs text-slate-500">Status: {organisationStatus}</p>
+                  <p className="text-xs text-slate-500">Status: {organizationStatus}</p>
                 </div>
 
                 <div>
                   <h3 className="text-sm font-semibold text-slate-800">Role assignments</h3>
                   {membership.roleIds.length === 0 ? (
-                    <p className="text-xs text-slate-500">No organisation roles assigned.</p>
+                    <p className="text-xs text-slate-500">No organization roles assigned.</p>
                   ) : (
                     <ul className="mt-1 space-y-1 text-xs text-slate-600">
                       {membership.roleIds.map((roleId) => (
@@ -197,17 +197,17 @@ export default function DashboardPage() {
                 <div className="mt-auto flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => handleSetActive(membership.organisationId)}
+                    onClick={() => handleSetActive(membership.organizationId)}
                     className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-70"
                     disabled={isActive || isSwitching}
                   >
-                    {isActive ? 'Current organisation' : isSwitching ? 'Switching…' : 'Set active'}
+                    {isActive ? 'Current organization' : isSwitching ? 'Switching…' : 'Set active'}
                   </button>
                   <Link
-                    to={`/organisations/${membership.organisationId}`}
+                    to={`/organizations/${membership.organizationId}`}
                     className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
                   >
-                    Manage organisation
+                    Manage organization
                   </Link>
                 </div>
               </div>
@@ -217,9 +217,9 @@ export default function DashboardPage() {
       )}
 
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-800">Need to join another organisation?</h2>
+        <h2 className="text-sm font-semibold text-slate-800">Need to join another organization?</h2>
         <p className="mt-1 text-xs text-slate-600">
-          Ask an organisation admin to generate an invitation code and redeem it on the{' '}
+          Ask an organization admin to generate an invitation code and redeem it on the{' '}
           <Link to="/invitations/claim" className="text-slate-900 underline">
             claim invitation
           </Link>{' '}

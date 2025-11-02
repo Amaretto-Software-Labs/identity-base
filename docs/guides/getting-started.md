@@ -233,29 +233,29 @@ Re-run `dotnet run` and check `GET https://localhost:5000/users/me/permissions` 
 
 ---
 
-## 4. (Optional) Add Organisation Management
+## 4. (Optional) Add Organization Management
 
-Install the organisations add-on if you need per-tenant organisations, memberships, and organisation-level roles.
+Install the organizations add-on if you need per-tenant organizations, memberships, and organization-level roles.
 
 ### 5.1 Install Package
 ```bash
-dotnet add package Identity.Base.Organisations
+dotnet add package Identity.Base.Organizations
 ```
 
 ### 4.2 Register Services & Endpoints
-Add the organisations registration after Identity Base (and, if present, RBAC) in `Program.cs`:
+Add the organizations registration after Identity Base (and, if present, RBAC) in `Program.cs`:
 ```csharp
-using Identity.Base.Organisations.Data;
-using Identity.Base.Organisations.Extensions;
+using Identity.Base.Organizations.Data;
+using Identity.Base.Organizations.Extensions;
 using Microsoft.EntityFrameworkCore;
 
-var organisationsBuilder = builder.Services.AddIdentityBaseOrganisations(options =>
+var organizationsBuilder = builder.Services.AddIdentityBaseOrganizations(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("Primary")!;
     options.UseNpgsql(connectionString);
 });
 
-organisationsBuilder.ConfigureOrganisationModel(modelBuilder =>
+organizationsBuilder.ConfigureOrganizationModel(modelBuilder =>
 {
     // Optional: add custom indexes or shadow properties.
 });
@@ -265,15 +265,15 @@ var app = builder.Build();
 app.UseApiPipeline();
 app.MapApiEndpoints();
 app.MapIdentityRolesUserEndpoints();
-app.MapIdentityBaseOrganisationEndpoints();
+app.MapIdentityBaseOrganizationEndpoints();
 ```
 
-### 4.3 Apply Organisation Migrations
-Run the packaged migration for `OrganisationDbContext`:
+### 4.3 Apply Organization Migrations
+Run the packaged migration for `OrganizationDbContext`:
 ```bash
 dotnet ef database update \
-  --project Identity.Base.Organisations/Identity.Base.Organisations.csproj \
-  --context Identity.Base.Organisations.Data.OrganisationDbContext
+  --project Identity.Base.Organizations/Identity.Base.Organizations.csproj \
+  --context Identity.Base.Organizations.Data.OrganizationDbContext
 ```
 
 The hosted migration and seed services will also apply any pending migrations and seed default roles (`OrgOwner`, `OrgManager`, `OrgMember`) at runtime.
@@ -281,13 +281,13 @@ The hosted migration and seed services will also apply any pending migrations an
 ### 4.4 Extend Hooks
 Use the builder hooks when you need custom behaviour:
 ```csharp
-organisationsBuilder
-    .AfterOrganisationSeed(async (sp, ct) => { /* custom seeding */ })
-    .AddOrganisationScopeResolver<CustomScopeResolver>()
-    .AddOrganisationClaimFormatter<CustomClaimFormatter>();
+organizationsBuilder
+    .AfterOrganizationSeed(async (sp, ct) => { /* custom seeding */ })
+    .AddOrganizationScopeResolver<CustomScopeResolver>()
+    .AddOrganizationClaimFormatter<CustomClaimFormatter>();
 ```
 
-At this stage your host exposes organisation CRUD, membership, and role endpoints alongside identity + RBAC features.
+At this stage your host exposes organization CRUD, membership, and role endpoints alongside identity + RBAC features.
 
 
 ---

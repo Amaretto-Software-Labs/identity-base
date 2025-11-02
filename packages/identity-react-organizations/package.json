@@ -1,0 +1,32 @@
+{
+  "name": "@identity-base/react-organizations",
+  "version": "0.4.0",
+  "description": "React helpers for working with Identity.Base organization features.",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.tsx --format cjs,esm --dts --clean --external react --external react-dom"
+  },
+  "peerDependencies": {
+    "@identity-base/react-client": "0.4.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@identity-base/react-client": "file:../identity-client",
+    "@types/react": "^19.1.13",
+    "tsup": "^8.5.0",
+    "typescript": "~5.8.3"
+  }
+}
