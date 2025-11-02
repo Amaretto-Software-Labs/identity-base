@@ -12,7 +12,7 @@ public sealed class OrganizationDbContextFactory : IDesignTimeDbContextFactory<O
             .AddEnvironmentVariables()
             .Build();
 
-        var connectionString = configuration["IDENTITY_ORGANISATIONS_CONNECTION"]
+        var connectionString = configuration["IDENTITY_ORGANIZATIONS_CONNECTION"]
             ?? "Host=localhost;Port=5432;Database=identity_organizations_design;Username=postgres;Password=postgres";
 
         var builder = new DbContextOptionsBuilder<OrganizationDbContext>();
