@@ -56,7 +56,7 @@ The RBAC package reads configuration from the `Permissions` and `Roles` sections
   "Definitions": [
     { "Name": "users.read", "Description": "View users" },
     { "Name": "users.manage", "Description": "Manage users" },
-    { "Name": "organizations.manage", "Description": "Manage organizations" }
+    { "Name": "admin.organizations.manage", "Description": "Manage organizations system-wide" }
   ]
 },
 "Roles": {
@@ -70,7 +70,7 @@ The RBAC package reads configuration from the `Permissions` and `Roles` sections
     {
       "Name": "Administrator",
       "Description": "Full access",
-      "Permissions": ["users.read", "users.manage", "organizations.manage"],
+      "Permissions": ["users.read", "users.manage", "admin.organizations.manage"],
       "IsSystemRole": true
     }
   ],
@@ -86,6 +86,16 @@ await app.Services.SeedIdentityRolesAsync();
 ```
 
 This creates the role definitions and default assignments so the permission resolver can build the user’s effective permission set.
+
+> Organization roles (e.g., `OrgOwner`) now receive the user-scoped (`user.organizations.*`) permissions. Give `admin.organizations.*` to a dedicated admin role if you need platform-wide access.
+
+The organizations package also emits an `org:memberships` claim containing all organization IDs for the caller. Combine it with the middleware:
+
+```csharp
+app.UseOrganizationContextFromHeader();
+```
+
+and the client-side `X-Organization-Id` header to indicate which organization is active per request. The middleware ignores the header when the request targets `/organizations…` (admin APIs) so global admins remain unrestricted. When memberships change, refresh tokens so the `org:memberships` claim stays current.
 
 ## 4. Let Startup Hosted Services Apply Migrations
 

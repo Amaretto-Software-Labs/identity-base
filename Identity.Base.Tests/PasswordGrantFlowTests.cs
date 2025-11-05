@@ -40,7 +40,7 @@ public class PasswordGrantFlowTests : IClassFixture<IdentityApiFactory>
         });
         client.BaseAddress ??= new Uri("https://localhost");
 
-        var request = new HttpRequestMessage(HttpMethod.Post, "/connect/token")
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/connect/token")
         {
             Content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
@@ -52,7 +52,7 @@ public class PasswordGrantFlowTests : IClassFixture<IdentityApiFactory>
         };
         request.Headers.Authorization = CreateBasicAuth("test-client", "test-secret");
 
-        var response = await client.SendAsync(request);
+        using var response = await client.SendAsync(request);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var json = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -70,7 +70,7 @@ public class PasswordGrantFlowTests : IClassFixture<IdentityApiFactory>
         });
         client.BaseAddress ??= new Uri("https://localhost");
 
-        var request = new HttpRequestMessage(HttpMethod.Post, "/connect/token")
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/connect/token")
         {
             Content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
@@ -81,7 +81,7 @@ public class PasswordGrantFlowTests : IClassFixture<IdentityApiFactory>
         };
         request.Headers.Authorization = CreateBasicAuth("spa-client", string.Empty);
 
-        var response = await client.SendAsync(request);
+        using var response = await client.SendAsync(request);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var json = await response.Content.ReadFromJsonAsync<JsonDocument>();

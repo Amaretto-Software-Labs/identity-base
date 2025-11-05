@@ -1,6 +1,7 @@
 using System.Linq;
 using Shouldly;
 using Identity.Base.Organizations.Abstractions;
+using Identity.Base.Organizations.Authorization;
 using Identity.Base.Organizations.Domain;
 using Identity.Base.Organizations.Services;
 
@@ -38,7 +39,7 @@ public class OrganizationAdditionalPermissionSourceTests
     public async Task GetAdditionalPermissionsAsync_ReturnsPermissions_WhenContextActive()
     {
         var accessor = new OrganizationContextAccessor();
-        var resolver = new StubPermissionResolver(["organization.members.manage"]);
+        var resolver = new StubPermissionResolver([UserOrganizationPermissions.OrganizationMembersManage]);
         var source = new OrganizationAdditionalPermissionSource(accessor, resolver);
 
         var organizationId = Guid.NewGuid();
@@ -47,7 +48,7 @@ public class OrganizationAdditionalPermissionSourceTests
             var userId = Guid.NewGuid();
             var permissions = await source.GetAdditionalPermissionsAsync(userId);
 
-            permissions.ToArray().ShouldBe(new[] { "organization.members.manage" });
+            permissions.ToArray().ShouldBe(new[] { UserOrganizationPermissions.OrganizationMembersManage });
             resolver.Requests.ShouldContain(request => request.OrganizationId == organizationId && request.UserId == userId);
             resolver.Requests.Count(request => request.OrganizationId == organizationId && request.UserId == userId).ShouldBe(1);
         }

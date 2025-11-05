@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Identity.Base.Roles.Claims;
+using Identity.Base.Organizations.Authorization;
 using Identity.Base.Organizations.Services;
 using Identity.Base.Organizations.Claims;
 using Microsoft.AspNetCore.Authorization;
@@ -43,14 +44,18 @@ public sealed class OrganizationPermissionAuthorizationHandler : AuthorizationHa
             return;
         }
 
-        var hasPermission = context.User
+        var permissionValues = context.User
             .FindAll(RoleClaimTypes.Permissions)
-            .SelectMany(claim => claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-            .Contains(requirement.Permission, StringComparer.OrdinalIgnoreCase);
+            .SelectMany(claim => claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
-        if (hasPermission)
+        if (permissionValues.Contains(requirement.Permission, StringComparer.OrdinalIgnoreCase))
         {
             context.Succeed(requirement);
+            return;
+        }
+
+        if (!requirement.Permission.StartsWith("user.organizations.", StringComparison.OrdinalIgnoreCase))
+        {
             return;
         }
 

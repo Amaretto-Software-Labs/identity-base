@@ -1,6 +1,7 @@
 using System.Linq;
 using Shouldly;
 using Identity.Base.Organizations.Abstractions;
+using Identity.Base.Organizations.Authorization;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Domain;
 using Identity.Base.Organizations.Services;
@@ -22,7 +23,7 @@ public class OrganizationPermissionResolverTests
 
         var organizationId = Guid.NewGuid();
         var userId = Guid.NewGuid();
-        var permissionName = "organization.members.manage";
+        var permissionName = UserOrganizationPermissions.OrganizationMembersManage;
 
         await SeedOrganizationGraphAsync(organizationContext, roleContext, organizationId, userId, permissionName);
 
@@ -47,7 +48,7 @@ public class OrganizationPermissionResolverTests
         var organizationId = Guid.NewGuid();
         var userId = Guid.NewGuid();
 
-        await SeedOrganizationGraphAsync(organizationContext, roleContext, organizationId, Guid.NewGuid(), "organization.members.manage");
+        await SeedOrganizationGraphAsync(organizationContext, roleContext, organizationId, Guid.NewGuid(), UserOrganizationPermissions.OrganizationMembersManage);
 
         var resolver = new OrganizationPermissionResolver(
             organizationContext,

@@ -12,6 +12,7 @@ using Identity.Base.Identity;
 using Identity.Base.Options;
 using Identity.Base.Tests.Fakes;
 using Identity.Base.Roles.Options;
+using Identity.Base.Organizations.Authorization;
 using OpenIddict.Abstractions;
 using OpenIddict.Server;
 using OpenIddict.Server.AspNetCore;
@@ -233,6 +234,18 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                 options.Definitions.Add(new PermissionDefinition { Name = "users.delete", Description = "Soft delete users" });
                 options.Definitions.Add(new PermissionDefinition { Name = "roles.read", Description = "View role definitions" });
                 options.Definitions.Add(new PermissionDefinition { Name = "roles.manage", Description = "Manage role definitions" });
+                options.Definitions.Add(new PermissionDefinition { Name = AdminOrganizationPermissions.OrganizationsRead, Description = "View all organizations" });
+                options.Definitions.Add(new PermissionDefinition { Name = AdminOrganizationPermissions.OrganizationsManage, Description = "Manage all organizations" });
+                options.Definitions.Add(new PermissionDefinition { Name = AdminOrganizationPermissions.OrganizationMembersRead, Description = "View organization members" });
+                options.Definitions.Add(new PermissionDefinition { Name = AdminOrganizationPermissions.OrganizationMembersManage, Description = "Manage organization members" });
+                options.Definitions.Add(new PermissionDefinition { Name = AdminOrganizationPermissions.OrganizationRolesRead, Description = "View organization roles" });
+                options.Definitions.Add(new PermissionDefinition { Name = AdminOrganizationPermissions.OrganizationRolesManage, Description = "Manage organization roles" });
+                options.Definitions.Add(new PermissionDefinition { Name = UserOrganizationPermissions.OrganizationsRead, Description = "View assigned organizations" });
+                options.Definitions.Add(new PermissionDefinition { Name = UserOrganizationPermissions.OrganizationsManage, Description = "Manage assigned organizations" });
+                options.Definitions.Add(new PermissionDefinition { Name = UserOrganizationPermissions.OrganizationMembersRead, Description = "View members of assigned organizations" });
+                options.Definitions.Add(new PermissionDefinition { Name = UserOrganizationPermissions.OrganizationMembersManage, Description = "Manage members of assigned organizations" });
+                options.Definitions.Add(new PermissionDefinition { Name = UserOrganizationPermissions.OrganizationRolesRead, Description = "View roles in assigned organizations" });
+                options.Definitions.Add(new PermissionDefinition { Name = UserOrganizationPermissions.OrganizationRolesManage, Description = "Manage roles in assigned organizations" });
             });
 
             services.PostConfigure<RoleConfigurationOptions>(options =>
@@ -260,7 +273,13 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                         "users.manage-roles",
                         "users.delete",
                         "roles.read",
-                        "roles.manage"
+                        "roles.manage",
+                        AdminOrganizationPermissions.OrganizationsRead,
+                        AdminOrganizationPermissions.OrganizationsManage,
+                        AdminOrganizationPermissions.OrganizationMembersRead,
+                        AdminOrganizationPermissions.OrganizationMembersManage,
+                        AdminOrganizationPermissions.OrganizationRolesRead,
+                        AdminOrganizationPermissions.OrganizationRolesManage
                     },
                     IsSystemRole = true
                 });

@@ -1,5 +1,6 @@
 using System;
 using FluentValidation;
+using Identity.Base.Abstractions;
 using Identity.Base.Identity;
 using Identity.Base.Organizations.Api.Models;
 using Identity.Base.Organizations.Api.Validation;
@@ -45,6 +46,7 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<OrganizationClaimFormatter>();
         services.TryAddScoped<IOrganizationPermissionResolver, OrganizationPermissionResolver>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IAdditionalPermissionSource, OrganizationAdditionalPermissionSource>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IClaimsPrincipalAugmentor, OrganizationMembershipClaimsAugmentor>());
         services.TryAddScoped<IOrganizationInvitationStore, OrganizationInvitationStore>();
         services.TryAddScoped<OrganizationInvitationService>();
 

@@ -17,10 +17,10 @@ public class OrganizationPermissionAuthorizationHandlerTests
         var resolver = new StubOrganizationPermissionResolver();
         var handler = new OrganizationPermissionAuthorizationHandler(resolver);
 
-        var requirement = new OrganizationPermissionRequirement("organizations.read");
+        var requirement = new OrganizationPermissionRequirement(AdminOrganizationPermissions.OrganizationsRead);
         var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
-            new Claim(RoleClaimTypes.Permissions, "organizations.read organization.members.read")
+            new Claim(RoleClaimTypes.Permissions, $"{AdminOrganizationPermissions.OrganizationsRead} {AdminOrganizationPermissions.OrganizationMembersRead}")
         }, authenticationType: "Test"));
 
         var context = new AuthorizationHandlerContext(new[] { requirement }, user, null);
@@ -36,10 +36,10 @@ public class OrganizationPermissionAuthorizationHandlerTests
         var resolver = new StubOrganizationPermissionResolver();
         var handler = new OrganizationPermissionAuthorizationHandler(resolver);
 
-        var requirement = new OrganizationPermissionRequirement("organizations.manage");
+        var requirement = new OrganizationPermissionRequirement(AdminOrganizationPermissions.OrganizationsManage);
         var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
-            new Claim(RoleClaimTypes.Permissions, "organizations.read")
+            new Claim(RoleClaimTypes.Permissions, AdminOrganizationPermissions.OrganizationsRead)
         }, authenticationType: "Test"));
 
         var context = new AuthorizationHandlerContext(new[] { requirement }, user, null);
@@ -56,13 +56,13 @@ public class OrganizationPermissionAuthorizationHandlerTests
         var userId = Guid.NewGuid();
         var resolver = new StubOrganizationPermissionResolver
         {
-            Permissions = ["organization.members.manage"],
+            Permissions = [UserOrganizationPermissions.OrganizationMembersManage],
             OrganizationId = organizationId,
             UserId = userId
         };
 
         var handler = new OrganizationPermissionAuthorizationHandler(resolver);
-        var requirement = new OrganizationPermissionRequirement("organization.members.manage");
+        var requirement = new OrganizationPermissionRequirement(UserOrganizationPermissions.OrganizationMembersManage);
 
         var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
@@ -75,6 +75,25 @@ public class OrganizationPermissionAuthorizationHandlerTests
         await handler.HandleAsync(context);
 
         context.HasSucceeded.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task HandleRequirementAsync_Fails_WhenUserScopedButNoMembership()
+    {
+        var resolver = new StubOrganizationPermissionResolver();
+        var handler = new OrganizationPermissionAuthorizationHandler(resolver);
+
+        var requirement = new OrganizationPermissionRequirement(UserOrganizationPermissions.OrganizationMembersManage);
+        var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
+        {
+            new Claim(RoleClaimTypes.Permissions, AdminOrganizationPermissions.OrganizationsRead)
+        }, authenticationType: "Test"));
+
+        var context = new AuthorizationHandlerContext(new[] { requirement }, user, null);
+
+        await handler.HandleAsync(context);
+
+        context.HasSucceeded.ShouldBeFalse();
     }
 }
 

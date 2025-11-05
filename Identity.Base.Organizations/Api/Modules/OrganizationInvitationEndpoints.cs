@@ -42,7 +42,7 @@ public static class OrganizationInvitationEndpoints
             var response = invitations.Select(OrganizationApiMapper.ToInvitationDto).ToArray();
             return Results.Ok(response);
         })
-        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationMembersManage));
 
         endpoints.MapPost("/organizations/{organizationId:guid}/invitations", async (
             Guid organizationId,
@@ -136,7 +136,7 @@ public static class OrganizationInvitationEndpoints
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["roles"] = new[] { ex.Message } });
             }
         })
-        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationMembersManage));
 
         endpoints.MapDelete("/organizations/{organizationId:guid}/invitations/{code:guid}", async (
             Guid organizationId,
@@ -155,7 +155,7 @@ public static class OrganizationInvitationEndpoints
             var revoked = await invitationService.RevokeAsync(organizationId, code, cancellationToken).ConfigureAwait(false);
             return revoked ? Results.NoContent() : Results.NotFound();
         })
-        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationMembersManage));
 
         endpoints.MapGet("/invitations/{code:guid}", async (
             Guid code,

@@ -20,13 +20,13 @@ internal static class SampleMemberEndpoints
         ArgumentNullException.ThrowIfNull(group);
 
         group.MapGet("/organizations/{organizationId:guid}/members", HandleMemberListAsync)
-            .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.read"));
+            .RequireAuthorization(policy => policy.RequireOrganizationPermission(UserOrganizationPermissions.OrganizationMembersRead));
 
         group.MapPatch("/organizations/{organizationId:guid}/members/{userId:guid}", HandleMemberPatchAsync)
-            .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
+            .RequireAuthorization(policy => policy.RequireOrganizationPermission(UserOrganizationPermissions.OrganizationMembersManage));
 
         group.MapDelete("/organizations/{organizationId:guid}/members/{userId:guid}", HandleMemberDeleteAsync)
-            .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
+            .RequireAuthorization(policy => policy.RequireOrganizationPermission(UserOrganizationPermissions.OrganizationMembersManage));
 
         return group;
     }
