@@ -63,9 +63,9 @@ namespace Identity.Base.Organizations.Data.Migrations
 
         private static void SeedDefaultRolePermissions(MigrationBuilder migrationBuilder)
         {
-            InsertPermissions(migrationBuilder, "OrgOwner", "('admin.organizations.read','admin.organizations.manage','admin.organizations.members.read','admin.organizations.members.manage','admin.organizations.roles.read','admin.organizations.roles.manage','user.organizations.read','user.organizations.manage','user.organizations.members.read','user.organizations.members.manage','user.organizations.roles.read','user.organizations.roles.manage')");
-            InsertPermissions(migrationBuilder, "OrgManager", "('admin.organizations.read','admin.organizations.members.read','admin.organizations.members.manage','admin.organizations.roles.read','user.organizations.read','user.organizations.members.read','user.organizations.members.manage','user.organizations.roles.read')");
-            InsertPermissions(migrationBuilder, "OrgMember", "('admin.organizations.read','user.organizations.read')");
+            InsertPermissions(migrationBuilder, "OrgOwner", "('user.organizations.read','user.organizations.manage','user.organizations.members.read','user.organizations.members.manage','user.organizations.roles.read','user.organizations.roles.manage')");
+            InsertPermissions(migrationBuilder, "OrgManager", "('user.organizations.read','user.organizations.members.read','user.organizations.members.manage','user.organizations.roles.read')");
+            InsertPermissions(migrationBuilder, "OrgMember", "('user.organizations.read')");
         }
 
         private static void InsertPermissions(MigrationBuilder migrationBuilder, string roleName, string permissionTuple)
