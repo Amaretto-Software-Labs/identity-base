@@ -132,7 +132,7 @@ curl -X POST https://identity.example.com/invitations/claim \
 - Sample API: `apps/org-sample-api`
 - Sample SPA: `apps/org-sample-client`
 - Playbook: ../../playbooks/seed-roles-and-default-organization.md
- - Playbook: ../../playbooks/organization-invitation-flow.md
+- Playbook: ../../playbooks/organization-invitation-flow.md
 
 ## Change Log
 
