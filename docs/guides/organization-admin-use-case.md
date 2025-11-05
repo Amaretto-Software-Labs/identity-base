@@ -46,11 +46,15 @@ This guide captures the end-to-end scenario described in planning: users registe
   - Trigger token/cookie refresh so the new organization context appears in claims.
 
 - [ ] **Invitation & Membership Management**
-  - Use organization endpoints:
-    - `POST /organizations/{orgId}/members` to invite/link users (requires permission + scope).
+  - Use invitation endpoints:
+    - `POST /organizations/{orgId}/invitations` to issue an invite (backed by `OrganizationInvitationService` which stores the record, enforces uniqueness, and applies expiry).
+    - `GET /organizations/{orgId}/invitations` / `DELETE .../{code}` to list or revoke invites.
+    - Public flow: `GET /invitations/{code}` for validation and `POST /invitations/claim` (authenticated) to accept; the service automatically creates/updates the membership and returns `RequiresTokenRefresh = true`.
+  - Use membership endpoints when you already know the user id:
+    - `POST /organizations/{orgId}/members` to add a member immediately.
     - `PUT /organizations/{orgId}/members/{userId}` to update role assignments / primary flag.
     - `DELETE /organizations/{orgId}/members/{userId}` to remove members.
-  - **Gap**: The package does not implement email/token invitation flows. Apps must build the invite UX (create pending user + send link, or provision user directly and email instructions).
+  - Hosts are still responsible for the invite delivery UX (email templates, SPA acceptance page) even though storage and APIs are provided.
 
 - [ ] **Organization Role Management**
   - Organization admins call `GET/POST/DELETE /organizations/{orgId}/roles` for custom roles.
@@ -78,7 +82,7 @@ This guide captures the end-to-end scenario described in planning: users registe
 
 | Area | Gap | Suggested Action |
 | --- | --- | --- |
-| Invitations | No built-in invitation tokens/email workflows. | Build a custom endpoint/workflow that issues invite codes and creates users + memberships upon accept. |
+| Invitations UX | Email templates, delivery, and the public-facing acceptance page remain host responsibilities (the invitation APIs handle persistence and membership updates). | Implement a lightweight mailer + SPA flow that calls `/organizations/{id}/invitations`, `/invitations/{code}`, and `/invitations/claim`. |
 | Org ↔ RBAC binding | Explicit permission overrides are persisted, but hosts must still decide which permissions correspond to new org roles. | Define default permission bundles in configuration/seed callbacks and expose admin UX (see sample) for fine-grained overrides. |
 | Admin UI | No admin endpoints for listing/editing organizations. | Extend `Identity.Base.Admin` or create a companion package to expose `/admin/organizations` and related tooling. |
 | Integration Tests | Minimal APIs currently validated by unit tests only. | Add WebApplicationFactory-based tests to cover authorization and org-switch flows end-to-end. |

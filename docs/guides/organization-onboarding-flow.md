@@ -80,42 +80,56 @@ await signInManager.RefreshSignInAsync(user);
 ## 4. Invitation Workflow
 
 **Server flow:**
-Identity Base exposes `POST /organizations/{orgId}/members` to add an existing user or provision a pending membership. Hosts typically:
+Identity Base includes invitation storage, token issuance, expiration, and acceptance APIs. A typical flow looks like:
 
-1. Generate an invite token and store it (table keyed by user email + organization).
-2. Send email via Mailjet/SMTP containing `inviteId` + `token`.
-3. When the recipient accepts, create the user if needed, then call the membership endpoint with the target user id.
-4. After acceptance, refresh the user session to include the new organization.
+1. Call `POST /organizations/{orgId}/invitations` (or invoke `OrganizationInvitationService.CreateAsync`) to create the invite. The service enforces uniqueness, persists the record, and returns the invite `code`, expiry, and organization metadata.
+2. Use the response to send an email (MailJet/SMTP/etc.) that links the recipient to your SPA (e.g., `/invitations/accept?code=...`).
+3. When the recipient lands on the SPA, fetch `GET /invitations/{code}` to show organization details. After the user signs in, call `POST /invitations/claim` with the code – this automatically adds the membership, merges roles, deletes the invite, and returns `RequiresTokenRefresh = true`.
+4. Refresh the caller’s tokens/cookies so the new organization appears in claims and the React providers.
+
+If you already know the target user identifier (no invite needed), you can still call `POST /organizations/{orgId}/members` directly to add them immediately.
 
 Example invite handler in ASP.NET Minimal API:
 ```csharp
-app.MapPost("/organizations/{orgId:guid}/invites", async (
+app.MapPost("/organizations/{orgId:guid}/invitations", async (
     Guid orgId,
-    InviteRequest request,
-    IOrganizationMembershipService membershipService,
-    IInviteService inviteService) =>
+    CreateOrganizationInvitationRequest request,
+    ClaimsPrincipal principal,
+    OrganizationInvitationService invitations,
+    IEmailSender emailSender,
+    CancellationToken cancellationToken) =>
 {
-    var invite = await inviteService.CreateInviteAsync(orgId, request.Email, request.RoleIds);
-    await membershipService.AddPendingMemberAsync(invite);
-    await inviteService.SendEmailAsync(invite);
-    return Results.Accepted();
+    var actorId = Guid.Parse(principal.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+    var invite = await invitations.CreateAsync(
+        orgId,
+        request.Email,
+        request.RoleIds ?? Array.Empty<Guid>(),
+        actorId,
+        request.ExpiresInHours,
+        cancellationToken);
+
+    await emailSender.SendInviteAsync(invite); // host-defined email delivery
+
+    return Results.Created($"/organizations/{orgId}/invitations/{invite.Code}", OrganizationApiMapper.ToInvitationDto(invite));
 });
 ```
 
 **React implementation:**
-1. Build an Invite Members page using `useOrganizations().client.listMembers()` for context if needed.
-2. Submit invites to your API. Upon acceptance (e.g., landing on `/invites/accept?inviteId=...`), the SPA:
-   - Calls an endpoint to validate the invite and create a membership.
-   - On success, logs in or refreshes tokens (`authManager.refreshTokens()`), and redirects to the organization dashboard.
-3. Provide UI for resend/cancel invitations (custom endpoints).
+1. Build an Invite Members page that calls `/organizations/{orgId}/invitations` and lists pending invites via `/organizations/{orgId}/invitations` GET.
+2. The acceptance route (`/invitations/accept?code=...`) should:
+   - Call `GET /invitations/{code}` to validate and display org details.
+   - Ensure the user is authenticated (register or log in if required).
+   - Call `POST /invitations/claim` and, on success, invoke `authManager.refreshTokens()` before redirecting to the dashboard.
+3. Provide actions to resend or revoke invitations via the same invitation endpoints.
 
-**Note:** The OSS package does not include invite token/email flow—implement pending invite storage, expiration, and email templates in your host.
+**Note:** Identity Base already ships invite storage, token generation, expiration handling, and acceptance endpoints (`OrganizationInvitationService`, `/organizations/{id}/invitations`, `/invitations/claim`). You still own the outer workflow: trigger the service, send the email (MailJet/other provider), and surface an invite acceptance UI in your app.
 
 ## 5. Managing Members & Organization Roles
 
 Server endpoints and flows:
 - `GET /organizations/{orgId}/members` – list memberships.
-- `POST /organizations/{orgId}/members` – invite/add member.
+- `POST /organizations/{orgId}/members` – add an existing user immediately (no invite flow).
 - `PUT /organizations/{orgId}/members/{userId}` – update roles (`RoleIds`) and primary flag.
 - `DELETE /organizations/{orgId}/members/{userId}` – remove membership.
 - `GET/POST/DELETE /organizations/{orgId}/roles` – manage org-specific roles.
