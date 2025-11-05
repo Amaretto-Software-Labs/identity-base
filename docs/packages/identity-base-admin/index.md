@@ -109,7 +109,7 @@ curl -X GET https://identity.example.com/admin/users?page=1&pageSize=20 \
 - [Organization Admin Use Case](../../guides/organization-admin-use-case.md)
 - [Admin Operations Guide](../../guides/admin-operations-guide.md)
 - Sample admin wiring: `Identity.Base.Host/Program.cs`
- - Playbook: ../../playbooks/admin-api-smoke.md
+- Playbook: ../../playbooks/admin-api-smoke.md
 
 ## Change Log
 - See [CHANGELOG.md](../../CHANGELOG.md) (`Identity.Base.Admin` entries)

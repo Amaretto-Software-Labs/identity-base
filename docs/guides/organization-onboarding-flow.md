@@ -196,7 +196,7 @@ Key hooks (from `@identity-base/react-organizations`):
 - `apps/org-sample-client` – React SPA demonstrating registration, invite acceptance, membership management using the React packages.
 - Documentation:
   - [`docs/guides/organization-admin-use-case.md`](organization-admin-use-case.md)
-- [`docs/packages/identity-base-react-organizations/index.md`](../packages/identity-base-react-organizations/index.md)
+  - [`docs/packages/identity-base-react-organizations/index.md`](../packages/identity-base-react-organizations/index.md)
   - [`docs/guides/full-stack-integration-guide.md`](full-stack-integration-guide.md)
 
 ## 8. Next Steps & Gaps
