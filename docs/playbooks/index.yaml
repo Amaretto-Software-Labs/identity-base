@@ -1,0 +1,86 @@
+playbooks:
+  - id: playbooks/identity-base-with-roles-and-organizations
+    path: docs/playbooks/identity-base-with-roles-and-organizations.md
+    goal: "Run Identity Base with Roles and Organizations, verify health, run tests"
+    prerequisites:
+      dotnet: "9.x"
+      database: "PostgreSQL 16"
+      docker: "Available (optional)"
+    required_secrets:
+      - CONNECTIONSTRINGS__PRIMARY
+      - MAILJET__APIKEY (optional)
+      - MAILJET__APISECRET (optional)
+    tags: [identity, roles, organizations]
+    last_reviewed: 2025-11-05
+  - id: playbooks/enable-mailjet-email-sender
+    path: docs/playbooks/enable-mailjet-email-sender.md
+    goal: "Enable Mailjet email sender and validate mailjet health check"
+    prerequisites:
+      dotnet: "9.x"
+      docker: "Available (optional)"
+      mailjet: "Account with template IDs"
+    required_secrets:
+      - MAILJET__APIKEY
+      - MAILJET__APISECRET
+    tags: [email, mailjet]
+    last_reviewed: 2025-11-05
+  - id: playbooks/seed-roles-and-default-organization
+    path: docs/playbooks/seed-roles-and-default-organization.md
+    goal: "Seed admin user, configure RBAC permissions, create default organization, and assign membership"
+    prerequisites:
+      dotnet: "9.x"
+      database: "PostgreSQL 16"
+    required_secrets:
+      - CONNECTIONSTRINGS__PRIMARY
+    tags: [roles, organizations, seeding]
+    last_reviewed: 2025-11-05
+  - id: playbooks/full-stack-smoke-test
+    path: docs/playbooks/full-stack-smoke-test.md
+    goal: "Run Identity Host, verify health, obtain token, and exercise endpoints"
+    prerequisites:
+      dotnet: "9.x"
+      database: "PostgreSQL 16"
+    required_secrets:
+      - CONNECTIONSTRINGS__PRIMARY
+    tags: [smoke, verification]
+    last_reviewed: 2025-11-05
+  - id: playbooks/organization-invitation-flow
+    path: docs/playbooks/organization-invitation-flow.md
+    goal: "Create, retrieve, and claim an organization invitation; verify membership"
+    prerequisites:
+      dotnet: "9.x"
+      database: "PostgreSQL 16"
+    required_secrets:
+      - CONNECTIONSTRINGS__PRIMARY
+    tags: [organizations, invitations]
+    last_reviewed: 2025-11-05
+  - id: playbooks/react-client-pkce-login
+    path: docs/playbooks/react-client-pkce-login.md
+    goal: "Run sample React SPA and complete Authorization Code PKCE against local host"
+    prerequisites:
+      node: "20.x"
+      npm: "10.x"
+      dotnet: "9.x"
+    tags: [react, pkce, spa]
+    last_reviewed: 2025-11-05
+  - id: playbooks/admin-api-smoke
+    path: docs/playbooks/admin-api-smoke.md
+    goal: "Smoke test admin endpoints: permissions, users, roles, lock/unlock, delete/restore"
+    prerequisites:
+      dotnet: "9.x"
+      database: "PostgreSQL 16"
+    required_secrets:
+      - CONNECTIONSTRINGS__PRIMARY
+    tags: [admin, roles, users]
+    last_reviewed: 2025-11-05
+  - id: playbooks/database-migrations-and-rollback
+    path: docs/playbooks/database-migrations-and-rollback.md
+    goal: "Inspect, add, apply, script, and roll back EF Core migrations for all contexts"
+    prerequisites:
+      dotnet: "9.x"
+      dotnet_ef: "installed"
+      database: "PostgreSQL 16"
+    required_secrets:
+      - CONNECTIONSTRINGS__PRIMARY
+    tags: [operations, efcore, migrations]
+    last_reviewed: 2025-11-05

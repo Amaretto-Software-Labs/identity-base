@@ -1,5 +1,7 @@
 # Identity.Base.Email.MailJet
 
+> Comprehensive documentation is available at [docs/packages/identity-base-email-mailjet/index.md](../docs/packages/identity-base-email-mailjet/index.md). The README below is a condensed quick start.
+
 Optional Mailjet integration for Identity Base. This package provides:
 
 - `MailJetEmailSender`, an `ITemplatedEmailSender` implementation that dispatches transactional emails via Mailjet.

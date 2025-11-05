@@ -1,5 +1,7 @@
 # Identity.Base.AspNet
 
+> Looking for the full documentation (configuration matrix, extension points, troubleshooting)? Head to [docs/packages/identity-base-aspnet/index.md](../docs/packages/identity-base-aspnet/index.md). This README retains the quick-start example.
+
 Easy JWT Bearer authentication integration for ASP.NET Core APIs using Identity.Base.
 
 ## Overview

@@ -1,5 +1,7 @@
 # Identity Base Organizations
 
+> For the canonical documentation (installation, endpoints, extension points) see [docs/packages/identity-base-organizations/index.md](../docs/packages/identity-base-organizations/index.md). The README provides a quick-start snapshot.
+
 `Identity.Base.Organizations` layers organization management on top of the core Identity Base and RBAC packages. It provides EF Core entities, services, hosted infrastructure, and minimal API endpoints so any host can manage organizations, memberships, and organization-scoped roles without custom scaffolding.
 
 ## Features

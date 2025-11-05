@@ -1,5 +1,7 @@
 # Identity.Base.Roles
 
+> Full documentation lives at [docs/packages/identity-base-roles/index.md](../docs/packages/identity-base-roles/index.md). This README highlights the basics for quick reference.
+
 Role-based access control primitives for Identity Base. Includes:
 
 - EF Core entities and configuration for roles, permissions, role-permission associations, user-role links, and audit entries.

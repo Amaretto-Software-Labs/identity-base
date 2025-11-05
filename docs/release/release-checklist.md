@@ -8,4 +8,7 @@
 6. **Reconcile release notes** – the workflow creates the GitHub release entry; update its description as needed to match the changelog.
 7. **Docs** – if APIs changed, update `docs/reference/identity-base-public-api.md` and `docs/guides/getting-started.md` accordingly.
 
+See also
+- Task Playbook: docs/playbooks/database-migrations-and-rollback.md
+
 _Optional_: Add release automation to the CI pipeline by supplying a NuGet API key and calling `dotnet nuget push` after the pack step.

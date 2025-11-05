@@ -264,6 +264,7 @@ dotnet run
 - `https://localhost:5001/healthz` should report healthy checks.
 - `POST /auth/register`, `POST /auth/login`, `/admin/users`, and `/organizations` are now available.
 - Sign in with the seeded admin account to exercise the admin and organization surfaces.
+> See also: Task Playbook — docs/playbooks/full-stack-smoke-test.md for copy-ready commands and explicit success criteria.
 
 ---
 

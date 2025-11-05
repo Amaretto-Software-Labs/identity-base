@@ -22,10 +22,12 @@ This walkthrough shows how to stand up Identity Base as a service using only the
 
 ## 2. Install Identity Base Core
 
+Refer to [docs/packages/identity-base/index.md](../packages/identity-base/index.md) for a full overview of the core package’s endpoints, extension points, and configuration knobs.
+
 ### 2.1 Add NuGet Packages
 ```bash
 dotnet add package Identity.Base
-dotnet add package Identity.Base.Email.MailJet # optional Mailjet sender
+dotnet add package Identity.Base.Email.MailJet # optional Mailjet sender (see docs/packages/identity-base-email-mailjet/index.md)
 ```
 
 ### 2.2 Configure `Program.cs`
@@ -158,7 +160,7 @@ At this stage you have the complete identity, registration, MFA, and OAuth surfa
 
 ## 3. (Optional) Add Role-Based Access Control
 
-If you need role management and effective permission resolution, add the `Identity.Base.Roles` package.
+If you need role management and effective permission resolution, add the `Identity.Base.Roles` package. The full package reference (services, options, endpoints) is documented at [docs/packages/identity-base-roles/index.md](../packages/identity-base-roles/index.md).
 
 ### 3.1 Install Package
 ```bash
@@ -235,7 +237,7 @@ Re-run `dotnet run` and check `GET https://localhost:5000/users/me/permissions` 
 
 ## 4. (Optional) Add Organization Management
 
-Install the organizations add-on if you need per-tenant organizations, memberships, and organization-level roles.
+Install the organizations add-on if you need per-tenant organizations, memberships, and organization-level roles. The comprehensive package reference lives at [docs/packages/identity-base-organizations/index.md](../packages/identity-base-organizations/index.md).
 
 ### 5.1 Install Package
 ```bash
@@ -294,7 +296,7 @@ At this stage your host exposes organization CRUD, membership, and role endpoint
 
 ## 5. (Optional) Add the Admin API
 
-`Identity.Base.Admin` layers admin endpoints on top of the roles package. If you add this package you do **not** need the separate `AddIdentityRoles` registration from the previous step (the admin builder already includes it).
+`Identity.Base.Admin` layers admin endpoints on top of the roles package. If you add this package you do **not** need the separate `AddIdentityRoles` registration from the previous step (the admin builder already includes it). Consult the full package reference at [docs/packages/identity-base-admin/index.md](../packages/identity-base-admin/index.md) for endpoint details and configuration tips.
 
 ### 4.1 Install Package
 ```bash
