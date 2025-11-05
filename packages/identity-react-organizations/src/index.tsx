@@ -178,6 +178,7 @@ const DEFAULT_STORAGE_KEY = 'identity-base:active-organization-id'
 
 const DEFAULT_MEMBERS_PAGE_SIZE = 25
 const MAX_MEMBERS_PAGE_SIZE = 200
+const ORGANIZATION_HEADER = 'X-Organization-Id'
 
 function ensureHeaders(initHeaders?: HeadersInit): Headers {
   if (initHeaders instanceof Headers) {
@@ -374,6 +375,10 @@ export function OrganizationsProvider({
       headers.set('Authorization', `Bearer ${token}`)
     }
 
+    if (activeOrganizationId) {
+      headers.set(ORGANIZATION_HEADER, activeOrganizationId)
+    }
+
     const response = await resolvedFetch(
       path.startsWith('http') ? path : `${baseUrl}${path}`,
       {
@@ -407,7 +412,7 @@ export function OrganizationsProvider({
     }
 
     return await response.json() as T
-  }, [authManager, baseUrl, resolvedFetch])
+  }, [activeOrganizationId, authManager, baseUrl, resolvedFetch])
 
   const client = useMemo<OrganizationsClient>(() => ({
     listMemberships: async () => {

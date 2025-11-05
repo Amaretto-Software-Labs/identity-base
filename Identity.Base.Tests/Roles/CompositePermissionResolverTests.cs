@@ -16,8 +16,8 @@ public class CompositePermissionResolverTests
         var baseService = new StubRoleAssignmentService(["users.read", "users.update"]);
         var additionalSources = new IAdditionalPermissionSource[]
         {
-            new StubAdditionalPermissionSource(["organizations.read"]),
-            new StubAdditionalPermissionSource(["organization.members.manage"])
+            new StubAdditionalPermissionSource(["admin.organizations.read"]),
+            new StubAdditionalPermissionSource(["user.organizations.members.manage"])
         };
 
         var resolver = new CompositePermissionResolver(baseService, additionalSources);
@@ -27,8 +27,8 @@ public class CompositePermissionResolverTests
         {
             "users.read",
             "users.update",
-            "organizations.read",
-            "organization.members.manage"
+            "admin.organizations.read",
+            "user.organizations.members.manage"
         });
     }
 

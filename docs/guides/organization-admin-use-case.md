@@ -32,7 +32,7 @@ This guide captures the end-to-end scenario described in planning: users registe
   - `var rolesBuilder = services.AddIdentityRoles(configuration);`
   - Choose storage (`rolesBuilder.AddDbContext<IdentityRolesDbContext>(...)`).
   - Seed definitions on startup via `await app.Services.SeedIdentityRolesAsync();`.
-  - Define permissions covering organization management (e.g. `organizations.manage`, `organization.members.manage`, etc.).
+  - Define permissions covering organization management (e.g. `admin.organizations.manage`, `admin.organizations.members.manage`, with matching `user.organizations.*` entries seeded for future scoped endpoints).
 
 - [ ] **Add Organizations Package**
   - `var orgBuilder = services.AddIdentityBaseOrganizations(options => options.UseNpgsql(...));`
@@ -62,7 +62,7 @@ This guide captures the end-to-end scenario described in planning: users registe
 
 - [ ] **Organization Context Handling**
   - Call `GET /users/me/organizations` to show available orgs.
-  - Call `POST /users/me/organizations/active` when the user switches orgs; refresh the sign-in so the new `org:*` claims propagate downstream.
+  - Add `app.UseOrganizationContextFromHeader()` and send the `X-Organization-Id` header so each request carries the active organization without reissuing tokens. Refresh tokens only when membership changes (e.g., an owner loses access).
 
 - [ ] **Admin Application**
   - Use `Identity.Base.Admin` for user & role management (`services.AddIdentityAdmin(...)`, `app.MapIdentityAdminEndpoints()`).

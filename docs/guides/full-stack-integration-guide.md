@@ -122,6 +122,7 @@ app.MapControllers();                   // Allow MVC controllers if you add any
 app.MapApiEndpoints();                  // Core Identity Base endpoints
 app.MapIdentityRolesUserEndpoints();    // GET /users/me/permissions and scope helpers
 app.MapIdentityAdminEndpoints();        // /admin/users, /admin/roles
+app.UseOrganizationContextFromHeader(); // Honor X-Organization-Id for scoped requests
 app.MapIdentityBaseOrganizationEndpoints(); // /organizations + membership management
 app.MapHealthChecks("/healthz");
 
@@ -183,7 +184,7 @@ Populate the generated `appsettings.json` with the minimal sections shown below.
     "Scopes": [
       { "Name": "identity.api", "DisplayName": "Identity API" },
       { "Name": "identity.admin", "DisplayName": "Identity Admin" },
-      { "Name": "organizations.manage", "DisplayName": "Organization Management" }
+      { "Name": "admin.organizations.manage", "DisplayName": "Organization Administration" }
     ],
     "Applications": [
       {
@@ -203,7 +204,7 @@ Populate the generated `appsettings.json` with the minimal sections shown below.
           "scopes:offline_access",
           "scopes:identity.api",
           "scopes:identity.admin",
-          "scopes:organizations.manage"
+          "scopes:admin.organizations.manage"
         ],
         "Requirements": ["requirements:pkce"]
       }
@@ -213,8 +214,8 @@ Populate the generated `appsettings.json` with the minimal sections shown below.
     "Definitions": [
       { "Name": "users.read", "Description": "List and view users" },
       { "Name": "users.manage-roles", "Description": "Assign user roles" },
-      { "Name": "organizations.read", "Description": "Read organizations" },
-      { "Name": "organizations.manage", "Description": "Manage organizations and memberships" }
+      { "Name": "admin.organizations.read", "Description": "Read organizations" },
+      { "Name": "admin.organizations.manage", "Description": "Manage organizations and memberships globally" }
     ]
   },
   "Roles": {
@@ -231,8 +232,8 @@ Populate the generated `appsettings.json` with the minimal sections shown below.
         "Permissions": [
           "users.read",
           "users.manage-roles",
-          "organizations.read",
-          "organizations.manage"
+          "admin.organizations.read",
+          "admin.organizations.manage"
         ],
         "IsSystemRole": true
       }
@@ -328,7 +329,7 @@ Create `.env.local`:
 VITE_IDENTITY_API_BASE=https://localhost:5001
 VITE_IDENTITY_CLIENT_ID=spa-client
 VITE_IDENTITY_REDIRECT_URI=http://localhost:5173/auth/callback
-VITE_IDENTITY_SCOPE="openid profile email offline_access identity.api identity.admin organizations.manage"
+VITE_IDENTITY_SCOPE="openid profile email offline_access identity.api identity.admin admin.organizations.manage"
 VITE_IDENTITY_LOG_LEVEL=debug
 ```
 
@@ -370,7 +371,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 );
 ```
 
-`OrganizationsProvider` consumes the user’s tokens from `@identity-base/react-client`, loads the caller’s organization memberships, and exposes helper hooks for switching organizations or managing memberships. Provide `apiBase` whenever the SPA’s origin differs from the Identity Host.
+`OrganizationsProvider` consumes the user’s tokens from `@identity-base/react-client`, loads the caller’s organization memberships, and exposes helper hooks for switching organizations or managing memberships. The provider automatically sets the `X-Organization-Id` header for every API call so the middleware can resolve the active organization. Provide `apiBase` whenever the SPA’s origin differs from the Identity Host.
 
 ### 5.5 Organization Hooks in Practice
 
@@ -415,7 +416,7 @@ export function OrganizationDashboard() {
 }
 ```
 
-The provider automatically refreshes organization data when the user signs in or switches organizations and persists the active organization in `localStorage`. Downstream API calls can include the active organization ID in headers or query parameters if required by your microservices.
+The provider automatically refreshes organization data when the user signs in or switches organizations, persists the active organization in `localStorage`, and attaches the `X-Organization-Id` header so downstream APIs receive the active organization context.
 
 ### 5.6 Implement Core Screens
 

@@ -1,6 +1,7 @@
 using System.Linq;
 using Shouldly;
 using Identity.Base.Organizations.Abstractions;
+using Identity.Base.Organizations.Authorization;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Domain;
 using Identity.Base.Organizations.Options;
@@ -67,8 +68,8 @@ public class OrganizationRoleServiceTests
         await using var context = CreateContext(out var organization);
         await using var roleContext = CreateRoleContext();
 
-        var readPermission = new Permission { Name = "organization.roles.read" };
-        var managePermission = new Permission { Name = "organization.roles.manage" };
+        var readPermission = new Permission { Name = UserOrganizationPermissions.OrganizationRolesRead };
+        var managePermission = new Permission { Name = UserOrganizationPermissions.OrganizationRolesManage };
         roleContext.Permissions.AddRange(readPermission, managePermission);
         await roleContext.SaveChangesAsync();
 
@@ -110,13 +111,13 @@ public class OrganizationRoleServiceTests
 
         permissions.Effective.OrderBy(x => x).ToArray().ShouldBe(new[]
         {
-            "organization.roles.manage",
-            "organization.roles.read",
+            UserOrganizationPermissions.OrganizationRolesManage,
+            UserOrganizationPermissions.OrganizationRolesRead,
         }.OrderBy(x => x).ToArray());
 
         permissions.Explicit.OrderBy(x => x).ToArray().ShouldBe(new[]
         {
-            "organization.roles.manage",
+            UserOrganizationPermissions.OrganizationRolesManage,
         }.OrderBy(x => x).ToArray());
     }
 
@@ -126,9 +127,9 @@ public class OrganizationRoleServiceTests
         await using var context = CreateContext(out var organization);
         await using var roleContext = CreateRoleContext();
 
-        var readPermission = new Permission { Name = "organization.roles.read" };
-        var managePermission = new Permission { Name = "organization.roles.manage" };
-        var auditPermission = new Permission { Name = "organization.roles.audit" };
+        var readPermission = new Permission { Name = UserOrganizationPermissions.OrganizationRolesRead };
+        var managePermission = new Permission { Name = UserOrganizationPermissions.OrganizationRolesManage };
+        var auditPermission = new Permission { Name = "user.organizations.roles.audit" };
         roleContext.Permissions.AddRange(readPermission, managePermission, auditPermission);
         await roleContext.SaveChangesAsync();
 
@@ -167,36 +168,36 @@ public class OrganizationRoleServiceTests
 
         var service = CreateService(context, roleContext);
 
-        await service.UpdatePermissionsAsync(role.Id, organization.Id, new[] { "organization.roles.manage", "organization.roles.audit" });
+        await service.UpdatePermissionsAsync(role.Id, organization.Id, new[] { UserOrganizationPermissions.OrganizationRolesManage, "user.organizations.roles.audit" });
 
         var afterUpdate = await service.GetPermissionsAsync(role.Id, organization.Id);
 
         afterUpdate.Effective.OrderBy(x => x).ToArray().ShouldBe(new[]
         {
-            "organization.roles.audit",
-            "organization.roles.manage",
-            "organization.roles.read",
+            "user.organizations.roles.audit",
+            UserOrganizationPermissions.OrganizationRolesManage,
+            UserOrganizationPermissions.OrganizationRolesRead,
         }.OrderBy(x => x).ToArray());
 
         afterUpdate.Explicit.OrderBy(x => x).ToArray().ShouldBe(new[]
         {
-            "organization.roles.audit",
-            "organization.roles.manage",
+            "user.organizations.roles.audit",
+            UserOrganizationPermissions.OrganizationRolesManage,
         }.OrderBy(x => x).ToArray());
 
-        await service.UpdatePermissionsAsync(role.Id, organization.Id, new[] { "organization.roles.audit" });
+        await service.UpdatePermissionsAsync(role.Id, organization.Id, new[] { "user.organizations.roles.audit" });
 
         var afterRemoval = await service.GetPermissionsAsync(role.Id, organization.Id);
 
         afterRemoval.Effective.OrderBy(x => x).ToArray().ShouldBe(new[]
         {
-            "organization.roles.audit",
-            "organization.roles.read",
+            "user.organizations.roles.audit",
+            UserOrganizationPermissions.OrganizationRolesRead,
         }.OrderBy(x => x).ToArray());
 
         afterRemoval.Explicit.OrderBy(x => x).ToArray().ShouldBe(new[]
         {
-            "organization.roles.audit",
+            "user.organizations.roles.audit",
         }.OrderBy(x => x).ToArray());
     }
 

@@ -43,7 +43,8 @@ await app.RunAsync();
 ```
 
 **Seeding**
-- Call `await app.Services.SeedIdentityRolesAsync();` to apply permission/role defaults (e.g., `OrgOwner`, `OrgManager`, `OrgMember`, custom permissions like `organization.members.manage`).
+- Call `await app.Services.SeedIdentityRolesAsync();` to apply permission/role defaults (e.g., `OrgOwner`, `OrgManager`, `OrgMember`). The built-in roles now carry user-scoped permissions (`user.organizations.*`). Grant `admin.organizations.*` to a separate role if you need platform-wide actions.
+- Add `app.UseOrganizationContextFromHeader();` to the host and send the `X-Organization-Id` header from the SPA so each request selects the active organization without refreshing tokens on every switch. Refresh tokens only when membership changes (e.g., an owner is added or removed).
 - Configure organization hooks (`AfterOrganizationSeed`, `ConfigureOrganizationModel`) for custom metadata/roles if needed.
 - Ensure OpenIddict clients support refresh tokens so new org claims reach tokens after registration.
 

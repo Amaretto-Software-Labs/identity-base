@@ -26,6 +26,7 @@ internal static class OrgSampleApiHostBuilderExtensions
         ArgumentNullException.ThrowIfNull(app);
 
         app.UseApiPipeline(appBuilder => appBuilder.UseSerilogRequestLogging());
+        app.UseOrganizationContextFromHeader();
 
         app.MapControllers();
         app.MapApiEndpoints();

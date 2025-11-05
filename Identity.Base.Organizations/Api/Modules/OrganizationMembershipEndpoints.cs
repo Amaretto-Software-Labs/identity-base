@@ -47,7 +47,7 @@ public static class OrganizationMembershipEndpoints
             var members = await membershipService.GetMembersAsync(request, cancellationToken).ConfigureAwait(false);
             return Results.Ok(OrganizationApiMapper.ToMemberListResponse(members));
         })
-        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.read"));
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationMembersRead));
 
         endpoints.MapPost("/organizations/{organizationId:guid}/members", async (Guid organizationId, AddMembershipRequest request, IValidator<AddMembershipRequest> validator, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationMembershipService membershipService, CancellationToken cancellationToken) =>
         {
@@ -89,7 +89,7 @@ public static class OrganizationMembershipEndpoints
                 return Results.NotFound(new ProblemDetails { Title = "Organization not found", Detail = ex.Message, Status = StatusCodes.Status404NotFound });
             }
         })
-        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationMembersManage));
 
         endpoints.MapPut("/organizations/{organizationId:guid}/members/{userId:guid}", async (Guid organizationId, Guid userId, UpdateMembershipRequest request, IValidator<UpdateMembershipRequest> validator, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationMembershipService membershipService, CancellationToken cancellationToken) =>
         {
@@ -130,7 +130,7 @@ public static class OrganizationMembershipEndpoints
                 return Results.Conflict(new ProblemDetails { Title = "Membership conflict", Detail = ex.Message, Status = StatusCodes.Status409Conflict });
             }
         })
-        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationMembersManage));
 
         endpoints.MapDelete("/organizations/{organizationId:guid}/members/{userId:guid}", async (Guid organizationId, Guid userId, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationMembershipService membershipService, CancellationToken cancellationToken) =>
         {
@@ -143,7 +143,7 @@ public static class OrganizationMembershipEndpoints
             await membershipService.RemoveMemberAsync(organizationId, userId, cancellationToken).ConfigureAwait(false);
             return Results.NoContent();
         })
-        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationMembersManage));
 
         return endpoints;
     }

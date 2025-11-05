@@ -31,7 +31,7 @@ public static class OrganizationRoleEndpoints
             var roles = await roleService.ListAsync(tenantId, organizationId, cancellationToken).ConfigureAwait(false);
             return Results.Ok(roles.Select(OrganizationApiMapper.ToRoleDto));
         })
-        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.roles.read"));
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationRolesRead));
 
         endpoints.MapPost("/organizations/{organizationId:guid}/roles", async (Guid organizationId, CreateOrganizationRoleRequest request, IValidator<CreateOrganizationRoleRequest> validator, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationRoleService roleService, CancellationToken cancellationToken) =>
         {
@@ -73,7 +73,7 @@ public static class OrganizationRoleEndpoints
                 return Results.NotFound(new ProblemDetails { Title = "Organization not found", Detail = ex.Message, Status = StatusCodes.Status404NotFound });
             }
         })
-        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.roles.manage"));
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationRolesManage));
 
         endpoints.MapDelete("/organizations/{organizationId:guid}/roles/{roleId:guid}", async (Guid organizationId, Guid roleId, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationRoleService roleService, CancellationToken cancellationToken) =>
         {
@@ -93,7 +93,7 @@ public static class OrganizationRoleEndpoints
                 return Results.Conflict(new ProblemDetails { Title = "Role conflict", Detail = ex.Message, Status = StatusCodes.Status409Conflict });
             }
         })
-        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.roles.manage"));
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationRolesManage));
 
         endpoints.MapGet("/organizations/{organizationId:guid}/roles/{roleId:guid}/permissions", async (Guid organizationId, Guid roleId, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationRoleService roleService, CancellationToken cancellationToken) =>
         {
@@ -113,7 +113,7 @@ public static class OrganizationRoleEndpoints
                 return Results.NotFound(new ProblemDetails { Title = "Role not found", Detail = ex.Message, Status = StatusCodes.Status404NotFound });
             }
         })
-        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.roles.read"));
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationRolesRead));
 
         endpoints.MapPut("/organizations/{organizationId:guid}/roles/{roleId:guid}/permissions", async (Guid organizationId, Guid roleId, UpdateOrganizationRolePermissionsRequest request, IValidator<UpdateOrganizationRolePermissionsRequest> validator, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationRoleService roleService, CancellationToken cancellationToken) =>
         {
@@ -143,7 +143,7 @@ public static class OrganizationRoleEndpoints
                 return Results.Conflict(new ProblemDetails { Title = "Role conflict", Detail = ex.Message, Status = StatusCodes.Status409Conflict });
             }
         })
-        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.roles.manage"));
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationRolesManage));
 
         return endpoints;
     }

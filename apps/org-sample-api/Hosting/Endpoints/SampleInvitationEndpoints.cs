@@ -26,13 +26,13 @@ internal static class SampleInvitationEndpoints
         ArgumentNullException.ThrowIfNull(group);
 
         group.MapGet("/organizations/{organizationId:guid}/invitations", HandleInvitationListAsync)
-            .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
+            .RequireAuthorization(policy => policy.RequireOrganizationPermission(UserOrganizationPermissions.OrganizationMembersManage));
 
         group.MapPost("/organizations/{organizationId:guid}/invitations", HandleInvitationCreateAsync)
-            .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
+            .RequireAuthorization(policy => policy.RequireOrganizationPermission(UserOrganizationPermissions.OrganizationMembersManage));
 
         group.MapDelete("/organizations/{organizationId:guid}/invitations/{code:guid}", HandleInvitationDeleteAsync)
-            .RequireAuthorization(policy => policy.RequireOrganizationPermission("organization.members.manage"));
+            .RequireAuthorization(policy => policy.RequireOrganizationPermission(UserOrganizationPermissions.OrganizationMembersManage));
 
         group.MapPost("/invitations/claim", HandleInvitationClaimAsync)
             .RequireAuthorization();

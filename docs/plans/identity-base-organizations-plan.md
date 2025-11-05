@@ -134,18 +134,18 @@ Expose Minimal API modules under `/organizations` namespace. Suggested endpoints
 
 | Endpoint | Description | Auth Requirement |
 | --- | --- | --- |
-| `GET /organizations` | List organizations visible to the caller (filter by membership or manage permission). | `organizations.read` |
-| `POST /organizations` | Create new organization. | `organizations.manage` |
-| `GET /organizations/{orgId}` | Get organization details. | `organizations.read` |
-| `PATCH /organizations/{orgId}` | Update name/metadata/status. | `organizations.manage` |
-| `DELETE /organizations/{orgId}` | Archive organization. | `organizations.manage` |
-| `GET /organizations/{orgId}/members` | List memberships, roles. | `organization.members.read` |
-| `POST /organizations/{orgId}/members` | Add member with roles. | `organization.members.manage` |
-| `PUT /organizations/{orgId}/members/{userId}` | Update member roles/primary flag. | `organization.members.manage` |
-| `DELETE /organizations/{orgId}/members/{userId}` | Remove member. | `organization.members.manage` |
-| `GET /organizations/{orgId}/roles` | List org roles. | `organization.roles.read` |
-| `POST /organizations/{orgId}/roles` | Create custom role. | `organization.roles.manage` |
-| `DELETE /organizations/{orgId}/roles/{roleId}` | Delete custom role. | `organization.roles.manage` |
+| `GET /organizations` | List organizations visible to the caller (filter by membership or admin permission). | `admin.organizations.read` |
+| `POST /organizations` | Create new organization. | `admin.organizations.manage` |
+| `GET /organizations/{orgId}` | Get organization details. | `admin.organizations.read` |
+| `PATCH /organizations/{orgId}` | Update name/metadata/status. | `admin.organizations.manage` |
+| `DELETE /organizations/{orgId}` | Archive organization. | `admin.organizations.manage` |
+| `GET /organizations/{orgId}/members` | List memberships, roles. | `admin.organizations.members.read` |
+| `POST /organizations/{orgId}/members` | Add member with roles. | `admin.organizations.members.manage` |
+| `PUT /organizations/{orgId}/members/{userId}` | Update member roles/primary flag. | `admin.organizations.members.manage` |
+| `DELETE /organizations/{orgId}/members/{userId}` | Remove member. | `admin.organizations.members.manage` |
+| `GET /organizations/{orgId}/roles` | List org roles. | `admin.organizations.roles.read` |
+| `POST /organizations/{orgId}/roles` | Create custom role. | `admin.organizations.roles.manage` |
+| `DELETE /organizations/{orgId}/roles/{roleId}` | Delete custom role. | `admin.organizations.roles.manage` |
 | `GET /users/me/organizations` | List organizations the current user belongs to. | Authenticated |
 | `POST /users/me/organizations/active` | Set active organization (`org_id`, `org_key`). | Authenticated |
 

@@ -23,7 +23,7 @@ public static class OrganizationEndpoints
             var organizations = await service.ListAsync(tenantId, cancellationToken).ConfigureAwait(false);
             return Results.Ok(organizations.Select(OrganizationApiMapper.ToOrganizationDto));
         })
-        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organizations.read"));
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationsRead));
 
         endpoints.MapPost("/organizations", async (CreateOrganizationRequest request, IValidator<CreateOrganizationRequest> validator, IOrganizationService service, CancellationToken cancellationToken) =>
         {
@@ -54,14 +54,14 @@ public static class OrganizationEndpoints
                 return Results.Conflict(new ProblemDetails { Title = "Organization conflict", Detail = ex.Message, Status = StatusCodes.Status409Conflict });
             }
         })
-        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organizations.manage"));
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationsManage));
 
         endpoints.MapGet("/organizations/{organizationId:guid}", async (Guid organizationId, IOrganizationService service, CancellationToken cancellationToken) =>
         {
             var organization = await service.GetByIdAsync(organizationId, cancellationToken).ConfigureAwait(false);
             return organization is null ? Results.NotFound() : Results.Ok(OrganizationApiMapper.ToOrganizationDto(organization));
         })
-        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organizations.read"));
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationsRead));
 
         endpoints.MapPatch("/organizations/{organizationId:guid}", async (Guid organizationId, UpdateOrganizationRequest request, IValidator<UpdateOrganizationRequest> validator, IOrganizationService service, CancellationToken cancellationToken) =>
         {
@@ -95,7 +95,7 @@ public static class OrganizationEndpoints
                 return Results.Conflict(new ProblemDetails { Title = "Organization conflict", Detail = ex.Message, Status = StatusCodes.Status409Conflict });
             }
         })
-        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organizations.manage"));
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationsManage));
 
         endpoints.MapDelete("/organizations/{organizationId:guid}", async (Guid organizationId, IOrganizationService service, CancellationToken cancellationToken) =>
         {
@@ -109,7 +109,7 @@ public static class OrganizationEndpoints
                 return Results.NotFound();
             }
         })
-        .RequireAuthorization(policy => policy.RequireOrganizationPermission("organizations.manage"));
+        .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationsManage));
 
         return endpoints;
     }

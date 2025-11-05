@@ -95,7 +95,7 @@ public static class UserOrganizationEndpoints
             {
                 Organization = OrganizationApiMapper.ToOrganizationDto(organization),
                 RoleIds = membership.RoleAssignments.Select(assignment => assignment.RoleId).ToArray(),
-                RequiresTokenRefresh = true
+                RequiresTokenRefresh = false
             };
 
             return Results.Ok(response);

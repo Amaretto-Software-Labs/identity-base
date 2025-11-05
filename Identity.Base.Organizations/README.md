@@ -83,18 +83,30 @@ organizationsBuilder.ConfigureOrganizationModel(modelBuilder =>
 
 | Method & Route | Description | Permission |
 | --- | --- | --- |
-| `GET /organizations` | List organizations (optionally filter by `tenantId` query). | `organizations.read` |
-| `POST /organizations` | Create an organization. | `organizations.manage` |
-| `GET /organizations/{id}` | Retrieve one organization. | `organizations.read` |
-| `PATCH /organizations/{id}` | Update display name, metadata, or status. | `organizations.manage` |
-| `DELETE /organizations/{id}` | Archive an organization. | `organizations.manage` |
-| `GET /organizations/{id}/members` | List memberships + role assignments. | `organization.members.read` |
-| `POST /organizations/{id}/members` | Add a user to the organization. | `organization.members.manage` |
-| `PUT /organizations/{id}/members/{userId}` | Update membership roles/primary flag. | `organization.members.manage` |
-| `DELETE /organizations/{id}/members/{userId}` | Remove a membership. | `organization.members.manage` |
-| `GET /organizations/{id}/roles` | List organization + shared roles. | `organization.roles.read` |
-| `POST /organizations/{id}/roles` | Create a custom organization role. | `organization.roles.manage` |
-| `DELETE /organizations/{id}/roles/{roleId}` | Delete a custom role. | `organization.roles.manage` |
+| `GET /organizations` | List organizations (optionally filter by `tenantId` query). | `admin.organizations.read` |
+| `POST /organizations` | Create an organization. | `admin.organizations.manage` |
+| `GET /organizations/{id}` | Retrieve one organization. | `admin.organizations.read` |
+| `PATCH /organizations/{id}` | Update display name, metadata, or status. | `admin.organizations.manage` |
+| `DELETE /organizations/{id}` | Archive an organization. | `admin.organizations.manage` |
+| `GET /organizations/{id}/members` | List memberships + role assignments. | `admin.organizations.members.read` |
+| `POST /organizations/{id}/members` | Add a user to the organization. | `admin.organizations.members.manage` |
+| `PUT /organizations/{id}/members/{userId}` | Update membership roles/primary flag. | `admin.organizations.members.manage` |
+| `DELETE /organizations/{id}/members/{userId}` | Remove a membership. | `admin.organizations.members.manage` |
+| `GET /organizations/{id}/roles` | List organization + shared roles. | `admin.organizations.roles.read` |
+| `POST /organizations/{id}/roles` | Create a custom organization role. | `admin.organizations.roles.manage` |
+| `DELETE /organizations/{id}/roles/{roleId}` | Delete a custom role. | `admin.organizations.roles.manage` |
+
+> Default organization roles (Owner/Manager/Member) currently receive only the user-scoped (`user.organizations.*`) permissions. Create a separate role with `admin.organizations.*` permissions if you need a platform-wide organization administrator.
+
+## Active organization context
+
+Tokens issued by Identity Base now include an `org:memberships` claim listing all organization IDs for the signed-in user. Add the middleware in your pipeline:
+
+```csharp
+app.UseOrganizationContextFromHeader();
+```
+
+Then send the `X-Organization-Id` header on each request. The middleware validates the caller still belongs to that organization (admins with `admin.organizations.*` bypass the membership check) and loads the organization metadata into `IOrganizationContextAccessor`; it automatically ignores the header on the admin `/organizations` APIs so those remain truly global. If a membership changes (for example, the user loses access to an organization), refresh their tokens so the `org:memberships` claim stays up to date.
 
 Authorization is enforced through the Identity Base RBAC package. The default `IOrganizationScopeResolver` verifies the caller is a member of the target organization; override it (or `IPermissionClaimFormatter`) via the builder extensions to compose tenant-specific or elevated administrator rules.
 

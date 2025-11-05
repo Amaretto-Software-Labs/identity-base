@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Identity.Base.Organizations.Authorization;
 
 namespace Identity.Base.Organizations.Options;
 
@@ -28,12 +29,12 @@ public sealed class OrganizationRoleDefinitionOptions
         Description = "Organization owner: full management access.",
         Permissions =
         [
-            "organizations.read",
-            "organizations.manage",
-            "organization.members.read",
-            "organization.members.manage",
-            "organization.roles.read",
-            "organization.roles.manage"
+            UserOrganizationPermissions.OrganizationsRead,
+            UserOrganizationPermissions.OrganizationsManage,
+            UserOrganizationPermissions.OrganizationMembersRead,
+            UserOrganizationPermissions.OrganizationMembersManage,
+            UserOrganizationPermissions.OrganizationRolesRead,
+            UserOrganizationPermissions.OrganizationRolesManage
         ]
     };
 
@@ -44,10 +45,10 @@ public sealed class OrganizationRoleDefinitionOptions
         Description = "Organization manager: manage members and settings.",
         Permissions =
         [
-            "organizations.read",
-            "organization.members.read",
-            "organization.members.manage",
-            "organization.roles.read"
+            UserOrganizationPermissions.OrganizationsRead,
+            UserOrganizationPermissions.OrganizationMembersRead,
+            UserOrganizationPermissions.OrganizationMembersManage,
+            UserOrganizationPermissions.OrganizationRolesRead
         ]
     };
 
@@ -58,7 +59,7 @@ public sealed class OrganizationRoleDefinitionOptions
         Description = "Organization member: default access level.",
         Permissions =
         [
-            "organizations.read"
+            UserOrganizationPermissions.OrganizationsRead
         ]
     };
 }
