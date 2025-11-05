@@ -1,6 +1,6 @@
 # Identity Base Package Architecture
 
-This note captures how the major Identity Base OSS packages relate to one another, how tenants/organizations/users/roles compose, and where the current gaps remain (notably admin surfacing for organizations).
+This note captures how the major Identity Base OSS packages relate to one another, how tenants/organizations/users/roles compose, and where the current gaps remain (notably admin surfacing for organizations). For detailed documentation on each package (installation, configuration, endpoint surface), see the [Package Documentation Hub](../packages/README.md).
 
 ## Package Overview
 

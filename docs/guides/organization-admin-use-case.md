@@ -13,6 +13,8 @@ This guide captures the end-to-end scenario described in planning: users registe
 
 ## Package Checklist
 
+For detailed documentation on each package referenced below, use the [Package Documentation Hub](../packages/README.md).
+
 | Layer | Package | Required? | Notes |
 | --- | --- | --- | --- |
 | Core Identity | `Identity.Base` | ✅ | Provides registration/login, MFA, profile APIs, OpenIddict integration. |

@@ -1,5 +1,7 @@
 # Identity.Base Public Surface
 
+> For the full package guide (installation, configuration, endpoint overview) see [docs/packages/identity-base/index.md](../packages/identity-base/index.md). This reference focuses on the raw public types that remain available for host applications.
+
 The NuGet package exposes a small set of entry points intended for host composition and extension.
 
 ## Composition

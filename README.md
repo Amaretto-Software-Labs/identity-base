@@ -40,6 +40,7 @@ The project is open source under the MIT License.
 | `packages/` | React client packages (`@identity-base/react-client`, `@identity-base/react-organizations`). |
 
 Key documents:
+- [Package Documentation Hub](docs/packages/README.md)
 - [Project Plan](docs/plans/identity-oidc-project-plan.md)
 - [Engineering Principles](docs/reference/Engineering_Principles.md)
 - [Database Design Guidelines](docs/reference/Database_Design_Guidelines.md)

@@ -1,5 +1,7 @@
 # Identity.Base.Admin
 
+> Refer to [docs/packages/identity-base-admin/index.md](../docs/packages/identity-base-admin/index.md) for the canonical documentation covering endpoints, configuration, and extension points.
+
 Administrative extensions for Identity Base. Includes:
 
 - Authorization helpers enforcing admin scope + permission claims
