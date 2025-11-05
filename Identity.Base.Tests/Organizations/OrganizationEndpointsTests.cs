@@ -41,7 +41,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     [Fact]
     public async Task Admin_Can_List_Organizations_With_Or_Without_Header()
     {
-        var (adminId, token) = await CreateAdminUserAndTokenAsync("admin-orgs@example.com", "AdminPass!2345", includeAdminScope: true);
+        var (_, token) = await CreateAdminUserAndTokenAsync("admin-orgs@example.com", "AdminPass!2345", includeAdminScope: true);
 
         var organizationId = await CreateOrganizationAsync($"org-test-{Guid.NewGuid():N}", "Test Organization");
 
