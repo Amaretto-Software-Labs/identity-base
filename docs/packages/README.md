@@ -24,3 +24,12 @@ Use the links below to jump directly to the package you are integrating.
 | `@identity-base/react-organizations` | npm | [React Organizations Add-on](identity-base-react-organizations/index.md) |
 
 > **Maintenance note:** when a package’s public surface area changes (new endpoints, options, or extension points), update the corresponding package page as part of the pull request.
+
+---
+
+## Task Playbooks
+
+Agent-friendly runbooks for common tasks live under `docs/playbooks/`.
+- Start here: docs/playbooks/README.md
+- Pilot playbook: docs/playbooks/identity-base-with-roles-and-organizations.md
+- Manifest (machine-parsable): docs/playbooks/index.yaml

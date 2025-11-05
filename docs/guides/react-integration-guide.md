@@ -211,6 +211,7 @@ Remember to update Identity Base `appsettings` for each environment (confirm red
 - Update profile metadata (including concurrency stamp handling).
 - Run PKCE flow and retrieve tokens for API calls.
 - For APIs, hit protected endpoints with the SPA-issued JWT to confirm authorization.
+> See also: Task Playbook — docs/playbooks/react-client-pkce-login.md for copy-ready PKCE and SPA run commands.
 
 ---
 

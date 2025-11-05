@@ -81,6 +81,7 @@ Disable the sender in non-production environments by setting `MailJet.Enabled` t
 
 - [Mailjet Email Sender Guide](../../guides/mailjet-email-sender.md)
 - [Getting Started](../../guides/getting-started.md#configure-email-delivery)
+ - Playbook: ../../playbooks/enable-mailjet-email-sender.md
 
 ## Change Log
 

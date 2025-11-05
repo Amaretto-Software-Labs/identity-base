@@ -48,6 +48,11 @@ Key documents:
 - [Release Checklist](docs/release/release-checklist.md)
 - [React Integration Guide](docs/guides/react-integration-guide.md)
 
+### Task Playbooks
+- Overview: docs/playbooks/README.md
+- Pilot: docs/playbooks/identity-base-with-roles-and-organizations.md
+- Manifest: docs/playbooks/index.yaml
+
 ---
 
 ## NuGet Packages
