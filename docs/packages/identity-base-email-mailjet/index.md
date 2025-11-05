@@ -20,7 +20,7 @@ builder.Services.AddMailJetEmailSender(builder.Configuration);
 identityBuilder.UseMailJetEmailSender();
 ```
 
-Once registered, all Identity Base email flows (registration confirmation, password reset, MFA challenges, invitation notifications) are routed through Mailjet.
+Once registered, Identity Base email flows (registration confirmation, password reset, MFA challenges) are routed through Mailjet. Organization invitation emails remain the host’s responsibility.
 
 ## Configuration
 
@@ -71,6 +71,11 @@ Disable the sender in non-production environments by setting `MailJet.Enabled` t
 - Depends on `Identity.Base`.
 - Coexists with other email senders—only one `ITemplatedEmailSender` should be registered at a time.
 - Template variables align with Identity Base token payloads (`{token}`, `{userId}`, etc.).
+
+## Troubleshooting & Tips
+- **Health check failing** – ensure `MailJet.Enabled` is `true` and all required fields (`ApiKey`, `ApiSecret`, `FromEmail`, template ids) are populated. The `mailjet` health check fails fast when any required value is missing.
+- **Template errors** – enable `ErrorReporting` to receive Mailjet’s template error notifications. The sender logs failures through `ILogger<MailJetEmailSender>`; enable debug logging for more details during development.
+- **Disable in development** – keep `MailJet.Enabled = false` for local environments to avoid hitting the Mailjet API while still exercising Identity Base flows (a no-op sender writes to the console).
 
 ## Examples & Guides
 

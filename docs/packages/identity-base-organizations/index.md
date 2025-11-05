@@ -34,7 +34,7 @@ app.MapIdentityBaseOrganizationEndpoints();
 await app.RunAsync();
 ```
 
-`OrganizationMigrationHostedService` applies any pending migrations at startup, and `OrganizationSeedHostedService` provisions default roles (`OrgOwner`, `OrgManager`, `OrgMember`) with user-scoped permissions.
+`OrganizationMigrationHostedService` applies any pending migrations at startup, and `OrganizationSeedHostedService` provisions default roles (`OrgOwner`, `OrgManager`, `OrgMember`). These roles receive the user-scoped permissions (`user.organizations.*`) only—hosts remain in control of any platform-wide `admin.organizations.*` roles.
 
 ## Configuration
 
@@ -81,6 +81,30 @@ Connection strings can be supplied via the `IdentityOrganizations` named connect
 - `IOrganizationContextAccessor` / `OrganizationContextFromHeaderMiddleware` – current organization context.
 - Claims augmentors and additional permission sources that enrich identity tokens with org membership data.
 
+#### Invitation acceptance flow
+
+```bash
+# 1. SPA fetches invitation metadata
+curl https://identity.example.com/invitations/8ed0e3c8-41c5-4e1c-b3d6-6ec9c7deef6d
+
+# 2. Authenticated user claims the invitation
+curl -X POST https://identity.example.com/invitations/claim \
+     -H "Authorization: Bearer $ACCESS_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{ "code": "8ed0e3c8-41c5-4e1c-b3d6-6ec9c7deef6d" }'
+
+# Response
+{
+  "organizationId": "...",
+  "organizationSlug": "acme",
+  "organizationName": "Acme Corp",
+  "roleIds": ["..."],
+  "wasExistingMember": false,
+  "wasExistingUser": true,
+  "requiresTokenRefresh": true
+}
+```
+
 ## Extension Points
 
 - `orgsBuilder.AddOrganizationScopeResolver<TResolver>()` – override the membership scope checks (e.g., allow tenant-wide admins).
@@ -94,6 +118,12 @@ Connection strings can be supplied via the `IdentityOrganizations` named connect
 - Depends on `Identity.Base` (core identity) and `Identity.Base.Roles` (permission catalog).
 - React integrations use `@identity-base/react-organizations` to interact with the endpoints exposed here.
 - Invitation acceptance relies on authenticated users; pair with Identity Base login/registration flows.
+
+## Troubleshooting & Tips
+- **Missing organization context** – ensure `app.UseOrganizationContextFromHeader()` is registered *before* `MapIdentityBaseOrganizationEndpoints()` and that the SPA sends the `X-Organization-Id` header for non-admin routes.
+- **Header set for admin routes** – admin endpoints intentionally ignore the header and operate on all organizations; do not expect the header to scope `/organizations`.
+- **Invitation emails** – the package persists invitations but does not send email. Call `OrganizationInvitationService.CreateAsync` then hand the returned record to your email infrastructure (e.g., Mailjet sender) using the `Code` property.
+- **RequiresTokenRefresh` = true** – when the claim endpoint responds with `RequiresTokenRefresh`, instruct the SPA to call `IdentityAuthManager.refreshTokens()` so the new organization membership is reflected in tokens.
 
 ## Examples & Guides
 

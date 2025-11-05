@@ -1,27 +1,27 @@
 # @identity-base/react-client
 
 ## Overview
-`@identity-base/react-client` is the official React SDK for interacting with an Identity Base authority. It wraps the authorization-code PKCE flow, handles silent refresh, exposes hooks for authentication state, and provides a handy `IdentityAuthManager` for manual token operations. The package targets React 19 and is designed to coordinate with SPAs built on modern tooling (Vite, Next.js, etc.).
+`@identity-base/react-client` is the official React SDK for authenticating against an Identity Base authority. It wraps the authorization-code PKCE flow, manages access/refresh tokens, exposes hooks for account lifecycle (register, login, MFA, profile), and provides an `IdentityAuthManager` for imperative use cases. The library targets React 19 and works with any bundler (Vite, Next.js, CRA).
 
 ## Installation & Setup
 
 ```bash
-# with pnpm
 pnpm add @identity-base/react-client
-# npm / yarn equivalents work as well
+# or npm/yarn equivalents
 ```
 
-Wrap your application with the `IdentityProvider` and supply configuration that points at your Identity Base authority:
+Wrap your application with the `IdentityProvider`:
 
 ```tsx
 import { IdentityProvider } from '@identity-base/react-client'
 
 const identityConfig = {
-  authority: 'https://identity.example.com',
+  apiBase: 'https://identity.example.com',
   clientId: 'spa-client',
   redirectUri: 'https://app.example.com/auth/callback',
-  postLogoutRedirectUri: 'https://app.example.com',
-  scopes: ['openid', 'profile', 'email', 'identity.api'],
+  scope: 'openid profile email identity.api',
+  tokenStorage: 'localStorage',
+  autoRefresh: true
 }
 
 export function Root() {
@@ -33,59 +33,71 @@ export function Root() {
 }
 ```
 
-The provider manages PKCE code verifier generation, token storage (session storage by default), and opens a pop-up/redirect when initiating sign-in.
+The provider instantiates an `IdentityAuthManager`, performs an initial `getCurrentUser()` call, listens for auth events (login/logout/token-refresh), and exposes the current auth state through React context.
 
-## Configuration
+### Configuration (`IdentityConfig`)
 
-`IdentityProvider` accepts the following configuration fields:
-
-- `authority` – Identity Base host URL (required).
-- `clientId` – SPA client id registered with Identity Base (required).
-- `redirectUri`, `postLogoutRedirectUri` – URIs whitelisted on the OpenIddict application.
-- `scopes` – additional scopes beyond the defaults (`openid`, `profile`, `email`).
-- `storage` – optional custom storage implementation (defaults to `sessionStorage` with fallback to `memory`).
-- `refreshLeewaySeconds` – how soon before expiration the library attempts a silent refresh.
-- Callbacks: `onAuthEvent`, `onTokenRefreshed`, `onSessionExpired`.
-
-Configuration can be loaded from environment-specific JSON and passed through the provider.
+| Field | Required | Default | Description |
+| --- | --- | --- | --- |
+| `apiBase` | ✔ | — | Base URL of the Identity Base authority (e.g., `https://identity.example.com`). |
+| `clientId` | ✔ | — | The SPA client id registered under `OpenIddict:Applications`. |
+| `redirectUri` | ✔ | — | PKCE redirect URI that matches the client configuration. |
+| `scope` | ✖ | `openid profile email identity.api` | Space-delimited scope string requested during login. Include additional API scopes as needed. |
+| `tokenStorage` | ✖ | `sessionStorage` | Where tokens are persisted: `'localStorage'`, `'sessionStorage'`, or `'memory'`. |
+| `autoRefresh` | ✖ | `true` | Automatically attempt silent refresh before tokens expire. |
+| `timeout` | ✖ | `10000` | Fetch timeout (ms) when calling Identity Base APIs. |
+| `retries` | ✖ | `0` | Number of retry attempts for transient failures. |
 
 ## Public API
 
-### Components & Hooks
+### Hooks & Components
 
-- `<IdentityProvider config={...}>` – root context provider.
-- `useIdentity()` – returns authentication state (`isAuthenticated`, `user`, `loading`, etc.).
-- `useAuthManager()` – returns the `IdentityAuthManager` instance for imperative login/logout/refresh calls.
-- `useUserProfile()` – convenience hook for accessing the cached `/users/me` profile.
-- `IdentityAuthManager` API:
-  - `signInRedirect()`, `signInPopup()`, `completeSignIn()` – PKCE login helpers.
-  - `signOutRedirect()`, `completeSignOut()` – logout flows.
-  - `refreshTokens()` – explicit silent refresh.
-  - `fetchWithAuth(input, init)` – fetch wrapper that injects the access token.
+| Hook / Component | Purpose |
+| --- | --- |
+| `useAuth()` | Returns `{ user, isAuthenticated, isLoading, error, authManager }`. Primary hook for auth state. |
+| `useLogin()` | Helpers for email/password login and PKCE exchange. |
+| `useRegister()` | Wraps `/auth/register`; accepts metadata map matching Identity Base profile schema. |
+| `useForgotPassword()` / `useResetPassword()` | Manage password reset flows end-to-end. |
+| `useMfa()` | Initiate and verify MFA challenges (authenticator/email/SMS). |
+| `useProfile()` | Fetch/update the `/users/me` profile and handle concurrency stamps. |
+| `useAuthorization()` / `usePermissions()` | Read effective permission claims (`identity.permissions`). |
+| `useAdminUsers`, `useAdminUser`, `useAdminRoles`, `useAdminPermissions` | Convenience hooks for the admin API (built on top of the same client). |
+| `useRequireAuth()` | Gate routes/client logic until the user is authenticated. |
+| `<ProtectedRoute>` / `<RequireAuth>` | Components for guarding React Router routes or JSX blocks. |
 
-### Types
+### IdentityAuthManager (imperative API)
 
-- `IdentityProviderConfig`, `AuthState`, `AuthEvent`, `UserProfile`.
+```ts
+const manager = useAuth().authManager
+await manager.loginWithPassword({ email, password, clientId: 'spa-client' })
+await manager.refreshTokens()
+await manager.logout()
+```
 
-## Extension Points
+The manager also exposes lower-level helpers (`generatePkce`, `completeSignIn`, `fetchWithAuth`) for advanced scenarios.
 
-- Supply a custom storage adapter via the `storage` config (implement `{ get, set, remove }`).
-- Override fetch behaviour with `IdentityAuthManager.configure({ fetch: customFetch })`.
-- Listen to authentication transitions by providing `onAuthEvent`.
-- Integrate with your error boundary by inspecting `authState.error`.
+## Usage Patterns
+
+- **Handling registration metadata** – call `useRegister().register({ email, password, metadata })`. Retrieve the expected fields beforehand via `useProfile().getProfileSchema()` or the `/auth/profile-schema` endpoint.
+- **MFA challenge** – `useMfa()` exposes `sendChallenge(method)` and `verifyCode({ method, code })`. Methods returned by Identity Base include `authenticator`, `email`, `sms`, and `recovery`.
+- **Token refresh** – when backend responses indicate `requiresTokenRefresh` (e.g., organization invitation acceptance), call `authManager.refreshTokens()`.
+- **Error handling** – hooks throw `IdentityError` objects; inspect `error.code` and `error.message` before showing a user-friendly message.
 
 ## Dependencies & Compatibility
+- Requires React 19.
+- Expects modern browsers with Fetch API and Web Crypto support (polyfill if targeting older environments).
+- Designed to work alongside `@identity-base/react-organizations` (the organizations provider consumes the same `IdentityProvider`).
 
-- Peer dependency on `react@^19`.
-- Designed to work with browsers supporting the Fetch API and Web Crypto (polyfill as needed).
-- Works in tandem with `@identity-base/react-organizations` for organization-aware UIs.
+## Troubleshooting & Tips
+- **Infinite loading** – ensure the provider’s `config` instance is stable; changing the object on every render recreates the manager. Memoise or define config outside the component body.
+- **401 after refresh** – verify the SPA requested the `offline_access` scope if you expect refresh tokens, and that `autoRefresh` is enabled.
+- **Missing permissions** – use `usePermissions()` to inspect the current claim set; if empty, confirm the API host has `MapIdentityRolesUserEndpoints()` wired and the user has roles assigned.
+- **Debug logging** – call `enableDebugLogging()` (or set `window.__enableIdentityDebug = true`) to emit verbose logs during development.
 
 ## Examples & Guides
-
 - [React Integration Guide](../../guides/react-integration-guide.md)
 - [Organization Onboarding Flow](../../guides/organization-onboarding-flow.md)
-- Sample SPA: `apps/org-sample-client`
+- Sample SPA (`apps/org-sample-client`)
 
 ## Change Log
-
 - See [CHANGELOG.md](../../CHANGELOG.md) (`@identity-base/react-client` entries)
