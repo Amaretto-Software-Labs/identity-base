@@ -81,7 +81,7 @@ Call `await app.Services.SeedIdentityRolesAsync()` during startup to synchronise
 - [RBAC Design Reference](../../reference/rbac-design.md)
 - [Identity Permissions Claim Guide](../../guides/identity-permissions-claim.md)
 - [Organization Admin Use Case](../../guides/organization-admin-use-case.md)
- - Playbook: ../../playbooks/seed-roles-and-default-organization.md
+- Playbook: ../../playbooks/seed-roles-and-default-organization.md
 
 ## Change Log
 - See [CHANGELOG.md](../../CHANGELOG.md) (`Identity.Base.Roles` entries)
