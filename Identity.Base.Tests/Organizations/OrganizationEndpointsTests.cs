@@ -105,7 +105,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     public async Task User_Endpoints_Return_Memberships_And_Support_Header()
     {
         var organizationId = await CreateOrganizationAsync($"org-user-{Guid.NewGuid():N}", "User Org");
-        var (userId, token) = await CreateStandardUserAndTokenAsync("org-member@example.com", "UserPass!2345");
+        var (userId, _) = await CreateStandardUserAndTokenAsync("org-member@example.com", "UserPass!2345");
 
         await AddMembershipAsync(organizationId, userId, isPrimary: true);
 
