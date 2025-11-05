@@ -98,7 +98,7 @@ The manager also exposes lower-level helpers (`generatePkce`, `completeSignIn`, 
 - [React Integration Guide](../../guides/react-integration-guide.md)
 - [Organization Onboarding Flow](../../guides/organization-onboarding-flow.md)
 - Sample SPA (`apps/org-sample-client`)
- - Playbook: ../../playbooks/react-client-pkce-login.md
+- Playbook: ../../playbooks/react-client-pkce-login.md
 
 ## Change Log
 - See [CHANGELOG.md](../../CHANGELOG.md) (`@identity-base/react-client` entries)
