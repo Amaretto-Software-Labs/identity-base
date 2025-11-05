@@ -34,82 +34,79 @@ public sealed class OrganizationContextFromHeaderMiddleware
             throw new ArgumentNullException(nameof(httpContext));
         }
 
-        IDisposable? scopeHandle = null;
 
-        try
+
+        if (httpContext.Request.Path.StartsWithSegments("/organizations", StringComparison.OrdinalIgnoreCase))
         {
-            if (httpContext.Request.Path.StartsWithSegments("/organizations", StringComparison.OrdinalIgnoreCase))
+            await _next(httpContext).ConfigureAwait(false);
+            return;
+        }
+
+        if (httpContext.User?.Identity?.IsAuthenticated == true &&
+            httpContext.Request.Headers.TryGetValue(_headerName, out var headerValues))
+        {
+            var headerValue = headerValues.FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(headerValue) || !Guid.TryParse(headerValue, out var requestedOrganizationId))
             {
-                await _next(httpContext).ConfigureAwait(false);
+                httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
                 return;
             }
 
-            if (httpContext.User?.Identity?.IsAuthenticated == true &&
-                httpContext.Request.Headers.TryGetValue(_headerName, out var headerValues))
+            var userIdClaim = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var userId) || userId == Guid.Empty)
             {
-                var headerValue = headerValues.FirstOrDefault();
-                if (string.IsNullOrWhiteSpace(headerValue) || !Guid.TryParse(headerValue, out var requestedOrganizationId))
-                {
-                    httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    return;
-                }
+                httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return;
+            }
 
-                var userIdClaim = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (!Guid.TryParse(userIdClaim, out var userId) || userId == Guid.Empty)
-                {
-                    httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    return;
-                }
+            var userHasAdminAccess = HasAdminPermissions(httpContext.User);
 
-                var userHasAdminAccess = HasAdminPermissions(httpContext.User);
+            if (!userHasAdminAccess && !UserHasMembershipClaim(httpContext.User, requestedOrganizationId))
+            {
+                httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
 
-                if (!userHasAdminAccess && !UserHasMembershipClaim(httpContext.User, requestedOrganizationId))
+            if (!userHasAdminAccess)
+            {
+                var membershipExists = await organizationDbContext.OrganizationMemberships
+                    .AsNoTracking()
+                    .AnyAsync(membership => membership.OrganizationId == requestedOrganizationId && membership.UserId == userId, httpContext.RequestAborted)
+                    .ConfigureAwait(false);
+
+                if (!membershipExists)
                 {
                     httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
                     return;
                 }
-
-                if (!userHasAdminAccess)
-                {
-                    var membershipExists = await organizationDbContext.OrganizationMemberships
-                        .AsNoTracking()
-                        .AnyAsync(membership => membership.OrganizationId == requestedOrganizationId && membership.UserId == userId, httpContext.RequestAborted)
-                        .ConfigureAwait(false);
-
-                    if (!membershipExists)
-                    {
-                        httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
-                        return;
-                    }
-                }
-
-                var organization = await organizationDbContext.Organizations
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(entity => entity.Id == requestedOrganizationId, httpContext.RequestAborted)
-                    .ConfigureAwait(false);
-
-                if (organization is null)
-                {
-                    httpContext.Response.StatusCode = StatusCodes.Status404NotFound;
-                    return;
-                }
-
-                var context = new OrganizationContext(
-                    organization.Id,
-                    organization.TenantId,
-                    organization.Slug,
-                    organization.DisplayName,
-                    organization.Metadata);
-
-                scopeHandle = contextAccessor.BeginScope(context);
             }
 
-            await _next(httpContext).ConfigureAwait(false);
+            var organization = await organizationDbContext.Organizations
+                .AsNoTracking()
+                .FirstOrDefaultAsync(entity => entity.Id == requestedOrganizationId, httpContext.RequestAborted)
+                .ConfigureAwait(false);
+
+            if (organization is null)
+            {
+                httpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+
+            var context = new OrganizationContext(
+                organization.Id,
+                organization.TenantId,
+                organization.Slug,
+                organization.DisplayName,
+                organization.Metadata);
+
+            using (contextAccessor.BeginScope(context))
+            {
+                await _next(httpContext).ConfigureAwait(false);
+            }
+            return;
         }
-        finally
-        {
-            scopeHandle?.Dispose();
-        }
+
+        await _next(httpContext).ConfigureAwait(false);
     }
 
     private static bool HasAdminPermissions(ClaimsPrincipal principal)
