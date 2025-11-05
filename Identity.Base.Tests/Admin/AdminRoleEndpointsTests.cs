@@ -288,7 +288,7 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
             HandleCookies = false
         });
 
-        var tokenResponse = await client.PostAsync("/connect/token", new FormUrlEncodedContent(new Dictionary<string, string>
+        using var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             [OpenIddictConstants.Parameters.GrantType] = OpenIddictConstants.GrantTypes.Password,
             [OpenIddictConstants.Parameters.Username] = email,
@@ -296,7 +296,8 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
             [OpenIddictConstants.Parameters.ClientId] = "test-client",
             [OpenIddictConstants.Parameters.ClientSecret] = "test-secret",
             [OpenIddictConstants.Parameters.Scope] = "openid profile email identity.api identity.admin"
-        }));
+        });
+        using var tokenResponse = await client.PostAsync("/connect/token", tokenRequest);
 
         var payloadJson = await tokenResponse.Content.ReadAsStringAsync();
         tokenResponse.StatusCode.ShouldBe(HttpStatusCode.OK, payloadJson);

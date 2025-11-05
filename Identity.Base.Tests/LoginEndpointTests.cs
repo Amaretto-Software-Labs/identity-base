@@ -87,14 +87,15 @@ public class LoginEndpointTests : IClassFixture<IdentityApiFactory>
         var authorizationCode = callbackQuery[OpenIddictConstants.Parameters.Code].ToString();
 
         // Exchange authorization code for tokens
-        using var tokenResponse = await client.PostAsync("/connect/token", new FormUrlEncodedContent(new Dictionary<string, string>
+        using var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             [OpenIddictConstants.Parameters.GrantType] = OpenIddictConstants.GrantTypes.AuthorizationCode,
             [OpenIddictConstants.Parameters.Code] = authorizationCode,
             [OpenIddictConstants.Parameters.RedirectUri] = redirectUri,
             [OpenIddictConstants.Parameters.ClientId] = "spa-client",
             [OpenIddictConstants.Parameters.CodeVerifier] = pkce.CodeVerifier
-        }));
+        });
+        using var tokenResponse = await client.PostAsync("/connect/token", tokenRequest);
 
         var tokenPayloadJson = await tokenResponse.Content.ReadAsStringAsync();
         tokenResponse.IsSuccessStatusCode.ShouldBeTrue(tokenPayloadJson);
@@ -105,12 +106,13 @@ public class LoginEndpointTests : IClassFixture<IdentityApiFactory>
         tokenPayload.RefreshToken.ShouldNotBeNullOrWhiteSpace();
         tokenPayload.TokenType.ShouldBe("Bearer");
 
-        using var refreshResponse = await client.PostAsync("/connect/token", new FormUrlEncodedContent(new Dictionary<string, string>
+        using var refreshRequest = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             [OpenIddictConstants.Parameters.GrantType] = OpenIddictConstants.GrantTypes.RefreshToken,
             [OpenIddictConstants.Parameters.RefreshToken] = tokenPayload.RefreshToken,
-            [OpenIddictConstants.Parameters.ClientId] = "spa-client"
-        }));
+            [OpenIddictConstants.Parameters.ClientId] = "spa-client",
+        });
+        using var refreshResponse = await client.PostAsync("/connect/token", refreshRequest);
 
         var refreshPayloadJson = await refreshResponse.Content.ReadAsStringAsync();
         refreshResponse.IsSuccessStatusCode.ShouldBeTrue(refreshPayloadJson);

@@ -295,7 +295,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
             : string.Join(' ', new[] { OpenIddictConstants.Scopes.OpenId, OpenIddictConstants.Scopes.Profile, OpenIddictConstants.Scopes.Email, "identity.api" });
 
         using var client = CreateTokenClient();
-        var response = await client.PostAsync("/connect/token", new FormUrlEncodedContent(new Dictionary<string, string>
+        using var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             [OpenIddictConstants.Parameters.GrantType] = OpenIddictConstants.GrantTypes.Password,
             [OpenIddictConstants.Parameters.Username] = email,
@@ -303,7 +303,8 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
             [OpenIddictConstants.Parameters.ClientId] = "test-client",
             [OpenIddictConstants.Parameters.ClientSecret] = "test-secret",
             [OpenIddictConstants.Parameters.Scope] = scopeValue
-        }));
+        });
+        using var response = await client.PostAsync("/connect/token", tokenRequest);
 
         var responseBody = await response.Content.ReadAsStringAsync();
         response.StatusCode.ShouldBe(HttpStatusCode.OK, responseBody);
@@ -337,7 +338,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         }
 
         using var client = CreateTokenClient();
-        var response = await client.PostAsync("/connect/token", new FormUrlEncodedContent(new Dictionary<string, string>
+        using var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             [OpenIddictConstants.Parameters.GrantType] = OpenIddictConstants.GrantTypes.Password,
             [OpenIddictConstants.Parameters.Username] = email,
@@ -345,7 +346,8 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
             [OpenIddictConstants.Parameters.ClientId] = "test-client",
             [OpenIddictConstants.Parameters.ClientSecret] = "test-secret",
             [OpenIddictConstants.Parameters.Scope] = string.Join(' ', new[] { OpenIddictConstants.Scopes.OpenId, OpenIddictConstants.Scopes.Profile, OpenIddictConstants.Scopes.Email, "identity.api" })
-        }));
+        });
+        using var response = await client.PostAsync("/connect/token", tokenRequest);
 
         var responseBody = await response.Content.ReadAsStringAsync();
         response.StatusCode.ShouldBe(HttpStatusCode.OK, responseBody);

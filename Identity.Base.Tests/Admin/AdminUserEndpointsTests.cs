@@ -415,7 +415,7 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
             HandleCookies = false
         });
 
-        var tokenResponse = await client.PostAsync("/connect/token", new FormUrlEncodedContent(new Dictionary<string, string>
+        using var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             [OpenIddictConstants.Parameters.GrantType] = OpenIddictConstants.GrantTypes.Password,
             [OpenIddictConstants.Parameters.Username] = email,
@@ -423,7 +423,8 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
             [OpenIddictConstants.Parameters.ClientId] = "test-client",
             [OpenIddictConstants.Parameters.ClientSecret] = "test-secret",
             [OpenIddictConstants.Parameters.Scope] = scopeValue
-        }));
+        });
+        using var tokenResponse = await client.PostAsync("/connect/token", tokenRequest);
 
         var tokenPayload = await tokenResponse.Content.ReadFromJsonAsync<JsonDocument>();
         tokenResponse.StatusCode.ShouldBe(HttpStatusCode.OK, tokenPayload?.RootElement.ToString());

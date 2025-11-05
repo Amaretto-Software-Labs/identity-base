@@ -165,14 +165,15 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
         var code = query[OpenIddictConstants.Parameters.Code].ToString();
         code.ShouldNotBeNull();
 
-        using var tokenResponse = await client.PostAsync("/connect/token", new FormUrlEncodedContent(new Dictionary<string, string?>
+        using var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string?>
         {
             [OpenIddictConstants.Parameters.GrantType] = OpenIddictConstants.GrantTypes.AuthorizationCode,
             [OpenIddictConstants.Parameters.ClientId] = "spa-client",
             [OpenIddictConstants.Parameters.RedirectUri] = redirectUri,
             [OpenIddictConstants.Parameters.Code] = code,
             [OpenIddictConstants.Parameters.CodeVerifier] = pkce.CodeVerifier
-        }));
+        });
+        using var tokenResponse = await client.PostAsync("/connect/token", tokenRequest);
 
         var tokenPayload = await tokenResponse.Content.ReadAsStringAsync();
         tokenResponse.IsSuccessStatusCode.ShouldBeTrue(tokenPayload);
