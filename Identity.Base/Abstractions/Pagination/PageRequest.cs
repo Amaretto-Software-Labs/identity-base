@@ -89,13 +89,8 @@ public sealed class PageRequest
         }
 
         var list = new List<SortExpression>();
-        foreach (var sortValue in sortValues)
+        foreach (var sortValue in sortValues.Where(value => !string.IsNullOrWhiteSpace(value)))
         {
-            if (string.IsNullOrWhiteSpace(sortValue))
-            {
-                continue;
-            }
-
             var tokens = sortValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             foreach (var token in tokens)
             {

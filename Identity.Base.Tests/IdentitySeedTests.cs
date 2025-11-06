@@ -42,7 +42,7 @@ public class IdentitySeedTests
         services.AddSingleton<IConfiguration>(configuration);
         var environment = new FakeWebHostEnvironment();
 
-        var identityBuilder = services.AddIdentityBase(configuration, environment);
+        services.AddIdentityBase(configuration, environment);
         var rolesBuilder = services.AddIdentityAdmin(configuration);
         rolesBuilder.AddDbContext<IdentityRolesDbContext>(options =>
             options.UseInMemoryDatabase($"{databaseName}_roles")

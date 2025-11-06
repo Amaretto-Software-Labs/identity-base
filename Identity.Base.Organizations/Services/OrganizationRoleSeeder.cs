@@ -112,19 +112,15 @@ public sealed class OrganizationRoleSeeder
                 entity.OrganizationId == null &&
                 entity.TenantId == null);
 
-        OrganizationRole? role;
-        if (_dbContext.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            role = baseQuery
+        var useInMemory = _dbContext.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true;
+
+        OrganizationRole? role = useInMemory
+            ? baseQuery
                 .AsEnumerable()
-                .FirstOrDefault(entity => string.Equals(entity.Name, definition.Name, StringComparison.OrdinalIgnoreCase));
-        }
-        else
-        {
-            role = await baseQuery
+                .FirstOrDefault(entity => string.Equals(entity.Name, definition.Name, StringComparison.OrdinalIgnoreCase))
+            : await baseQuery
                 .FirstOrDefaultAsync(entity => EF.Functions.ILike(entity.Name, definition.Name), cancellationToken)
                 .ConfigureAwait(false);
-        }
 
         if (role is null)
         {

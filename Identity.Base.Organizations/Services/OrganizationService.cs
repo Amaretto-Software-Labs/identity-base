@@ -115,9 +115,9 @@ public sealed class OrganizationService : IOrganizationService
 
         var query = QueryByTenant(_dbContext.Organizations.AsNoTracking(), tenantId);
 
-        if (status.HasValue)
+        if (status is OrganizationStatus statusFilter)
         {
-            query = query.Where(organization => organization.Status == status.Value);
+            query = query.Where(organization => organization.Status == statusFilter);
         }
 
         if (!string.IsNullOrWhiteSpace(normalized.Search))
@@ -420,12 +420,7 @@ public sealed class OrganizationService : IOrganizationService
     }
 
     private static IQueryable<Organization> QueryByTenant(IQueryable<Organization> query, Guid? tenantId)
-    {
-        if (tenantId.HasValue)
-        {
-            return query.Where(organization => organization.TenantId == tenantId.Value);
-        }
-
-        return query;
-    }
+        => tenantId is Guid tenantFilter
+            ? query.Where(organization => organization.TenantId == tenantFilter)
+            : query.Where(organization => organization.TenantId == null);
 }

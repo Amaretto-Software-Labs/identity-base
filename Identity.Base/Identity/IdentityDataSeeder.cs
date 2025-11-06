@@ -157,6 +157,10 @@ internal sealed class IdentityDataSeeder
             {
                 await handler.AssignRolesAsync(userId, roles, cancellationToken).ConfigureAwait(false);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Seed role handler {Handler} failed to assign roles for seed user.", handler.GetType().FullName);

@@ -733,13 +733,18 @@ export function OrganizationsProvider({
   const switchActiveOrganization = useCallback(async (organizationId: string): Promise<SwitchOrganizationResult> => {
     setActiveOrganizationId(organizationId)
 
-    let summary = organizations[organizationId]
-    if (!summary) {
+    let summary: OrganizationSummary
+    const cached = organizations[organizationId]
+
+    if (cached) {
+      summary = cached
+    } else {
       try {
-        summary = await client.getOrganization(organizationId)
+        const fetched = await client.getOrganization(organizationId)
+        summary = fetched
         setOrganizations((previous) => ({
           ...previous,
-          [summary!.id]: summary!,
+          [fetched.id]: fetched,
         }))
       } catch {
         summary = {
@@ -762,7 +767,7 @@ export function OrganizationsProvider({
     await loadMemberships().catch(() => undefined)
 
     return {
-      organization: summary!,
+      organization: summary,
       roleIds: membership?.roleIds ?? [],
       requiresTokenRefresh: false,
       tokensRefreshed: false,

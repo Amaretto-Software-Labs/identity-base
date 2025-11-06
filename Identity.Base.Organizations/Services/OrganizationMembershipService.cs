@@ -156,9 +156,9 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
             .AsNoTracking()
             .Where(membership => membership.UserId == userId);
 
-        if (tenantId.HasValue)
+        if (tenantId is Guid tenantFilter)
         {
-            query = query.Where(membership => membership.TenantId == tenantId.Value);
+            query = query.Where(membership => membership.TenantId == tenantFilter);
         }
 
         return await query
@@ -180,9 +180,9 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
             .Include(membership => membership.RoleAssignments)
             .Where(membership => membership.UserId == userId);
 
-        if (tenantId.HasValue)
+        if (tenantId is Guid tenantFilter)
         {
-            query = query.Where(membership => membership.TenantId == tenantId.Value);
+            query = query.Where(membership => membership.TenantId == tenantFilter);
         }
 
         query = query.Where(membership => membership.Organization != null);
@@ -404,20 +404,14 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
             }
         }
 
-        if (ordered is null)
-        {
-            ordered = source
+        ordered = (ordered is null
+            ? source
                 .OrderByDescending(membership => membership.IsPrimary)
                 .ThenBy(membership => membership.Organization!.DisplayName ?? membership.Organization!.Slug ?? string.Empty)
-                .ThenBy(membership => membership.OrganizationId);
-        }
-        else
-        {
-            ordered = ordered
+            : ordered
                 .ThenByDescending(membership => membership.IsPrimary)
-                .ThenBy(membership => membership.Organization!.DisplayName ?? membership.Organization!.Slug ?? string.Empty)
-                .ThenBy(membership => membership.OrganizationId);
-        }
+                .ThenBy(membership => membership.Organization!.DisplayName ?? membership.Organization!.Slug ?? string.Empty))
+            .ThenBy(membership => membership.OrganizationId);
 
         return ordered;
     }
@@ -586,9 +580,9 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
         var query = _dbContext.OrganizationMemberships
             .Where(membership => membership.UserId == userId && membership.IsPrimary);
 
-        if (tenantId.HasValue)
+        if (tenantId is Guid tenantFilter)
         {
-            query = query.Where(membership => membership.TenantId == tenantId.Value);
+            query = query.Where(membership => membership.TenantId == tenantFilter);
         }
 
         var memberships = await query.ToListAsync(cancellationToken).ConfigureAwait(false);

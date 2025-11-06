@@ -7,8 +7,8 @@ public sealed record OrganizationInvitationListQuery(
     int? Page = null,
     int? PageSize = null,
     string? Search = null,
-    string? Sort = null)
+    IEnumerable<string>? Sort = null)
 {
     public PageRequest ToPageRequest(int defaultPageSize = 25, int maxPageSize = 200)
-        => PageRequest.Create(Page, PageSize, Search, Sort is null ? null : new[] { Sort }, defaultPageSize, maxPageSize);
+        => PageRequest.Create(Page, PageSize, Search, Sort, defaultPageSize, maxPageSize);
 }
