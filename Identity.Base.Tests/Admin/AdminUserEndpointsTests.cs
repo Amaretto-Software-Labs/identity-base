@@ -54,8 +54,8 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
         var payload = await response.Content.ReadFromJsonAsync<AdminUserListDto>(JsonOptions);
         payload.ShouldNotBeNull();
         payload!.TotalCount.ShouldBeGreaterThan(0);
-        payload.Users.ShouldContain(item => string.Equals(item.Email, email, StringComparison.OrdinalIgnoreCase));
-        var adminEntry = payload.Users.First(item => string.Equals(item.Email, email, StringComparison.OrdinalIgnoreCase));
+        payload.Items.ShouldContain(item => string.Equals(item.Email, email, StringComparison.OrdinalIgnoreCase));
+        var adminEntry = payload.Items.First(item => string.Equals(item.Email, email, StringComparison.OrdinalIgnoreCase));
         adminEntry.Roles.ShouldContain("IdentityAdmin");
     }
 
@@ -131,8 +131,8 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
         payload!.Page.ShouldBe(2);
         payload.PageSize.ShouldBe(100); // capped at MaxPageSize
         payload.TotalCount.ShouldBe(expectedTotal);
-        payload.Users.Count.ShouldBe(expectedEmails.Count);
-        payload.Users.Select(user => user.Email ?? user.DisplayName ?? string.Empty)
+        payload.Items.Count.ShouldBe(expectedEmails.Count);
+        payload.Items.Select(user => user.Email ?? user.DisplayName ?? string.Empty)
             .ToList()
             .ShouldBe(expectedEmails);
     }
@@ -506,7 +506,7 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
         return Guid.Parse(idSegment);
     }
 
-    private sealed record AdminUserListDto(int Page, int PageSize, int TotalCount, List<AdminUserSummaryDto> Users);
+    private sealed record AdminUserListDto(int Page, int PageSize, int TotalCount, List<AdminUserSummaryDto> Items);
 
     private sealed record AdminUserSummaryDto(Guid Id, string? Email, string? DisplayName, bool EmailConfirmed, bool IsLockedOut, DateTimeOffset CreatedAt, bool MfaEnabled, List<string> Roles, bool IsDeleted);
 

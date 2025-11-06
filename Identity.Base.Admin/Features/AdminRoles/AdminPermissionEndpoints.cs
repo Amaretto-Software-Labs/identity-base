@@ -1,13 +1,19 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Linq.Expressions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Identity.Base.Abstractions.Pagination;
 using Identity.Base.Admin.Authorization;
 using Identity.Base.Admin.Configuration;
+using Identity.Base.Extensions;
 using Identity.Base.Roles.Abstractions;
+using Identity.Base.Roles.Entities;
 using Identity.Base.Admin.Diagnostics;
 using Identity.Base.Admin.Options;
 using Microsoft.Extensions.Logging;
@@ -26,7 +32,7 @@ internal static class AdminPermissionEndpoints
         group.MapGet("", ListPermissionsAsync)
             .WithName("AdminListPermissions")
             .WithSummary("Returns a paged list of permissions and usage counts.")
-            .Produces<AdminPermissionListResponse>(StatusCodes.Status200OK)
+            .Produces<PagedResult<AdminPermissionSummary>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .RequireAuthorization(policy => policy.RequireAdminPermission("roles.read"));
 
@@ -43,27 +49,20 @@ internal static class AdminPermissionEndpoints
         var logger = loggerFactory.CreateLogger(typeof(AdminPermissionEndpoints).FullName!);
         var slowQueryThresholdMs = Math.Max(0, diagnosticsOptions.Value.SlowQueryThreshold.TotalMilliseconds);
         var stopwatch = Stopwatch.StartNew();
-        var page = query.Page.GetValueOrDefault(1);
-        if (page < 1)
-        {
-            page = 1;
-        }
 
-        var pageSize = query.PageSize.GetValueOrDefault(25);
-        if (pageSize < 1)
-        {
-            pageSize = 25;
-        }
-        else if (pageSize > 200)
-        {
-            pageSize = 200;
-        }
+        var pageRequest = PageRequest.Create(
+            query.Page,
+            query.PageSize,
+            query.Search,
+            query.Sort is null ? null : new[] { query.Sort },
+            defaultPageSize: 25,
+            maxPageSize: 200);
 
         var permissionsQuery = roleDbContext.Permissions.AsNoTracking();
 
-        if (!string.IsNullOrWhiteSpace(query.Search))
+        if (!string.IsNullOrWhiteSpace(pageRequest.Search))
         {
-            var pattern = CreateSearchPattern(query.Search);
+            var pattern = SearchPatternHelper.CreateSearchPattern(pageRequest.Search);
             permissionsQuery = permissionsQuery.Where(permission =>
                 EF.Functions.ILike(permission.Name, pattern) ||
                 EF.Functions.ILike(permission.Description ?? string.Empty, pattern));
@@ -71,27 +70,31 @@ internal static class AdminPermissionEndpoints
 
         var total = await permissionsQuery.CountAsync(cancellationToken).ConfigureAwait(false);
 
-        var orderedQuery = query.Sort switch
+        if (total == 0)
         {
-            "name:desc" => permissionsQuery
-                .OrderByDescending(permission => permission.Name)
-                .ThenBy(permission => permission.Id),
-            "roleCount:desc" or "usage:desc" => permissionsQuery
-                .OrderByDescending(permission => permission.RolePermissions.Count)
-                .ThenBy(permission => permission.Name),
-            "roleCount" or "roleCount:asc" or "usage" or "usage:asc" => permissionsQuery
-                .OrderBy(permission => permission.RolePermissions.Count)
-                .ThenBy(permission => permission.Name),
-            _ => permissionsQuery
-                .OrderBy(permission => permission.Name)
-                .ThenBy(permission => permission.Id)
-        };
+            stopwatch.Stop();
+            var tagsEmpty = AdminMetrics.BuildPermissionQueryTags(query);
+            AdminMetrics.PermissionsListDuration.Record(stopwatch.Elapsed.TotalMilliseconds, tagsEmpty);
+            AdminMetrics.PermissionsListResultCount.Record(0, tagsEmpty);
 
-        var skip = (page - 1) * pageSize;
+            logger.LogInformation(
+                "Listed admin permissions in {ElapsedMs} ms (page {Page}/{PageSize}, total 0, returned 0, search={HasSearch}, sort={Sort})",
+                stopwatch.Elapsed.TotalMilliseconds,
+                pageRequest.Page,
+                pageRequest.PageSize,
+                string.IsNullOrWhiteSpace(pageRequest.Search) ? "false" : "true",
+                FormatSorts(query.Sort, "name"));
+
+            return Results.Ok(PagedResult<AdminPermissionSummary>.Empty(pageRequest.Page, pageRequest.PageSize));
+        }
+
+        var orderedQuery = ApplyPermissionSorting(permissionsQuery, pageRequest);
+
+        var skip = pageRequest.GetSkip();
 
         var permissions = await orderedQuery
             .Skip(skip)
-            .Take(pageSize)
+            .Take(pageRequest.PageSize)
             .Select(permission => new
             {
                 permission.Id,
@@ -118,12 +121,12 @@ internal static class AdminPermissionEndpoints
         logger.LogInformation(
             "Listed admin permissions in {ElapsedMs} ms (page {Page}/{PageSize}, total {TotalCount}, returned {ReturnedCount}, search={HasSearch}, sort={Sort})",
             elapsedMs,
-            page,
-            pageSize,
+            pageRequest.Page,
+            pageRequest.PageSize,
             total,
             items.Count,
-            string.IsNullOrWhiteSpace(query.Search) ? "false" : "true",
-            query.Sort ?? "name");
+            string.IsNullOrWhiteSpace(pageRequest.Search) ? "false" : "true",
+            FormatSorts(query.Sort, "name"));
 
         if (slowQueryThresholdMs > 0 && elapsedMs > slowQueryThresholdMs)
         {
@@ -131,28 +134,62 @@ internal static class AdminPermissionEndpoints
                 "Admin permissions list query exceeded threshold: {ElapsedMs} ms > {Threshold} ms (page {Page}/{PageSize})",
                 elapsedMs,
                 slowQueryThresholdMs,
-                page,
-                pageSize);
+                pageRequest.Page,
+                pageRequest.PageSize);
         }
 
-        return Results.Ok(new AdminPermissionListResponse(page, pageSize, total, items));
+        return Results.Ok(new PagedResult<AdminPermissionSummary>(pageRequest.Page, pageRequest.PageSize, total, items));
     }
 
-    private static string CreateSearchPattern(string value)
+    private static IOrderedQueryable<Permission> ApplyPermissionSorting(IQueryable<Permission> source, PageRequest request)
     {
-        var trimmed = value.Trim();
-        if (trimmed.Length == 0)
+        IOrderedQueryable<Permission>? ordered = null;
+
+        if (request.Sorts.Count > 0)
         {
-            return "%";
+            foreach (var sort in request.Sorts)
+            {
+                var key = sort.Field.ToLowerInvariant();
+                ordered = key switch
+                {
+                    "name" => ApplyPermissionOrder(source, ordered, permission => permission.Name, sort.Direction),
+                    "rolecount" or "usage" => ApplyPermissionOrder(source, ordered, permission => permission.RolePermissions.Count, sort.Direction),
+                    _ => ordered
+                };
+
+                if (ordered is not null)
+                {
+                    source = ordered;
+                }
+            }
         }
 
-        var escaped = trimmed
-            .Replace(@"\", @"\\", StringComparison.Ordinal)
-            .Replace("%", @"\%", StringComparison.Ordinal)
-            .Replace("_", @"\_", StringComparison.Ordinal);
-
-        return $"%{escaped}%";
+        ordered ??= source.OrderBy(permission => permission.Name);
+        return ordered.ThenBy(permission => permission.Id);
     }
+
+    private static IOrderedQueryable<Permission> ApplyPermissionOrder<T>(
+        IQueryable<Permission> source,
+        IOrderedQueryable<Permission>? ordered,
+        Expression<Func<Permission, T>> keySelector,
+        SortDirection direction)
+    {
+        if (ordered is null)
+        {
+            return direction == SortDirection.Descending
+                ? source.OrderByDescending(keySelector)
+                : source.OrderBy(keySelector);
+        }
+
+        return direction == SortDirection.Descending
+            ? ordered.ThenByDescending(keySelector)
+            : ordered.ThenBy(keySelector);
+    }
+
+    private static string FormatSorts(string? sort, string defaultValue)
+        => string.IsNullOrWhiteSpace(sort)
+            ? defaultValue
+            : sort;
 }
 
 internal sealed class AdminPermissionListQuery
@@ -171,9 +208,3 @@ internal sealed record AdminPermissionSummary(
     string Name,
     string? Description,
     int RoleCount);
-
-internal sealed record AdminPermissionListResponse(
-    int Page,
-    int PageSize,
-    int TotalCount,
-    IReadOnlyList<AdminPermissionSummary> Permissions);

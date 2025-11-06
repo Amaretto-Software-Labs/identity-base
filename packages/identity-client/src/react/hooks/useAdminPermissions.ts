@@ -78,7 +78,7 @@ export function useAdminPermissions(options: UseAdminPermissionsOptions = {}): U
 
   return {
     data,
-    permissions: data?.permissions ?? [],
+    permissions: data?.items ?? [],
     query,
     isLoading,
     error,

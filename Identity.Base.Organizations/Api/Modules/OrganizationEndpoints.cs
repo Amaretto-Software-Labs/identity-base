@@ -20,10 +20,12 @@ public static class OrganizationEndpoints
 
         var group = endpoints.MapGroup("/admin/organizations");
 
-        group.MapGet(string.Empty, async (Guid? tenantId, IOrganizationService service, CancellationToken cancellationToken) =>
+        group.MapGet(string.Empty, async ([AsParameters] AdminOrganizationListQuery query, IOrganizationService service, CancellationToken cancellationToken) =>
         {
-            var organizations = await service.ListAsync(tenantId, cancellationToken).ConfigureAwait(false);
-            return Results.Ok(organizations.Select(OrganizationApiMapper.ToOrganizationDto));
+            var pageRequest = query.ToPageRequest();
+            var paged = await service.ListAsync(query.TenantId, pageRequest, query.Status, cancellationToken).ConfigureAwait(false);
+            var response = OrganizationApiMapper.ToOrganizationPagedResult(paged);
+            return Results.Ok(response);
         })
         .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationsRead));
 

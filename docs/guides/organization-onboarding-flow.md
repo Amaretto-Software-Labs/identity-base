@@ -116,7 +116,7 @@ app.MapPost("/admin/organizations/{orgId:guid}/invitations", async (
 ```
 
 **React implementation:**
-1. Build an Invite Members page that calls `/admin/organizations/{orgId}/invitations` and lists pending invites via `/admin/organizations/{orgId}/invitations` GET.
+1. Build an Invite Members page that calls `/admin/organizations/{orgId}/invitations` and lists pending invites via `/admin/organizations/{orgId}/invitations` GET (paged result with `items`; accepts `page`, `pageSize`, `search`, `sort`).
 2. The acceptance route (`/invitations/accept?code=...`) should:
    - Call `GET /invitations/{code}` to validate and display org details.
    - Ensure the user is authenticated (register or log in if required).
@@ -128,11 +128,11 @@ app.MapPost("/admin/organizations/{orgId:guid}/invitations", async (
 ## 5. Managing Members & Organization Roles
 
 Server endpoints and flows:
-- `GET /admin/organizations/{orgId}/members` – list memberships.
+- `GET /admin/organizations/{orgId}/members` – list memberships (paged result, supports `page`, `pageSize`, `search`, `roleId`, `isPrimary`, `sort`).
 - `POST /admin/organizations/{orgId}/members` – add an existing user immediately (no invite flow).
 - `PUT /admin/organizations/{orgId}/members/{userId}` – update roles (`RoleIds`) and primary flag.
 - `DELETE /admin/organizations/{orgId}/members/{userId}` – remove membership.
-- `GET/POST/DELETE /admin/organizations/{orgId}/roles` – manage org-specific roles.
+- `GET/POST/DELETE /admin/organizations/{orgId}/roles` – manage org-specific roles (the list route returns `PagedResult<OrganizationRoleDto>` and honors `page`, `pageSize`, `search`, `sort`).
 - `GET/PUT /admin/organizations/{orgId}/roles/{roleId}/permissions` – inspect/update permission overrides (merges with global RBAC definitions).
 
 Switching active organization: send the `X-Organization-Id` header on subsequent API requests (there is no dedicated endpoint to change the active org). If membership changes alter the user's permission set, call `IdentityAuthManager.refreshTokens()` to refresh the identity token.

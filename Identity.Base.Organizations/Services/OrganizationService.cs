@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Identity.Base.Abstractions.Pagination;
+using Identity.Base.Extensions;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Domain;
@@ -98,6 +101,59 @@ public sealed class OrganizationService : IOrganizationService
             .OrderBy(org => org.DisplayName)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    public async Task<PagedResult<Organization>> ListAsync(
+        Guid? tenantId,
+        PageRequest pageRequest,
+        OrganizationStatus? status = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(pageRequest);
+
+        var normalized = pageRequest.WithDefaults();
+
+        var query = QueryByTenant(_dbContext.Organizations.AsNoTracking(), tenantId);
+
+        if (status.HasValue)
+        {
+            query = query.Where(organization => organization.Status == status.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalized.Search))
+        {
+            if (_dbContext.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                var lower = normalized.Search.ToLowerInvariant();
+                query = query.Where(organization =>
+                    (organization.DisplayName ?? string.Empty).ToLower().Contains(lower) ||
+                    (organization.Slug ?? string.Empty).ToLower().Contains(lower));
+            }
+            else
+            {
+                var pattern = SearchPatternHelper.CreateSearchPattern(normalized.Search);
+                query = query.Where(organization =>
+                    EF.Functions.ILike(organization.DisplayName ?? string.Empty, pattern) ||
+                    EF.Functions.ILike(organization.Slug ?? string.Empty, pattern));
+            }
+        }
+
+        var total = await query.CountAsync(cancellationToken).ConfigureAwait(false);
+        if (total == 0)
+        {
+            return PagedResult<Organization>.Empty(normalized.Page, normalized.PageSize);
+        }
+
+        var ordered = ApplyOrganizationSorting(query, normalized);
+        var skip = normalized.GetSkip();
+
+        var items = await ordered
+            .Skip(skip)
+            .Take(normalized.PageSize)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return new PagedResult<Organization>(normalized.Page, normalized.PageSize, total, items);
     }
 
     public async Task<Organization> UpdateAsync(Guid organizationId, OrganizationUpdateRequest request, CancellationToken cancellationToken = default)
@@ -316,6 +372,53 @@ public sealed class OrganizationService : IOrganizationService
         }
     }
 
+    private static IOrderedQueryable<Organization> ApplyOrganizationSorting(IQueryable<Organization> source, PageRequest request)
+    {
+        IOrderedQueryable<Organization>? ordered = null;
+
+        if (request.Sorts.Count > 0)
+        {
+            foreach (var sort in request.Sorts)
+            {
+                var key = sort.Field.ToLowerInvariant();
+                ordered = key switch
+                {
+                    "displayname" => ApplyOrganizationOrder(source, ordered, organization => organization.DisplayName ?? organization.Slug ?? string.Empty, sort.Direction),
+                    "slug" => ApplyOrganizationOrder(source, ordered, organization => organization.Slug ?? string.Empty, sort.Direction),
+                    "createdat" => ApplyOrganizationOrder(source, ordered, organization => organization.CreatedAtUtc, sort.Direction),
+                    "status" => ApplyOrganizationOrder(source, ordered, organization => organization.Status, sort.Direction),
+                    _ => ordered
+                };
+
+                if (ordered is not null)
+                {
+                    source = ordered;
+                }
+            }
+        }
+
+        ordered ??= source.OrderBy(organization => organization.DisplayName ?? organization.Slug ?? string.Empty);
+        return ordered.ThenBy(organization => organization.Id);
+    }
+
+    private static IOrderedQueryable<Organization> ApplyOrganizationOrder<T>(
+        IQueryable<Organization> source,
+        IOrderedQueryable<Organization>? ordered,
+        Expression<Func<Organization, T>> keySelector,
+        SortDirection direction)
+    {
+        if (ordered is null)
+        {
+            return direction == SortDirection.Descending
+                ? source.OrderByDescending(keySelector)
+                : source.OrderBy(keySelector);
+        }
+
+        return direction == SortDirection.Descending
+            ? ordered.ThenByDescending(keySelector)
+            : ordered.ThenBy(keySelector);
+    }
+
     private static IQueryable<Organization> QueryByTenant(IQueryable<Organization> query, Guid? tenantId)
     {
         if (tenantId.HasValue)
@@ -323,6 +426,6 @@ public sealed class OrganizationService : IOrganizationService
             return query.Where(organization => organization.TenantId == tenantId.Value);
         }
 
-        return query.Where(organization => organization.TenantId == null);
+        return query;
     }
 }

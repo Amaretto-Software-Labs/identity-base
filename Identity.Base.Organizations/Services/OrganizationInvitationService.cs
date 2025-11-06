@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Identity.Base.Abstractions.Pagination;
 using Identity.Base.Identity;
 using Identity.Base.Logging;
 using Identity.Base.Organizations.Abstractions;
@@ -102,6 +103,12 @@ public sealed class OrganizationInvitationService
 
     public Task<IReadOnlyCollection<OrganizationInvitationRecord>> ListAsync(Guid organizationId, CancellationToken cancellationToken = default)
         => _store.ListAsync(organizationId, cancellationToken);
+
+    public Task<PagedResult<OrganizationInvitationRecord>> ListAsync(
+        Guid organizationId,
+        PageRequest pageRequest,
+        CancellationToken cancellationToken = default)
+        => _store.ListAsync(organizationId, pageRequest, cancellationToken);
 
     public async Task<bool> RevokeAsync(Guid organizationId, Guid code, CancellationToken cancellationToken = default)
     {

@@ -50,16 +50,17 @@ For detailed documentation on each package referenced below, use the [Package Do
 - [ ] **Invitation & Membership Management**
   - Use admin invitation endpoints:
     - `POST /admin/organizations/{orgId}/invitations` to issue an invite (backed by `OrganizationInvitationService` which stores the record, enforces uniqueness, and applies expiry).
-    - `GET /admin/organizations/{orgId}/invitations` / `DELETE .../{code}` to list or revoke invites.
+    - `GET /admin/organizations/{orgId}/invitations` / `DELETE .../{code}` to list or revoke invites. The `GET` route is paged (`page`, `pageSize`, `search`, `sort`) and returns `PagedResult<OrganizationInvitationDto>` with an `items` collection.
     - Public flow: `GET /invitations/{code}` for validation and `POST /invitations/claim` (authenticated) to accept; the service automatically creates/updates the membership and returns `RequiresTokenRefresh = true`.
   - Use admin membership endpoints when you already know the user id:
     - `POST /admin/organizations/{orgId}/members` to add a member immediately.
     - `PUT /admin/organizations/{orgId}/members/{userId}` to update role assignments / primary flag.
     - `DELETE /admin/organizations/{orgId}/members/{userId}` to remove members.
+    - `GET /admin/organizations/{orgId}/members` supports the shared pagination contract (`page`, `pageSize`, `search`, `roleId`, `isPrimary`, `sort`) and returns `PagedResult<OrganizationMembershipDto>`.
   - Hosts are still responsible for the invite delivery UX (email templates, SPA acceptance page) even though storage and APIs are provided.
 
 - [ ] **Organization Role Management**
-  - Organization admins call `GET/POST/DELETE /admin/organizations/{orgId}/roles` for custom roles.
+  - Organization admins call `GET/POST/DELETE /admin/organizations/{orgId}/roles` for custom roles. The list endpoint accepts `page`, `pageSize`, `search`, `sort` and returns `PagedResult<OrganizationRoleDto>`.
   - `GET /admin/organizations/{orgId}/roles/{roleId}/permissions` returns inherited vs. explicit permission assignments; `PUT` replaces the explicit list stored in `Identity_OrganizationRolePermissions`.
   - Default permission bundles can be configured via `OrganizationRoleOptions.DefaultRoles`; per-organization overrides flow through the same service layer and are surfaced in tokens/claims.
 
@@ -67,7 +68,7 @@ For detailed documentation on each package referenced below, use the [Package Do
   - Existing Identity Base endpoints handle profile updates, password changes, MFA enable/disable. No extra work needed beyond exposing the routes in the client application.
 
 - [ ] **Organization Context Handling**
-  - Call `GET /users/me/organizations` to show available orgs.
+  - Call `GET /users/me/organizations` to show available orgs. This endpoint returns `PagedResult<UserOrganizationMembershipDto>` (with `items`, `page`, `pageSize`, `totalCount`) and supports `search`, `sort`, and `includeArchived`.
   - Add `app.UseOrganizationContextFromHeader()` and send the `X-Organization-Id` header so each request carries the active organization without reissuing tokens. There is no backend endpoint to set the active org; the header alone establishes context. Refresh tokens only when membership changes (e.g., an owner loses access).
 
 - [ ] **Admin Application**

@@ -49,7 +49,7 @@ public static class OrganizationMembershipEndpoints
             };
 
             var members = await membershipService.GetMembersAsync(request, cancellationToken).ConfigureAwait(false);
-            return Results.Ok(OrganizationApiMapper.ToMemberListResponse(members));
+            return Results.Ok(OrganizationApiMapper.ToMemberPagedResult(members));
         })
         .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationMembersRead));
 

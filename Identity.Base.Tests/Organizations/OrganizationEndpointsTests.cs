@@ -52,9 +52,9 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         var response = await client.GetAsync("/admin/organizations");
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var payload = await response.Content.ReadFromJsonAsync<List<OrganizationDto>>(JsonOptions);
+        var payload = await response.Content.ReadFromJsonAsync<PagedResult<OrganizationDto>>(JsonOptions);
         payload.ShouldNotBeNull();
-        payload!.ShouldContain(item => item.Id == organizationId);
+        payload!.Items.ShouldContain(item => item.Id == organizationId);
 
         client.DefaultRequestHeaders.Add(OrganizationContextHeaderNames.OrganizationId, Guid.NewGuid().ToString("D"));
 
@@ -244,9 +244,9 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         var listResponse = await client.GetAsync($"/admin/organizations/{organizationId}/members");
         listResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var list = await listResponse.Content.ReadFromJsonAsync<OrganizationMemberListResponse>(JsonOptions);
+        var list = await listResponse.Content.ReadFromJsonAsync<PagedResult<OrganizationMembershipDto>>(JsonOptions);
         list.ShouldNotBeNull();
-        list!.Members.ShouldContain(m => m.UserId == memberId);
+        list!.Items.ShouldContain(m => m.UserId == memberId);
 
         var deleteResponse = await client.DeleteAsync($"/admin/organizations/{organizationId}/members/{memberId}");
         deleteResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
@@ -254,9 +254,9 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         var listAfterDelete = await client.GetAsync($"/admin/organizations/{organizationId}/members");
         listAfterDelete.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var after = await listAfterDelete.Content.ReadFromJsonAsync<OrganizationMemberListResponse>(JsonOptions);
+        var after = await listAfterDelete.Content.ReadFromJsonAsync<PagedResult<OrganizationMembershipDto>>(JsonOptions);
         after.ShouldNotBeNull();
-        after!.Members.ShouldNotContain(m => m.UserId == memberId);
+        after!.Items.ShouldNotContain(m => m.UserId == memberId);
     }
 
     [Fact]
@@ -435,8 +435,6 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     private sealed record OrganizationDto(Guid Id, string Slug, string DisplayName, OrganizationStatus Status);
 
     private sealed record OrganizationMembershipDto(Guid OrganizationId, Guid UserId, bool IsPrimary, Guid[] RoleIds);
-
-    private sealed record OrganizationMemberListResponse(int Page, int PageSize, int TotalCount, OrganizationMembershipDto[] Members);
 
 }
 

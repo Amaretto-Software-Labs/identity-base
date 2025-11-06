@@ -23,7 +23,14 @@ public static class OrganizationRoleEndpoints
 
         var group = endpoints.MapGroup("/admin/organizations/{organizationId:guid}/roles");
 
-        group.MapGet(string.Empty, async (Guid organizationId, Guid? tenantId, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationRoleService roleService, CancellationToken cancellationToken) =>
+        group.MapGet(string.Empty, async (
+            Guid organizationId,
+            Guid? tenantId,
+            [AsParameters] OrganizationRoleListQuery query,
+            ClaimsPrincipal principal,
+            IOrganizationScopeResolver scopeResolver,
+            IOrganizationRoleService roleService,
+            CancellationToken cancellationToken) =>
         {
             var scopeResult = await EnsureActorInScopeAsync(principal, scopeResolver, organizationId, cancellationToken).ConfigureAwait(false);
             if (scopeResult is not null)
@@ -31,8 +38,10 @@ public static class OrganizationRoleEndpoints
                 return scopeResult;
             }
 
-            var roles = await roleService.ListAsync(tenantId, organizationId, cancellationToken).ConfigureAwait(false);
-            return Results.Ok(roles.Select(OrganizationApiMapper.ToRoleDto));
+            var pageRequest = query.ToPageRequest();
+            var roles = await roleService.ListAsync(tenantId, organizationId, pageRequest, cancellationToken).ConfigureAwait(false);
+            var response = OrganizationApiMapper.ToOrganizationRolePagedResult(roles);
+            return Results.Ok(response);
         })
         .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationRolesRead));
 

@@ -119,6 +119,13 @@ export interface UserPermissionsResponse {
   permissions: string[]
 }
 
+export interface PagedResult<T> {
+  page: number
+  pageSize: number
+  totalCount: number
+  items: T[]
+}
+
 // Admin API – Users
 export interface AdminUserListQuery {
   page?: number
@@ -127,7 +134,7 @@ export interface AdminUserListQuery {
   role?: string
   locked?: boolean
   deleted?: boolean
-  sort?: 'createdAt' | 'createdAt:asc' | 'createdAt:desc' | 'email' | 'email:asc' | 'email:desc'
+  sort?: string
 }
 
 export interface AdminUserSummary {
@@ -142,12 +149,7 @@ export interface AdminUserSummary {
   isDeleted: boolean
 }
 
-export interface AdminUserListResponse {
-  page: number
-  pageSize: number
-  totalCount: number
-  users: AdminUserSummary[]
-}
+export type AdminUserListResponse = PagedResult<AdminUserSummary>
 
 export interface AdminUserExternalLogin {
   provider: string
@@ -232,15 +234,10 @@ export interface AdminRoleListQuery {
   pageSize?: number
   search?: string
   isSystemRole?: boolean
-  sort?: 'name' | 'name:asc' | 'name:desc' | 'userCount' | 'userCount:asc' | 'userCount:desc'
+  sort?: string
 }
 
-export interface AdminRoleListResponse {
-  page: number
-  pageSize: number
-  totalCount: number
-  roles: AdminRoleSummary[]
-}
+export type AdminRoleListResponse = PagedResult<AdminRoleSummary>
 
 export interface AdminRoleDetail {
   id: string
@@ -277,15 +274,10 @@ export interface AdminPermissionListQuery {
   page?: number
   pageSize?: number
   search?: string
-  sort?: 'name' | 'name:asc' | 'name:desc' | 'roleCount' | 'roleCount:asc' | 'roleCount:desc'
+  sort?: string
 }
 
-export interface AdminPermissionListResponse {
-  page: number
-  pageSize: number
-  totalCount: number
-  permissions: AdminPermissionSummary[]
-}
+export type AdminPermissionListResponse = PagedResult<AdminPermissionSummary>
 
 // Errors
 export interface ApiError {

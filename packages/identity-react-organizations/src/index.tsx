@@ -48,12 +48,42 @@ interface OrganizationMembershipDto extends MembershipDto {
   displayName?: string | null
 }
 
-interface OrganizationMemberListResponseDto {
+interface OrganizationRoleDto {
+  id: string
+  organizationId?: string | null
+  tenantId?: string | null
+  name: string
+  description?: string | null
+  isSystemRole: boolean
+  createdAtUtc: string
+  updatedAtUtc?: string | null
+}
+
+interface OrganizationInvitationDto {
+  code: string
+  organizationId: string
+  organizationSlug: string
+  organizationName: string
+  email: string
+  roleIds: string[]
+  createdAtUtc: string
+  createdBy?: string | null
+  expiresAtUtc: string
+  usedAtUtc?: string | null
+  usedByUserId?: string | null
+}
+
+interface PagedResponseDto<T> {
   page: number
   pageSize: number
   totalCount: number
-  members: OrganizationMembershipDto[]
+  items: T[]
 }
+
+type OrganizationMemberListResponseDto = PagedResponseDto<OrganizationMembershipDto>
+type OrganizationRoleListResponseDto = PagedResponseDto<OrganizationRoleDto>
+type MembershipListResponseDto = PagedResponseDto<MembershipDto>
+type OrganizationInvitationListResponseDto = PagedResponseDto<OrganizationInvitationDto>
 
 export interface Membership extends MembershipDto {}
 
@@ -83,6 +113,20 @@ export interface OrganizationRole {
 export interface OrganizationRolePermissions {
   effective: string[]
   explicit: string[]
+}
+
+export interface OrganizationInvitation {
+  code: string
+  organizationId: string
+  organizationSlug: string
+  organizationName: string
+  email: string
+  roleIds: string[]
+  createdAtUtc: string
+  createdBy?: string | null
+  expiresAtUtc: string
+  usedAtUtc?: string | null
+  usedByUserId?: string | null
 }
 
 export interface OrganizationMember {
@@ -124,6 +168,20 @@ export interface OrganizationMembersPage {
   totalCount: number
 }
 
+export interface OrganizationRoleListQuery {
+  page?: number
+  pageSize?: number
+  search?: string
+  sort?: string
+}
+
+export interface OrganizationInvitationListQuery {
+  page?: number
+  pageSize?: number
+  search?: string
+  sort?: string
+}
+
 export interface UpdateOrganizationMemberOptions {
   roleIds?: string[]
   isPrimary?: boolean
@@ -139,10 +197,11 @@ export interface SwitchOrganizationResult {
 interface OrganizationsClient {
   listMemberships: () => Promise<Membership[]>
   getOrganization: (organizationId: string) => Promise<OrganizationSummary>
-  listRoles: (organizationId: string) => Promise<OrganizationRole[]>
+  listRoles: (organizationId: string, query?: OrganizationRoleListQuery) => Promise<OrganizationRole[]>
   getRolePermissions: (organizationId: string, roleId: string) => Promise<OrganizationRolePermissions>
   updateRolePermissions: (organizationId: string, roleId: string, permissions: string[]) => Promise<void>
   listMembers: (organizationId: string, query?: OrganizationMemberQuery) => Promise<OrganizationMembersPage>
+  listInvitations: (organizationId: string, query?: OrganizationInvitationListQuery) => Promise<OrganizationInvitation[]>
   updateMember: (
     organizationId: string,
     userId: string,
@@ -226,7 +285,36 @@ function mapOrganizationMembersPage(dto: OrganizationMemberListResponseDto): Org
     page: dto.page,
     pageSize: dto.pageSize,
     totalCount: dto.totalCount,
-    members: dto.members.map(mapOrganizationMember),
+    members: dto.items.map(mapOrganizationMember),
+  }
+}
+
+function mapOrganizationRole(dto: OrganizationRoleDto): OrganizationRole {
+  return {
+    id: dto.id,
+    organizationId: dto.organizationId ?? null,
+    tenantId: dto.tenantId ?? null,
+    name: dto.name,
+    description: dto.description ?? null,
+    isSystemRole: dto.isSystemRole,
+    createdAtUtc: dto.createdAtUtc,
+    updatedAtUtc: dto.updatedAtUtc ?? null,
+  }
+}
+
+function mapOrganizationInvitation(dto: OrganizationInvitationDto): OrganizationInvitation {
+  return {
+    code: dto.code,
+    organizationId: dto.organizationId,
+    organizationSlug: dto.organizationSlug,
+    organizationName: dto.organizationName,
+    email: dto.email,
+    roleIds: dto.roleIds,
+    createdAtUtc: dto.createdAtUtc,
+    createdBy: dto.createdBy ?? null,
+    expiresAtUtc: dto.expiresAtUtc,
+    usedAtUtc: dto.usedAtUtc ?? null,
+    usedByUserId: dto.usedByUserId ?? null,
   }
 }
 
@@ -262,6 +350,60 @@ function buildMemberListPath(organizationId: string, query?: OrganizationMemberQ
   return queryString.length > 0
     ? `/admin/organizations/${organizationId}/members?${queryString}`
     : `/admin/organizations/${organizationId}/members`
+}
+
+function buildRoleListPath(organizationId: string, query?: OrganizationRoleListQuery): string {
+  const params = new URLSearchParams()
+
+  if (query?.page && query.page > 1) {
+    params.set('page', String(query.page))
+  }
+
+  if (query?.pageSize) {
+    params.set('pageSize', String(query.pageSize))
+  }
+
+  const trimmedSearch = query?.search?.trim()
+  if (trimmedSearch) {
+    params.set('search', trimmedSearch)
+  }
+
+  const trimmedSort = query?.sort?.trim()
+  if (trimmedSort) {
+    params.set('sort', trimmedSort)
+  }
+
+  const queryString = params.toString()
+  return queryString.length > 0
+    ? `/admin/organizations/${organizationId}/roles?${queryString}`
+    : `/admin/organizations/${organizationId}/roles`
+}
+
+function buildInvitationListPath(organizationId: string, query?: OrganizationInvitationListQuery): string {
+  const params = new URLSearchParams()
+
+  if (query?.page && query.page > 1) {
+    params.set('page', String(query.page))
+  }
+
+  if (query?.pageSize) {
+    params.set('pageSize', String(query.pageSize))
+  }
+
+  const trimmedSearch = query?.search?.trim()
+  if (trimmedSearch) {
+    params.set('search', trimmedSearch)
+  }
+
+  const trimmedSort = query?.sort?.trim()
+  if (trimmedSort) {
+    params.set('sort', trimmedSort)
+  }
+
+  const queryString = params.toString()
+  return queryString.length > 0
+    ? `/admin/organizations/${organizationId}/invitations?${queryString}`
+    : `/admin/organizations/${organizationId}/invitations`
 }
 
 function assertFetcher(fetcher: Fetcher | undefined): Fetcher {
@@ -409,25 +551,32 @@ export function OrganizationsProvider({
 
   const client = useMemo<OrganizationsClient>(() => ({
     listMemberships: async () => {
-      const result = await authorizedFetch<MembershipDto[]>('/users/me/organizations')
-      return result.map(mapMembership)
+      const result = await authorizedFetch<MembershipListResponseDto>('/users/me/organizations?pageSize=200')
+      return result.items.map(mapMembership)
     },
-    getOrganization: async (organizationId: string) => {
+  getOrganization: async (organizationId: string) => {
     const dto = await authorizedFetch<OrganizationDto>(`/admin/organizations/${organizationId}`)
-      return mapOrganization(dto)
-    },
-    listRoles: async (organizationId: string) => authorizedFetch<OrganizationRole[]>(`/admin/organizations/${organizationId}/roles`),
-    getRolePermissions: async (organizationId: string, roleId: string) =>
-      authorizedFetch<OrganizationRolePermissions>(`/admin/organizations/${organizationId}/roles/${roleId}/permissions`),
-    updateRolePermissions: async (organizationId: string, roleId: string, permissions: string[]) =>
-      authorizedFetch<void>(`/admin/organizations/${organizationId}/roles/${roleId}/permissions`, {
-        method: 'PUT',
-        body: JSON.stringify({ permissions }),
-      }),
-    listMembers: async (organizationId: string, query?: OrganizationMemberQuery) => {
-      const dto = await authorizedFetch<OrganizationMemberListResponseDto>(buildMemberListPath(organizationId, query))
-      return mapOrganizationMembersPage(dto)
-    },
+    return mapOrganization(dto)
+  },
+  listRoles: async (organizationId: string, query?: OrganizationRoleListQuery) => {
+    const dto = await authorizedFetch<OrganizationRoleListResponseDto>(buildRoleListPath(organizationId, query))
+    return dto.items.map(mapOrganizationRole)
+  },
+  getRolePermissions: async (organizationId: string, roleId: string) =>
+    authorizedFetch<OrganizationRolePermissions>(`/admin/organizations/${organizationId}/roles/${roleId}/permissions`),
+  updateRolePermissions: async (organizationId: string, roleId: string, permissions: string[]) =>
+    authorizedFetch<void>(`/admin/organizations/${organizationId}/roles/${roleId}/permissions`, {
+      method: 'PUT',
+      body: JSON.stringify({ permissions }),
+    }),
+  listMembers: async (organizationId: string, query?: OrganizationMemberQuery) => {
+    const dto = await authorizedFetch<OrganizationMemberListResponseDto>(buildMemberListPath(organizationId, query))
+    return mapOrganizationMembersPage(dto)
+  },
+  listInvitations: async (organizationId: string, query?: OrganizationInvitationListQuery) => {
+    const dto = await authorizedFetch<OrganizationInvitationListResponseDto>(buildInvitationListPath(organizationId, query))
+    return dto.items.map(mapOrganizationInvitation)
+  },
     updateMember: async (organizationId: string, userId: string, options: UpdateOrganizationMemberOptions) => {
       const payload: Record<string, unknown> = {}
       if (Array.isArray(options.roleIds)) {

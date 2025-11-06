@@ -196,7 +196,7 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}): UseAdminUsers
     }
   }, [authManager, handleError])
 
-  const usersList: AdminUserSummary[] = data?.users ?? []
+  const usersList: AdminUserSummary[] = data?.items ?? []
 
   return {
     data,

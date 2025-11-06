@@ -30,6 +30,7 @@ public static class OrganizationInvitationEndpoints
 
         adminGroup.MapGet(string.Empty, async (
             Guid organizationId,
+            [AsParameters] OrganizationInvitationListQuery query,
             ClaimsPrincipal principal,
             IOrganizationScopeResolver scopeResolver,
             OrganizationInvitationService invitationService,
@@ -41,8 +42,9 @@ public static class OrganizationInvitationEndpoints
                 return scopeResult;
             }
 
-            var invitations = await invitationService.ListAsync(organizationId, cancellationToken).ConfigureAwait(false);
-            var response = invitations.Select(OrganizationApiMapper.ToInvitationDto).ToArray();
+            var pageRequest = query.ToPageRequest();
+            var invitations = await invitationService.ListAsync(organizationId, pageRequest, cancellationToken).ConfigureAwait(false);
+            var response = OrganizationApiMapper.ToInvitationPagedResult(invitations);
             return Results.Ok(response);
         })
         .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationMembersManage));

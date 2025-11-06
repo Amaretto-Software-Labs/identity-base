@@ -248,6 +248,33 @@ public class OrganizationInvitationServiceTests
             return Task.FromResult<IReadOnlyCollection<OrganizationInvitationRecord>>(items);
         }
 
+        public Task<PagedResult<OrganizationInvitationRecord>> ListAsync(
+            Guid organizationId,
+            PageRequest pageRequest,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(pageRequest);
+
+            var normalized = pageRequest.WithDefaults();
+            var items = _records.Values
+                .Where(record => record.OrganizationId == organizationId && record.ExpiresAtUtc > DateTimeOffset.UtcNow)
+                .OrderBy(record => record.ExpiresAtUtc)
+                .ToList();
+
+            var total = items.Count;
+            if (total == 0)
+            {
+                return Task.FromResult(PagedResult<OrganizationInvitationRecord>.Empty(normalized.Page, normalized.PageSize));
+            }
+
+            var paged = items
+                .Skip(normalized.GetSkip())
+                .Take(normalized.PageSize)
+                .ToList();
+
+            return Task.FromResult(new PagedResult<OrganizationInvitationRecord>(normalized.Page, normalized.PageSize, total, paged));
+        }
+
         public Task<OrganizationInvitationRecord?> FindAsync(Guid code, CancellationToken cancellationToken = default)
         {
             _records.TryGetValue(code, out var record);
@@ -291,6 +318,9 @@ public class OrganizationInvitationServiceTests
         public Task<IReadOnlyList<Organization>> ListAsync(Guid? tenantId, CancellationToken cancellationToken = default)
             => throw new NotImplementedException();
 
+        public Task<PagedResult<Organization>> ListAsync(Guid? tenantId, PageRequest pageRequest, OrganizationStatus? status = null, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+
         public Task<Organization> UpdateAsync(Guid organizationId, OrganizationUpdateRequest request, CancellationToken cancellationToken = default)
             => throw new NotImplementedException();
 
@@ -309,6 +339,19 @@ public class OrganizationInvitationServiceTests
 
         public Task<IReadOnlyList<OrganizationRole>> ListAsync(Guid? tenantId, Guid? organizationId, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<OrganizationRole>>(_roles);
+
+        public Task<PagedResult<OrganizationRole>> ListAsync(Guid? tenantId, Guid? organizationId, PageRequest pageRequest, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(pageRequest);
+            var normalized = pageRequest.WithDefaults();
+            var total = _roles.Count;
+            var paged = _roles
+                .Skip(normalized.GetSkip())
+                .Take(normalized.PageSize)
+                .ToList();
+
+            return Task.FromResult(new PagedResult<OrganizationRole>(normalized.Page, normalized.PageSize, total, paged));
+        }
 
         public Task<OrganizationRole> CreateAsync(OrganizationRoleCreateRequest request, CancellationToken cancellationToken = default)
             => throw new NotImplementedException();

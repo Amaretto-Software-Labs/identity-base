@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using System.Linq;
 using Identity.Base.Admin.Features.AdminRoles;
 using Identity.Base.Admin.Features.AdminUsers;
 using AdminUserListQuery = Identity.Base.Admin.Features.AdminUsers.AdminUserListQuery;
@@ -44,9 +46,11 @@ internal static class AdminMetrics
 
     internal static TagList BuildUserQueryTags(AdminUserListQuery query)
     {
+        var sortValue = FormatSort(query.Sort, "createdAt:desc");
+
         var tags = new TagList
         {
-            { "sort", string.IsNullOrWhiteSpace(query.Sort) ? "createdAt:desc" : query.Sort },
+            { "sort", sortValue },
             { "filter.role", string.IsNullOrWhiteSpace(query.Role) ? "false" : "true" },
             { "filter.search", string.IsNullOrWhiteSpace(query.Search) ? "false" : "true" },
             { "filter.locked", query.Locked.HasValue ? (query.Locked.Value ? "locked" : "unlocked") : "all" },
@@ -58,9 +62,11 @@ internal static class AdminMetrics
 
     internal static TagList BuildRoleQueryTags(AdminRoleListQuery query)
     {
+        var sortValue = FormatSort(query.Sort, "name");
+
         var tags = new TagList
         {
-            { "sort", string.IsNullOrWhiteSpace(query.Sort) ? "name" : query.Sort },
+            { "sort", sortValue },
             { "filter.search", string.IsNullOrWhiteSpace(query.Search) ? "false" : "true" },
             { "filter.system", query.IsSystemRole.HasValue ? (query.IsSystemRole.Value ? "system" : "custom") : "all" }
         };
@@ -70,12 +76,19 @@ internal static class AdminMetrics
 
     internal static TagList BuildPermissionQueryTags(AdminPermissionListQuery query)
     {
+        var sortValue = FormatSort(query.Sort, "name");
+
         var tags = new TagList
         {
-            { "sort", string.IsNullOrWhiteSpace(query.Sort) ? "name" : query.Sort },
+            { "sort", sortValue },
             { "filter.search", string.IsNullOrWhiteSpace(query.Search) ? "false" : "true" }
         };
 
         return tags;
     }
+
+    private static string FormatSort(string? sort, string defaultValue)
+        => string.IsNullOrWhiteSpace(sort)
+            ? defaultValue
+            : sort;
 }

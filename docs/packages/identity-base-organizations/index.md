@@ -51,26 +51,28 @@ Connection strings can be supplied via the `IdentityOrganizations` named connect
 
 | Route | Description | Permission |
 | --- | --- | --- |
-| `GET /admin/organizations` | List organizations (optional `tenantId` filter). | `admin.organizations.read` |
+| `GET /admin/organizations` | Paged list of organizations; supports `tenantId`, `status`, `page`, `pageSize`, `search`, `sort`. Returns `PagedResult<OrganizationDto>`. | `admin.organizations.read` |
 | `POST /admin/organizations` | Create a new organization. | `admin.organizations.manage` |
 | `GET /admin/organizations/{id}` | Retrieve organization details. | `admin.organizations.read` |
 | `PATCH /admin/organizations/{id}` | Update display name, metadata, status. | `admin.organizations.manage` |
 | `DELETE /admin/organizations/{id}` | Archive an organization. | `admin.organizations.manage` |
-| `GET /admin/organizations/{id}/members` | List members, role assignments, pagination/filtering. | `admin.organizations.members.read` |
+| `GET /admin/organizations/{id}/members` | Paged member list with role ids and metadata (`page`, `pageSize`, `search`, `roleId`, `isPrimary`, `sort`). Returns `PagedResult<OrganizationMembershipDto>`. | `admin.organizations.members.read` |
 | `POST /admin/organizations/{id}/members` | Add an existing user directly (no invite). | `admin.organizations.members.manage` |
 | `PUT /admin/organizations/{id}/members/{userId}` | Update member roles / primary flag. | `admin.organizations.members.manage` |
 | `DELETE /admin/organizations/{id}/members/{userId}` | Remove a member. | `admin.organizations.members.manage` |
-| `GET /admin/organizations/{id}/roles` | List system + org-specific roles. | `admin.organizations.roles.read` |
+| `GET /admin/organizations/{id}/roles` | Paged list of system + org-specific roles (`page`, `pageSize`, `search`, `sort`). Returns `PagedResult<OrganizationRoleDto>`. | `admin.organizations.roles.read` |
 | `POST /admin/organizations/{id}/roles` | Create an organization-specific role. | `admin.organizations.roles.manage` |
 | `DELETE /admin/organizations/{id}/roles/{roleId}` | Delete an organization role. | `admin.organizations.roles.manage` |
 | `GET /admin/organizations/{id}/roles/{roleId}/permissions` | Retrieve effective vs. explicit permissions. | `admin.organizations.roles.read` |
 | `PUT /admin/organizations/{id}/roles/{roleId}/permissions` | Replace explicit permission overrides. | `admin.organizations.roles.manage` |
-| `GET /admin/organizations/{id}/invitations` | List pending invitations. | `admin.organizations.members.manage` |
+| `GET /admin/organizations/{id}/invitations` | Paged list of active invitations (`page`, `pageSize`, `search`, `sort`). Returns `PagedResult<OrganizationInvitationDto>`. | `admin.organizations.members.manage` |
 | `POST /admin/organizations/{id}/invitations` | Create an invitation (stores token + metadata; host is responsible for emailing the code). | `admin.organizations.members.manage` |
 | `DELETE /admin/organizations/{id}/invitations/{code}` | Revoke an invitation. | `admin.organizations.members.manage` |
 | `GET /invitations/{code}` | Public endpoint to validate invite metadata. | Anonymous |
 | `POST /invitations/claim` | Accept an invite (authenticated) and add membership. | Authenticated user matching invite email |
-| `GET /users/me/organizations` | List memberships for the signed-in user. | Authenticated |
+| `GET /users/me/organizations` | Paged list of the caller's memberships (`page`, `pageSize`, `search`, `sort`, `includeArchived`). Returns `PagedResult<UserOrganizationMembershipDto>`. | Authenticated |
+
+All paged endpoints honor the shared query parameters: `page` (default 1), `pageSize` (default 25, max 200), `search` (full-text match on supported fields), and `sort` (comma-delimited `field[:asc|:desc]`). The Minimal APIs normalize these values through `PageRequest` and always return a `PagedResult<T>` payload (`page`, `pageSize`, `totalCount`, `items`). Admin routes also surface endpoint-specific filters such as `tenantId`, `status`, `roleId`, or `includeArchived`.
 
 ### Services & Helpers
 - `IOrganizationService` – organization CRUD operations.
