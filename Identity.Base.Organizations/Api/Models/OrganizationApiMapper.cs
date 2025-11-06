@@ -74,6 +74,22 @@ internal static class OrganizationApiMapper
         };
     }
 
+    public static UserOrganizationMembershipDto ToUserOrganizationMembershipDto(UserOrganizationMembership membership)
+    {
+        ArgumentNullException.ThrowIfNull(membership);
+
+        return new UserOrganizationMembershipDto(
+            membership.OrganizationId,
+            membership.TenantId,
+            membership.Slug,
+            membership.DisplayName,
+            membership.Status,
+            membership.IsPrimary,
+            membership.RoleIds,
+            membership.CreatedAtUtc,
+            membership.UpdatedAtUtc);
+    }
+
     public static OrganizationRoleDto ToRoleDto(OrganizationRole role)
     {
         ArgumentNullException.ThrowIfNull(role);

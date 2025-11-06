@@ -3,13 +3,15 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Identity.Base.Abstractions.Pagination;
 using Identity.Base.Identity;
 using Identity.Base.Organizations.Abstractions;
+using Identity.Base.Organizations.Api.Models;
 using Identity.Base.Organizations.Data;
+using Identity.Base.Organizations.Domain;
 using Identity.Base.Organizations.Extensions;
 using Identity.Base.Organizations.Infrastructure;
 using Identity.Base.Organizations.Services;
-using Identity.Base.Organizations.Domain;
 using Identity.Base.Roles.Abstractions;
 using Identity.Base.Roles.Configuration;
 using Identity.Base.Roles.Services;
@@ -113,14 +115,75 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
 
         using var client = CreateAuthorizedClient(refreshedToken);
 
-        var memberships = await client.GetFromJsonAsync<List<OrganizationMembershipDto>>("/users/me/organizations", JsonOptions);
+        var memberships = await client.GetFromJsonAsync<PagedResult<UserOrganizationMembershipDto>>("/users/me/organizations", JsonOptions);
         memberships.ShouldNotBeNull();
-        memberships!.ShouldContain(m => m.OrganizationId == organizationId);
+        memberships!.Items.ShouldContain(m => m.OrganizationId == organizationId);
 
         client.DefaultRequestHeaders.Add(OrganizationContextHeaderNames.OrganizationId, organizationId.ToString("D"));
 
         var secondResponse = await client.GetAsync("/users/me/organizations");
         secondResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task User_Organizations_List_AppliesPagingSortingAndSearch()
+    {
+        var (userId, token) = await CreateStandardUserAndTokenAsync("org-member@example.com", "UserPass!2345");
+
+        var primaryOrgId = await CreateOrganizationAsync($"primary-org-{Guid.NewGuid():N}", "Primary Org");
+        var secondaryOrgId = await CreateOrganizationAsync($"secondary-org-{Guid.NewGuid():N}", "Secondary Org");
+        var tertiaryOrgId = await CreateOrganizationAsync($"tertiary-org-{Guid.NewGuid():N}", "Tertiary Org");
+
+        await AddMembershipAsync(primaryOrgId, userId, isPrimary: true);
+        await AddMembershipAsync(secondaryOrgId, userId, isPrimary: false);
+        await AddMembershipAsync(tertiaryOrgId, userId, isPrimary: false);
+
+        using var client = CreateAuthorizedClient(token);
+
+        var page1Response = await client.GetAsync("/users/me/organizations?page=1&pageSize=2&sort=slug:asc");
+        var page1Content = await page1Response.Content.ReadAsStringAsync();
+        page1Response.StatusCode.ShouldBe(HttpStatusCode.OK, page1Content);
+        var page1 = JsonSerializer.Deserialize<PagedResult<UserOrganizationMembershipDto>>(page1Content, JsonOptions);
+        page1.ShouldNotBeNull();
+        page1!.Items.Count.ShouldBe(2);
+
+        var page2Response = await client.GetAsync("/users/me/organizations?page=2&pageSize=2&sort=slug:asc");
+        var page2Content = await page2Response.Content.ReadAsStringAsync();
+        page2Response.StatusCode.ShouldBe(HttpStatusCode.OK, page2Content);
+        var page2 = JsonSerializer.Deserialize<PagedResult<UserOrganizationMembershipDto>>(page2Content, JsonOptions);
+        page2.ShouldNotBeNull();
+        page2!.Items.Count.ShouldBeGreaterThanOrEqualTo(1);
+
+        var searchResponse = await client.GetAsync("/users/me/organizations?search=secondary");
+        var searchContent = await searchResponse.Content.ReadAsStringAsync();
+        searchResponse.StatusCode.ShouldBe(HttpStatusCode.OK, searchContent);
+        var search = JsonSerializer.Deserialize<PagedResult<UserOrganizationMembershipDto>>(searchContent, JsonOptions);
+        search.ShouldNotBeNull();
+        search!.Items.ShouldContain(m => m.OrganizationId == secondaryOrgId);
+        search.Items.ShouldNotContain(m => m.OrganizationId == primaryOrgId);
+
+        // Archive tertiary org, ensure includeArchived flag controls visibility.
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<OrganizationDbContext>();
+            var org = await db.Organizations.FindAsync(tertiaryOrgId);
+            org!.Status = OrganizationStatus.Archived;
+            await db.SaveChangesAsync();
+        }
+
+        var withoutArchivedResponse = await client.GetAsync("/users/me/organizations");
+        var withoutArchivedContent = await withoutArchivedResponse.Content.ReadAsStringAsync();
+        withoutArchivedResponse.StatusCode.ShouldBe(HttpStatusCode.OK, withoutArchivedContent);
+        var withoutArchived = JsonSerializer.Deserialize<PagedResult<UserOrganizationMembershipDto>>(withoutArchivedContent, JsonOptions);
+        withoutArchived.ShouldNotBeNull();
+        withoutArchived!.Items.ShouldNotContain(m => m.OrganizationId == tertiaryOrgId);
+
+        var withArchivedResponse = await client.GetAsync("/users/me/organizations?includeArchived=true");
+        var withArchivedContent = await withArchivedResponse.Content.ReadAsStringAsync();
+        withArchivedResponse.StatusCode.ShouldBe(HttpStatusCode.OK, withArchivedContent);
+        var withArchived = JsonSerializer.Deserialize<PagedResult<UserOrganizationMembershipDto>>(withArchivedContent, JsonOptions);
+        withArchived.ShouldNotBeNull();
+        withArchived!.Items.ShouldContain(m => m.OrganizationId == tertiaryOrgId);
     }
 
     [Fact]

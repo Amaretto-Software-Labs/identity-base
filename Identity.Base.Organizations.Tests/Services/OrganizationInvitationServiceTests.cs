@@ -1,11 +1,16 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
-using Shouldly;
+using System.Threading;
+using System.Threading.Tasks;
+using Identity.Base.Abstractions.Pagination;
 using Identity.Base.Identity;
 using Identity.Base.Logging;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Domain;
 using Identity.Base.Organizations.Services;
 using Microsoft.Extensions.Logging.Abstractions;
+using Shouldly;
 
 namespace Identity.Base.Organizations.Tests.Services;
 
@@ -380,6 +385,9 @@ public class OrganizationInvitationServiceTests
             => throw new NotImplementedException();
 
         public Task<IReadOnlyList<OrganizationMembership>> GetMembershipsForUserAsync(Guid userId, Guid? tenantId, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+
+        public Task<PagedResult<UserOrganizationMembership>> GetMembershipsForUserAsync(Guid userId, Guid? tenantId, PageRequest pageRequest, bool includeArchived, CancellationToken cancellationToken = default)
             => throw new NotImplementedException();
 
         public Task<OrganizationMemberListResult> GetMembersAsync(OrganizationMemberListRequest request, CancellationToken cancellationToken = default)

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using Identity.Base.Abstractions.Pagination;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Api.Models;
 using Microsoft.AspNetCore.Builder;
@@ -17,15 +18,36 @@ public static class UserOrganizationEndpoints
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        endpoints.MapGet("/users/me/organizations", async (ClaimsPrincipal principal, Guid? tenantId, IOrganizationMembershipService membershipService, CancellationToken cancellationToken) =>
+        endpoints.MapGet("/users/me/organizations", async (
+            ClaimsPrincipal principal,
+            Guid? tenantId,
+            [AsParameters] UserOrganizationListQuery query,
+            IOrganizationMembershipService membershipService,
+            CancellationToken cancellationToken) =>
         {
             if (!TryGetUserId(principal, out var userId))
             {
                 return Results.Unauthorized();
             }
 
-            var memberships = await membershipService.GetMembershipsForUserAsync(userId, tenantId, cancellationToken).ConfigureAwait(false);
-            return Results.Ok(memberships.Select(OrganizationApiMapper.ToMembershipDto));
+            var pageRequest = query.ToPageRequest();
+            var includeArchived = query.IncludeArchived ?? false;
+
+            var result = await membershipService
+                .GetMembershipsForUserAsync(userId, tenantId, pageRequest, includeArchived, cancellationToken)
+                .ConfigureAwait(false);
+
+            var items = result.Items
+                .Select(OrganizationApiMapper.ToUserOrganizationMembershipDto)
+                .ToList();
+
+            var response = new PagedResult<UserOrganizationMembershipDto>(
+                result.Page,
+                result.PageSize,
+                result.TotalCount,
+                items);
+
+            return Results.Ok(response);
         })
         .RequireAuthorization();
 

@@ -1,0 +1,15 @@
+using System.Collections.Generic;
+using Identity.Base.Abstractions.Pagination;
+
+namespace Identity.Base.Organizations.Api.Models;
+
+public sealed record UserOrganizationListQuery(
+    int? Page = null,
+    int? PageSize = null,
+    string? Search = null,
+    IEnumerable<string>? Sort = null,
+    bool? IncludeArchived = null)
+{
+    public PageRequest ToPageRequest(int defaultPageSize = 25, int maxPageSize = 200)
+        => PageRequest.Create(Page, PageSize, Search, Sort, defaultPageSize, maxPageSize);
+}

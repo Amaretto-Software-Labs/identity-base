@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Identity.Base.Abstractions.Pagination;
 using Identity.Base.Data;
+using Identity.Base.Extensions;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Domain;
@@ -165,6 +168,77 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
             .ConfigureAwait(false);
     }
 
+    public async Task<PagedResult<UserOrganizationMembership>> GetMembershipsForUserAsync(Guid userId, Guid? tenantId, PageRequest pageRequest, bool includeArchived, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(pageRequest);
+
+        var normalized = pageRequest.WithDefaults();
+
+        var query = _dbContext.OrganizationMemberships
+            .AsNoTracking()
+            .Include(membership => membership.Organization)
+            .Include(membership => membership.RoleAssignments)
+            .Where(membership => membership.UserId == userId);
+
+        if (tenantId.HasValue)
+        {
+            query = query.Where(membership => membership.TenantId == tenantId.Value);
+        }
+
+        query = query.Where(membership => membership.Organization != null);
+
+        if (!includeArchived)
+        {
+            query = query.Where(membership => membership.Organization!.Status != OrganizationStatus.Archived);
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalized.Search))
+        {
+            if (_dbContext.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                var lower = normalized.Search.ToLowerInvariant();
+                query = query.Where(membership =>
+                    (membership.Organization!.DisplayName ?? string.Empty).ToLower().Contains(lower) ||
+                    (membership.Organization!.Slug ?? string.Empty).ToLower().Contains(lower));
+            }
+            else
+            {
+                var pattern = SearchPatternHelper.CreateSearchPattern(normalized.Search);
+                query = query.Where(membership =>
+                    EF.Functions.ILike(membership.Organization!.DisplayName ?? string.Empty, pattern) ||
+                    EF.Functions.ILike(membership.Organization!.Slug ?? string.Empty, pattern));
+            }
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken).ConfigureAwait(false);
+        if (totalCount == 0)
+        {
+            return PagedResult<UserOrganizationMembership>.Empty(normalized.Page, normalized.PageSize);
+        }
+
+        var orderedQuery = ApplyUserOrganizationSorting(query, normalized);
+
+        var skip = normalized.GetSkip();
+
+        var items = await orderedQuery
+            .Skip(skip)
+            .Take(normalized.PageSize)
+            .Select(membership => new UserOrganizationMembership(
+                membership.OrganizationId,
+                membership.TenantId,
+                membership.Organization!.Slug,
+                membership.Organization.DisplayName,
+                membership.Organization.Status,
+                membership.IsPrimary,
+                membership.RoleAssignments.Select(assignment => assignment.RoleId).ToList(),
+                membership.CreatedAtUtc,
+                membership.UpdatedAtUtc))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return new PagedResult<UserOrganizationMembership>(normalized.Page, normalized.PageSize, totalCount, items);
+    }
+
     public async Task<OrganizationMemberListResult> GetMembersAsync(OrganizationMemberListRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -307,6 +381,63 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
             .Replace("_", @"\_", StringComparison.Ordinal);
 
         return $"%{escaped}%";
+    }
+
+    private static IOrderedQueryable<OrganizationMembership> ApplyUserOrganizationSorting(IQueryable<OrganizationMembership> source, PageRequest request)
+    {
+        var ordered = default(IOrderedQueryable<OrganizationMembership>);
+
+        if (request.Sorts.Count > 0)
+        {
+            foreach (var sort in request.Sorts)
+            {
+                var key = sort.Field.ToLowerInvariant();
+                ordered = key switch
+                {
+                    "displayname" => ApplyOrder(source, ordered, membership => membership.Organization!.DisplayName ?? membership.Organization!.Slug ?? string.Empty, sort.Direction),
+                    "slug" => ApplyOrder(source, ordered, membership => membership.Organization!.Slug ?? string.Empty, sort.Direction),
+                    "createdat" => ApplyOrder(source, ordered, membership => membership.CreatedAtUtc, sort.Direction),
+                    "isprimary" => ApplyOrder(source, ordered, membership => membership.IsPrimary, sort.Direction),
+                    _ => ordered
+                };
+                source = ordered ?? source;
+            }
+        }
+
+        if (ordered is null)
+        {
+            ordered = source
+                .OrderByDescending(membership => membership.IsPrimary)
+                .ThenBy(membership => membership.Organization!.DisplayName ?? membership.Organization!.Slug ?? string.Empty)
+                .ThenBy(membership => membership.OrganizationId);
+        }
+        else
+        {
+            ordered = ordered
+                .ThenByDescending(membership => membership.IsPrimary)
+                .ThenBy(membership => membership.Organization!.DisplayName ?? membership.Organization!.Slug ?? string.Empty)
+                .ThenBy(membership => membership.OrganizationId);
+        }
+
+        return ordered;
+    }
+
+    private static IOrderedQueryable<OrganizationMembership> ApplyOrder<T>(
+        IQueryable<OrganizationMembership> source,
+        IOrderedQueryable<OrganizationMembership>? ordered,
+        Expression<Func<OrganizationMembership, T>> keySelector,
+        SortDirection direction)
+    {
+        if (ordered is null)
+        {
+            return direction == SortDirection.Ascending
+                ? source.OrderBy(keySelector)
+                : source.OrderByDescending(keySelector);
+        }
+
+        return direction == SortDirection.Ascending
+            ? ordered.ThenBy(keySelector)
+            : ordered.ThenByDescending(keySelector);
     }
 
     private sealed record UserProjection(Guid Id, string? Email, string? DisplayName);
