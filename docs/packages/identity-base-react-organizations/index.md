@@ -31,16 +31,17 @@ export function Root() {
 ## Public API
 
 - `useOrganizations()` – returns `{ memberships, activeOrganizationId, isLoadingMemberships, membershipError, organizations, isLoadingOrganizations, reloadMemberships, setActiveOrganizationId, client }`.
-- `useOrganizationSwitcher()` – wraps the active-organization endpoint and refreshes tokens when the API indicates `requiresTokenRefresh`.
+- `useOrganizationSwitcher()` – updates the active organization id (persists to storage) and refreshes memberships/tokens when needed.
 - `useOrganizationMembers(organizationId, query)` – paginated member listing with helpers (`members`, `isLoading`, `ensurePage`, `updateMember`, `removeMember`, `refresh`). Supports server-side filters (`search`, `roleId`, `isPrimary`, `page`, `pageSize`, `sort`).
 - `client` (from `useOrganizations().client`) exposes typed helpers: `listMembers`, `inviteMember`, `revokeInvitation`, `listInvitations`, `getRolePermissions`, `updateRolePermissions`, `listRoles`, `createRole`, `deleteRole`, etc.
 - Exported types: `OrganizationMembership`, `OrganizationSummary`, `OrganizationRole`, `OrganizationInvitation`, plus query/paging types.
 
 ## Server Expectations
 
-- Identity Base organizations endpoints must be available: `/users/me/organizations`, `/users/me/organizations/active`, `/organizations/{id}/members`, `/organizations/{id}/invitations`, `/organizations/{id}/roles`, `/organizations/{id}/roles/{roleId}/permissions`, etc.
+- Identity Base organizations endpoints must be available: `/users/me/organizations`, `/admin/organizations/{id}/members`, `/admin/organizations/{id}/invitations`, `/admin/organizations/{id}/roles`, `/admin/organizations/{id}/roles/{roleId}/permissions`, etc.
 - The SPA must send `X-Organization-Id` with API requests that require an active organization. The provider exposes the current id for convenience.
-- When `switchOrganization` indicates `requiresTokenRefresh`, call `IdentityAuthManager.refreshTokens()` to pull the new `org:*` claims.
+- There is no API to “set” the active organization; persisting and forwarding the selected id is entirely client-side.
+- Send `X-Organization-Id` on API calls that should operate within an organization scope. Changes to membership/role assignments generally require a token refresh (call `IdentityAuthManager.refreshTokens()`) so downstream services pick up the new `org:*` claims.
 
 ## Extension Points
 
@@ -58,7 +59,7 @@ export function Root() {
 ## Troubleshooting & Tips
 - **Header not sent** – ensure you consume `useOrganizations()` or `useOrganizationSwitcher()` before issuing API calls; these hooks provide the selected organization id. Forward it as `X-Organization-Id` on custom fetch calls.
 - **Stale memberships** – call `useOrganizations().reloadMemberships()` (or re-invoke `setActiveOrganizationId`) after the backend mutates memberships outside of the current UI flow.
-- **Token refresh loop** – always honour `requiresTokenRefresh` from `useOrganizationSwitcher()` responses; failing to refresh tokens leaves `org:*` claims stale and may cause authorization failures.
+- **Token refresh loop** – when switching organizations or changing memberships, refresh tokens if your UI depends on `org:*` claims (e.g., call `IdentityAuthManager.refreshTokens()`).
 - **Optimistic updates** – hooks expose `updateMember`/`removeMember` for optimistic UI updates. Catch thrown `IdentityError`s to revert state when the API rejects a change.
 
 ## Examples & Guides

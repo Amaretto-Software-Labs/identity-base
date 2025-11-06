@@ -107,13 +107,24 @@ public sealed class OrganizationRoleSeeder
         DateTimeOffset timestamp,
         CancellationToken cancellationToken)
     {
-        var role = await _dbContext.OrganizationRoles
-            .FirstOrDefaultAsync(entity =>
+        var baseQuery = _dbContext.OrganizationRoles
+            .Where(entity =>
                 entity.OrganizationId == null &&
-                entity.TenantId == null &&
-                EF.Functions.ILike(entity.Name, definition.Name),
-                cancellationToken)
-            .ConfigureAwait(false);
+                entity.TenantId == null);
+
+        OrganizationRole? role;
+        if (_dbContext.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            role = baseQuery
+                .AsEnumerable()
+                .FirstOrDefault(entity => string.Equals(entity.Name, definition.Name, StringComparison.OrdinalIgnoreCase));
+        }
+        else
+        {
+            role = await baseQuery
+                .FirstOrDefaultAsync(entity => EF.Functions.ILike(entity.Name, definition.Name), cancellationToken)
+                .ConfigureAwait(false);
+        }
 
         if (role is null)
         {

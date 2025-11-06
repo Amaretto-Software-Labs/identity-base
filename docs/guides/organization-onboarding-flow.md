@@ -82,16 +82,16 @@ await signInManager.RefreshSignInAsync(user);
 **Server flow:**
 Identity Base includes invitation storage, token issuance, expiration, and acceptance APIs. A typical flow looks like:
 
-1. Call `POST /organizations/{orgId}/invitations` (or invoke `OrganizationInvitationService.CreateAsync`) to create the invite. The service enforces uniqueness, persists the record, and returns the invite `code`, expiry, and organization metadata.
+1. Call `POST /admin/organizations/{orgId}/invitations` (or invoke `OrganizationInvitationService.CreateAsync`) to create the invite. The service enforces uniqueness, persists the record, and returns the invite `code`, expiry, and organization metadata.
 2. Use the response to send an email (MailJet/SMTP/etc.) that links the recipient to your SPA (e.g., `/invitations/accept?code=...`).
 3. When the recipient lands on the SPA, fetch `GET /invitations/{code}` to show organization details. After the user signs in, call `POST /invitations/claim` with the code – this automatically adds the membership, merges roles, deletes the invite, and returns `RequiresTokenRefresh = true`.
 4. Refresh the caller’s tokens/cookies so the new organization appears in claims and the React providers.
 
-If you already know the target user identifier (no invite needed), you can still call `POST /organizations/{orgId}/members` directly to add them immediately.
+If you already know the target user identifier (no invite needed), you can still call `POST /admin/organizations/{orgId}/members` directly to add them immediately.
 
 Example invite handler in ASP.NET Minimal API:
 ```csharp
-app.MapPost("/organizations/{orgId:guid}/invitations", async (
+app.MapPost("/admin/organizations/{orgId:guid}/invitations", async (
     Guid orgId,
     CreateOrganizationInvitationRequest request,
     ClaimsPrincipal principal,
@@ -111,36 +111,31 @@ app.MapPost("/organizations/{orgId:guid}/invitations", async (
 
     await emailSender.SendInviteAsync(invite); // host-defined email delivery
 
-    return Results.Created($"/organizations/{orgId}/invitations/{invite.Code}", OrganizationApiMapper.ToInvitationDto(invite));
+    return Results.Created($"/admin/organizations/{orgId}/invitations/{invite.Code}", OrganizationApiMapper.ToInvitationDto(invite));
 });
 ```
 
 **React implementation:**
-1. Build an Invite Members page that calls `/organizations/{orgId}/invitations` and lists pending invites via `/organizations/{orgId}/invitations` GET.
+1. Build an Invite Members page that calls `/admin/organizations/{orgId}/invitations` and lists pending invites via `/admin/organizations/{orgId}/invitations` GET.
 2. The acceptance route (`/invitations/accept?code=...`) should:
    - Call `GET /invitations/{code}` to validate and display org details.
    - Ensure the user is authenticated (register or log in if required).
    - Call `POST /invitations/claim` and, on success, invoke `authManager.refreshTokens()` before redirecting to the dashboard.
 3. Provide actions to resend or revoke invitations via the same invitation endpoints.
 
-**Note:** Identity Base already ships invite storage, token generation, expiration handling, and acceptance endpoints (`OrganizationInvitationService`, `/organizations/{id}/invitations`, `/invitations/claim`). You still own the outer workflow: trigger the service, send the email (MailJet/other provider), and surface an invite acceptance UI in your app.
+**Note:** Identity Base already ships invite storage, token generation, expiration handling, and acceptance endpoints (`OrganizationInvitationService`, `/admin/organizations/{id}/invitations`, `/invitations/claim`). You still own the outer workflow: trigger the service, send the email (MailJet/other provider), and surface an invite acceptance UI in your app.
 
 ## 5. Managing Members & Organization Roles
 
 Server endpoints and flows:
-- `GET /organizations/{orgId}/members` – list memberships.
-- `POST /organizations/{orgId}/members` – add an existing user immediately (no invite flow).
-- `PUT /organizations/{orgId}/members/{userId}` – update roles (`RoleIds`) and primary flag.
-- `DELETE /organizations/{orgId}/members/{userId}` – remove membership.
-- `GET/POST/DELETE /organizations/{orgId}/roles` – manage org-specific roles.
-- `GET/PUT /organizations/{orgId}/roles/{roleId}/permissions` – inspect/update permission overrides (merges with global RBAC definitions).
+- `GET /admin/organizations/{orgId}/members` – list memberships.
+- `POST /admin/organizations/{orgId}/members` – add an existing user immediately (no invite flow).
+- `PUT /admin/organizations/{orgId}/members/{userId}` – update roles (`RoleIds`) and primary flag.
+- `DELETE /admin/organizations/{orgId}/members/{userId}` – remove membership.
+- `GET/POST/DELETE /admin/organizations/{orgId}/roles` – manage org-specific roles.
+- `GET/PUT /admin/organizations/{orgId}/roles/{roleId}/permissions` – inspect/update permission overrides (merges with global RBAC definitions).
 
-Switching active organization:
-```http
-POST /users/me/organizations/active
-{ "organizationId": "..." }
-```
-If response indicates `requiresTokenRefresh`, invoke `IdentityAuthManager.refreshTokens()` client-side.
+Switching active organization: send the `X-Organization-Id` header on subsequent API requests (there is no dedicated endpoint to change the active org). If membership changes alter the user's permission set, call `IdentityAuthManager.refreshTokens()` to refresh the identity token.
 
 **React member management UI:**
 - Use `useOrganizationMembers(orgId)` to render lists and perform updates:
@@ -177,7 +172,7 @@ export function Root() {
 
 Key hooks (from `@identity-base/react-organizations`):
 - `useOrganizations()` – memberships, active org, `switchActiveOrganization`, errors/loading.
-- `useOrganizationSwitcher()` – convenience wrapper to call `POST /users/me/organizations/active` and refresh tokens.
+- `useOrganizationSwitcher()` – convenience wrapper that updates the active organization id (persisted locally) and refreshes memberships/tokens when needed.
 - `useOrganizationMembers(orgId)` – paginated member list with `updateMember`, `removeMember` helpers.
 - `useOrganizations().client` – typed client with `getRolePermissions`, `updateRolePermissions`, membership CRUD.
 
@@ -203,7 +198,7 @@ Key hooks (from `@identity-base/react-organizations`):
 
 | Area | Considerations |
 | --- | --- |
-| Admin UI | OSS admin package covers users/roles only. Build `/admin/organizations` if global admins need org oversight. |
+| Admin UI | Ensure admin surfaces call `/admin/organizations/...` endpoints and grant the `admin.organizations.*` permissions to operators. |
 | Invitations | Implement pending invite storage, expiration, and email templates (Mailjet/other provider). |
 | Auditing | Hook into `IAuditLogger` to capture membership changes per organization. |
 | Tenant Context | Override `OrganizationScopeResolver` for multi-tenant gating if required. |

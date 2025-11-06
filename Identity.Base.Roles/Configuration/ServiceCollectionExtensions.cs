@@ -32,6 +32,7 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<IPermissionClaimFormatter, DefaultPermissionClaimFormatter>();
         services.TryAddSingleton<IdentityBaseSeedCallbacks>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IUserCreationListener, DefaultUserRoleAssignmentListener>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IIdentitySeedRoleAssignmentHandler, Infrastructure.IdentitySeedRoleAssignmentHandler>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IClaimsPrincipalAugmentor, PermissionClaimsAugmentor>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, IdentityRolesMigrationHostedService>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, IdentityRolesSeedHostedService>());

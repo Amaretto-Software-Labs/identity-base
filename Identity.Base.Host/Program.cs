@@ -7,6 +7,7 @@ using Identity.Base.Roles;
 using Identity.Base.Roles.Endpoints;
 using Identity.Base.Roles.Configuration;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Options;
 using Serilog;
 
@@ -51,7 +52,8 @@ rolesBuilder.AddDbContext<IdentityRolesDbContext>((provider, options) =>
             databaseName = "IdentityBaseTests";
         }
 
-        options.UseInMemoryDatabase($"{databaseName}_roles");
+        options.UseInMemoryDatabase($"{databaseName}_roles")
+            .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
     }
     else
     {

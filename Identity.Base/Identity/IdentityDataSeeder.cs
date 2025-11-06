@@ -6,11 +6,9 @@ using System.Collections.Generic;
 using Identity.Base.Abstractions;
 using Identity.Base.Logging;
 using Identity.Base.Options;
-using Identity.Base.Roles.Abstractions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Identity.Base.Identity;
 
@@ -24,6 +22,7 @@ internal sealed class IdentityDataSeeder
     private readonly ILogSanitizer _sanitizer;
     private readonly IdentityBaseSeedCallbacks _seedCallbacks;
     private readonly IServiceProvider _serviceProvider;
+    private readonly IEnumerable<IIdentitySeedRoleAssignmentHandler> _roleAssignmentHandlers;
 
     public IdentityDataSeeder(
         UserManager<ApplicationUser> userManager,
@@ -33,7 +32,8 @@ internal sealed class IdentityDataSeeder
         ILogger<IdentityDataSeeder> logger,
         ILogSanitizer sanitizer,
         IdentityBaseSeedCallbacks seedCallbacks,
-        IServiceProvider serviceProvider)
+        IServiceProvider serviceProvider,
+        IEnumerable<IIdentitySeedRoleAssignmentHandler> roleAssignmentHandlers)
     {
         _userManager = userManager;
         _roleManager = roleManager;
@@ -43,6 +43,7 @@ internal sealed class IdentityDataSeeder
         _sanitizer = sanitizer;
         _seedCallbacks = seedCallbacks;
         _serviceProvider = serviceProvider;
+        _roleAssignmentHandlers = roleAssignmentHandlers;
     }
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
@@ -119,7 +120,7 @@ internal sealed class IdentityDataSeeder
                 }
             }
 
-            await AssignRbacRolesAsync(user.Id, options.Roles, cancellationToken).ConfigureAwait(false);
+            await NotifyRoleAssignmentHandlersAsync(user.Id, options.Roles, cancellationToken).ConfigureAwait(false);
         }
 
         if (!userExists && user is not null)
@@ -143,20 +144,23 @@ internal sealed class IdentityDataSeeder
         }
     }
 
-    private async Task AssignRbacRolesAsync(Guid userId, string[] roles, CancellationToken cancellationToken)
+    private async Task NotifyRoleAssignmentHandlersAsync(Guid userId, string[] roles, CancellationToken cancellationToken)
     {
         if (roles.Length == 0)
         {
             return;
         }
 
-        using var scope = _serviceProvider.CreateScope();
-        var roleAssignmentService = scope.ServiceProvider.GetService<IRoleAssignmentService>();
-        if (roleAssignmentService is null)
+        foreach (var handler in _roleAssignmentHandlers)
         {
-            return;
+            try
+            {
+                await handler.AssignRolesAsync(userId, roles, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Seed role handler {Handler} failed to assign roles for seed user.", handler.GetType().FullName);
+            }
         }
-
-        await roleAssignmentService.AssignRolesAsync(userId, roles, cancellationToken).ConfigureAwait(false);
     }
 }

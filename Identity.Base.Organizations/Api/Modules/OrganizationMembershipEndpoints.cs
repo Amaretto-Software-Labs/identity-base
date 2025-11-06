@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
 using System.Security.Claims;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentValidation;
 using Identity.Base.Extensions;
 using Identity.Base.Organizations.Abstractions;
@@ -19,7 +21,9 @@ public static class OrganizationMembershipEndpoints
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        endpoints.MapGet("/organizations/{organizationId:guid}/members", async (
+        var group = endpoints.MapGroup("/admin/organizations/{organizationId:guid}/members");
+
+        group.MapGet(string.Empty, async (
             Guid organizationId,
             [AsParameters] OrganizationMemberListQuery query,
             ClaimsPrincipal principal,
@@ -49,7 +53,7 @@ public static class OrganizationMembershipEndpoints
         })
         .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationMembersRead));
 
-        endpoints.MapPost("/organizations/{organizationId:guid}/members", async (Guid organizationId, AddMembershipRequest request, IValidator<AddMembershipRequest> validator, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationMembershipService membershipService, CancellationToken cancellationToken) =>
+        group.MapPost(string.Empty, async (Guid organizationId, AddMembershipRequest request, IValidator<AddMembershipRequest> validator, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationMembershipService membershipService, CancellationToken cancellationToken) =>
         {
             var validationResult = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
             if (!validationResult.IsValid)
@@ -74,7 +78,7 @@ public static class OrganizationMembershipEndpoints
                     RoleIds = request.RoleIds
                 }, cancellationToken).ConfigureAwait(false);
 
-                return Results.Created($"/organizations/{organizationId}/members/{membership.UserId}", OrganizationApiMapper.ToMembershipDto(membership));
+                return Results.Created($"/admin/organizations/{organizationId}/members/{membership.UserId}", OrganizationApiMapper.ToMembershipDto(membership));
             }
             catch (ArgumentException ex)
             {
@@ -91,7 +95,7 @@ public static class OrganizationMembershipEndpoints
         })
         .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationMembersManage));
 
-        endpoints.MapPut("/organizations/{organizationId:guid}/members/{userId:guid}", async (Guid organizationId, Guid userId, UpdateMembershipRequest request, IValidator<UpdateMembershipRequest> validator, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationMembershipService membershipService, CancellationToken cancellationToken) =>
+        group.MapPut("/{userId:guid}", async (Guid organizationId, Guid userId, UpdateMembershipRequest request, IValidator<UpdateMembershipRequest> validator, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationMembershipService membershipService, CancellationToken cancellationToken) =>
         {
             var validationResult = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
             if (!validationResult.IsValid)
@@ -132,7 +136,7 @@ public static class OrganizationMembershipEndpoints
         })
         .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationMembersManage));
 
-        endpoints.MapDelete("/organizations/{organizationId:guid}/members/{userId:guid}", async (Guid organizationId, Guid userId, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationMembershipService membershipService, CancellationToken cancellationToken) =>
+        group.MapDelete("/{userId:guid}", async (Guid organizationId, Guid userId, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationMembershipService membershipService, CancellationToken cancellationToken) =>
         {
             var scopeResult = await EnsureActorInScopeAsync(principal, scopeResolver, organizationId, userId, cancellationToken).ConfigureAwait(false);
             if (scopeResult is not null)

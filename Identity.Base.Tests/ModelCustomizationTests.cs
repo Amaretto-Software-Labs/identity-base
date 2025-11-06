@@ -11,6 +11,7 @@ using Identity.Base.Roles.Entities;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -89,7 +90,9 @@ public class ModelCustomizationTests
         });
 
         var rolesBuilder = services.AddIdentityRoles(configuration);
-        rolesBuilder.AddDbContext<IdentityRolesDbContext>(options => options.UseInMemoryDatabase("rolesdb-customization"));
+        rolesBuilder.AddDbContext<IdentityRolesDbContext>(options =>
+            options.UseInMemoryDatabase("rolesdb-customization")
+                .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning)));
 
         using var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<IdentityBaseModelCustomizationOptions>();

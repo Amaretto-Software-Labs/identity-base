@@ -82,10 +82,11 @@ export default function HomePage() {
             callbacks.
           </li>
           <li>
-            <code>/users/me/organizations</code> + <code>/users/me/organizations/active</code> – list and switch memberships.
+            <code>/users/me/organizations</code> – list memberships; the SPA forwards <code>X-Organization-Id</code> to scope
+            follow-up requests.
           </li>
           <li>
-            <code>{'/organizations/{id}'}</code>, <code>{'/organizations/{id}/members'}</code>, <code>{'/organizations/{id}/roles'}</code>
+            <code>{'/admin/organizations/{id}'}</code>, <code>{'/admin/organizations/{id}/members'}</code>, <code>{'/admin/organizations/{id}/roles'}</code>
             {' '}– manage organization surface secured via permission scopes.
           </li>
           <li>

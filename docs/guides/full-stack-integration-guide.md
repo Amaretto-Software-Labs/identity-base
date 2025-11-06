@@ -123,7 +123,7 @@ app.MapApiEndpoints();                  // Core Identity Base endpoints
 app.MapIdentityRolesUserEndpoints();    // GET /users/me/permissions and scope helpers
 app.MapIdentityAdminEndpoints();        // /admin/users, /admin/roles
 app.UseOrganizationContextFromHeader(); // Honor X-Organization-Id for scoped requests
-app.MapIdentityBaseOrganizationEndpoints(); // /organizations + membership management
+app.MapIdentityBaseOrganizationEndpoints(); // /admin/organizations + user membership endpoints
 app.MapHealthChecks("/healthz");
 
 await app.RunAsync();
@@ -262,7 +262,7 @@ dotnet run
 ```
 
 - `https://localhost:5001/healthz` should report healthy checks.
-- `POST /auth/register`, `POST /auth/login`, `/admin/users`, and `/organizations` are now available.
+- `POST /auth/register`, `POST /auth/login`, `/admin/users`, and `/admin/organizations/...` are now available.
 - Sign in with the seeded admin account to exercise the admin and organization surfaces.
 > See also: Task Playbook — docs/playbooks/full-stack-smoke-test.md for copy-ready commands and explicit success criteria.
 

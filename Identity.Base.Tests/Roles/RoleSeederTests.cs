@@ -3,15 +3,16 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Identity.Base.Identity;
+using Identity.Base.Roles;
 using Identity.Base.Roles.Entities;
 using Identity.Base.Roles.Options;
 using Identity.Base.Roles.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using OptionsFactory = Microsoft.Extensions.Options.Options;
 
 namespace Identity.Base.Tests.Roles;
 
@@ -26,7 +27,7 @@ public class RoleSeederTests
 
         await using var context = new IdentityRolesDbContext(options);
 
-        var permissionOptions = Options.Create(new PermissionCatalogOptions
+        var permissionOptions = OptionsFactory.Create(new PermissionCatalogOptions
         {
             Definitions =
             {
@@ -36,7 +37,7 @@ public class RoleSeederTests
             }
         });
 
-        var roleOptions = Options.Create(new RoleConfigurationOptions
+        var roleOptions = OptionsFactory.Create(new RoleConfigurationOptions
         {
             Definitions =
             {
@@ -112,7 +113,7 @@ public class RoleSeederTests
         context.RolePermissions.Add(new RolePermission { RoleId = role.Id, PermissionId = Guid.NewGuid() }); // obsolete permission
         await context.SaveChangesAsync();
 
-        var permissionOptions = Options.Create(new PermissionCatalogOptions
+        var permissionOptions = OptionsFactory.Create(new PermissionCatalogOptions
         {
             Definitions =
             {
@@ -121,7 +122,7 @@ public class RoleSeederTests
             }
         });
 
-        var roleOptions = Options.Create(new RoleConfigurationOptions
+        var roleOptions = OptionsFactory.Create(new RoleConfigurationOptions
         {
             Definitions =
             {

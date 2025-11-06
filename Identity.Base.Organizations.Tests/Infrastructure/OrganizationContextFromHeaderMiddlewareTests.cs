@@ -57,7 +57,7 @@ public class OrganizationContextFromHeaderMiddlewareTests
             RequestServices = serviceProvider
         };
         httpContext.Request.Headers[OrganizationContextHeaderNames.OrganizationId] = organization.Id.ToString("D");
-        httpContext.Request.Path = "/users/me/organizations/active";
+        httpContext.Request.Path = "/users/me/organizations";
 
         Guid? capturedOrganizationId = null;
         var middleware = new OrganizationContextFromHeaderMiddleware(_ =>
@@ -98,7 +98,7 @@ public class OrganizationContextFromHeaderMiddlewareTests
             User = principal
         };
         httpContext.Request.Headers[OrganizationContextHeaderNames.OrganizationId] = organization.Id.ToString("D");
-        httpContext.Request.Path = "/users/me/organizations/active";
+        httpContext.Request.Path = "/users/me/organizations";
 
         var accessor = new OrganizationContextAccessor();
         var middleware = new OrganizationContextFromHeaderMiddleware(_ => Task.CompletedTask, OrganizationContextHeaderNames.OrganizationId);
@@ -135,7 +135,7 @@ public class OrganizationContextFromHeaderMiddlewareTests
             User = principal
         };
         httpContext.Request.Headers[OrganizationContextHeaderNames.OrganizationId] = organization.Id.ToString("D");
-        httpContext.Request.Path = "/users/me/organizations/active";
+        httpContext.Request.Path = "/users/me/organizations";
 
         var accessor = new OrganizationContextAccessor();
         Guid? capturedOrganizationId = null;
@@ -182,7 +182,7 @@ public class OrganizationContextFromHeaderMiddlewareTests
             User = principal
         };
         httpContext.Request.Headers[OrganizationContextHeaderNames.OrganizationId] = organization.Id.ToString("D");
-        httpContext.Request.Path = "/organizations";
+        httpContext.Request.Path = "/admin/organizations";
 
         var middleware = new OrganizationContextFromHeaderMiddleware(_ =>
         {

@@ -26,7 +26,7 @@ playbooks:
     last_reviewed: 2025-11-05
   - id: playbooks/seed-roles-and-default-organization
     path: docs/playbooks/seed-roles-and-default-organization.md
-    goal: "Seed admin user, configure RBAC permissions, create default organization, and assign membership"
+    goal: "Seed admin user, configure RBAC permissions, create default organization via /admin/organizations, and assign membership"
     prerequisites:
       dotnet: "9.x"
       database: "PostgreSQL 16"

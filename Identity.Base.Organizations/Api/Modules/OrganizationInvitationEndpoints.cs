@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading;
+using System.Threading.Tasks;
 using FluentValidation;
 using Identity.Base.Extensions;
 using Identity.Base.Identity;
@@ -25,7 +26,9 @@ public static class OrganizationInvitationEndpoints
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        endpoints.MapGet("/organizations/{organizationId:guid}/invitations", async (
+        var adminGroup = endpoints.MapGroup("/admin/organizations/{organizationId:guid}/invitations");
+
+        adminGroup.MapGet(string.Empty, async (
             Guid organizationId,
             ClaimsPrincipal principal,
             IOrganizationScopeResolver scopeResolver,
@@ -44,7 +47,7 @@ public static class OrganizationInvitationEndpoints
         })
         .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationMembersManage));
 
-        endpoints.MapPost("/organizations/{organizationId:guid}/invitations", async (
+        adminGroup.MapPost(string.Empty, async (
             Guid organizationId,
             CreateOrganizationInvitationRequest request,
             IValidator<CreateOrganizationInvitationRequest> validator,
@@ -116,7 +119,7 @@ public static class OrganizationInvitationEndpoints
                     cancellationToken).ConfigureAwait(false);
 
                 var dto = OrganizationApiMapper.ToInvitationDto(invitation);
-                return Results.Created($"/organizations/{organizationId}/invitations/{dto.Code}", dto);
+                return Results.Created($"/admin/organizations/{organizationId}/invitations/{dto.Code}", dto);
             }
             catch (KeyNotFoundException)
             {
@@ -138,7 +141,7 @@ public static class OrganizationInvitationEndpoints
         })
         .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationMembersManage));
 
-        endpoints.MapDelete("/organizations/{organizationId:guid}/invitations/{code:guid}", async (
+        adminGroup.MapDelete("/{code:guid}", async (
             Guid organizationId,
             Guid code,
             ClaimsPrincipal principal,

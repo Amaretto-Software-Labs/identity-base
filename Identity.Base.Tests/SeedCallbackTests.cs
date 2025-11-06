@@ -5,6 +5,7 @@ using Identity.Base.Roles;
 using Identity.Base.Roles.Configuration;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -33,7 +34,9 @@ public class SeedCallbackTests
         });
 
         var rolesBuilder = services.AddIdentityRoles(configuration);
-        rolesBuilder.AddDbContext<IdentityRolesDbContext>(options => options.UseInMemoryDatabase("role-seed-callback"));
+        rolesBuilder.AddDbContext<IdentityRolesDbContext>(options =>
+            options.UseInMemoryDatabase("role-seed-callback")
+                .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning)));
 
         using var provider = services.BuildServiceProvider();
         await provider.SeedIdentityRolesAsync();

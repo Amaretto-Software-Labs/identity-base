@@ -36,7 +36,8 @@ public sealed class OrganizationContextFromHeaderMiddleware
 
 
 
-        if (httpContext.Request.Path.StartsWithSegments("/organizations", StringComparison.OrdinalIgnoreCase))
+        if (httpContext.Request.Path.StartsWithSegments("/admin/organizations", StringComparison.OrdinalIgnoreCase) ||
+            httpContext.Request.Path.StartsWithSegments("/organizations", StringComparison.OrdinalIgnoreCase))
         {
             await _next(httpContext).ConfigureAwait(false);
             return;

@@ -5,15 +5,19 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Identity.Base.Admin.Configuration;
 using Identity.Base.Extensions;
 using Identity.Base.Identity;
 using Identity.Base.Options;
 using Identity.Base.Roles.Abstractions;
 using Identity.Base.Roles.Configuration;
 using Identity.Base.Roles.Services;
+using Identity.Base.Roles;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -40,7 +44,9 @@ public class IdentitySeedTests
 
         var identityBuilder = services.AddIdentityBase(configuration, environment);
         var rolesBuilder = services.AddIdentityAdmin(configuration);
-        rolesBuilder.AddDbContext<IdentityRolesDbContext>(options => options.UseInMemoryDatabase($"{databaseName}_roles"));
+        rolesBuilder.AddDbContext<IdentityRolesDbContext>(options =>
+            options.UseInMemoryDatabase($"{databaseName}_roles")
+                   .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning)));
 
         using var provider = services.BuildServiceProvider();
         await provider.SeedIdentityRolesAsync();

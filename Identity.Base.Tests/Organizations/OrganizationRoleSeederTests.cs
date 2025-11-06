@@ -7,15 +7,16 @@ using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Domain;
 using Identity.Base.Organizations.Options;
 using Identity.Base.Organizations.Services;
+using Identity.Base.Roles;
 using Identity.Base.Roles.Entities;
 using Identity.Base.Roles.Options;
 using Identity.Base.Roles.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using Shouldly;
 using Xunit;
+using OptionsFactory = Microsoft.Extensions.Options.Options;
 
 namespace Identity.Base.Tests.Organizations;
 
@@ -56,7 +57,7 @@ public class OrganizationRoleSeederTests
             .Options;
         await using var orgContext = new OrganizationDbContext(orgDbOptions);
 
-        var organizationRoleOptions = Options.Create(new OrganizationRoleOptions
+        var organizationRoleOptions = OptionsFactory.Create(new OrganizationRoleOptions
         {
             DefaultRoles = new List<OrganizationRoleDefinitionOptions>
             {
@@ -117,9 +118,13 @@ public class OrganizationRoleSeederTests
         roles.ShouldContain(r => r.Name == "OrgMember" && r.Description == "Member");
 
         var ownerRole = roles.First(r => r.Name == "OrgOwner");
-        var ownerPermissions = await orgContext.OrganizationRolePermissions
+        var ownerPermissionIds = await orgContext.OrganizationRolePermissions
             .Where(p => p.RoleId == ownerRole.Id)
-            .Join(roleContext.Permissions, rp => rp.PermissionId, p => p.Id, (rp, p) => p.Name)
+            .Select(p => p.PermissionId)
+            .ToListAsync();
+        var ownerPermissions = await roleContext.Permissions
+            .Where(p => ownerPermissionIds.Contains(p.Id))
+            .Select(p => p.Name)
             .ToListAsync();
         ownerPermissions.ShouldBe(new[]
         {
@@ -170,7 +175,7 @@ public class OrganizationRoleSeederTests
         });
         await orgContext.SaveChangesAsync();
 
-        var organizationRoleOptions = Options.Create(new OrganizationRoleOptions
+        var organizationRoleOptions = OptionsFactory.Create(new OrganizationRoleOptions
         {
             DefaultRoles = new List<OrganizationRoleDefinitionOptions>
             {
@@ -202,9 +207,13 @@ public class OrganizationRoleSeederTests
         updatedRole.Description.ShouldBe("Updated owner");
         updatedRole.IsSystemRole.ShouldBeTrue();
 
-        var assignedPermissions = await orgContext.OrganizationRolePermissions
+        var updatedPermissionIds = await orgContext.OrganizationRolePermissions
             .Where(p => p.RoleId == updatedRole.Id)
-            .Join(roleContext.Permissions, rp => rp.PermissionId, p => p.Id, (rp, p) => p.Name)
+            .Select(p => p.PermissionId)
+            .ToListAsync();
+        var assignedPermissions = await roleContext.Permissions
+            .Where(p => updatedPermissionIds.Contains(p.Id))
+            .Select(p => p.Name)
             .ToListAsync();
         assignedPermissions.ShouldBe(new[]
         {

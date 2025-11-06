@@ -152,11 +152,11 @@ Expect: Non-empty token printed.
 
 Command: List organizations (should include Acme Corp)
 ```bash
-curl -s http://localhost:8080/organizations -H "Authorization: Bearer $ACCESS_TOKEN" | jq '.[0] | {id, slug, displayName}'
+curl -s http://localhost:8080/admin/organizations -H "Authorization: Bearer $ACCESS_TOKEN" | jq '.[0] | {id, slug, displayName}'
 ```
 Expect: `{ "slug": "acme", "displayName": "Acme Corp" }` with a valid `id`.
 
-Command: Verify membership for current user (via organizations list/me endpoints if exposed)
+Command: Verify membership using member-facing endpoint
 ```bash
 curl -s http://localhost:8080/users/me/organizations -H "Authorization: Bearer $ACCESS_TOKEN" | jq '.[0] | {organization: .organization.displayName, isPrimary}'
 ```
@@ -183,5 +183,5 @@ flowchart LR
 # Completion Checklist
 - [ ] Host compiles and starts without errors.
 - [ ] Admin user created and able to obtain access token.
-- [ ] `/organizations` returns the seeded organization.
+- [ ] `/admin/organizations` returns the seeded organization.
 - [ ] `/users/me/organizations` reflects primary membership.

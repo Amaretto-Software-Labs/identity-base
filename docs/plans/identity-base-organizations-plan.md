@@ -134,25 +134,24 @@ Expose Minimal API modules under `/organizations` namespace. Suggested endpoints
 
 | Endpoint | Description | Auth Requirement |
 | --- | --- | --- |
-| `GET /organizations` | List organizations visible to the caller (filter by membership or admin permission). | `admin.organizations.read` |
-| `POST /organizations` | Create new organization. | `admin.organizations.manage` |
-| `GET /organizations/{orgId}` | Get organization details. | `admin.organizations.read` |
-| `PATCH /organizations/{orgId}` | Update name/metadata/status. | `admin.organizations.manage` |
-| `DELETE /organizations/{orgId}` | Archive organization. | `admin.organizations.manage` |
-| `GET /organizations/{orgId}/members` | List memberships, roles. | `admin.organizations.members.read` |
-| `POST /organizations/{orgId}/members` | Add member with roles. | `admin.organizations.members.manage` |
-| `PUT /organizations/{orgId}/members/{userId}` | Update member roles/primary flag. | `admin.organizations.members.manage` |
-| `DELETE /organizations/{orgId}/members/{userId}` | Remove member. | `admin.organizations.members.manage` |
-| `GET /organizations/{orgId}/roles` | List org roles. | `admin.organizations.roles.read` |
-| `POST /organizations/{orgId}/roles` | Create custom role. | `admin.organizations.roles.manage` |
-| `DELETE /organizations/{orgId}/roles/{roleId}` | Delete custom role. | `admin.organizations.roles.manage` |
+| `GET /admin/organizations` | List organizations visible to the caller (filter by membership or admin permission). | `admin.organizations.read` |
+| `POST /admin/organizations` | Create new organization. | `admin.organizations.manage` |
+| `GET /admin/organizations/{orgId}` | Get organization details. | `admin.organizations.read` |
+| `PATCH /admin/organizations/{orgId}` | Update name/metadata/status. | `admin.organizations.manage` |
+| `DELETE /admin/organizations/{orgId}` | Archive organization. | `admin.organizations.manage` |
+| `GET /admin/organizations/{orgId}/members` | List memberships, roles. | `admin.organizations.members.read` |
+| `POST /admin/organizations/{orgId}/members` | Add member with roles. | `admin.organizations.members.manage` |
+| `PUT /admin/organizations/{orgId}/members/{userId}` | Update member roles/primary flag. | `admin.organizations.members.manage` |
+| `DELETE /admin/organizations/{orgId}/members/{userId}` | Remove member. | `admin.organizations.members.manage` |
+| `GET /admin/organizations/{orgId}/roles` | List org roles. | `admin.organizations.roles.read` |
+| `POST /admin/organizations/{orgId}/roles` | Create custom role. | `admin.organizations.roles.manage` |
+| `DELETE /admin/organizations/{orgId}/roles/{roleId}` | Delete custom role. | `admin.organizations.roles.manage` |
 | `GET /users/me/organizations` | List organizations the current user belongs to. | Authenticated |
-| `POST /users/me/organizations/active` | Set active organization (`org_id`, `org_key`). | Authenticated |
 
 Implementation details:
 - Use FluentValidation for request DTOs where appropriate.
 - Apply authorization policies using existing RBAC permissions.
-- For active org switching, return payload instructing clients to refresh tokens or optionally issue new Identity cookie with org claims.
+- Active org switching is entirely client-driven via the `X-Organization-Id` header; document the need to refresh tokens after membership changes.
 
 ### 7. Token & Authorization Integration
 

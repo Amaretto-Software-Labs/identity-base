@@ -18,3 +18,5 @@
 ## Unreleased
 - Renamed the legacy `organization.*` permissions to `admin.organizations.*` across APIs and samples, and seeded parallel `user.organizations.*` entries on default organization roles so org-scoped flows can evolve independently.
 - Tokens now include an `org:memberships` claim and the new `UseOrganizationContextFromHeader()` middleware honors the `X-Organization-Id` header, eliminating the need to refresh tokens when switching organizations (only membership changes require a refresh).
+- Relocated organization CRUD, membership, role, and invitation endpoints beneath `/admin/organizations/...` and removed the `/users/me/organizations/active` endpoint so callers set context exclusively via the `X-Organization-Id` header.
+- Updated playbooks, package docs, and integration guides to reflect the `/admin/organizations/...` admin routes, removal of the active-organization endpoint, and header-based organization selection so both humans and agents follow the current flows without confusion.

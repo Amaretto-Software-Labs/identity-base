@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading;
+using System.Threading.Tasks;
 using FluentValidation;
 using Identity.Base.Extensions;
 using Identity.Base.Organizations.Abstractions;
@@ -20,7 +21,9 @@ public static class OrganizationRoleEndpoints
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        endpoints.MapGet("/organizations/{organizationId:guid}/roles", async (Guid organizationId, Guid? tenantId, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationRoleService roleService, CancellationToken cancellationToken) =>
+        var group = endpoints.MapGroup("/admin/organizations/{organizationId:guid}/roles");
+
+        group.MapGet(string.Empty, async (Guid organizationId, Guid? tenantId, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationRoleService roleService, CancellationToken cancellationToken) =>
         {
             var scopeResult = await EnsureActorInScopeAsync(principal, scopeResolver, organizationId, cancellationToken).ConfigureAwait(false);
             if (scopeResult is not null)
@@ -33,7 +36,7 @@ public static class OrganizationRoleEndpoints
         })
         .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationRolesRead));
 
-        endpoints.MapPost("/organizations/{organizationId:guid}/roles", async (Guid organizationId, CreateOrganizationRoleRequest request, IValidator<CreateOrganizationRoleRequest> validator, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationRoleService roleService, CancellationToken cancellationToken) =>
+        group.MapPost(string.Empty, async (Guid organizationId, CreateOrganizationRoleRequest request, IValidator<CreateOrganizationRoleRequest> validator, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationRoleService roleService, CancellationToken cancellationToken) =>
         {
             var validationResult = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
             if (!validationResult.IsValid)
@@ -58,7 +61,7 @@ public static class OrganizationRoleEndpoints
                     IsSystemRole = request.IsSystemRole
                 }, cancellationToken).ConfigureAwait(false);
 
-                return Results.Created($"/organizations/{organizationId}/roles/{role.Id}", OrganizationApiMapper.ToRoleDto(role));
+                return Results.Created($"/admin/organizations/{organizationId}/roles/{role.Id}", OrganizationApiMapper.ToRoleDto(role));
             }
             catch (ArgumentException ex)
             {
@@ -75,7 +78,7 @@ public static class OrganizationRoleEndpoints
         })
         .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationRolesManage));
 
-        endpoints.MapDelete("/organizations/{organizationId:guid}/roles/{roleId:guid}", async (Guid organizationId, Guid roleId, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationRoleService roleService, CancellationToken cancellationToken) =>
+        group.MapDelete("/{roleId:guid}", async (Guid organizationId, Guid roleId, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationRoleService roleService, CancellationToken cancellationToken) =>
         {
             var scopeResult = await EnsureActorInScopeAsync(principal, scopeResolver, organizationId, cancellationToken).ConfigureAwait(false);
             if (scopeResult is not null)
@@ -95,7 +98,7 @@ public static class OrganizationRoleEndpoints
         })
         .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationRolesManage));
 
-        endpoints.MapGet("/organizations/{organizationId:guid}/roles/{roleId:guid}/permissions", async (Guid organizationId, Guid roleId, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationRoleService roleService, CancellationToken cancellationToken) =>
+        group.MapGet("/{roleId:guid}/permissions", async (Guid organizationId, Guid roleId, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationRoleService roleService, CancellationToken cancellationToken) =>
         {
             var scopeResult = await EnsureActorInScopeAsync(principal, scopeResolver, organizationId, cancellationToken).ConfigureAwait(false);
             if (scopeResult is not null)
@@ -115,7 +118,7 @@ public static class OrganizationRoleEndpoints
         })
         .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationRolesRead));
 
-        endpoints.MapPut("/organizations/{organizationId:guid}/roles/{roleId:guid}/permissions", async (Guid organizationId, Guid roleId, UpdateOrganizationRolePermissionsRequest request, IValidator<UpdateOrganizationRolePermissionsRequest> validator, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationRoleService roleService, CancellationToken cancellationToken) =>
+        group.MapPut("/{roleId:guid}/permissions", async (Guid organizationId, Guid roleId, UpdateOrganizationRolePermissionsRequest request, IValidator<UpdateOrganizationRolePermissionsRequest> validator, ClaimsPrincipal principal, IOrganizationScopeResolver scopeResolver, IOrganizationRoleService roleService, CancellationToken cancellationToken) =>
         {
             var validationResult = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
             if (!validationResult.IsValid)

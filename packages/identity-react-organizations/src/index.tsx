@@ -55,12 +55,6 @@ interface OrganizationMemberListResponseDto {
   members: OrganizationMembershipDto[]
 }
 
-interface ActiveOrganizationResponse {
-  organization: OrganizationDto
-  roleIds: string[]
-  requiresTokenRefresh: boolean
-}
-
 export interface Membership extends MembershipDto {}
 
 export interface OrganizationSummary {
@@ -155,7 +149,6 @@ interface OrganizationsClient {
     options: UpdateOrganizationMemberOptions,
   ) => Promise<OrganizationMember>
   removeMember: (organizationId: string, userId: string) => Promise<void>
-  setActiveOrganization: (organizationId: string) => Promise<ActiveOrganizationResponse>
 }
 
 interface OrganizationsContextValue {
@@ -267,8 +260,8 @@ function buildMemberListPath(organizationId: string, query?: OrganizationMemberQ
 
   const queryString = params.toString()
   return queryString.length > 0
-    ? `/organizations/${organizationId}/members?${queryString}`
-    : `/organizations/${organizationId}/members`
+    ? `/admin/organizations/${organizationId}/members?${queryString}`
+    : `/admin/organizations/${organizationId}/members`
 }
 
 function assertFetcher(fetcher: Fetcher | undefined): Fetcher {
@@ -420,14 +413,14 @@ export function OrganizationsProvider({
       return result.map(mapMembership)
     },
     getOrganization: async (organizationId: string) => {
-      const dto = await authorizedFetch<OrganizationDto>(`/organizations/${organizationId}`)
+    const dto = await authorizedFetch<OrganizationDto>(`/admin/organizations/${organizationId}`)
       return mapOrganization(dto)
     },
-    listRoles: async (organizationId: string) => authorizedFetch<OrganizationRole[]>(`/organizations/${organizationId}/roles`),
+    listRoles: async (organizationId: string) => authorizedFetch<OrganizationRole[]>(`/admin/organizations/${organizationId}/roles`),
     getRolePermissions: async (organizationId: string, roleId: string) =>
-      authorizedFetch<OrganizationRolePermissions>(`/organizations/${organizationId}/roles/${roleId}/permissions`),
+      authorizedFetch<OrganizationRolePermissions>(`/admin/organizations/${organizationId}/roles/${roleId}/permissions`),
     updateRolePermissions: async (organizationId: string, roleId: string, permissions: string[]) =>
-      authorizedFetch<void>(`/organizations/${organizationId}/roles/${roleId}/permissions`, {
+      authorizedFetch<void>(`/admin/organizations/${organizationId}/roles/${roleId}/permissions`, {
         method: 'PUT',
         body: JSON.stringify({ permissions }),
       }),
@@ -449,7 +442,7 @@ export function OrganizationsProvider({
       }
 
       const dto = await authorizedFetch<OrganizationMembershipDto>(
-        `/organizations/${organizationId}/members/${userId}`,
+        `/admin/organizations/${organizationId}/members/${userId}`,
         {
           method: 'PUT',
           body: JSON.stringify(payload),
@@ -459,17 +452,10 @@ export function OrganizationsProvider({
       return mapOrganizationMember(dto)
     },
     removeMember: async (organizationId: string, userId: string) => {
-      await authorizedFetch<void>(`/organizations/${organizationId}/members/${userId}`, {
+      await authorizedFetch<void>(`/admin/organizations/${organizationId}/members/${userId}`, {
         method: 'DELETE',
       })
     },
-    setActiveOrganization: async (organizationId: string) => authorizedFetch<ActiveOrganizationResponse>(
-      '/users/me/organizations/active',
-      {
-        method: 'POST',
-        body: JSON.stringify({ organizationId }),
-      },
-    ),
   }), [authorizedFetch])
 
   const loadMemberships = useCallback(async () => {
@@ -596,35 +582,43 @@ export function OrganizationsProvider({
   }, [activeOrganizationId, isAuthenticated, memberships, setActiveOrganizationId])
 
   const switchActiveOrganization = useCallback(async (organizationId: string): Promise<SwitchOrganizationResult> => {
-    const response = await client.setActiveOrganization(organizationId)
     setActiveOrganizationId(organizationId)
 
-    const organization = mapOrganization(response.organization)
-    setOrganizations((previous) => ({
-      ...previous,
-      [organization.id]: organization,
-    }))
-
-    let tokensRefreshed = false
-    if (response.requiresTokenRefresh && authManager && typeof (authManager as unknown as { refreshTokens?: () => Promise<unknown> }).refreshTokens === 'function') {
+    let summary = organizations[organizationId]
+    if (!summary) {
       try {
-        await (authManager as unknown as { refreshTokens: () => Promise<unknown> }).refreshTokens()
-        tokensRefreshed = true
+        summary = await client.getOrganization(organizationId)
+        setOrganizations((previous) => ({
+          ...previous,
+          [summary!.id]: summary!,
+        }))
       } catch {
-        tokensRefreshed = false
+        summary = {
+          id: organizationId,
+          slug: organizationId,
+          displayName: organizationId,
+          status: 'unknown',
+          metadata: {},
+          createdAtUtc: new Date().toISOString(),
+          updatedAtUtc: null,
+          archivedAtUtc: null,
+          tenantId: null,
+        }
       }
     }
+
+    const membership = memberships.find((item) => item.organizationId === organizationId)
 
     await refreshUser()
     await loadMemberships().catch(() => undefined)
 
     return {
-      organization,
-      roleIds: response.roleIds,
-      requiresTokenRefresh: response.requiresTokenRefresh,
-      tokensRefreshed,
+      organization: summary!,
+      roleIds: membership?.roleIds ?? [],
+      requiresTokenRefresh: false,
+      tokensRefreshed: false,
     }
-  }, [authManager, client, loadMemberships, refreshUser, setActiveOrganizationId])
+  }, [client, loadMemberships, memberships, organizations, refreshUser, setActiveOrganizationId])
 
   const contextValue = useMemo<OrganizationsContextValue>(() => ({
     memberships,

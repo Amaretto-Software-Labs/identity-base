@@ -8,7 +8,6 @@ using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Extensions;
 using Identity.Base.Organizations.Infrastructure;
-using Identity.Base.Organizations.Options;
 using Identity.Base.Organizations.Services;
 using Identity.Base.Organizations.Domain;
 using Identity.Base.Roles.Abstractions;
@@ -20,6 +19,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using OpenIddict.Abstractions;
 using Shouldly;
@@ -47,7 +47,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
 
         using var client = CreateAuthorizedClient(token);
 
-        var response = await client.GetAsync("/organizations");
+        var response = await client.GetAsync("/admin/organizations");
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var payload = await response.Content.ReadFromJsonAsync<List<OrganizationDto>>(JsonOptions);
@@ -56,7 +56,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
 
         client.DefaultRequestHeaders.Add(OrganizationContextHeaderNames.OrganizationId, Guid.NewGuid().ToString("D"));
 
-        var headerResponse = await client.GetAsync("/organizations");
+        var headerResponse = await client.GetAsync("/admin/organizations");
         headerResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
@@ -74,7 +74,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
             Metadata = new Dictionary<string, string?>()
         };
 
-        var response = await client.PostAsJsonAsync("/organizations", request);
+        var response = await client.PostAsJsonAsync("/admin/organizations", request);
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         var dto = await response.Content.ReadFromJsonAsync<OrganizationDto>(JsonOptions);
@@ -89,10 +89,10 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
 
         using var client = CreateAuthorizedClient(token);
 
-        var listResponse = await client.GetAsync("/organizations");
+        var listResponse = await client.GetAsync("/admin/organizations");
         listResponse.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
 
-        var createResponse = await client.PostAsJsonAsync("/organizations", new
+        var createResponse = await client.PostAsJsonAsync("/admin/organizations", new
         {
             Slug = $"non-admin-{Guid.NewGuid():N}",
             DisplayName = "Non Admin Org",
@@ -117,13 +117,6 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         memberships.ShouldNotBeNull();
         memberships!.ShouldContain(m => m.OrganizationId == organizationId);
 
-        var activeResponse = await client.PostAsJsonAsync("/users/me/organizations/active", new { organizationId });
-        activeResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-
-        var activePayload = await activeResponse.Content.ReadFromJsonAsync<ActiveOrganizationDto>(JsonOptions);
-        activePayload.ShouldNotBeNull();
-        activePayload!.RequiresTokenRefresh.ShouldBeFalse();
-
         client.DefaultRequestHeaders.Add(OrganizationContextHeaderNames.OrganizationId, organizationId.ToString("D"));
 
         var secondResponse = await client.GetAsync("/users/me/organizations");
@@ -138,7 +131,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
 
         using var client = CreateAuthorizedClient(token);
 
-        var patchResponse = await client.PatchAsJsonAsync($"/organizations/{organizationId}", new
+        var patchResponse = await client.PatchAsJsonAsync($"/admin/organizations/{organizationId}", new
         {
             DisplayName = "Updated Organization Name"
         });
@@ -149,10 +142,10 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         patched!.DisplayName.ShouldBe("Updated Organization Name");
         patched.Status.ShouldBe(OrganizationStatus.Active);
 
-        var deleteResponse = await client.DeleteAsync($"/organizations/{organizationId}");
+        var deleteResponse = await client.DeleteAsync($"/admin/organizations/{organizationId}");
         deleteResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        var getResponse = await client.GetAsync($"/organizations/{organizationId}");
+        var getResponse = await client.GetAsync($"/admin/organizations/{organizationId}");
         getResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var archived = await getResponse.Content.ReadFromJsonAsync<OrganizationDto>(JsonOptions);
@@ -171,7 +164,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
 
         using var client = CreateAuthorizedClient(token);
 
-        var addResponse = await client.PostAsJsonAsync($"/organizations/{organizationId}/members", new
+        var addResponse = await client.PostAsJsonAsync($"/admin/organizations/{organizationId}/members", new
         {
             UserId = memberId,
             IsPrimary = false,
@@ -185,17 +178,17 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         created!.UserId.ShouldBe(memberId);
         created.RoleIds.ShouldBeEmpty();
 
-        var listResponse = await client.GetAsync($"/organizations/{organizationId}/members");
+        var listResponse = await client.GetAsync($"/admin/organizations/{organizationId}/members");
         listResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var list = await listResponse.Content.ReadFromJsonAsync<OrganizationMemberListResponse>(JsonOptions);
         list.ShouldNotBeNull();
         list!.Members.ShouldContain(m => m.UserId == memberId);
 
-        var deleteResponse = await client.DeleteAsync($"/organizations/{organizationId}/members/{memberId}");
+        var deleteResponse = await client.DeleteAsync($"/admin/organizations/{organizationId}/members/{memberId}");
         deleteResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        var listAfterDelete = await client.GetAsync($"/organizations/{organizationId}/members");
+        var listAfterDelete = await client.GetAsync($"/admin/organizations/{organizationId}/members");
         listAfterDelete.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var after = await listAfterDelete.Content.ReadFromJsonAsync<OrganizationMemberListResponse>(JsonOptions);
@@ -227,18 +220,6 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         client.DefaultRequestHeaders.Add(OrganizationContextHeaderNames.OrganizationId, organizationId.ToString("D"));
 
         var response = await client.GetAsync("/users/me/organizations");
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
-    }
-
-    [Fact]
-    public async Task User_Cannot_Set_Active_Organization_Without_Membership()
-    {
-        var organizationId = await CreateOrganizationAsync($"org-active-{Guid.NewGuid():N}", "Active Org");
-        var (_, token) = await CreateStandardUserAndTokenAsync("active-user@example.com", "UserPass!2345");
-
-        using var client = CreateAuthorizedClient(token);
-
-        var response = await client.PostAsJsonAsync("/users/me/organizations/active", new { organizationId });
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
@@ -394,7 +375,6 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
 
     private sealed record OrganizationMemberListResponse(int Page, int PageSize, int TotalCount, OrganizationMembershipDto[] Members);
 
-    private sealed record ActiveOrganizationDto(OrganizationDto Organization, Guid[] RoleIds, bool RequiresTokenRefresh);
 }
 
 public sealed class OrganizationApiFactory : IdentityApiFactory
@@ -407,7 +387,8 @@ public sealed class OrganizationApiFactory : IdentityApiFactory
         {
             services.AddIdentityBaseOrganizations(options =>
             {
-                options.UseInMemoryDatabase("IdentityBaseTests_Organizations");
+                options.UseInMemoryDatabase("IdentityBaseTests_Organizations")
+                    .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
             });
             services.AddSingleton<IStartupFilter, OrganizationStartupFilter>();
         });
