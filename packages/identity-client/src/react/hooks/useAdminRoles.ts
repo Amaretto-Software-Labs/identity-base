@@ -131,7 +131,7 @@ export function useAdminRoles(options: UseAdminRolesOptions = {}): UseAdminRoles
 
   return {
     data,
-    roles: data?.roles ?? [],
+    roles: data?.items ?? [],
     query,
     isLoading,
     isMutating,

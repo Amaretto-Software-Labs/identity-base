@@ -43,7 +43,7 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
 
         var payload = JsonSerializer.Deserialize<AdminRoleListResponseDto>(responseBody, JsonOptions);
         payload.ShouldNotBeNull(responseBody);
-        payload!.Roles.ShouldContain(role => role.Name == "IdentityAdmin");
+        payload!.Items.ShouldContain(role => role.Name == "IdentityAdmin");
     }
 
     [Fact]
@@ -79,8 +79,8 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
         payload!.Page.ShouldBe(2);
         payload.PageSize.ShouldBe(200);
         payload.TotalCount.ShouldBe(expectedTotal);
-        payload.Roles.Count.ShouldBe(expectedNames.Count);
-        payload.Roles.Select(role => role.Name)
+        payload.Items.Count.ShouldBe(expectedNames.Count);
+        payload.Items.Select(role => role.Name)
             .ToList()
             .ShouldBe(expectedNames);
     }
@@ -152,7 +152,7 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
         listResponse.StatusCode.ShouldBe(HttpStatusCode.OK, listBody);
         var list = JsonSerializer.Deserialize<AdminRoleListResponseDto>(listBody, JsonOptions);
         list.ShouldNotBeNull(listBody);
-        var systemRole = list!.Roles.First(role => role.Name == "IdentityAdmin");
+        var systemRole = list!.Items.First(role => role.Name == "IdentityAdmin");
 
         var response = await client.DeleteAsync($"/admin/roles/{systemRole.Id:D}");
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
@@ -324,5 +324,5 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
 
     private sealed record AdminRoleDetailDto(Guid Id, string Name, string? Description, bool IsSystemRole, string ConcurrencyStamp, List<string> Permissions);
 
-    private sealed record AdminRoleListResponseDto(int Page, int PageSize, int TotalCount, List<AdminRoleSummaryDto> Roles);
+    private sealed record AdminRoleListResponseDto(int Page, int PageSize, int TotalCount, List<AdminRoleSummaryDto> Items);
 }

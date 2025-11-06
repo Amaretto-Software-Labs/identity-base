@@ -1,3 +1,8 @@
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Collections.Generic;
 using Identity.Base.Abstractions;
 using Identity.Base.Logging;
 using Identity.Base.Options;
@@ -17,6 +22,7 @@ internal sealed class IdentityDataSeeder
     private readonly ILogSanitizer _sanitizer;
     private readonly IdentityBaseSeedCallbacks _seedCallbacks;
     private readonly IServiceProvider _serviceProvider;
+    private readonly IEnumerable<IIdentitySeedRoleAssignmentHandler> _roleAssignmentHandlers;
 
     public IdentityDataSeeder(
         UserManager<ApplicationUser> userManager,
@@ -26,7 +32,8 @@ internal sealed class IdentityDataSeeder
         ILogger<IdentityDataSeeder> logger,
         ILogSanitizer sanitizer,
         IdentityBaseSeedCallbacks seedCallbacks,
-        IServiceProvider serviceProvider)
+        IServiceProvider serviceProvider,
+        IEnumerable<IIdentitySeedRoleAssignmentHandler> roleAssignmentHandlers)
     {
         _userManager = userManager;
         _roleManager = roleManager;
@@ -36,6 +43,7 @@ internal sealed class IdentityDataSeeder
         _sanitizer = sanitizer;
         _seedCallbacks = seedCallbacks;
         _serviceProvider = serviceProvider;
+        _roleAssignmentHandlers = roleAssignmentHandlers;
     }
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
@@ -70,47 +78,60 @@ internal sealed class IdentityDataSeeder
             }
         }
 
-        var existingUser = await _userManager.FindByEmailAsync(options.Email);
-        if (existingUser is not null)
-        {
-            _logger.LogInformation("Seed user {Email} already exists.", _sanitizer.RedactEmail(options.Email));
-            await ExecuteCallbacksAsync(cancellationToken).ConfigureAwait(false);
-            return;
-        }
+        var user = await _userManager.FindByEmailAsync(options.Email);
+        var userExists = user is not null;
 
-        var user = new ApplicationUser
+        if (!userExists)
         {
-            UserName = options.Email,
-            Email = options.Email,
-            EmailConfirmed = true,
-            DisplayName = "Seed Administrator"
-        };
-
-        var createUserResult = await _userManager.CreateAsync(user, options.Password);
-        if (!createUserResult.Succeeded)
-        {
-            _logger.LogWarning("Failed to create seed user {Email}: {Errors}", _sanitizer.RedactEmail(options.Email), string.Join(",", createUserResult.Errors.Select(e => e.Description)));
-            await ExecuteCallbacksAsync(cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        if (options.Roles.Length > 0)
-        {
-            var addToRoleResult = await _userManager.AddToRolesAsync(user, options.Roles);
-            if (!addToRoleResult.Succeeded)
+            user = new ApplicationUser
             {
-                _logger.LogWarning("Failed to add seed user {Email} to roles: {Errors}", _sanitizer.RedactEmail(options.Email), string.Join(",", addToRoleResult.Errors.Select(e => e.Description)));
+                UserName = options.Email,
+                Email = options.Email,
+                EmailConfirmed = true,
+                DisplayName = "Seed Administrator"
+            };
+
+            var createUserResult = await _userManager.CreateAsync(user, options.Password);
+            if (!createUserResult.Succeeded)
+            {
+                _logger.LogWarning("Failed to create seed user {Email}: {Errors}", _sanitizer.RedactEmail(options.Email), string.Join(",", createUserResult.Errors.Select(e => e.Description)));
                 await ExecuteCallbacksAsync(cancellationToken).ConfigureAwait(false);
                 return;
             }
         }
-
-        foreach (var listener in _creationListeners)
+        else
         {
-            await listener.OnUserCreatedAsync(user, cancellationToken).ConfigureAwait(false);
+            _logger.LogInformation("Seed user {Email} already exists.", _sanitizer.RedactEmail(options.Email));
         }
 
-        _logger.LogInformation("Seed user {Email} created successfully.", _sanitizer.RedactEmail(options.Email));
+        if (options.Roles.Length > 0 && user is not null)
+        {
+            var currentRoles = await _userManager.GetRolesAsync(user).ConfigureAwait(false);
+            var missingRoles = options.Roles
+                .Except(currentRoles, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            if (missingRoles.Length > 0)
+            {
+                var addToRoleResult = await _userManager.AddToRolesAsync(user, missingRoles).ConfigureAwait(false);
+                if (!addToRoleResult.Succeeded)
+                {
+                    _logger.LogWarning("Failed to add seed user {Email} to roles: {Errors}", _sanitizer.RedactEmail(options.Email), string.Join(",", addToRoleResult.Errors.Select(e => e.Description)));
+                }
+            }
+
+            await NotifyRoleAssignmentHandlersAsync(user.Id, options.Roles, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!userExists && user is not null)
+        {
+            foreach (var listener in _creationListeners)
+            {
+                await listener.OnUserCreatedAsync(user, cancellationToken).ConfigureAwait(false);
+            }
+
+            _logger.LogInformation("Seed user {Email} created successfully.", _sanitizer.RedactEmail(options.Email));
+        }
 
         await ExecuteCallbacksAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -120,6 +141,30 @@ internal sealed class IdentityDataSeeder
         foreach (var callback in _seedCallbacks.IdentitySeedCallbacks)
         {
             await callback(_serviceProvider, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task NotifyRoleAssignmentHandlersAsync(Guid userId, string[] roles, CancellationToken cancellationToken)
+    {
+        if (roles.Length == 0)
+        {
+            return;
+        }
+
+        foreach (var handler in _roleAssignmentHandlers)
+        {
+            try
+            {
+                await handler.AssignRolesAsync(userId, roles, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Seed role handler {Handler} failed to assign roles for seed user.", handler.GetType().FullName);
+            }
         }
     }
 }

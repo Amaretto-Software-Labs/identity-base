@@ -27,6 +27,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -361,7 +362,8 @@ public sealed class IdentityBaseBuilder
                     databaseName = "IdentityBaseTests";
                 }
 
-                options.UseInMemoryDatabase(databaseName);
+                options.UseInMemoryDatabase(databaseName)
+                    .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
             }
             else
             {

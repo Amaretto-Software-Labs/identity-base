@@ -323,9 +323,7 @@ export class IdentityAuthManager {
       params.set('deleted', String(query.deleted))
     }
 
-    if (query.sort && query.sort.trim().length > 0) {
-      params.set('sort', query.sort.trim())
-    }
+    appendSortParam(params, query.sort)
 
     const queryString = params.toString()
     const path = queryString.length > 0 ? `/admin/users?${queryString}` : '/admin/users'
@@ -435,9 +433,7 @@ export class IdentityAuthManager {
       params.set('isSystemRole', String(query.isSystemRole))
     }
 
-    if (query.sort && query.sort.trim().length > 0) {
-      params.set('sort', query.sort.trim())
-    }
+    appendSortParam(params, query.sort)
 
     const queryString = params.toString()
     const path = queryString.length > 0 ? `/admin/roles?${queryString}` : '/admin/roles'
@@ -481,9 +477,7 @@ export class IdentityAuthManager {
       params.set('search', query.search.trim())
     }
 
-    if (query.sort && query.sort.trim().length > 0) {
-      params.set('sort', query.sort.trim())
-    }
+    appendSortParam(params, query.sort)
 
     const queryString = params.toString()
     const path = queryString.length > 0 ? `/admin/permissions?${queryString}` : '/admin/permissions'
@@ -564,5 +558,19 @@ export class IdentityAuthManager {
         'Authorization': `Bearer ${token}`,
       },
     })
+  }
+}
+
+function appendSortParam(params: URLSearchParams, sort?: string | string[]): void {
+  if (!sort) {
+    return
+  }
+
+  const values = Array.isArray(sort) ? sort : [sort]
+  for (const value of values) {
+    const trimmed = value?.trim()
+    if (trimmed && trimmed.length > 0) {
+      params.append('sort', trimmed)
+    }
   }
 }

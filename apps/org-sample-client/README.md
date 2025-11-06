@@ -5,8 +5,8 @@ Companion SPA for `apps/org-sample-api`. This React + Vite application demonstra
 ## Features
 - **Registration** – renders the profile schema (including organization slug/name fields) and submits to `/auth/register`.
 - **Authentication** – uses `@identity-base/react-client` for sign-in, session management, and API calls.
-- **Dashboard** – lists memberships from `/users/me/organizations`, allows switching the active organization, and links to management pages.
-- **Organization management** – displays members/roles via `/organizations/{id}/members` & `/organizations/{id}/roles`, and exposes invitation CRUD using the sample endpoints.
+- **Dashboard** – lists memberships from `/users/me/organizations`, allows switching the active organization (via `X-Organization-Id`), and links to management pages.
+- **Organization management** – displays members/roles via `/admin/organizations/{id}/members` & `/admin/organizations/{id}/roles`, and exposes invitation CRUD using the sample endpoints.
 - **Invitation redemption** – redeem invitation codes from `/sample/invitations/claim` after signing in.
 
 ## Getting Started
@@ -41,4 +41,3 @@ npm run build
 ```
 
 The build invokes TypeScript and `vite build`, outputting production assets under `dist/`.
-

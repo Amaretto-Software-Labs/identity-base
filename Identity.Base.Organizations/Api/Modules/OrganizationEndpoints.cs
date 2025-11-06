@@ -18,14 +18,18 @@ public static class OrganizationEndpoints
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        endpoints.MapGet("/organizations", async (Guid? tenantId, IOrganizationService service, CancellationToken cancellationToken) =>
+        var group = endpoints.MapGroup("/admin/organizations");
+
+        group.MapGet(string.Empty, async ([AsParameters] AdminOrganizationListQuery query, IOrganizationService service, CancellationToken cancellationToken) =>
         {
-            var organizations = await service.ListAsync(tenantId, cancellationToken).ConfigureAwait(false);
-            return Results.Ok(organizations.Select(OrganizationApiMapper.ToOrganizationDto));
+            var pageRequest = query.ToPageRequest();
+            var paged = await service.ListAsync(query.TenantId, pageRequest, query.Status, cancellationToken).ConfigureAwait(false);
+            var response = OrganizationApiMapper.ToOrganizationPagedResult(paged);
+            return Results.Ok(response);
         })
         .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationsRead));
 
-        endpoints.MapPost("/organizations", async (CreateOrganizationRequest request, IValidator<CreateOrganizationRequest> validator, IOrganizationService service, CancellationToken cancellationToken) =>
+        group.MapPost(string.Empty, async (CreateOrganizationRequest request, IValidator<CreateOrganizationRequest> validator, IOrganizationService service, CancellationToken cancellationToken) =>
         {
             var validationResult = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
             if (!validationResult.IsValid)
@@ -43,7 +47,7 @@ public static class OrganizationEndpoints
                     Metadata = request.Metadata
                 }, cancellationToken).ConfigureAwait(false);
 
-                return Results.Created($"/organizations/{organization.Id}", OrganizationApiMapper.ToOrganizationDto(organization));
+                return Results.Created($"/admin/organizations/{organization.Id}", OrganizationApiMapper.ToOrganizationDto(organization));
             }
             catch (ArgumentException ex)
             {
@@ -56,14 +60,16 @@ public static class OrganizationEndpoints
         })
         .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationsManage));
 
-        endpoints.MapGet("/organizations/{organizationId:guid}", async (Guid organizationId, IOrganizationService service, CancellationToken cancellationToken) =>
+        var organizationGroup = group.MapGroup("/{organizationId:guid}");
+
+        organizationGroup.MapGet(string.Empty, async (Guid organizationId, IOrganizationService service, CancellationToken cancellationToken) =>
         {
             var organization = await service.GetByIdAsync(organizationId, cancellationToken).ConfigureAwait(false);
             return organization is null ? Results.NotFound() : Results.Ok(OrganizationApiMapper.ToOrganizationDto(organization));
         })
         .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationsRead));
 
-        endpoints.MapPatch("/organizations/{organizationId:guid}", async (Guid organizationId, UpdateOrganizationRequest request, IValidator<UpdateOrganizationRequest> validator, IOrganizationService service, CancellationToken cancellationToken) =>
+        organizationGroup.MapPatch(string.Empty, async (Guid organizationId, UpdateOrganizationRequest request, IValidator<UpdateOrganizationRequest> validator, IOrganizationService service, CancellationToken cancellationToken) =>
         {
             var validationResult = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
             if (!validationResult.IsValid)
@@ -97,7 +103,7 @@ public static class OrganizationEndpoints
         })
         .RequireAuthorization(policy => policy.RequireOrganizationPermission(AdminOrganizationPermissions.OrganizationsManage));
 
-        endpoints.MapDelete("/organizations/{organizationId:guid}", async (Guid organizationId, IOrganizationService service, CancellationToken cancellationToken) =>
+        organizationGroup.MapDelete(string.Empty, async (Guid organizationId, IOrganizationService service, CancellationToken cancellationToken) =>
         {
             try
             {

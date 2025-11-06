@@ -92,8 +92,12 @@ public sealed class RoleSeeder : IRoleSeeder
 
         foreach (var permissionDefinition in _permissionOptions.Definitions)
         {
-            if (existingPermissions.ContainsKey(permissionDefinition.Name))
+            if (existingPermissions.TryGetValue(permissionDefinition.Name, out var existingPermission))
             {
+                if (!string.Equals(existingPermission.Description, permissionDefinition.Description, StringComparison.Ordinal))
+                {
+                    existingPermission.Description = permissionDefinition.Description;
+                }
                 continue;
             }
 

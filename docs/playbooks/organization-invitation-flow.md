@@ -36,13 +36,13 @@ ADMIN_TOKEN=$(curl -s -X POST http://localhost:8080/connect/token \
 
 Command: Capture an existing organization id (first item)
 ```bash
-ORG_ID=$(curl -s http://localhost:8080/organizations -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.[0].id // empty'); if [ -z "$ORG_ID" ]; then echo "NO_ORGS"; else echo $ORG_ID; fi
+ORG_ID=$(curl -s http://localhost:8080/admin/organizations -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.[0].id // empty'); if [ -z "$ORG_ID" ]; then echo "NO_ORGS"; else echo $ORG_ID; fi
 ```
 
 Optional Step 3: Create an organization if none exists
-Command: if [ -z "$ORG_ID" ] || [ "$ORG_ID" = "NO_ORGS" ]; then ORG_ID=$(curl -s -X POST http://localhost:8080/organizations -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" -d '{"slug":"acme","displayName":"Acme Corp"}' | jq -r '.id'); echo $ORG_ID; fi
+Command: if [ -z "$ORG_ID" ] || [ "$ORG_ID" = "NO_ORGS" ]; then ORG_ID=$(curl -s -X POST http://localhost:8080/admin/organizations -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" -d '{"slug":"acme","displayName":"Acme Corp"}' | jq -r '.id'); echo $ORG_ID; fi
 ```bash
-if [ -z "$ORG_ID" ] || [ "$ORG_ID" = "NO_ORGS" ]; then ORG_ID=$(curl -s -X POST http://localhost:8080/organizations -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" -d '{"slug":"acme","displayName":"Acme Corp"}' | jq -r '.id'); echo $ORG_ID; fi
+if [ -z "$ORG_ID" ] || [ "$ORG_ID" = "NO_ORGS" ]; then ORG_ID=$(curl -s -X POST http://localhost:8080/admin/organizations -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" -d '{"slug":"acme","displayName":"Acme Corp"}' | jq -r '.id'); echo $ORG_ID; fi
 ```
 
 Command: Create invitee user via admin API (email confirmed + password)
@@ -55,7 +55,7 @@ INVITEE_EMAIL="bob@example.com"; curl -s -X POST http://localhost:8080/admin/use
 
 Command: Create invitation for the organization
 ```bash
-INV_CODE=$(curl -s -X POST http://localhost:8080/organizations/$ORG_ID/invitations \
+INV_CODE=$(curl -s -X POST http://localhost:8080/admin/organizations/$ORG_ID/invitations \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d "{ \"email\": \"$INVITEE_EMAIL\" }" | jq -r '.code'); echo $INV_CODE
@@ -101,8 +101,8 @@ sequenceDiagram
   participant Host as Identity Host
   participant Invitee
   Admin->>Host: POST /connect/token (admin)
-  Admin->>Host: GET /organizations
-  Admin->>Host: POST /organizations/{id}/invitations
+  Admin->>Host: GET /admin/organizations
+  Admin->>Host: POST /admin/organizations/{id}/invitations
   Host-->>Admin: 201 Created { code }
   Invitee->>Host: POST /connect/token (invitee)
   Invitee->>Host: POST /invitations/claim { code }

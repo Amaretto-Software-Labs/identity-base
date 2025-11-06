@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Identity.Base.Abstractions.Pagination;
 using Identity.Base.Admin.Authorization;
 using Identity.Base.Admin.Configuration;
 using Identity.Base.Admin.Diagnostics;
@@ -44,7 +46,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         group.MapGet("", ListUsersAsync)
             .WithName("AdminListUsers")
             .WithSummary("Returns a paged list of users for administration.")
-            .Produces<AdminUserListResponse>(StatusCodes.Status200OK)
+            .Produces<PagedResult<AdminUserSummary>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .RequireAuthorization(policy => policy.RequireAdminPermission("users.read"));
 
@@ -162,27 +164,20 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         var logger = loggerFactory.CreateLogger(typeof(AdminUserEndpoints).FullName!);
         var slowQueryThresholdMs = Math.Max(0, diagnosticsOptions.Value.SlowQueryThreshold.TotalMilliseconds);
         var stopwatch = Stopwatch.StartNew();
-        var page = query.Page.GetValueOrDefault(1);
-        if (page < 1)
-        {
-            page = 1;
-        }
 
-        var pageSize = query.PageSize.GetValueOrDefault(25);
-        if (pageSize < 1)
-        {
-            pageSize = 25;
-        }
-        else if (pageSize > MaxPageSize)
-        {
-            pageSize = MaxPageSize;
-        }
+        var pageRequest = PageRequest.Create(
+            query.Page,
+            query.PageSize,
+            query.Search,
+            query.Sort is null ? null : new[] { query.Sort },
+            defaultPageSize: 25,
+            maxPageSize: MaxPageSize);
 
         var usersQuery = appDbContext.Users.AsNoTracking();
 
-        if (!string.IsNullOrWhiteSpace(query.Search))
+        if (!string.IsNullOrWhiteSpace(pageRequest.Search))
         {
-            var pattern = CreateSearchPattern(query.Search);
+            var pattern = SearchPatternHelper.CreateSearchPattern(pageRequest.Search);
             usersQuery = usersQuery.Where(user =>
                 EF.Functions.ILike(user.Email ?? string.Empty, pattern) ||
                 EF.Functions.ILike(user.DisplayName ?? string.Empty, pattern) ||
@@ -215,7 +210,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
 
             if (roleId == Guid.Empty)
             {
-                return Results.Ok(AdminUserListResponse.Empty(page, pageSize));
+                return Results.Ok(PagedResult<AdminUserSummary>.Empty(pageRequest.Page, pageRequest.PageSize));
             }
 
             usersQuery = usersQuery.Where(user =>
@@ -237,26 +232,35 @@ namespace Identity.Base.Admin.Features.AdminUsers;
 
         var total = await usersQuery.CountAsync(cancellationToken).ConfigureAwait(false);
 
-        var orderedQuery = query.Sort switch
+        if (total == 0)
         {
-            "createdAt" or "createdAt:asc" => usersQuery
-                .OrderBy(user => user.CreatedAt)
-                .ThenBy(user => user.Id),
-            "email:desc" => usersQuery
-                .OrderByDescending(user => user.Email ?? user.UserName ?? string.Empty)
-                .ThenBy(user => user.Id),
-            "email" or "email:asc" => usersQuery
-                .OrderBy(user => user.Email ?? user.UserName ?? string.Empty)
-                .ThenBy(user => user.Id),
-            _ => usersQuery
-                .OrderByDescending(user => user.CreatedAt)
-                .ThenBy(user => user.Id)
-        };
+            stopwatch.Stop();
 
-        var skip = (page - 1) * pageSize;
+            var empty = PagedResult<AdminUserSummary>.Empty(pageRequest.Page, pageRequest.PageSize);
+            var tagsEmpty = AdminMetrics.BuildUserQueryTags(query);
+            AdminMetrics.UsersListDuration.Record(stopwatch.Elapsed.TotalMilliseconds, tagsEmpty);
+            AdminMetrics.UsersListResultCount.Record(0, tagsEmpty);
+
+            logger.LogInformation(
+                "Listed admin users in {ElapsedMs} ms (page {Page}/{PageSize}, total 0, returned 0, search={HasSearch}, role={HasRole}, locked={LockedFilter}, deleted={DeletedFilter}, sort={Sort})",
+                stopwatch.Elapsed.TotalMilliseconds,
+                pageRequest.Page,
+                pageRequest.PageSize,
+                string.IsNullOrWhiteSpace(pageRequest.Search) ? "false" : "true",
+                string.IsNullOrWhiteSpace(query.Role) ? "false" : "true",
+                query.Locked.HasValue ? (query.Locked.Value ? "locked" : "unlocked") : "all",
+                query.Deleted.HasValue ? (query.Deleted.Value ? "deleted" : "active") : "all",
+                FormatSorts(query.Sort));
+
+            return Results.Ok(empty);
+        }
+
+        var orderedQuery = ApplyUserSorting(usersQuery, pageRequest);
+
+        var skip = pageRequest.GetSkip();
         var users = await orderedQuery
             .Skip(skip)
-            .Take(pageSize)
+            .Take(pageRequest.PageSize)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -316,15 +320,15 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         logger.LogInformation(
             "Listed admin users in {ElapsedMs} ms (page {Page}/{PageSize}, total {TotalCount}, returned {ReturnedCount}, search={HasSearch}, role={HasRole}, locked={LockedFilter}, deleted={DeletedFilter}, sort={Sort})",
             elapsedMs,
-            page,
-            pageSize,
+            pageRequest.Page,
+            pageRequest.PageSize,
             total,
             items.Count,
-            string.IsNullOrWhiteSpace(query.Search) ? "false" : "true",
+            string.IsNullOrWhiteSpace(pageRequest.Search) ? "false" : "true",
             string.IsNullOrWhiteSpace(query.Role) ? "false" : "true",
             query.Locked.HasValue ? (query.Locked.Value ? "locked" : "unlocked") : "all",
             query.Deleted.HasValue ? (query.Deleted.Value ? "deleted" : "active") : "all",
-            query.Sort ?? "createdAt:desc");
+            FormatSorts(query.Sort));
 
         if (slowQueryThresholdMs > 0 && elapsedMs > slowQueryThresholdMs)
         {
@@ -332,11 +336,11 @@ namespace Identity.Base.Admin.Features.AdminUsers;
                 "Admin users list query exceeded threshold: {ElapsedMs} ms > {Threshold} ms (page {Page}/{PageSize}, filters applied)",
                 elapsedMs,
                 slowQueryThresholdMs,
-                page,
-                pageSize);
+                pageRequest.Page,
+                pageRequest.PageSize);
         }
 
-        return Results.Ok(new AdminUserListResponse(page, pageSize, total, items));
+        return Results.Ok(new PagedResult<AdminUserSummary>(pageRequest.Page, pageRequest.PageSize, total, items));
     }
 
     private static async Task<IResult> GetUserAsync(
@@ -1016,21 +1020,56 @@ namespace Identity.Base.Admin.Features.AdminUsers;
     private static IResult? EnsureSuccess(IdentityResult result)
         => result.Succeeded ? null : Results.ValidationProblem(result.ToDictionary());
 
-    private static string CreateSearchPattern(string value)
+    private static IOrderedQueryable<ApplicationUser> ApplyUserSorting(IQueryable<ApplicationUser> source, PageRequest request)
     {
-        var trimmed = value.Trim();
-        if (trimmed.Length == 0)
+        IOrderedQueryable<ApplicationUser>? ordered = null;
+
+        if (request.Sorts.Count > 0)
         {
-            return "%";
+            foreach (var sort in request.Sorts)
+            {
+                var key = sort.Field.ToLowerInvariant();
+                ordered = key switch
+                {
+                    "createdat" => ApplyUserOrder(source, ordered, user => user.CreatedAt, sort.Direction),
+                    "email" => ApplyUserOrder(source, ordered, user => user.Email ?? user.UserName ?? string.Empty, sort.Direction),
+                    "displayname" => ApplyUserOrder(source, ordered, user => user.DisplayName ?? user.Email ?? string.Empty, sort.Direction),
+                    _ => ordered
+                };
+
+                if (ordered is not null)
+                {
+                    source = ordered;
+                }
+            }
         }
 
-        var escaped = trimmed
-            .Replace(@"\", @"\\", StringComparison.Ordinal)
-            .Replace("%", @"\%", StringComparison.Ordinal)
-            .Replace("_", @"\_", StringComparison.Ordinal);
-
-        return $"%{escaped}%";
+        ordered ??= source.OrderByDescending(user => user.CreatedAt);
+        return ordered.ThenBy(user => user.Id);
     }
+
+    private static IOrderedQueryable<ApplicationUser> ApplyUserOrder<T>(
+        IQueryable<ApplicationUser> source,
+        IOrderedQueryable<ApplicationUser>? ordered,
+        Expression<Func<ApplicationUser, T>> keySelector,
+        SortDirection direction)
+    {
+        if (ordered is null)
+        {
+            return direction == SortDirection.Descending
+                ? source.OrderByDescending(keySelector)
+                : source.OrderBy(keySelector);
+        }
+
+        return direction == SortDirection.Descending
+            ? ordered.ThenByDescending(keySelector)
+            : ordered.ThenBy(keySelector);
+    }
+
+    private static string FormatSorts(string? sort)
+        => !string.IsNullOrWhiteSpace(sort)
+            ? sort
+            : "createdAt:desc";
 }
 
 internal sealed class AdminUserListQuery
@@ -1041,19 +1080,13 @@ internal sealed class AdminUserListQuery
 
     public string? Search { get; set; }
 
+    public string? Sort { get; set; }
+
     public string? Role { get; set; }
 
     public bool? Locked { get; set; }
 
     public bool? Deleted { get; set; }
-
-    public string? Sort { get; set; }
-}
-
-internal sealed record AdminUserListResponse(int Page, int PageSize, int TotalCount, IReadOnlyList<AdminUserSummary> Users)
-{
-    public static AdminUserListResponse Empty(int page, int pageSize)
-        => new(page, pageSize, 0, Array.Empty<AdminUserSummary>());
 }
 
 internal sealed record AdminUserSummary(

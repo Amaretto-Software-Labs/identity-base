@@ -1,13 +1,16 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Identity.Base.Abstractions.Pagination;
 using Identity.Base.Admin.Authorization;
 using Identity.Base.Admin.Configuration;
 using Identity.Base.Logging;
 using Identity.Base.Admin.Diagnostics;
 using Identity.Base.Admin.Options;
+using Identity.Base.Extensions;
 using Identity.Base.Roles.Abstractions;
 using Identity.Base.Roles.Entities;
 using Microsoft.AspNetCore.Builder;
@@ -31,7 +34,7 @@ internal static class AdminRoleEndpoints
         group.MapGet("", ListRolesAsync)
             .WithName("AdminListRoles")
             .WithSummary("Returns a paged list of roles and their permissions.")
-            .Produces<AdminRoleListResponse>(StatusCodes.Status200OK)
+            .Produces<PagedResult<AdminRoleSummary>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .RequireAuthorization(policy => policy.RequireAdminPermission("roles.read"));
 
@@ -75,27 +78,20 @@ internal static class AdminRoleEndpoints
         var logger = loggerFactory.CreateLogger(typeof(AdminRoleEndpoints).FullName!);
         var slowQueryThresholdMs = Math.Max(0, diagnosticsOptions.Value.SlowQueryThreshold.TotalMilliseconds);
         var stopwatch = Stopwatch.StartNew();
-        var page = query.Page.GetValueOrDefault(1);
-        if (page < 1)
-        {
-            page = 1;
-        }
 
-        var pageSize = query.PageSize.GetValueOrDefault(25);
-        if (pageSize < 1)
-        {
-            pageSize = 25;
-        }
-        else if (pageSize > 200)
-        {
-            pageSize = 200;
-        }
+        var pageRequest = PageRequest.Create(
+            query.Page,
+            query.PageSize,
+            query.Search,
+            query.Sort is null ? null : new[] { query.Sort },
+            defaultPageSize: 25,
+            maxPageSize: 200);
 
         var rolesQuery = roleDbContext.Roles.AsNoTracking();
 
-        if (!string.IsNullOrWhiteSpace(query.Search))
+        if (!string.IsNullOrWhiteSpace(pageRequest.Search))
         {
-            var pattern = CreateSearchPattern(query.Search);
+            var pattern = SearchPatternHelper.CreateSearchPattern(pageRequest.Search);
             rolesQuery = rolesQuery.Where(role =>
                 EF.Functions.ILike(role.Name, pattern) ||
                 EF.Functions.ILike(role.Description ?? string.Empty, pattern));
@@ -108,30 +104,33 @@ internal static class AdminRoleEndpoints
 
         var total = await rolesQuery.CountAsync(cancellationToken).ConfigureAwait(false);
 
-        var orderedQuery = query.Sort switch
+        if (total == 0)
         {
-            "name:desc" => rolesQuery
-                .OrderByDescending(role => role.Name)
-                .ThenBy(role => role.Id),
-            "userCount" or "userCount:desc" => rolesQuery
-                .OrderByDescending(role => role.UserRoles.Count)
-                .ThenBy(role => role.Name),
-            "userCount:asc" => rolesQuery
-                .OrderBy(role => role.UserRoles.Count)
-                .ThenBy(role => role.Name),
-            "name" or "name:asc" => rolesQuery
-                .OrderBy(role => role.Name)
-                .ThenBy(role => role.Id),
-            _ => rolesQuery
-                .OrderBy(role => role.Name)
-                .ThenBy(role => role.Id)
-        };
+            stopwatch.Stop();
 
-        var skip = (page - 1) * pageSize;
+            var tagsEmpty = AdminMetrics.BuildRoleQueryTags(query);
+            AdminMetrics.RolesListDuration.Record(stopwatch.Elapsed.TotalMilliseconds, tagsEmpty);
+            AdminMetrics.RolesListResultCount.Record(0, tagsEmpty);
+
+            logger.LogInformation(
+                "Listed admin roles in {ElapsedMs} ms (page {Page}/{PageSize}, total 0, returned 0, search={HasSearch}, system={SystemFilter}, sort={Sort})",
+                stopwatch.Elapsed.TotalMilliseconds,
+                pageRequest.Page,
+                pageRequest.PageSize,
+                string.IsNullOrWhiteSpace(pageRequest.Search) ? "false" : "true",
+                query.IsSystemRole.HasValue ? (query.IsSystemRole.Value ? "system" : "custom") : "all",
+                FormatSorts(query.Sort, "name"));
+
+            return Results.Ok(PagedResult<AdminRoleSummary>.Empty(pageRequest.Page, pageRequest.PageSize));
+        }
+
+        var orderedQuery = ApplyRoleSorting(rolesQuery, pageRequest);
+
+        var skip = pageRequest.GetSkip();
 
         var roles = await orderedQuery
             .Skip(skip)
-            .Take(pageSize)
+            .Take(pageRequest.PageSize)
             .Select(role => new
             {
                 role.Id,
@@ -168,13 +167,13 @@ internal static class AdminRoleEndpoints
         logger.LogInformation(
             "Listed admin roles in {ElapsedMs} ms (page {Page}/{PageSize}, total {TotalCount}, returned {ReturnedCount}, search={HasSearch}, system={SystemFilter}, sort={Sort})",
             elapsedMs,
-            page,
-            pageSize,
+            pageRequest.Page,
+            pageRequest.PageSize,
             total,
             summaries.Count,
-            string.IsNullOrWhiteSpace(query.Search) ? "false" : "true",
+            string.IsNullOrWhiteSpace(pageRequest.Search) ? "false" : "true",
             query.IsSystemRole.HasValue ? (query.IsSystemRole.Value ? "system" : "custom") : "all",
-            query.Sort ?? "name");
+            FormatSorts(query.Sort, "name"));
 
         if (slowQueryThresholdMs > 0 && elapsedMs > slowQueryThresholdMs)
         {
@@ -182,11 +181,11 @@ internal static class AdminRoleEndpoints
                 "Admin roles list query exceeded threshold: {ElapsedMs} ms > {Threshold} ms (page {Page}/{PageSize})",
                 elapsedMs,
                 slowQueryThresholdMs,
-                page,
-                pageSize);
+                pageRequest.Page,
+                pageRequest.PageSize);
         }
 
-        return Results.Ok(new AdminRoleListResponse(page, pageSize, total, summaries));
+        return Results.Ok(new PagedResult<AdminRoleSummary>(pageRequest.Page, pageRequest.PageSize, total, summaries));
     }
 
     private static async Task<IResult> CreateRoleAsync(
@@ -454,21 +453,55 @@ internal static class AdminRoleEndpoints
         return permissions;
     }
 
-    private static string CreateSearchPattern(string value)
+    private static IOrderedQueryable<Role> ApplyRoleSorting(IQueryable<Role> source, PageRequest request)
     {
-        var trimmed = value.Trim();
-        if (trimmed.Length == 0)
+        IOrderedQueryable<Role>? ordered = null;
+
+        if (request.Sorts.Count > 0)
         {
-            return "%";
+            foreach (var sort in request.Sorts)
+            {
+                var key = sort.Field.ToLowerInvariant();
+                ordered = key switch
+                {
+                    "name" => ApplyRoleOrder(source, ordered, role => role.Name, sort.Direction),
+                    "usercount" => ApplyRoleOrder(source, ordered, role => role.UserRoles.Count, sort.Direction),
+                    _ => ordered
+                };
+
+                if (ordered is not null)
+                {
+                    source = ordered;
+                }
+            }
         }
 
-        var escaped = trimmed
-            .Replace(@"\", @"\\", StringComparison.Ordinal)
-            .Replace("%", @"\%", StringComparison.Ordinal)
-            .Replace("_", @"\_", StringComparison.Ordinal);
-
-        return $"%{escaped}%";
+        ordered ??= source.OrderBy(role => role.Name);
+        return ordered.ThenBy(role => role.Id);
     }
+
+    private static IOrderedQueryable<Role> ApplyRoleOrder<T>(
+        IQueryable<Role> source,
+        IOrderedQueryable<Role>? ordered,
+        Expression<Func<Role, T>> keySelector,
+        SortDirection direction)
+    {
+        if (ordered is null)
+        {
+            return direction == SortDirection.Descending
+                ? source.OrderByDescending(keySelector)
+                : source.OrderBy(keySelector);
+        }
+
+        return direction == SortDirection.Descending
+            ? ordered.ThenByDescending(keySelector)
+            : ordered.ThenBy(keySelector);
+    }
+
+    private static string FormatSorts(string? sort, string defaultSort)
+        => !string.IsNullOrWhiteSpace(sort)
+            ? sort
+            : defaultSort;
 
 internal sealed class AdminRoleListQuery
 {
@@ -483,13 +516,7 @@ internal sealed class AdminRoleListQuery
     public string? Sort { get; set; }
 }
 
-    private sealed record AdminRoleListResponse(
-        int Page,
-        int PageSize,
-        int TotalCount,
-        IReadOnlyList<AdminRoleSummary> Roles);
-
-    private sealed record AdminRoleSummary(
+    internal sealed record AdminRoleSummary(
         Guid Id,
         string Name,
         string? Description,

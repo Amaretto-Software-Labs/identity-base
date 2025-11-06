@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Identity.Base.Abstractions.Pagination;
+using Identity.Base.Extensions;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Data.Entities;
@@ -41,6 +44,60 @@ public sealed class OrganizationInvitationStore : IOrganizationInvitationStore
             .ConfigureAwait(false);
 
         return entities.Select(MapToRecord).ToList();
+    }
+
+    public async Task<PagedResult<OrganizationInvitationRecord>> ListAsync(
+        Guid organizationId,
+        PageRequest pageRequest,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(pageRequest);
+
+        var normalized = pageRequest.WithDefaults();
+        var now = DateTimeOffset.UtcNow;
+
+        var query = _dbContext.Set<OrganizationInvitationEntity>()
+            .AsNoTracking()
+            .Where(invitation =>
+                invitation.OrganizationId == organizationId &&
+                invitation.ExpiresAtUtc > now &&
+                invitation.UsedAtUtc == null);
+
+        if (!string.IsNullOrWhiteSpace(normalized.Search))
+        {
+            if (_dbContext.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                var lower = normalized.Search.ToLowerInvariant();
+                query = query.Where(invitation =>
+                    invitation.Email.ToLower().Contains(lower) ||
+                    invitation.OrganizationName.ToLower().Contains(lower));
+            }
+            else
+            {
+                var pattern = SearchPatternHelper.CreateSearchPattern(normalized.Search);
+                query = query.Where(invitation =>
+                    EF.Functions.ILike(invitation.Email, pattern) ||
+                    EF.Functions.ILike(invitation.OrganizationName, pattern));
+            }
+        }
+
+        var total = await query.CountAsync(cancellationToken).ConfigureAwait(false);
+        if (total == 0)
+        {
+            return PagedResult<OrganizationInvitationRecord>.Empty(normalized.Page, normalized.PageSize);
+        }
+
+        var ordered = ApplyInvitationSorting(query, normalized);
+        var skip = normalized.GetSkip();
+
+        var entities = await ordered
+            .Skip(skip)
+            .Take(normalized.PageSize)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var items = entities.Select(MapToRecord).ToList();
+        return new PagedResult<OrganizationInvitationRecord>(normalized.Page, normalized.PageSize, total, items);
     }
 
     public async Task<OrganizationInvitationRecord?> FindAsync(Guid code, CancellationToken cancellationToken = default)
@@ -101,6 +158,56 @@ public sealed class OrganizationInvitationStore : IOrganizationInvitationStore
 
         _dbContext.Set<OrganizationInvitationEntity>().Remove(entity);
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static IOrderedQueryable<OrganizationInvitationEntity> ApplyInvitationSorting(
+        IQueryable<OrganizationInvitationEntity> source,
+        PageRequest request)
+    {
+        IOrderedQueryable<OrganizationInvitationEntity>? ordered = null;
+
+        if (request.Sorts.Count > 0)
+        {
+            foreach (var sort in request.Sorts)
+            {
+                var key = sort.Field.ToLowerInvariant();
+                ordered = key switch
+                {
+                    "email" => ApplyInvitationOrder(source, ordered, invitation => invitation.Email, sort.Direction),
+                    "createdat" => ApplyInvitationOrder(source, ordered, invitation => invitation.CreatedAtUtc, sort.Direction),
+                    "expiresat" => ApplyInvitationOrder(source, ordered, invitation => invitation.ExpiresAtUtc, sort.Direction),
+                    _ => ordered
+                };
+
+                if (ordered is not null)
+                {
+                    source = ordered;
+                }
+            }
+        }
+
+        ordered ??= source.OrderBy(invitation => invitation.ExpiresAtUtc)
+            .ThenBy(invitation => invitation.CreatedAtUtc);
+
+        return ordered.ThenBy(invitation => invitation.Code);
+    }
+
+    private static IOrderedQueryable<OrganizationInvitationEntity> ApplyInvitationOrder<T>(
+        IQueryable<OrganizationInvitationEntity> source,
+        IOrderedQueryable<OrganizationInvitationEntity>? ordered,
+        System.Linq.Expressions.Expression<Func<OrganizationInvitationEntity, T>> keySelector,
+        SortDirection direction)
+    {
+        if (ordered is null)
+        {
+            return direction == SortDirection.Descending
+                ? source.OrderByDescending(keySelector)
+                : source.OrderBy(keySelector);
+        }
+
+        return direction == SortDirection.Descending
+            ? ordered.ThenByDescending(keySelector)
+            : ordered.ThenBy(keySelector);
     }
 
     private static OrganizationInvitationRecord MapToRecord(OrganizationInvitationEntity entity) => new()

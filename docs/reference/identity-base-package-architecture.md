@@ -1,6 +1,6 @@
 # Identity Base Package Architecture
 
-This note captures how the major Identity Base OSS packages relate to one another, how tenants/organizations/users/roles compose, and where the current gaps remain (notably admin surfacing for organizations). For detailed documentation on each package (installation, configuration, endpoint surface), see the [Package Documentation Hub](../packages/README.md).
+This note captures how the major Identity Base OSS packages relate to one another, how tenants/organizations/users/roles compose, and where the current gaps remain. For detailed documentation on each package (installation, configuration, endpoint surface), see the [Package Documentation Hub](../packages/README.md).
 
 ## Package Overview
 
@@ -25,13 +25,12 @@ Packages compose in layers: you can run only the core, add RBAC when you need pe
 
 1. **Authentication** – OpenIddict tokens/cookies come from `Identity.Base`. When the organization package is registered, the default `OrganizationClaimFormatter` emits `org:id`, `org:slug`, and `org:name` claims whenever an active organization context is set. Clients that switch organizations must refresh tokens/cookies to pick up new claims.
 2. **Authorization** – `OrganizationPermissionRequirement` delegates to the composite permission resolver. Minimal APIs call `.RequireOrganizationPermission("...")`; the default `OrganizationScopeResolver` enforces that the current user has a membership in the target organization. Apps can override the resolver (e.g., to allow tenant-wide admins) via `AddOrganizationScopeResolver<T>()` and add additional permission sources when emitting organization-specific claims.
-3. **User Flows** – New endpoints (`GET /users/me/organizations`, `POST /users/me/organizations/active`) let a signed-in user list memberships and mark an active organization, wiring that into the context accessor.
-4. **Invitations** – Shared invitation endpoints (`/organizations/{id}/invitations`, `/invitations/{code}`, `/invitations/claim`) now ship with the organizations package. Hosts can use the default Minimal APIs or call `OrganizationInvitationService` directly when composing custom onboarding flows.
-5. **Admin Flows** – The admin package currently exposes `/admin/users` and `/admin/roles` only. There is **no** organization-aware admin surface yet; administrators either call the organization APIs directly (with the appropriate permissions) or we must extend `Identity.Base.Admin` with additional endpoints.
+3. **User Flows** – The user endpoint (`GET /users/me/organizations`) returns memberships as a `PagedResult<UserOrganizationMembershipDto>` (with `items`, `page`, `pageSize`, `totalCount`, and filters such as `search`, `sort`, `includeArchived`). Clients select an active organization purely by sending the `X-Organization-Id` header; there is no server-side “set active organization” endpoint.
+4. **Invitations** – Admin invitation endpoints (`/admin/organizations/{id}/invitations`, `/admin/organizations/{id}/invitations/{code}`) now ship with the organizations package alongside the anonymous claim surface (`/invitations/{code}`, `/invitations/claim`). Hosts can use the Minimal APIs or call `OrganizationInvitationService` directly when composing custom onboarding flows.
+5. **Admin Flows** – Organization administration is available through `/admin/organizations/...` Minimal APIs (CRUD, memberships, roles, invitations). These endpoints ignore the organization header and require the corresponding `admin.organizations.*` permissions.
 
 ## Current Gaps / Follow-Up
 
-- Org-specific admin endpoints (e.g., `/admin/organizations`) are not implemented. Further work should extend `Identity.Base.Admin` once requirements are clear.
 - Organization roles now persist explicit permission overrides, but hosts must decide which permissions each custom role should receive by default (configure via `OrganizationRoleOptions` seed callbacks).
 - Integration tests exercising Minimal APIs + authorization remain on the backlog; the current coverage focuses on service-level unit tests.
 

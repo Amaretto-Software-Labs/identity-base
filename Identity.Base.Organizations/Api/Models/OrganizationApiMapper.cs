@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Identity.Base.Abstractions.Pagination;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Domain;
 
@@ -23,6 +24,17 @@ internal static class OrganizationApiMapper
             UpdatedAtUtc = organization.UpdatedAtUtc,
             ArchivedAtUtc = organization.ArchivedAtUtc
         };
+    }
+
+    public static PagedResult<OrganizationDto> ToOrganizationPagedResult(PagedResult<Organization> result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        var items = result.Items
+            .Select(ToOrganizationDto)
+            .ToList();
+
+        return new PagedResult<OrganizationDto>(result.Page, result.PageSize, result.TotalCount, items);
     }
 
     public static OrganizationMembershipDto ToMembershipDto(OrganizationMembership membership)
@@ -61,17 +73,31 @@ internal static class OrganizationApiMapper
         };
     }
 
-    public static OrganizationMemberListResponse ToMemberListResponse(OrganizationMemberListResult result)
+    public static PagedResult<OrganizationMembershipDto> ToMemberPagedResult(OrganizationMemberListResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
 
-        return new OrganizationMemberListResponse
-        {
-            Page = result.Page,
-            PageSize = result.PageSize,
-            TotalCount = result.TotalCount,
-            Members = result.Members.Select(ToMembershipDto).ToArray()
-        };
+        var items = result.Members
+            .Select(ToMembershipDto)
+            .ToList();
+
+        return new PagedResult<OrganizationMembershipDto>(result.Page, result.PageSize, result.TotalCount, items);
+    }
+
+    public static UserOrganizationMembershipDto ToUserOrganizationMembershipDto(UserOrganizationMembership membership)
+    {
+        ArgumentNullException.ThrowIfNull(membership);
+
+        return new UserOrganizationMembershipDto(
+            membership.OrganizationId,
+            membership.TenantId,
+            membership.Slug,
+            membership.DisplayName,
+            membership.Status,
+            membership.IsPrimary,
+            membership.RoleIds,
+            membership.CreatedAtUtc,
+            membership.UpdatedAtUtc);
     }
 
     public static OrganizationRoleDto ToRoleDto(OrganizationRole role)
@@ -89,6 +115,17 @@ internal static class OrganizationApiMapper
             CreatedAtUtc = role.CreatedAtUtc,
             UpdatedAtUtc = role.UpdatedAtUtc
         };
+    }
+
+    public static PagedResult<OrganizationRoleDto> ToOrganizationRolePagedResult(PagedResult<OrganizationRole> result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        var items = result.Items
+            .Select(ToRoleDto)
+            .ToList();
+
+        return new PagedResult<OrganizationRoleDto>(result.Page, result.PageSize, result.TotalCount, items);
     }
 
     public static OrganizationRolePermissionsResponse ToRolePermissionsResponse(OrganizationRolePermissionSet permissionSet)
@@ -120,5 +157,16 @@ internal static class OrganizationApiMapper
             UsedAtUtc = record.UsedAtUtc,
             UsedByUserId = record.UsedByUserId
         };
+    }
+
+    public static PagedResult<OrganizationInvitationDto> ToInvitationPagedResult(PagedResult<OrganizationInvitationRecord> result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        var items = result.Items
+            .Select(ToInvitationDto)
+            .ToList();
+
+        return new PagedResult<OrganizationInvitationDto>(result.Page, result.PageSize, result.TotalCount, items);
     }
 }

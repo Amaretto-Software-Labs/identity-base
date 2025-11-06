@@ -46,6 +46,14 @@ public sealed class DefaultUserRoleAssignmentListener : IUserCreationListener
             return;
         }
 
-        await _roleAssignmentService.AssignRolesAsync(user.Id, distinctRoles, cancellationToken).ConfigureAwait(false);
+        var existingRoles = await _roleAssignmentService.GetUserRoleNamesAsync(user.Id, cancellationToken).ConfigureAwait(false);
+        var combined = distinctRoles
+            .Concat(existingRoles ?? Array.Empty<string>())
+            .Where(role => !string.IsNullOrWhiteSpace(role))
+            .Select(role => role.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        await _roleAssignmentService.AssignRolesAsync(user.Id, combined, cancellationToken).ConfigureAwait(false);
     }
 }

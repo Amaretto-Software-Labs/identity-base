@@ -20,7 +20,7 @@ For detailed documentation on each package referenced below, use the [Package Do
 | Core Identity | `Identity.Base` | ✅ | Provides registration/login, MFA, profile APIs, OpenIddict integration. |
 | RBAC | `Identity.Base.Roles` | ✅ | Supplies permission catalog, role seeding, claim formatter used by both the public APIs and admin surfaces. |
 | Organizations | `Identity.Base.Organizations` | ✅ | Delivers organization domain + CRUD/Membership/Role APIs, organization claim formatter, scope enforcement. |
-| Admin APIs | `Identity.Base.Admin` | ✅ (for back-office) | Ships `/admin/users` & `/admin/roles` endpoints; organization management is **not** implemented yet. |
+| Admin APIs | `Identity.Base.Admin` | ✅ (for back-office) | Ships `/admin/users` & `/admin/roles`; organization admin endpoints (`/admin/organizations/...`) come from the organizations package. |
 
 > Skip any optional layer only if the corresponding capability is not needed. The organization scenario assumes all four are present.
 
@@ -48,31 +48,32 @@ For detailed documentation on each package referenced below, use the [Package Do
   - Trigger token/cookie refresh so the new organization context appears in claims.
 
 - [ ] **Invitation & Membership Management**
-  - Use invitation endpoints:
-    - `POST /organizations/{orgId}/invitations` to issue an invite (backed by `OrganizationInvitationService` which stores the record, enforces uniqueness, and applies expiry).
-    - `GET /organizations/{orgId}/invitations` / `DELETE .../{code}` to list or revoke invites.
+  - Use admin invitation endpoints:
+    - `POST /admin/organizations/{orgId}/invitations` to issue an invite (backed by `OrganizationInvitationService` which stores the record, enforces uniqueness, and applies expiry).
+    - `GET /admin/organizations/{orgId}/invitations` / `DELETE .../{code}` to list or revoke invites. The `GET` route is paged (`page`, `pageSize`, `search`, `sort`) and returns `PagedResult<OrganizationInvitationDto>` with an `items` collection.
     - Public flow: `GET /invitations/{code}` for validation and `POST /invitations/claim` (authenticated) to accept; the service automatically creates/updates the membership and returns `RequiresTokenRefresh = true`.
-  - Use membership endpoints when you already know the user id:
-    - `POST /organizations/{orgId}/members` to add a member immediately.
-    - `PUT /organizations/{orgId}/members/{userId}` to update role assignments / primary flag.
-    - `DELETE /organizations/{orgId}/members/{userId}` to remove members.
+  - Use admin membership endpoints when you already know the user id:
+    - `POST /admin/organizations/{orgId}/members` to add a member immediately.
+    - `PUT /admin/organizations/{orgId}/members/{userId}` to update role assignments / primary flag.
+    - `DELETE /admin/organizations/{orgId}/members/{userId}` to remove members.
+    - `GET /admin/organizations/{orgId}/members` supports the shared pagination contract (`page`, `pageSize`, `search`, `roleId`, `isPrimary`, `sort`) and returns `PagedResult<OrganizationMembershipDto>`.
   - Hosts are still responsible for the invite delivery UX (email templates, SPA acceptance page) even though storage and APIs are provided.
 
 - [ ] **Organization Role Management**
-  - Organization admins call `GET/POST/DELETE /organizations/{orgId}/roles` for custom roles.
-  - `GET /organizations/{orgId}/roles/{roleId}/permissions` returns inherited vs. explicit permission assignments; `PUT` replaces the explicit list stored in `Identity_OrganizationRolePermissions`.
+  - Organization admins call `GET/POST/DELETE /admin/organizations/{orgId}/roles` for custom roles. The list endpoint accepts `page`, `pageSize`, `search`, `sort` and returns `PagedResult<OrganizationRoleDto>`.
+  - `GET /admin/organizations/{orgId}/roles/{roleId}/permissions` returns inherited vs. explicit permission assignments; `PUT` replaces the explicit list stored in `Identity_OrganizationRolePermissions`.
   - Default permission bundles can be configured via `OrganizationRoleOptions.DefaultRoles`; per-organization overrides flow through the same service layer and are surfaced in tokens/claims.
 
 - [ ] **User Self-Service**
   - Existing Identity Base endpoints handle profile updates, password changes, MFA enable/disable. No extra work needed beyond exposing the routes in the client application.
 
 - [ ] **Organization Context Handling**
-  - Call `GET /users/me/organizations` to show available orgs.
-  - Add `app.UseOrganizationContextFromHeader()` and send the `X-Organization-Id` header so each request carries the active organization without reissuing tokens. Refresh tokens only when membership changes (e.g., an owner loses access).
+  - Call `GET /users/me/organizations` to show available orgs. This endpoint returns `PagedResult<UserOrganizationMembershipDto>` (with `items`, `page`, `pageSize`, `totalCount`) and supports `search`, `sort`, and `includeArchived`.
+  - Add `app.UseOrganizationContextFromHeader()` and send the `X-Organization-Id` header so each request carries the active organization without reissuing tokens. There is no backend endpoint to set the active org; the header alone establishes context. Refresh tokens only when membership changes (e.g., an owner loses access).
 
 - [ ] **Admin Application**
   - Use `Identity.Base.Admin` for user & role management (`services.AddIdentityAdmin(...)`, `app.MapIdentityAdminEndpoints()`).
-  - **Gap**: There is currently no `/admin/organizations` surface. Global admins must rely on public organization APIs or custom extensions for org CRUD/membership oversight.
+  - Organization CRUD, membership, role, and invitation management lives under `/admin/organizations/...` (mapped by `app.MapIdentityBaseOrganizationEndpoints()`). The admin SPA should call these endpoints with the appropriate `admin.organizations.*` permissions; no organization header is required for these calls.
 
 ## Configuration Notes
 
@@ -84,9 +85,9 @@ For detailed documentation on each package referenced below, use the [Package Do
 
 | Area | Gap | Suggested Action |
 | --- | --- | --- |
-| Invitations UX | Email templates, delivery, and the public-facing acceptance page remain host responsibilities (the invitation APIs handle persistence and membership updates). | Implement a lightweight mailer + SPA flow that calls `/organizations/{id}/invitations`, `/invitations/{code}`, and `/invitations/claim`. |
+| Invitations UX | Email templates, delivery, and the public-facing acceptance page remain host responsibilities (the invitation APIs handle persistence and membership updates). | Implement a lightweight mailer + SPA flow that calls `/admin/organizations/{id}/invitations`, `/invitations/{code}`, and `/invitations/claim`. |
 | Org ↔ RBAC binding | Explicit permission overrides are persisted, but hosts must still decide which permissions correspond to new org roles. | Define default permission bundles in configuration/seed callbacks and expose admin UX (see sample) for fine-grained overrides. |
-| Admin UI | No admin endpoints for listing/editing organizations. | Extend `Identity.Base.Admin` or create a companion package to expose `/admin/organizations` and related tooling. |
+| Admin UI | Admin SPA must target `/admin/organizations/...` endpoints for org oversight. | Ensure admin packages/clients are updated to new routes and guard them with the `admin.organizations.*` permissions. |
 | Integration Tests | Minimal APIs currently validated by unit tests only. | Add WebApplicationFactory-based tests to cover authorization and org-switch flows end-to-end. |
 
 Use this checklist as a blueprint when standing up a new multi-organization application. Each unchecked gap represents work the host application (or a future OSS contribution) must address before the scenario is fully supported.

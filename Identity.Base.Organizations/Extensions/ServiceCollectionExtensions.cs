@@ -56,7 +56,6 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<IValidator<UpdateMembershipRequest>, UpdateMembershipRequestValidator>();
         services.TryAddScoped<IValidator<CreateOrganizationRoleRequest>, CreateOrganizationRoleRequestValidator>();
         services.TryAddScoped<IValidator<UpdateOrganizationRolePermissionsRequest>, UpdateOrganizationRolePermissionsRequestValidator>();
-        services.TryAddScoped<IValidator<SetActiveOrganizationRequest>, SetActiveOrganizationRequestValidator>();
         services.TryAddScoped<IValidator<CreateOrganizationInvitationRequest>, CreateOrganizationInvitationRequestValidator>();
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, OrganizationMigrationHostedService>());

@@ -3,14 +3,15 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Identity.Base.Abstractions.Pagination;
 using Identity.Base.Identity;
 using Identity.Base.Organizations.Abstractions;
+using Identity.Base.Organizations.Api.Models;
 using Identity.Base.Organizations.Data;
+using Identity.Base.Organizations.Domain;
 using Identity.Base.Organizations.Extensions;
 using Identity.Base.Organizations.Infrastructure;
-using Identity.Base.Organizations.Options;
 using Identity.Base.Organizations.Services;
-using Identity.Base.Organizations.Domain;
 using Identity.Base.Roles.Abstractions;
 using Identity.Base.Roles.Configuration;
 using Identity.Base.Roles.Services;
@@ -20,6 +21,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using OpenIddict.Abstractions;
 using Shouldly;
@@ -47,16 +49,16 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
 
         using var client = CreateAuthorizedClient(token);
 
-        var response = await client.GetAsync("/organizations");
+        var response = await client.GetAsync("/admin/organizations");
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var payload = await response.Content.ReadFromJsonAsync<List<OrganizationDto>>(JsonOptions);
+        var payload = await response.Content.ReadFromJsonAsync<PagedResult<OrganizationDto>>(JsonOptions);
         payload.ShouldNotBeNull();
-        payload!.ShouldContain(item => item.Id == organizationId);
+        payload!.Items.ShouldContain(item => item.Id == organizationId);
 
         client.DefaultRequestHeaders.Add(OrganizationContextHeaderNames.OrganizationId, Guid.NewGuid().ToString("D"));
 
-        var headerResponse = await client.GetAsync("/organizations");
+        var headerResponse = await client.GetAsync("/admin/organizations");
         headerResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
@@ -74,7 +76,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
             Metadata = new Dictionary<string, string?>()
         };
 
-        var response = await client.PostAsJsonAsync("/organizations", request);
+        var response = await client.PostAsJsonAsync("/admin/organizations", request);
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         var dto = await response.Content.ReadFromJsonAsync<OrganizationDto>(JsonOptions);
@@ -89,10 +91,10 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
 
         using var client = CreateAuthorizedClient(token);
 
-        var listResponse = await client.GetAsync("/organizations");
+        var listResponse = await client.GetAsync("/admin/organizations");
         listResponse.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
 
-        var createResponse = await client.PostAsJsonAsync("/organizations", new
+        var createResponse = await client.PostAsJsonAsync("/admin/organizations", new
         {
             Slug = $"non-admin-{Guid.NewGuid():N}",
             DisplayName = "Non Admin Org",
@@ -113,21 +115,75 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
 
         using var client = CreateAuthorizedClient(refreshedToken);
 
-        var memberships = await client.GetFromJsonAsync<List<OrganizationMembershipDto>>("/users/me/organizations", JsonOptions);
+        var memberships = await client.GetFromJsonAsync<PagedResult<UserOrganizationMembershipDto>>("/users/me/organizations", JsonOptions);
         memberships.ShouldNotBeNull();
-        memberships!.ShouldContain(m => m.OrganizationId == organizationId);
-
-        var activeResponse = await client.PostAsJsonAsync("/users/me/organizations/active", new { organizationId });
-        activeResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-
-        var activePayload = await activeResponse.Content.ReadFromJsonAsync<ActiveOrganizationDto>(JsonOptions);
-        activePayload.ShouldNotBeNull();
-        activePayload!.RequiresTokenRefresh.ShouldBeFalse();
+        memberships!.Items.ShouldContain(m => m.OrganizationId == organizationId);
 
         client.DefaultRequestHeaders.Add(OrganizationContextHeaderNames.OrganizationId, organizationId.ToString("D"));
 
         var secondResponse = await client.GetAsync("/users/me/organizations");
         secondResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task User_Organizations_List_AppliesPagingSortingAndSearch()
+    {
+        var (userId, token) = await CreateStandardUserAndTokenAsync("org-member@example.com", "UserPass!2345");
+
+        var primaryOrgId = await CreateOrganizationAsync($"primary-org-{Guid.NewGuid():N}", "Primary Org");
+        var secondaryOrgId = await CreateOrganizationAsync($"secondary-org-{Guid.NewGuid():N}", "Secondary Org");
+        var tertiaryOrgId = await CreateOrganizationAsync($"tertiary-org-{Guid.NewGuid():N}", "Tertiary Org");
+
+        await AddMembershipAsync(primaryOrgId, userId, isPrimary: true);
+        await AddMembershipAsync(secondaryOrgId, userId, isPrimary: false);
+        await AddMembershipAsync(tertiaryOrgId, userId, isPrimary: false);
+
+        using var client = CreateAuthorizedClient(token);
+
+        var page1Response = await client.GetAsync("/users/me/organizations?page=1&pageSize=2&sort=slug:asc");
+        var page1Content = await page1Response.Content.ReadAsStringAsync();
+        page1Response.StatusCode.ShouldBe(HttpStatusCode.OK, page1Content);
+        var page1 = JsonSerializer.Deserialize<PagedResult<UserOrganizationMembershipDto>>(page1Content, JsonOptions);
+        page1.ShouldNotBeNull();
+        page1!.Items.Count.ShouldBe(2);
+
+        var page2Response = await client.GetAsync("/users/me/organizations?page=2&pageSize=2&sort=slug:asc");
+        var page2Content = await page2Response.Content.ReadAsStringAsync();
+        page2Response.StatusCode.ShouldBe(HttpStatusCode.OK, page2Content);
+        var page2 = JsonSerializer.Deserialize<PagedResult<UserOrganizationMembershipDto>>(page2Content, JsonOptions);
+        page2.ShouldNotBeNull();
+        page2!.Items.Count.ShouldBeGreaterThanOrEqualTo(1);
+
+        var searchResponse = await client.GetAsync("/users/me/organizations?search=secondary");
+        var searchContent = await searchResponse.Content.ReadAsStringAsync();
+        searchResponse.StatusCode.ShouldBe(HttpStatusCode.OK, searchContent);
+        var search = JsonSerializer.Deserialize<PagedResult<UserOrganizationMembershipDto>>(searchContent, JsonOptions);
+        search.ShouldNotBeNull();
+        search!.Items.ShouldContain(m => m.OrganizationId == secondaryOrgId);
+        search.Items.ShouldNotContain(m => m.OrganizationId == primaryOrgId);
+
+        // Archive tertiary org, ensure includeArchived flag controls visibility.
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<OrganizationDbContext>();
+            var org = await db.Organizations.FindAsync(tertiaryOrgId);
+            org!.Status = OrganizationStatus.Archived;
+            await db.SaveChangesAsync();
+        }
+
+        var withoutArchivedResponse = await client.GetAsync("/users/me/organizations");
+        var withoutArchivedContent = await withoutArchivedResponse.Content.ReadAsStringAsync();
+        withoutArchivedResponse.StatusCode.ShouldBe(HttpStatusCode.OK, withoutArchivedContent);
+        var withoutArchived = JsonSerializer.Deserialize<PagedResult<UserOrganizationMembershipDto>>(withoutArchivedContent, JsonOptions);
+        withoutArchived.ShouldNotBeNull();
+        withoutArchived!.Items.ShouldNotContain(m => m.OrganizationId == tertiaryOrgId);
+
+        var withArchivedResponse = await client.GetAsync("/users/me/organizations?includeArchived=true");
+        var withArchivedContent = await withArchivedResponse.Content.ReadAsStringAsync();
+        withArchivedResponse.StatusCode.ShouldBe(HttpStatusCode.OK, withArchivedContent);
+        var withArchived = JsonSerializer.Deserialize<PagedResult<UserOrganizationMembershipDto>>(withArchivedContent, JsonOptions);
+        withArchived.ShouldNotBeNull();
+        withArchived!.Items.ShouldContain(m => m.OrganizationId == tertiaryOrgId);
     }
 
     [Fact]
@@ -138,7 +194,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
 
         using var client = CreateAuthorizedClient(token);
 
-        var patchResponse = await client.PatchAsJsonAsync($"/organizations/{organizationId}", new
+        var patchResponse = await client.PatchAsJsonAsync($"/admin/organizations/{organizationId}", new
         {
             DisplayName = "Updated Organization Name"
         });
@@ -149,10 +205,10 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         patched!.DisplayName.ShouldBe("Updated Organization Name");
         patched.Status.ShouldBe(OrganizationStatus.Active);
 
-        var deleteResponse = await client.DeleteAsync($"/organizations/{organizationId}");
+        var deleteResponse = await client.DeleteAsync($"/admin/organizations/{organizationId}");
         deleteResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        var getResponse = await client.GetAsync($"/organizations/{organizationId}");
+        var getResponse = await client.GetAsync($"/admin/organizations/{organizationId}");
         getResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var archived = await getResponse.Content.ReadFromJsonAsync<OrganizationDto>(JsonOptions);
@@ -171,7 +227,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
 
         using var client = CreateAuthorizedClient(token);
 
-        var addResponse = await client.PostAsJsonAsync($"/organizations/{organizationId}/members", new
+        var addResponse = await client.PostAsJsonAsync($"/admin/organizations/{organizationId}/members", new
         {
             UserId = memberId,
             IsPrimary = false,
@@ -185,22 +241,22 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         created!.UserId.ShouldBe(memberId);
         created.RoleIds.ShouldBeEmpty();
 
-        var listResponse = await client.GetAsync($"/organizations/{organizationId}/members");
+        var listResponse = await client.GetAsync($"/admin/organizations/{organizationId}/members");
         listResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var list = await listResponse.Content.ReadFromJsonAsync<OrganizationMemberListResponse>(JsonOptions);
+        var list = await listResponse.Content.ReadFromJsonAsync<PagedResult<OrganizationMembershipDto>>(JsonOptions);
         list.ShouldNotBeNull();
-        list!.Members.ShouldContain(m => m.UserId == memberId);
+        list!.Items.ShouldContain(m => m.UserId == memberId);
 
-        var deleteResponse = await client.DeleteAsync($"/organizations/{organizationId}/members/{memberId}");
+        var deleteResponse = await client.DeleteAsync($"/admin/organizations/{organizationId}/members/{memberId}");
         deleteResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        var listAfterDelete = await client.GetAsync($"/organizations/{organizationId}/members");
+        var listAfterDelete = await client.GetAsync($"/admin/organizations/{organizationId}/members");
         listAfterDelete.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var after = await listAfterDelete.Content.ReadFromJsonAsync<OrganizationMemberListResponse>(JsonOptions);
+        var after = await listAfterDelete.Content.ReadFromJsonAsync<PagedResult<OrganizationMembershipDto>>(JsonOptions);
         after.ShouldNotBeNull();
-        after!.Members.ShouldNotContain(m => m.UserId == memberId);
+        after!.Items.ShouldNotContain(m => m.UserId == memberId);
     }
 
     [Fact]
@@ -227,18 +283,6 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         client.DefaultRequestHeaders.Add(OrganizationContextHeaderNames.OrganizationId, organizationId.ToString("D"));
 
         var response = await client.GetAsync("/users/me/organizations");
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
-    }
-
-    [Fact]
-    public async Task User_Cannot_Set_Active_Organization_Without_Membership()
-    {
-        var organizationId = await CreateOrganizationAsync($"org-active-{Guid.NewGuid():N}", "Active Org");
-        var (_, token) = await CreateStandardUserAndTokenAsync("active-user@example.com", "UserPass!2345");
-
-        using var client = CreateAuthorizedClient(token);
-
-        var response = await client.PostAsJsonAsync("/users/me/organizations/active", new { organizationId });
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
@@ -392,9 +436,6 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
 
     private sealed record OrganizationMembershipDto(Guid OrganizationId, Guid UserId, bool IsPrimary, Guid[] RoleIds);
 
-    private sealed record OrganizationMemberListResponse(int Page, int PageSize, int TotalCount, OrganizationMembershipDto[] Members);
-
-    private sealed record ActiveOrganizationDto(OrganizationDto Organization, Guid[] RoleIds, bool RequiresTokenRefresh);
 }
 
 public sealed class OrganizationApiFactory : IdentityApiFactory
@@ -407,7 +448,8 @@ public sealed class OrganizationApiFactory : IdentityApiFactory
         {
             services.AddIdentityBaseOrganizations(options =>
             {
-                options.UseInMemoryDatabase("IdentityBaseTests_Organizations");
+                options.UseInMemoryDatabase("IdentityBaseTests_Organizations")
+                    .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
             });
             services.AddSingleton<IStartupFilter, OrganizationStartupFilter>();
         });

@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Identity.Base.Abstractions.Pagination;
+using Identity.Base.Extensions;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Domain;
@@ -66,7 +69,7 @@ public sealed class OrganizationRoleService : IOrganizationRoleService
                 throw new KeyNotFoundException($"Organization {request.OrganizationId.Value} was not found.");
             }
 
-            if (tenantId.HasValue && organization.TenantId.HasValue && tenantId.Value != organization.TenantId.Value)
+            if (tenantId is Guid tenantFilter && organization.TenantId is Guid organizationTenant && tenantFilter != organizationTenant)
             {
                 throw new InvalidOperationException("Organization and role tenants do not match.");
             }
@@ -114,27 +117,60 @@ public sealed class OrganizationRoleService : IOrganizationRoleService
 
     public async Task<IReadOnlyList<OrganizationRole>> ListAsync(Guid? tenantId, Guid? organizationId, CancellationToken cancellationToken = default)
     {
-        var query = _dbContext.OrganizationRoles.AsNoTracking().AsQueryable();
-
-        if (tenantId.HasValue)
-        {
-            query = query.Where(role => role.TenantId == tenantId.Value || role.TenantId == null);
-        }
-        else
-        {
-            query = query.Where(role => role.TenantId == null);
-        }
-
-        if (organizationId.HasValue)
-        {
-            query = query.Where(role => role.OrganizationId == organizationId.Value || role.OrganizationId == null);
-        }
+        var query = BuildRoleQuery(tenantId, organizationId);
 
         return await query
             .OrderBy(role => role.OrganizationId.HasValue ? 1 : 0)
             .ThenBy(role => role.Name)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    public async Task<PagedResult<OrganizationRole>> ListAsync(
+        Guid? tenantId,
+        Guid? organizationId,
+        PageRequest pageRequest,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(pageRequest);
+
+        var normalized = pageRequest.WithDefaults();
+        var query = BuildRoleQuery(tenantId, organizationId);
+
+        if (!string.IsNullOrWhiteSpace(normalized.Search))
+        {
+            if (_dbContext.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                var lower = normalized.Search.ToLowerInvariant();
+                query = query.Where(role =>
+                    role.Name.ToLower().Contains(lower) ||
+                    (role.Description ?? string.Empty).ToLower().Contains(lower));
+            }
+            else
+            {
+                var pattern = SearchPatternHelper.CreateSearchPattern(normalized.Search);
+                query = query.Where(role =>
+                    EF.Functions.ILike(role.Name, pattern) ||
+                    EF.Functions.ILike(role.Description ?? string.Empty, pattern));
+            }
+        }
+
+        var total = await query.CountAsync(cancellationToken).ConfigureAwait(false);
+        if (total == 0)
+        {
+            return PagedResult<OrganizationRole>.Empty(normalized.Page, normalized.PageSize);
+        }
+
+        var ordered = ApplyRoleSorting(query, normalized);
+        var skip = normalized.GetSkip();
+
+        var items = await ordered
+            .Skip(skip)
+            .Take(normalized.PageSize)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return new PagedResult<OrganizationRole>(normalized.Page, normalized.PageSize, total, items);
     }
 
     public async Task DeleteAsync(Guid roleId, CancellationToken cancellationToken = default)
@@ -205,15 +241,9 @@ public sealed class OrganizationRoleService : IOrganizationRoleService
             .AsNoTracking()
             .Where(permission => permission.RoleId == roleId);
 
-        if (tenantId.HasValue)
-        {
-            var tenant = tenantId.Value;
-            permissionQuery = permissionQuery.Where(permission => permission.TenantId == null || permission.TenantId == tenant);
-        }
-        else
-        {
-            permissionQuery = permissionQuery.Where(permission => permission.TenantId == null);
-        }
+        permissionQuery = tenantId is Guid tenantFilter
+            ? permissionQuery.Where(permission => permission.TenantId == null || permission.TenantId == tenantFilter)
+            : permissionQuery.Where(permission => permission.TenantId == null);
 
         var explicitPermissionIds = await permissionQuery
             .Where(permission => permission.OrganizationId == organizationId)
@@ -407,28 +437,83 @@ public sealed class OrganizationRoleService : IOrganizationRoleService
             removed);
     }
 
+    private IQueryable<OrganizationRole> BuildRoleQuery(Guid? tenantId, Guid? organizationId)
+    {
+        var query = _dbContext.OrganizationRoles.AsNoTracking().AsQueryable();
+
+        query = tenantId is Guid tenantFilter
+            ? query.Where(role => role.TenantId == tenantFilter || role.TenantId == null)
+            : query.Where(role => role.TenantId == null);
+
+        if (organizationId is Guid organizationFilter)
+        {
+            query = query.Where(role => role.OrganizationId == organizationFilter || role.OrganizationId == null);
+        }
+
+        return query;
+    }
+
+    private static IOrderedQueryable<OrganizationRole> ApplyRoleSorting(IQueryable<OrganizationRole> source, PageRequest request)
+    {
+        IOrderedQueryable<OrganizationRole>? ordered = null;
+
+        if (request.Sorts.Count > 0)
+        {
+            foreach (var sort in request.Sorts)
+            {
+                var key = sort.Field.ToLowerInvariant();
+                ordered = key switch
+                {
+                    "name" => ApplyRoleOrder(source, ordered, role => role.Name, sort.Direction),
+                    "createdat" => ApplyRoleOrder(source, ordered, role => role.CreatedAtUtc, sort.Direction),
+                    "issystemrole" or "system" => ApplyRoleOrder(source, ordered, role => role.IsSystemRole, sort.Direction),
+                    _ => ordered
+                };
+
+                if (ordered is not null)
+                {
+                    source = ordered;
+                }
+            }
+        }
+
+        ordered ??= source
+            .OrderBy(role => role.OrganizationId.HasValue ? 1 : 0)
+            .ThenBy(role => role.Name);
+
+        return ordered.ThenBy(role => role.Id);
+    }
+
+    private static IOrderedQueryable<OrganizationRole> ApplyRoleOrder<T>(
+        IQueryable<OrganizationRole> source,
+        IOrderedQueryable<OrganizationRole>? ordered,
+        Expression<Func<OrganizationRole, T>> keySelector,
+        SortDirection direction)
+    {
+        if (ordered is null)
+        {
+            return direction == SortDirection.Descending
+                ? source.OrderByDescending(keySelector)
+                : source.OrderBy(keySelector);
+        }
+
+        return direction == SortDirection.Descending
+            ? ordered.ThenByDescending(keySelector)
+            : ordered.ThenBy(keySelector);
+    }
+
     private async Task EnsureRoleNameIsUniqueAsync(Guid? tenantId, Guid? organizationId, string roleName, CancellationToken cancellationToken)
     {
         var query = _dbContext.OrganizationRoles.AsNoTracking()
             .Where(role => role.Name == roleName);
 
-        if (tenantId.HasValue)
-        {
-            query = query.Where(role => role.TenantId == tenantId.Value);
-        }
-        else
-        {
-            query = query.Where(role => role.TenantId == null);
-        }
+        query = tenantId is Guid tenantFilter
+            ? query.Where(role => role.TenantId == tenantFilter)
+            : query.Where(role => role.TenantId == null);
 
-        if (organizationId.HasValue)
-        {
-            query = query.Where(role => role.OrganizationId == organizationId.Value);
-        }
-        else
-        {
-            query = query.Where(role => role.OrganizationId == null);
-        }
+        query = organizationId is Guid organizationFilter
+            ? query.Where(role => role.OrganizationId == organizationFilter)
+            : query.Where(role => role.OrganizationId == null);
 
         var exists = await query.AnyAsync(cancellationToken).ConfigureAwait(false);
         if (exists)
