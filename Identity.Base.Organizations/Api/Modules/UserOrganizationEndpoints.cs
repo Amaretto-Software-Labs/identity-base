@@ -620,8 +620,9 @@ public static class UserOrganizationEndpoints
             return Results.BadRequest(new ProblemDetails { Title = "Invalid organization", Detail = "Organization identifier is required.", Status = StatusCodes.Status400BadRequest });
         }
 
-        var inScope = await scopeResolver.IsInScopeAsync(actorUserId, organizationId, cancellationToken).ConfigureAwait(false);
-        if (!inScope && (!targetUserId.HasValue || targetUserId.Value != actorUserId))
+        var inScope = await scopeResolver.IsInScopeAsync(actorUserId, organizationId, cancellationToken).ConfigureAwait(false);        
+        bool isSelfTargeting = targetUserId.HasValue && targetUserId.Value == actorUserId;
+        if (!inScope && !isSelfTargeting)        
         {
             return Results.Forbid();
         }

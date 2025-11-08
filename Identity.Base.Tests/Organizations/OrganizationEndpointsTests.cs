@@ -584,6 +584,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         });
         roleResponse.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
+    
     [Fact]
     public async Task Admin_Can_Update_And_Delete_Organization()
     {
