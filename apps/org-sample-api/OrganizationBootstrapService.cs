@@ -86,12 +86,11 @@ public sealed class OrganizationBootstrapService
         {
             OrganizationId = organization.Id,
             UserId = user.Id,
-            IsPrimary = true,
             RoleIds = roleIds
         }, cancellationToken).ConfigureAwait(false);
 
         _logger.LogInformation(
-            "Added user {UserId} to organization {OrganizationId} as primary member with {RoleCount} roles.",
+            "Added user {UserId} to organization {OrganizationId} with {RoleCount} roles.",
             user.Id,
             organization.Id,
             roleIds.Length);
@@ -116,9 +115,8 @@ public sealed class OrganizationBootstrapService
         }
 
         var rolesChanged = !desiredRoles.SetEquals(existingRoles);
-        var shouldPromoteToPrimary = !membership.IsPrimary;
 
-        if (!rolesChanged && !shouldPromoteToPrimary)
+        if (!rolesChanged)
         {
             _logger.LogDebug("No membership updates required for user {UserId} in organization {OrganizationId}.", user.Id, organization.Id);
             return;
@@ -128,15 +126,13 @@ public sealed class OrganizationBootstrapService
         {
             OrganizationId = organization.Id,
             UserId = user.Id,
-            IsPrimary = shouldPromoteToPrimary ? true : null,
             RoleIds = desiredRoles.Count > 0 ? desiredRoles.ToArray() : Array.Empty<Guid>()
         }, cancellationToken).ConfigureAwait(false);
 
         _logger.LogInformation(
-            "Updated membership for user {UserId} in organization {OrganizationId}. Primary set: {Primary}, Role count: {RoleCount}",
+            "Updated membership for user {UserId} in organization {OrganizationId}. Role count: {RoleCount}",
             user.Id,
             organization.Id,
-            shouldPromoteToPrimary || membership.IsPrimary,
             desiredRoles.Count);
     }
 

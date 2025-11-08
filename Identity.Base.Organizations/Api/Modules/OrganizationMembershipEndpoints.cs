@@ -44,7 +44,6 @@ public static class OrganizationMembershipEndpoints
                 PageSize = query.PageSize,
                 Search = query.Search,
                 RoleId = query.RoleId,
-                IsPrimary = query.IsPrimary,
                 Sort = ResolveSort(query.Sort)
             };
 
@@ -74,7 +73,6 @@ public static class OrganizationMembershipEndpoints
                     OrganizationId = organizationId,
                     UserId = request.UserId,
                     TenantId = null,
-                    IsPrimary = request.IsPrimary,
                     RoleIds = request.RoleIds
                 }, cancellationToken).ConfigureAwait(false);
 
@@ -115,7 +113,6 @@ public static class OrganizationMembershipEndpoints
                 {
                     OrganizationId = organizationId,
                     UserId = userId,
-                    IsPrimary = request.IsPrimary,
                     RoleIds = request.RoleIds
                 }, cancellationToken).ConfigureAwait(false);
 

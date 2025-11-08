@@ -116,7 +116,7 @@ Add new permissions as features evolve. Permissions should be expressed as lower
 
 ## API Touchpoints
 
-- `GET /users/me/permissions` (Roles package) – returns the flattened list of permissions derived from the user’s roles.
+- `GET /users/me/permissions` (Roles package) – returns the flattened list of permissions derived from the user’s roles. When the caller includes `X-Organization-Id`, the organization package’s additional permission source runs first and the response also contains the active organization’s permissions (intersection of org roles + user membership); omit the header to see only global RBAC permissions.
 - Admin API will rely on permissions in JWT claims to authorize CRUD of users/roles.
 
 Sample response:

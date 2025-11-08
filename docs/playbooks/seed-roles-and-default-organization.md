@@ -76,8 +76,7 @@ docker compose -f docker-compose.local.yml up -d postgres mailhog
                 await memberService.AddMemberAsync(new Identity.Base.Organizations.Abstractions.OrganizationMembershipRequest
                 {
                     OrganizationId = org.Id,
-                    UserId = user.Id,
-                    IsPrimary = true
+                    UserId = user.Id
                 }, ct);
             }
         }
@@ -158,9 +157,9 @@ Expect: `{ "slug": "acme", "displayName": "Acme Corp" }` with a valid `id`.
 
 Command: Verify membership using member-facing endpoint
 ```bash
-curl -s http://localhost:8080/users/me/organizations -H "Authorization: Bearer $ACCESS_TOKEN" | jq '.[0] | {organization: .organization.displayName, isPrimary}'
+curl -s http://localhost:8080/users/me/organizations -H "Authorization: Bearer $ACCESS_TOKEN" | jq '.[0] | {organization: .organization.displayName, roles: .roleIds}'
 ```
-Expect: Shows membership for "Acme Corp" and `isPrimary: true`.
+Expect: Shows membership for "Acme Corp" with the owner role assigned.
 
 # Diagram
 ```mermaid

@@ -9,7 +9,5 @@ public sealed class OrganizationMembershipUpdateRequest
 
     public Guid UserId { get; init; }
 
-    public bool? IsPrimary { get; init; }
-
     public IReadOnlyCollection<Guid>? RoleIds { get; init; }
 }

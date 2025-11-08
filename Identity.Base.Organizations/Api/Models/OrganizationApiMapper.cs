@@ -46,7 +46,6 @@ internal static class OrganizationApiMapper
             OrganizationId = membership.OrganizationId,
             UserId = membership.UserId,
             TenantId = membership.TenantId,
-            IsPrimary = membership.IsPrimary,
             RoleIds = membership.RoleAssignments.Select(assignment => assignment.RoleId).ToArray(),
             CreatedAtUtc = membership.CreatedAtUtc,
             UpdatedAtUtc = membership.UpdatedAtUtc,
@@ -64,7 +63,6 @@ internal static class OrganizationApiMapper
             OrganizationId = member.OrganizationId,
             UserId = member.UserId,
             TenantId = member.TenantId,
-            IsPrimary = member.IsPrimary,
             RoleIds = member.RoleIds,
             CreatedAtUtc = member.CreatedAtUtc,
             UpdatedAtUtc = member.UpdatedAtUtc,
@@ -94,7 +92,6 @@ internal static class OrganizationApiMapper
             membership.Slug,
             membership.DisplayName,
             membership.Status,
-            membership.IsPrimary,
             membership.RoleIds,
             membership.CreatedAtUtc,
             membership.UpdatedAtUtc);

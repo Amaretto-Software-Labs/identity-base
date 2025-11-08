@@ -45,7 +45,6 @@ export default function OrganizationAdminPage() {
 
   const [searchTerm, setSearchTerm] = useState(memberQuery.search ?? '')
   const [roleFilter, setRoleFilter] = useState(memberQuery.roleId ?? '')
-  const [primaryOnly, setPrimaryOnly] = useState(memberQuery.isPrimary ?? false)
   const [pageInput, setPageInput] = useState(currentPage.toString())
   const pageSizeOptions = useMemo(() => [10, 25, 50, 100, 200], [])
 
@@ -106,10 +105,6 @@ export default function OrganizationAdminPage() {
   }, [memberQuery.roleId])
 
   useEffect(() => {
-    setPrimaryOnly(memberQuery.isPrimary ?? false)
-  }, [memberQuery.isPrimary])
-
-  useEffect(() => {
     setPageInput(currentPage.toString())
   }, [currentPage])
 
@@ -146,15 +141,6 @@ export default function OrganizationAdminPage() {
       ...previous,
       page: 1,
       roleId: value === '' ? undefined : value,
-    }))
-  }
-
-  const handlePrimaryToggle = (value: boolean) => {
-    setPrimaryOnly(value)
-    setMemberQuery((previous) => ({
-      ...previous,
-      page: 1,
-      isPrimary: value ? true : undefined,
     }))
   }
 
@@ -398,15 +384,6 @@ export default function OrganizationAdminPage() {
                     ))}
                   </select>
                 </div>
-                <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  <input
-                    type="checkbox"
-                    checked={primaryOnly}
-                    onChange={(event) => handlePrimaryToggle(event.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
-                  />
-                  Primary only
-                </label>
               </div>
               <div className="flex items-end gap-3">
                 <div className="space-y-1">
@@ -436,10 +413,9 @@ export default function OrganizationAdminPage() {
             ) : (
               <>
                 <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  <div className="grid grid-cols-[2fr,2fr,0.8fr,1fr,1fr] gap-3">
+                  <div className="grid grid-cols-[2fr,2fr,1fr,1fr] gap-3">
                     <span>Member</span>
                     <span>Roles</span>
-                    <span>Primary</span>
                     <span>Joined</span>
                     <span />
                   </div>

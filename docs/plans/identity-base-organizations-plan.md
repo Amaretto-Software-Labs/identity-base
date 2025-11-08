@@ -84,7 +84,7 @@ Identity.Base.Organizations/
 | Entity | Description |
 | --- | --- |
 | `Organization` | Represents a logical grouping of users. Fields: `Id`, optional `TenantId`, `Slug`, `DisplayName`, `Status`, `Metadata (JSONB)`, timestamps. Unique index on `(TenantId, Slug)` and `(TenantId, DisplayName)`.
-| `OrganizationMembership` | Links users to organizations with optional primary flag. Fields: `OrganizationId`, `UserId`, optional `TenantId`, `IsPrimary`, membership timestamps.
+| `OrganizationMembership` | Links users to organizations. Fields: `OrganizationId`, `UserId`, optional `TenantId`, membership timestamps.
 | `OrganizationRole` | Role definition, optionally org-specific or shared across orgs. Fields: `Id`, `OrganizationId?`, `Name`, `Description`, `IsSystemRole`.
 | `OrganizationRoleAssignment` | Associates roles with memberships. Fields: `OrganizationId`, `UserId`, `RoleId`, timestamps.
 | `OrganizationMetadata` | Value object backing JSON metadata (custom labels, billing references, etc.).
@@ -102,7 +102,7 @@ All tables include `TenantId` columns for future commercial composition, but OSS
 ### 4. Services & DI
 
 - `OrganizationService` – create, update, archive organizations, manage metadata.
-- `OrganizationMembershipService` – add/remove members, toggle primary org, list user memberships, enforce basic invariants.
+- `OrganizationMembershipService` – add/remove members, list user memberships, enforce basic invariants.
 - `OrganizationRoleService` – manage org roles, assign permissions, integrate with `Identity.Base.Roles` APIs.
 - `OrganizationRoleSeeder` – seeds default roles (`OrgOwner`, `OrgManager`, `OrgMember`) per organization/tenant.
 - `OrganizationContextAccessor` & `DefaultOrganizationContextAccessor` – surfaces the active organization (no-op by default).
@@ -181,7 +181,7 @@ Implementation details:
 - Apply authorization policies via `RequireOrganizationPermission(...)`; member endpoints must ensure callers belong to the organization and enforce owner/manager limits.
 - Active org switching remains client-driven via the `X-Organization-Id` header; document refresh requirements after membership/role changes. Member endpoints should automatically scope to the header when provided.
 - Member endpoints should gracefully degrade when the RBAC package is absent (e.g., role/permission endpoints disabled when no catalog exists).
-- Standardize query parameters for all collection/list endpoints (`page`, `pageSize`, `search`, `sort`, and context-specific filters like `roleId`, `status`, `isPrimary`), and surface them consistently across admin + member APIs.
+- Standardize query parameters for all collection/list endpoints (`page`, `pageSize`, `search`, `sort`, and context-specific filters like `roleId` or `status`), and surface them consistently across admin + member APIs.
 
 ### 7. Token & Authorization Integration
 

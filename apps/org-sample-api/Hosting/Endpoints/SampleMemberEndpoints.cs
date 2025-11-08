@@ -49,7 +49,6 @@ internal static class SampleMemberEndpoints
         {
             member.OrganizationId,
             member.UserId,
-            member.IsPrimary,
             member.RoleIds,
             member.CreatedAtUtc,
             member.UpdatedAtUtc,
@@ -94,12 +93,12 @@ internal static class SampleMemberEndpoints
             });
         }
 
-        if (request.RoleIds is null && !request.IsPrimary.HasValue)
+        if (request.RoleIds is null)
         {
             return Results.BadRequest(new ProblemDetails
             {
                 Title = "Invalid update",
-                Detail = "Specify roles or primary status to update.",
+                Detail = "Specify at least one role to update.",
                 Status = StatusCodes.Status400BadRequest
             });
         }
@@ -110,8 +109,7 @@ internal static class SampleMemberEndpoints
             {
                 OrganizationId = organizationId,
                 UserId = userId,
-                RoleIds = request.RoleIds?.ToArray(),
-                IsPrimary = request.IsPrimary
+                RoleIds = request.RoleIds?.ToArray()
             }, cancellationToken).ConfigureAwait(false);
         }
         catch (ArgumentException ex)
@@ -137,7 +135,6 @@ internal static class SampleMemberEndpoints
         {
             updated.OrganizationId,
             updated.UserId,
-            updated.IsPrimary,
             updated.RoleIds,
             updated.CreatedAtUtc,
             updated.UpdatedAtUtc,

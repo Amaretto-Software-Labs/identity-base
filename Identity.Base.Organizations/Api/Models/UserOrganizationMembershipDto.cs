@@ -10,7 +10,6 @@ public sealed record UserOrganizationMembershipDto(
     string Slug,
     string DisplayName,
     OrganizationStatus Status,
-    bool IsPrimary,
     IReadOnlyList<Guid> RoleIds,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset? UpdatedAtUtc);

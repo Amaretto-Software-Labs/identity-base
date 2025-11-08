@@ -14,8 +14,6 @@ public sealed class OrganizationMemberListRequest
 
     public Guid? RoleId { get; init; }
 
-    public bool? IsPrimary { get; init; }
-
     public OrganizationMemberSort Sort { get; init; } = OrganizationMemberSort.CreatedAtDescending;
 }
 

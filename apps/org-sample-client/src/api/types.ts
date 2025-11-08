@@ -40,7 +40,6 @@ export interface Membership {
   organizationId: string
   userId: string
   tenantId: string | null
-  isPrimary: boolean
   roleIds: string[]
   createdAtUtc: string
   updatedAtUtc: string | null
@@ -66,7 +65,6 @@ export interface OrganizationRolePermissions {
 export interface OrganizationMember {
   userId: string
   organizationId: string
-  isPrimary: boolean
   roleIds: string[]
   createdAtUtc: string
   email?: string | null

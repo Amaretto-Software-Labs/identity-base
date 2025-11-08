@@ -73,14 +73,8 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
             OrganizationId = request.OrganizationId,
             UserId = request.UserId,
             TenantId = organization.TenantId,
-            IsPrimary = request.IsPrimary,
             CreatedAtUtc = DateTimeOffset.UtcNow
         };
-
-        if (request.IsPrimary)
-        {
-            await ClearPrimaryMembershipAsync(request.UserId, organization.TenantId, cancellationToken).ConfigureAwait(false);
-        }
 
         var roleIds = NormalizeRoleIds(request.RoleIds);
         if (roleIds.Count > 0)
@@ -162,7 +156,7 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
         }
 
         return await query
-            .OrderByDescending(membership => membership.IsPrimary)
+            .OrderBy(membership => membership.Organization!.DisplayName ?? membership.Organization!.Slug ?? string.Empty)
             .ThenBy(membership => membership.OrganizationId)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -229,7 +223,6 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
                 membership.Organization!.Slug,
                 membership.Organization.DisplayName,
                 membership.Organization.Status,
-                membership.IsPrimary,
                 membership.RoleAssignments.Select(assignment => assignment.RoleId).ToList(),
                 membership.CreatedAtUtc,
                 membership.UpdatedAtUtc))
@@ -257,11 +250,6 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
         var membershipQuery = _dbContext.OrganizationMemberships
             .AsNoTracking()
             .Where(membership => membership.OrganizationId == request.OrganizationId);
-
-        if (request.IsPrimary.HasValue)
-        {
-            membershipQuery = membershipQuery.Where(membership => membership.IsPrimary == request.IsPrimary.Value);
-        }
 
         if (request.RoleId.HasValue)
         {
@@ -324,12 +312,10 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
         var orderedQuery = request.Sort switch
         {
             OrganizationMemberSort.CreatedAtAscending => membershipWithRoles
-                .OrderBy(membership => membership.IsPrimary)
-                .ThenBy(membership => membership.CreatedAtUtc)
+                .OrderBy(membership => membership.CreatedAtUtc)
                 .ThenBy(membership => membership.UserId),
             _ => membershipWithRoles
-                .OrderByDescending(membership => membership.IsPrimary)
-                .ThenByDescending(membership => membership.CreatedAtUtc)
+                .OrderByDescending(membership => membership.CreatedAtUtc)
                 .ThenBy(membership => membership.UserId)
         };
 
@@ -360,7 +346,6 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
                     OrganizationId = membership.OrganizationId,
                     UserId = membership.UserId,
                     TenantId = membership.TenantId,
-                    IsPrimary = membership.IsPrimary,
                     RoleIds = membership.RoleAssignments.Select(assignment => assignment.RoleId).ToArray(),
                     CreatedAtUtc = membership.CreatedAtUtc,
                     UpdatedAtUtc = membership.UpdatedAtUtc,
@@ -410,7 +395,6 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
                     "displayname" => ApplyOrder(source, ordered, membership => membership.Organization!.DisplayName ?? membership.Organization!.Slug ?? string.Empty, sort.Direction),
                     "slug" => ApplyOrder(source, ordered, membership => membership.Organization!.Slug ?? string.Empty, sort.Direction),
                     "createdat" => ApplyOrder(source, ordered, membership => membership.CreatedAtUtc, sort.Direction),
-                    "isprimary" => ApplyOrder(source, ordered, membership => membership.IsPrimary, sort.Direction),
                     _ => ordered
                 };
                 source = ordered ?? source;
@@ -419,10 +403,8 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
 
         ordered = (ordered is null
             ? source
-                .OrderByDescending(membership => membership.IsPrimary)
-                .ThenBy(membership => membership.Organization!.DisplayName ?? membership.Organization!.Slug ?? string.Empty)
+                .OrderBy(membership => membership.Organization!.DisplayName ?? membership.Organization!.Slug ?? string.Empty)
             : ordered
-                .ThenByDescending(membership => membership.IsPrimary)
                 .ThenBy(membership => membership.Organization!.DisplayName ?? membership.Organization!.Slug ?? string.Empty))
             .ThenBy(membership => membership.OrganizationId);
 
@@ -483,21 +465,6 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
         }
 
         var changed = false;
-
-        if (request.IsPrimary.HasValue)
-        {
-            if (request.IsPrimary.Value && !membership.IsPrimary)
-            {
-                await ClearPrimaryMembershipAsync(request.UserId, organization.TenantId, cancellationToken).ConfigureAwait(false);
-                membership.IsPrimary = true;
-                changed = true;
-            }
-            else if (!request.IsPrimary.Value && membership.IsPrimary)
-            {
-                membership.IsPrimary = false;
-                changed = true;
-            }
-        }
 
         if (request.RoleIds is not null)
         {
@@ -586,29 +553,6 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         _logger?.LogInformation("Removed user {UserId} from organization {OrganizationId}", userId, organizationId);
-    }
-
-    private async Task ClearPrimaryMembershipAsync(Guid userId, Guid? tenantId, CancellationToken cancellationToken)
-    {
-        var query = _dbContext.OrganizationMemberships
-            .Where(membership => membership.UserId == userId && membership.IsPrimary);
-
-        if (tenantId is Guid tenantFilter)
-        {
-            query = query.Where(membership => membership.TenantId == tenantFilter);
-        }
-
-        var memberships = await query.ToListAsync(cancellationToken).ConfigureAwait(false);
-        if (memberships.Count == 0)
-        {
-            return;
-        }
-
-        foreach (var membership in memberships)
-        {
-            membership.IsPrimary = false;
-            membership.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        }
     }
 
     private static HashSet<Guid> NormalizeRoleIds(IEnumerable<Guid> roleIds)

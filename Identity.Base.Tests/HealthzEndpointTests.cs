@@ -25,6 +25,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Hosting.Server;
 
 namespace Identity.Base.Tests;
 
@@ -303,6 +304,7 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                 options.DefaultAdminRoles.Clear();
                 options.DefaultAdminRoles.Add("IdentityAdmin");
             });
+
         });
     }
 
@@ -321,6 +323,7 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
         public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
             => Task.FromResult(HealthCheckResult.Healthy());
     }
+
 }
 
 public sealed class FakeEmailSender : ITemplatedEmailSender
