@@ -3,9 +3,11 @@ using System.Security.Claims;
 using Shouldly;
 using Identity.Base.Organizations.Authorization;
 using Identity.Base.Organizations.Claims;
+using Identity.Base.Organizations.Options;
 using Identity.Base.Organizations.Services;
 using Identity.Base.Roles.Claims;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Organizations.Tests.Authorization;
 
@@ -15,12 +17,13 @@ public class OrganizationPermissionAuthorizationHandlerTests
     public async Task HandleRequirementAsync_Succeeds_WhenPermissionClaimPresent()
     {
         var resolver = new StubOrganizationPermissionResolver();
-        var handler = new OrganizationPermissionAuthorizationHandler(resolver);
+        var handler = CreateHandler(resolver);
 
         var requirement = new OrganizationPermissionRequirement(AdminOrganizationPermissions.OrganizationsRead);
         var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
-            new Claim(RoleClaimTypes.Permissions, $"{AdminOrganizationPermissions.OrganizationsRead} {AdminOrganizationPermissions.OrganizationMembersRead}")
+            new Claim(RoleClaimTypes.Permissions, $"{AdminOrganizationPermissions.OrganizationsRead} {AdminOrganizationPermissions.OrganizationMembersRead}"),
+            new Claim("scope", "identity.admin identity.api")
         }, authenticationType: "Test"));
 
         var context = new AuthorizationHandlerContext(new[] { requirement }, user, null);
@@ -34,12 +37,13 @@ public class OrganizationPermissionAuthorizationHandlerTests
     public async Task HandleRequirementAsync_DoesNotSucceed_WhenPermissionMissing()
     {
         var resolver = new StubOrganizationPermissionResolver();
-        var handler = new OrganizationPermissionAuthorizationHandler(resolver);
+        var handler = CreateHandler(resolver);
 
         var requirement = new OrganizationPermissionRequirement(AdminOrganizationPermissions.OrganizationsManage);
         var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
-            new Claim(RoleClaimTypes.Permissions, AdminOrganizationPermissions.OrganizationsRead)
+            new Claim(RoleClaimTypes.Permissions, AdminOrganizationPermissions.OrganizationsRead),
+            new Claim("scope", "identity.admin identity.api")
         }, authenticationType: "Test"));
 
         var context = new AuthorizationHandlerContext(new[] { requirement }, user, null);
@@ -61,7 +65,7 @@ public class OrganizationPermissionAuthorizationHandlerTests
             UserId = userId
         };
 
-        var handler = new OrganizationPermissionAuthorizationHandler(resolver);
+        var handler = CreateHandler(resolver);
         var requirement = new OrganizationPermissionRequirement(UserOrganizationPermissions.OrganizationMembersManage);
 
         var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
@@ -81,7 +85,7 @@ public class OrganizationPermissionAuthorizationHandlerTests
     public async Task HandleRequirementAsync_Fails_WhenUserScopedButNoMembership()
     {
         var resolver = new StubOrganizationPermissionResolver();
-        var handler = new OrganizationPermissionAuthorizationHandler(resolver);
+        var handler = CreateHandler(resolver);
 
         var requirement = new OrganizationPermissionRequirement(UserOrganizationPermissions.OrganizationMembersManage);
         var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
@@ -94,6 +98,15 @@ public class OrganizationPermissionAuthorizationHandlerTests
         await handler.HandleAsync(context);
 
         context.HasSucceeded.ShouldBeFalse();
+    }
+
+    private static OrganizationPermissionAuthorizationHandler CreateHandler(IOrganizationPermissionResolver resolver, string? adminScope = "identity.admin")
+    {
+        var options = Microsoft.Extensions.Options.Options.Create(new OrganizationAuthorizationOptions
+        {
+            AdminRequiredScope = adminScope
+        });
+        return new OrganizationPermissionAuthorizationHandler(resolver, options);
     }
 }
 

@@ -7,9 +7,11 @@ using Identity.Base.Roles.Claims;
 using Identity.Base.Organizations.Authorization;
 using Identity.Base.Organizations.Services;
 using Identity.Base.Organizations.Claims;
+using Identity.Base.Organizations.Options;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using System.Globalization;
+using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Organizations.Authorization;
 
@@ -31,15 +33,25 @@ public sealed class OrganizationPermissionRequirement : IAuthorizationRequiremen
 public sealed class OrganizationPermissionAuthorizationHandler : AuthorizationHandler<OrganizationPermissionRequirement>
 {
     private readonly IOrganizationPermissionResolver _permissionResolver;
+    private readonly OrganizationAuthorizationOptions _authorizationOptions;
+    private const string ScopeClaimType = "scope";
 
-    public OrganizationPermissionAuthorizationHandler(IOrganizationPermissionResolver permissionResolver)
+    public OrganizationPermissionAuthorizationHandler(
+        IOrganizationPermissionResolver permissionResolver,
+        IOptions<OrganizationAuthorizationOptions> authorizationOptions)
     {
         _permissionResolver = permissionResolver ?? throw new ArgumentNullException(nameof(permissionResolver));
+        _authorizationOptions = authorizationOptions?.Value ?? throw new ArgumentNullException(nameof(authorizationOptions));
     }
 
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, OrganizationPermissionRequirement requirement)
     {
         if (context.User is null)
+        {
+            return;
+        }
+
+        if (IsAdminPermission(requirement.Permission) && !HasAdminScope(context.User))
         {
             return;
         }
@@ -110,5 +122,21 @@ public sealed class OrganizationPermissionAuthorizationHandler : AuthorizationHa
         }
 
         return null;
+    }
+
+    private static bool IsAdminPermission(string permission)
+        => permission.StartsWith("admin.organizations.", StringComparison.OrdinalIgnoreCase);
+
+    private bool HasAdminScope(ClaimsPrincipal user)
+    {
+        if (string.IsNullOrWhiteSpace(_authorizationOptions.AdminRequiredScope))
+        {
+            return true;
+        }
+
+        var scopes = user.FindAll(ScopeClaimType)
+            .SelectMany(claim => claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+        return scopes.Contains(_authorizationOptions.AdminRequiredScope, StringComparer.Ordinal);
     }
 }

@@ -32,6 +32,7 @@ public static class ServiceCollectionExtensions
 
         services.AddOptions<OrganizationOptions>();
         services.AddOptions<OrganizationRoleOptions>();
+        services.AddOptions<OrganizationAuthorizationOptions>();
 
         services.TryAddSingleton<IdentityBaseModelCustomizationOptions>();
         services.TryAddSingleton<IdentityBaseSeedCallbacks>();
