@@ -273,13 +273,26 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
         List<Guid>? userFilter = null;
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
-            var pattern = CreateSearchPattern(request.Search);
-            userFilter = await _appDbContext.Users
-                .AsNoTracking()
-                .Where(user =>
+            var usersQuery = _appDbContext.Users.AsNoTracking();
+
+            if (_appDbContext.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                var lower = request.Search.Trim().ToLowerInvariant();
+                usersQuery = usersQuery.Where(user =>
+                    (user.Email ?? string.Empty).ToLower().Contains(lower) ||
+                    (user.DisplayName ?? string.Empty).ToLower().Contains(lower) ||
+                    (user.UserName ?? string.Empty).ToLower().Contains(lower));
+            }
+            else
+            {
+                var pattern = CreateSearchPattern(request.Search);
+                usersQuery = usersQuery.Where(user =>
                     EF.Functions.ILike(user.Email ?? string.Empty, pattern) ||
                     EF.Functions.ILike(user.DisplayName ?? string.Empty, pattern) ||
-                    EF.Functions.ILike(user.UserName ?? string.Empty, pattern))
+                    EF.Functions.ILike(user.UserName ?? string.Empty, pattern));
+            }
+
+            userFilter = await usersQuery
                 .Select(user => user.Id)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);

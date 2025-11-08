@@ -71,8 +71,13 @@ Connection strings can be supplied via the `IdentityOrganizations` named connect
 | `GET /invitations/{code}` | Public endpoint to validate invite metadata. | Anonymous |
 | `POST /invitations/claim` | Accept an invite (authenticated) and add membership. | Authenticated user matching invite email |
 | `GET /users/me/organizations` | Paged list of the caller's memberships (`page`, `pageSize`, `search`, `sort`, `includeArchived`). Returns `PagedResult<UserOrganizationMembershipDto>`. | Authenticated |
+| `GET /users/me/organizations/{id}` | Retrieve organization details scoped to the caller’s membership. | `user.organizations.read` |
+| `PATCH /users/me/organizations/{id}` | Update display name/metadata for the caller’s organization. | `user.organizations.manage` |
+| `GET/POST/PUT/DELETE /users/me/organizations/{id}/members` | Member management within the caller’s organization (paged list + CRUD). | `user.organizations.members.*` |
+| `GET/POST/DELETE /users/me/organizations/{id}/roles` | Manage organization-specific roles plus their permissions (`GET/PUT /roles/{roleId}/permissions`). | `user.organizations.roles.*` |
+| `GET/POST/DELETE /users/me/organizations/{id}/invitations` | Issue and manage invitations scoped to the caller’s organization. | `user.organizations.members.manage` |
 
-All paged endpoints honor the shared query parameters: `page` (default 1), `pageSize` (default 25, max 200), `search` (full-text match on supported fields), and `sort` (comma-delimited `field[:asc|:desc]`). The Minimal APIs normalize these values through `PageRequest` and always return a `PagedResult<T>` payload (`page`, `pageSize`, `totalCount`, `items`). Admin routes also surface endpoint-specific filters such as `tenantId`, `status`, `roleId`, or `includeArchived`.
+All paged endpoints honor the shared query parameters: `page` (default 1), `pageSize` (default 25, max 200), `search` (full-text match on supported fields), and `sort` (comma-delimited `field[:asc|:desc]`). The Minimal APIs normalize these values through `PageRequest` and always return a `PagedResult<T>` payload (`page`, `pageSize`, `totalCount`, `items`). Admin routes also surface endpoint-specific filters such as `tenantId`, `status`, `roleId`, or `includeArchived`. User-facing endpoints reuse the exact same query contract, so front ends can apply identical pagination helpers regardless of which surface they call.
 
 ### Services & Helpers
 - `IOrganizationService` – organization CRUD operations.
