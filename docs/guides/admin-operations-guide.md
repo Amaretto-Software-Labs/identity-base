@@ -8,7 +8,7 @@ This guide walks operators through enabling and using the Identity Base admin su
 
 ## 1. Prerequisites
 - Identity Base host running (e.g., `dotnet run --project Identity.Base.Host`).
-- Database schema up to date. The host automatically applies the Identity and Roles migrations via background hosted services on startup.
+- Database schema up to date. Generate migrations from your host project (Identity + Roles + any add-ons) and apply them via `dotnet ef database update` or your startup helper before exposing the admin APIs.
 - At least one admin user seeded with the appropriate roles/permissions (`users.read`, `users.manage-roles`, `roles.read`, `roles.manage`, `users.create`, etc.). You can configure these in `Roles:Definitions` and `Roles:DefaultAdminRoles` inside `appsettings`.
 - OAuth client with the `identity.admin` scope. The sample SPA requests this scope by default.
 
@@ -68,7 +68,7 @@ This guide walks operators through enabling and using the Identity Base admin su
 - **404 on `/users/me/permissions`:** ensure `app.MapIdentityRolesUserEndpoints()` is called (already wired in `Identity.Base.Host/Program.cs`).
 - **Admin link missing:** verify the signed-in user has `roles.read` and `users.read`. Also confirm `/users/me/permissions` is returning data (watch the network tab or use curl).
 - **403 responses:** double-check that the access token or cookie contains both the admin scope and the required permission claims.
-- **Migrations failing:** the host applies migrations on startup via hosted services; inspect logs for `Failed to apply role database migrations` errors. Fix connection strings before restarting.
+- **Migrations failing:** inspect the logs for failures in your migration runner (CLI or startup helper). Fix connection strings/permissions, rerun `dotnet ef database update`, then restart the host so seeding can continue.
 
 ## 7. Next Steps
 - Customize the React admin pages by copying `apps/sample-client/src/pages/admin` into your own SPA and replacing the styling or UX components.

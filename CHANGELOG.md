@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.1] - 2025-11-08
+- Identity.Base, Admin, Roles, and Organizations no longer ship EF Core migrations or provider-specific `DatabaseOptions`; hosts now pass a `configureDbContext` delegate (or register the contexts directly) so consumers can target PostgreSQL, SQL Server, or any EF provider.
+- Added `IdentityDbNamingOptions`/`UseTablePrefix` plus shared naming helpers so every table/index can adopt a host-defined prefix (the built-in default remains `Identity_`).
+- Sample hosts (`Identity.Base.Host`, `apps/org-sample-api`, `apps/sample-api`) gained provider helper extensions, design-time factories, and their own migrations that demonstrate per-host prefixes (`Host_*`, `OrgSample_*`); startup migrators were updated to run the host-generated migrations before seeding.
+- Updated tests, docs, and helper APIs to remove the old migration services, ensure DbContexts throw when unconfigured, and silence EF’s `ManyServiceProvidersCreatedWarning` during in-memory runs.
+
 ## [0.6.3] - 2025-11-08
 - Reintroduced `POST /users/me/organizations`, allowing authenticated users to create an organization that immediately assigns them the default OrgOwner role (respects custom `Organizations:RoleOptions` seeds).
 - Removed the legacy `IsPrimary` membership concept. Membership DTOs/queries no longer expose the flag, list endpoints dropped the `isPrimary` filter, and React + sample clients were updated accordingly. Organization context must now be set explicitly via `X-Organization-Id`.

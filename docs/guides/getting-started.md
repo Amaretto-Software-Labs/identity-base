@@ -154,13 +154,17 @@ Key sections:
 If you need the database objects to use a different prefix than `Identity_`, call `identity.UseTablePrefix("Contoso")` (and the corresponding `UseTablePrefix` helpers on RBAC/organization builders) before running migrations.
 
 ### 2.4 Apply the Core Migrations
-Generate the database schema inside your host project:
+Generate the database schema inside your host project (example below uses `Identity.Base.Host`; swap in your own host project if different):
 ```bash
 dotnet ef migrations add InitialIdentityBase \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
+  --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Data.AppDbContext \
   --output-dir Data/Migrations/IdentityBase
 
 dotnet ef database update \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
+  --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Data.AppDbContext
 ```
 
@@ -234,13 +238,17 @@ Add the `Permissions` and `Roles` sections to `appsettings.json` (adjust names a
 ```
 
 ### 3.4 Create RBAC Migrations
-Run the following commands from your host project (the one referencing the packages):
+Run the following commands from your host project (again using `Identity.Base.Host` as the sample):
 ```bash
 dotnet ef migrations add InitialIdentityRoles \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
+  --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Roles.Data.IdentityRolesDbContext \
   --output-dir Data/Migrations/IdentityRoles
 
 dotnet ef database update \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
+  --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Roles.Data.IdentityRolesDbContext
 ```
 
@@ -283,10 +291,14 @@ app.MapIdentityBaseOrganizationEndpoints();
 Run the migrations from your host project so they target your chosen provider:
 ```bash
 dotnet ef migrations add InitialOrganizations \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
+  --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Organizations.Data.OrganizationDbContext \
   --output-dir Data/Migrations/Organizations
 
 dotnet ef database update \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
+  --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Organizations.Data.OrganizationDbContext
 ```
 

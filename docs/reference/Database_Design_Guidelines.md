@@ -1,5 +1,5 @@
 # Database Design & Migration Guidelines
-**Scope:** Platform API services (.NET 9 minimal APIs) using EF Core + PostgreSQL
+**Scope:** Platform API services (.NET 9 minimal APIs) using EF Core with PostgreSQL or SQL Server (PostgreSQL is still the default reference stack).
 
 ---
 
@@ -9,17 +9,17 @@
 - **Structured logging:** use Serilog enrichers for database-related events (migrations, transactions) to aid observability.
 - **Immutable identifiers:** use UUID (`uuid`/`Guid`) primary keys for all tables; generate them application-side to avoid round trips.
 - **Minimal API alignment:** keep DbContext registration and endpoint wiring inside the minimal API bootstrap (no MVC controllers) to simplify dependency graphs.
-- **Automated migrations:** every API instance applies pending EF Core migrations during startup (via `Database.Migrate()`), eliminating manual SQL deployment drift.
+- **Host-owned migrations:** each consuming host configures the DbContexts, generates EF Core migrations targeting its chosen provider, and applies them (via `dotnet ef database update` or an explicit startup hook) *before* Identity Base seeders execute.
 
 ---
 
 ## 2. Tools & Workflow
 1. **Design:** capture ERD sketches (Mermaid/Draw.io) in `Identity.Base/docs/erd/` before implementing.
-2. **Model:** define EF Core entities and `DbContext` configuration in `Identity.Base/Data` (use `IEntityTypeConfiguration` per aggregate).
-3. **Migration:** generate migrations via EF Core CLI (`dotnet ef migrations add <Name> -p Identity.Base/Identity.Base.csproj -s Identity.Base.Host/Identity.Base.Host.csproj`). Store them in `Identity.Base/Data/Migrations`.
+2. **Model:** define EF Core entities and `DbContext` configuration in the package source (e.g., `Identity.Base/Data`) using `IEntityTypeConfiguration` per aggregate.
+3. **Migration:** generate migrations from the consuming host project (for example `Identity.Base.Host`, sample APIs, or your product host) so they compile against your provider/configuration. Store them under the host (e.g., `Identity.Base.Host/Data/Migrations/<Context>`), not inside the shared packages.
 4. **Review:** migrations must be human-reviewed; ensure column types, default values, constraints, and index names are intentional.
-5. **Apply:** the API automatically applies migrations on startup (`using var scope = app.Services.CreateScope(); scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();`). CLI `dotnet ef database update` is reserved for local troubleshooting only.
-6. **Document:** update `Identity.Base/docs/README.md` with migration name, purpose, and rollback steps.
+5. **Apply:** run migrations via `dotnet ef database update` (CI/deploy pipeline) or an explicit startup helper in the host (`using var scope = app.Services.CreateScope(); await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();`). Identity Base does not auto-apply them for you.
+6. **Document:** update `docs/` and release notes with the migration name, purpose, and rollback steps so other hosts know when to regenerate.
 
 ---
 
@@ -32,7 +32,7 @@
 ---
 
 ## 4. Schema Best Practices
-- **Table naming:** ensure tables remain PascalCase (e.g., `UserProfile`). When a prefix is required, apply `Identity_` (e.g., `Identity_UserProfile`).
+- **Table naming:** ensure tables remain PascalCase (e.g., `UserProfile`). Use the `UseTablePrefix`/`IdentityDbNamingOptions` helpers so hosts can override the default `Identity_` prefix.
 - **Primary keys:** `Guid` with `ValueGeneratedNever()`; configure default `uuid_generate_v4()` in migrations for direct SQL usage.
 - **Foreign keys:** cascade delete only where business rules allow; otherwise restrict and enforce via service layer.
 - **Timestamps:** use `CreatedAt`/`UpdatedAt` columns with UTC `timestamptz`; set via EF Core interceptors.
@@ -44,7 +44,7 @@
 ---
 
 ## 5. Branching & Collaboration
-- Each feature branch must include its own migration(s); do not reuse existing migration files.
+- Each feature branch in a host must include its own migration(s); do not reuse existing migration files.
 - Resolve migration conflicts by reordering or regenerating on top of `main`; never edit past migrations already applied to shared environments.
 - Add regression tests (unit/integration) verifying new constraints or relationships before merging.
 
@@ -69,9 +69,9 @@
 - [ ] Update ERD or data flow notes.
 - [ ] Implement EF Core entity/config changes (respect Unit of Work boundaries).
 - [ ] Create migration and inspect generated SQL.
-- [ ] Verify startup auto-applies migrations in local environment.
+- [ ] Verify your host applied the migrations locally (either via CLI output or startup logs).
 - [ ] Write/extend tests covering new behavior.
 - [ ] Update documentation and changelog entries.
 - [ ] Verify minimal API endpoints compile and expose necessary contracts.
 
-Following these conventions keeps our PostgreSQL schema aligned across services while leveraging EF Core migrations, the Unit of Work pattern, and .NET 9 minimal APIs safely.
+Following these conventions keeps schemas aligned across services while letting each host own its EF Core migrations, the Unit of Work pattern, and database provider choices safely.

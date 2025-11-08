@@ -142,7 +142,7 @@ Sample response:
 
 ## Next Steps
 Use this document when implementing:
-- EF migrations (`Identity.Base.Roles`).
+- EF migrations generated from the consuming host (`IdentityRolesDbContext`).
 - Configuration binding + seeding.
 - Admin endpoint authorization checks.
 - Documentation references in public guides.

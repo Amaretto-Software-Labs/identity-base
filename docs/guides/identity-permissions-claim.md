@@ -101,11 +101,26 @@ app.UseOrganizationContextFromHeader();
 
 and the client-side `X-Organization-Id` header to indicate which organization is active per request. The middleware ignores the header when the request targets `/organizations…` (admin APIs) so global admins remain unrestricted. When memberships change, refresh tokens so the `org:memberships` claim stays current.
 
-## 4. Let Startup Hosted Services Apply Migrations
+## 4. Apply Migrations Before Seeding
 
-Identity Base no longer runs EF Core migrations for you. Generate/apply migrations in your host (for both `AppDbContext` and the RBAC context) before the application starts, then call `SeedIdentityRolesAsync()` to synchronize roles/permissions from configuration.
+Identity Base no longer ships migrations or applies them automatically. From **your host project**, generate and apply migrations for each context you register. Example commands:
 
-Nothing else is required: ensure both DbContexts point at databases where the app has migrate permissions, and the hosted services will run before the HTTP pipeline starts handling traffic. For containerised or server environments, keep the health probes delayed until startup migrations complete.
+```bash
+dotnet ef migrations add InitialIdentityBase \
+  --context Identity.Base.Data.AppDbContext \
+  --output-dir Data/Migrations/IdentityBase
+
+dotnet ef migrations add InitialIdentityRoles \
+  --context Identity.Base.Roles.IdentityRolesDbContext \
+  --output-dir Data/Migrations/IdentityRoles
+
+dotnet ef database update --context Identity.Base.Data.AppDbContext
+dotnet ef database update --context Identity.Base.Roles.IdentityRolesDbContext
+```
+
+Run these from the host (e.g., `Identity.Base.Host`, your API, etc.) so the migrations pick up your provider configuration (`UseNpgsql`, `UseSqlServer`, …). After applying them—either via the CLI or a startup helper—invoke `await app.Services.SeedIdentityRolesAsync();` to sync permissions and roles from configuration.
+
+For containerized deployments, keep readiness probes delayed until after the migrations/seeding helpers finish so traffic only arrives once the schema is current.
 
 ## 5. Refresh Sign-In After Role Changes
 

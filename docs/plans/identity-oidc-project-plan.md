@@ -88,8 +88,8 @@ Identity.sln
 - Keep entity configurations in `Identity.Base/Data/Configurations` implementing `IEntityTypeConfiguration<>`.
 - Create `UnitOfWork` abstraction coordinating repositories; add transactional helpers for multi-step operations (registration + email send).
 - Store extended user profile metadata using a strongly-typed value object backed by JSONB column(s) so integrators can add arbitrary fields (e.g., company, position) without schema churn; expose typed accessors and claim mapping helpers.
-- Auto-apply migrations on startup (`Database.Migrate()` inside scoped service). Ensure migrations live under `Identity.Base/Migrations` and are reviewed before merge.
-- Document each migration in `Identity.Base/docs/README.md` per checklist.
+- Hosts generate and apply migrations (via `dotnet ef` + startup helpers) from their own projects before seeders run; no migrations live in the shared packages.
+- Document each migration (name, purpose, rollback) alongside the host that owns it so downstream teams know when to regenerate.
 
 ## Identity & User Management
 - Require confirmed email before sign-in (`SignInOptions.RequireConfirmedEmail = true`).

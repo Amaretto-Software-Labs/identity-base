@@ -44,13 +44,16 @@ Configure the host (`Identity.Base.Host/appsettings.Development.json`) with:
 - CORS allowed origins (`http://localhost:5173` for local React app)
 - External provider credentials if applicable
 
-Apply migrations if needed:
+Apply migrations (from your host project) so the schema matches the running code. Example:
 
 ```bash
 dotnet ef database update \
-  --project Identity.Base/Identity.Base.csproj \
-  --startup-project Identity.Base.Host/Identity.Base.Host.csproj
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
+  --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
+  --context Identity.Base.Data.AppDbContext
 ```
+
+Repeat for any additional contexts you enabled (e.g., `IdentityRolesDbContext`, `OrganizationDbContext`).
 
 ---
 
