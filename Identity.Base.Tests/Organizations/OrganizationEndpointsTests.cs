@@ -108,6 +108,17 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     }
 
     [Fact]
+    public async Task Admin_Endpoints_Require_Admin_Scope()
+    {
+        var (_, token) = await CreateAdminUserAndTokenAsync("admin-missing-scope@example.com", "AdminPass!2345", includeAdminScope: false);
+
+        using var client = CreateAuthorizedClient(token);
+
+        var response = await client.GetAsync("/admin/organizations");
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
     public async Task Admin_ReadOnly_Role_Cannot_Manage_Organizations()
     {
         var roleName = await EnsureRoleWithPermissionsAsync($"OrgReadOnlyAdmin-{Guid.NewGuid():N}", AdminOrganizationPermissions.OrganizationsRead);
