@@ -12,12 +12,17 @@ using Identity.Base.Identity;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Api.Models;
 using Identity.Base.Organizations.Authorization;
+using Identity.Base.Organizations.Data;
+using Identity.Base.Organizations.Domain;
+using Identity.Base.Organizations.Options;
 using Identity.Base.Organizations.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Organizations.Api.Modules;
 
@@ -28,6 +33,83 @@ public static class UserOrganizationEndpoints
         ArgumentNullException.ThrowIfNull(endpoints);
 
         var baseGroup = endpoints.MapGroup("/users/me/organizations");
+
+        baseGroup.MapPost(string.Empty, async (
+            CreateOrganizationRequest request,
+            IValidator<CreateOrganizationRequest> validator,
+            ClaimsPrincipal principal,
+            IOrganizationService organizationService,
+            IOrganizationMembershipService membershipService,
+            OrganizationDbContext dbContext,
+            IOptions<OrganizationRoleOptions> roleOptions,
+            CancellationToken cancellationToken) =>
+        {
+            var validationResult = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
+            if (!validationResult.IsValid)
+            {
+                return Results.ValidationProblem(validationResult.ToDictionary());
+            }
+
+            if (!TryGetUserId(principal, out var userId))
+            {
+                return Results.Unauthorized();
+            }
+
+            var ownerRoleId = await ResolveOwnerRoleIdAsync(dbContext, roleOptions.Value, cancellationToken).ConfigureAwait(false);
+            if (ownerRoleId is null)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status500InternalServerError,
+                    title: "Organization role missing",
+                    detail: "Default organization owner role is not available. Ensure organization roles are seeded.");
+            }
+
+            try
+            {
+                var organization = await organizationService.CreateAsync(new OrganizationCreateRequest
+                {
+                    TenantId = request.TenantId,
+                    Slug = request.Slug,
+                    DisplayName = request.DisplayName,
+                    Metadata = request.Metadata
+                }, cancellationToken).ConfigureAwait(false);
+
+                try
+                {
+                    await membershipService.AddMemberAsync(new OrganizationMembershipRequest
+                    {
+                        OrganizationId = organization.Id,
+                        UserId = userId,
+                        RoleIds = new[] { ownerRoleId.Value }
+                    }, cancellationToken).ConfigureAwait(false);
+                }
+                catch
+                {
+                    try
+                    {
+                        await organizationService.ArchiveAsync(organization.Id, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // Swallow archival failures; original exception will be thrown
+                    }
+
+                    throw;
+                }
+
+                var dto = OrganizationApiMapper.ToOrganizationDto(organization);
+                return Results.Created($"/users/me/organizations/{organization.Id}", dto);
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new ProblemDetails { Title = "Invalid organization request", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.Conflict(new ProblemDetails { Title = "Organization conflict", Detail = ex.Message, Status = StatusCodes.Status409Conflict });
+            }
+        })
+        .RequireAuthorization();
 
         baseGroup.MapGet(string.Empty, async (
             ClaimsPrincipal principal,
@@ -163,7 +245,6 @@ public static class UserOrganizationEndpoints
                 PageSize = query.PageSize,
                 Search = query.Search,
                 RoleId = query.RoleId,
-                IsPrimary = query.IsPrimary,
                 Sort = ResolveSort(query.Sort)
             };
 
@@ -200,7 +281,6 @@ public static class UserOrganizationEndpoints
                     OrganizationId = organizationId,
                     UserId = request.UserId,
                     TenantId = null,
-                    IsPrimary = request.IsPrimary,
                     RoleIds = request.RoleIds
                 }, cancellationToken).ConfigureAwait(false);
 
@@ -249,7 +329,6 @@ public static class UserOrganizationEndpoints
                 {
                     OrganizationId = organizationId,
                     UserId = userId,
-                    IsPrimary = request.IsPrimary,
                     RoleIds = request.RoleIds
                 }, cancellationToken).ConfigureAwait(false);
 
@@ -620,14 +699,46 @@ public static class UserOrganizationEndpoints
             return Results.BadRequest(new ProblemDetails { Title = "Invalid organization", Detail = "Organization identifier is required.", Status = StatusCodes.Status400BadRequest });
         }
 
-        var inScope = await scopeResolver.IsInScopeAsync(actorUserId, organizationId, cancellationToken).ConfigureAwait(false);        
-        bool isSelfTargeting = targetUserId.HasValue && targetUserId.Value == actorUserId;
-        if (!inScope && !isSelfTargeting)        
+        var inScope = await scopeResolver.IsInScopeAsync(actorUserId, organizationId, cancellationToken).ConfigureAwait(false);
+        var isSelfTargeting = targetUserId.HasValue && targetUserId.Value == actorUserId;
+        if (!inScope && !isSelfTargeting)
         {
             return Results.Forbid();
         }
 
         return null;
+    }
+
+    private static async Task<Guid?> ResolveOwnerRoleIdAsync(
+        OrganizationDbContext dbContext,
+        OrganizationRoleOptions roleOptions,
+        CancellationToken cancellationToken)
+    {
+        if (dbContext is null)
+        {
+            return null;
+        }
+
+        var ownerRoleName = roleOptions.DefaultRoles?
+            .FirstOrDefault(role => role.DefaultType == OrganizationRoleDefaultType.Owner)
+            ?.Name;
+
+        ownerRoleName = string.IsNullOrWhiteSpace(ownerRoleName) ? "OrgOwner" : ownerRoleName.Trim();
+
+        var query = dbContext.OrganizationRoles
+            .AsNoTracking()
+            .Where(role => role.OrganizationId == null && role.TenantId == null);
+
+        var inMemory = dbContext.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true;
+
+        var ownerRole = inMemory
+            ? query.AsEnumerable()
+                .FirstOrDefault(role => string.Equals(role.Name, ownerRoleName, StringComparison.OrdinalIgnoreCase))
+            : await query
+                .FirstOrDefaultAsync(role => EF.Functions.ILike(role.Name, ownerRoleName), cancellationToken)
+                .ConfigureAwait(false);
+
+        return ownerRole?.Id;
     }
 
     private static OrganizationMemberSort ResolveSort(string? value)

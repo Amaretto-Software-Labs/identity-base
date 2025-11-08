@@ -163,7 +163,6 @@ public sealed class OrganizationInvitationService
                 OrganizationId = invitation.OrganizationId,
                 UserId = user.Id,
                 TenantId = organization.TenantId,
-                IsPrimary = false,
                 RoleIds = roleIds
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -182,7 +181,6 @@ public sealed class OrganizationInvitationService
                 {
                     OrganizationId = invitation.OrganizationId,
                     UserId = user.Id,
-                    IsPrimary = null,
                     RoleIds = mergedRoleIds
                 }, cancellationToken).ConfigureAwait(false);
             }

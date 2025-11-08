@@ -105,7 +105,6 @@ public class OrganizationPermissionResolverTests
         {
             OrganizationId = organizationId,
             UserId = userId,
-            IsPrimary = true,
             CreatedAtUtc = DateTimeOffset.UtcNow
         };
 

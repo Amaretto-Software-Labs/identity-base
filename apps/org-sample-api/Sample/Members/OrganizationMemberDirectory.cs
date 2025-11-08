@@ -62,7 +62,6 @@ public sealed class OrganizationMemberDirectory
             OrganizationId = membership.OrganizationId,
             UserId = membership.UserId,
             TenantId = membership.TenantId,
-            IsPrimary = membership.IsPrimary,
             RoleIds = membership.RoleAssignments.Select(assignment => assignment.RoleId).ToArray(),
             CreatedAtUtc = membership.CreatedAtUtc,
             UpdatedAtUtc = membership.UpdatedAtUtc,
@@ -140,7 +139,6 @@ public sealed class OrganizationMemberDirectory
         {
             OrganizationId = membership.OrganizationId,
             UserId = membership.UserId,
-            IsPrimary = membership.IsPrimary,
             RoleIds = membership.RoleIds.ToArray(),
             CreatedAtUtc = membership.CreatedAtUtc,
             UpdatedAtUtc = membership.UpdatedAtUtc,

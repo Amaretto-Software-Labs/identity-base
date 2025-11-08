@@ -56,9 +56,9 @@ Connection strings can be supplied via the `IdentityOrganizations` named connect
 | `GET /admin/organizations/{id}` | Retrieve organization details. | `admin.organizations.read` |
 | `PATCH /admin/organizations/{id}` | Update display name, metadata, status. | `admin.organizations.manage` |
 | `DELETE /admin/organizations/{id}` | Archive an organization. | `admin.organizations.manage` |
-| `GET /admin/organizations/{id}/members` | Paged member list with role ids and metadata (`page`, `pageSize`, `search`, `roleId`, `isPrimary`, `sort`). Returns `PagedResult<OrganizationMembershipDto>`. | `admin.organizations.members.read` |
+| `GET /admin/organizations/{id}/members` | Paged member list with role ids and metadata (`page`, `pageSize`, `search`, `roleId`, `sort`). Returns `PagedResult<OrganizationMembershipDto>`. | `admin.organizations.members.read` |
 | `POST /admin/organizations/{id}/members` | Add an existing user directly (no invite). | `admin.organizations.members.manage` |
-| `PUT /admin/organizations/{id}/members/{userId}` | Update member roles / primary flag. | `admin.organizations.members.manage` |
+| `PUT /admin/organizations/{id}/members/{userId}` | Update member roles. | `admin.organizations.members.manage` |
 | `DELETE /admin/organizations/{id}/members/{userId}` | Remove a member. | `admin.organizations.members.manage` |
 | `GET /admin/organizations/{id}/roles` | Paged list of system + org-specific roles (`page`, `pageSize`, `search`, `sort`). Returns `PagedResult<OrganizationRoleDto>`. | `admin.organizations.roles.read` |
 | `POST /admin/organizations/{id}/roles` | Create an organization-specific role. | `admin.organizations.roles.manage` |
@@ -70,6 +70,7 @@ Connection strings can be supplied via the `IdentityOrganizations` named connect
 | `DELETE /admin/organizations/{id}/invitations/{code}` | Revoke an invitation. | `admin.organizations.members.manage` |
 | `GET /invitations/{code}` | Public endpoint to validate invite metadata. | Anonymous |
 | `POST /invitations/claim` | Accept an invite (authenticated) and add membership. | Authenticated user matching invite email |
+| `POST /users/me/organizations` | Create a new organization owned by the caller; seeds the default owner role membership. | Authenticated |
 | `GET /users/me/organizations` | Paged list of the caller's memberships (`page`, `pageSize`, `search`, `sort`, `includeArchived`). Returns `PagedResult<UserOrganizationMembershipDto>`. | Authenticated |
 | `GET /users/me/organizations/{id}` | Retrieve organization details scoped to the caller’s membership. | `user.organizations.read` |
 | `PATCH /users/me/organizations/{id}` | Update display name/metadata for the caller’s organization. | `user.organizations.manage` |

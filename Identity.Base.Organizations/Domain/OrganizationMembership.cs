@@ -11,8 +11,6 @@ public class OrganizationMembership
 
     public Guid? TenantId { get; set; }
 
-    public bool IsPrimary { get; set; }
-
     public DateTimeOffset CreatedAtUtc { get; set; }
 
     public DateTimeOffset? UpdatedAtUtc { get; set; }

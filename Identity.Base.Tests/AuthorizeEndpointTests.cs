@@ -5,16 +5,25 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Net.Http.Headers;
 using Shouldly;
 using Identity.Base.Identity;
+using Identity.Base.Organizations.Abstractions;
+using Identity.Base.Organizations.Authorization;
+using Identity.Base.Organizations.Data;
+using Identity.Base.Organizations.Domain;
+using Identity.Base.Organizations.Infrastructure;
+using Identity.Base.Organizations.Services;
 using Identity.Base.Roles.Services;
 using Identity.Base.Roles.Configuration;
+using Identity.Base.Tests.Organizations;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Identity;
 using OpenIddict.Abstractions;
 using Xunit;
+using Microsoft.EntityFrameworkCore;
 
 namespace Identity.Base.Tests;
 
@@ -243,9 +252,10 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
         unauthorizedResponse.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
-    private async Task SeedUserAsync(string email, string password, bool confirmEmail)
+    private async Task SeedUserAsync(string email, string password, bool confirmEmail, WebApplicationFactory<Program>? factory = null)
     {
-        using var scope = _factory.Services.CreateScope();
+        var targetFactory = factory ?? _factory;
+        using var scope = targetFactory.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var user = await userManager.FindByEmailAsync(email);
         if (user is null)
@@ -274,9 +284,10 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
         }
     }
 
-    private async Task AssignRoleAsync(string email, string roleName)
+    private async Task AssignRoleAsync(string email, string roleName, WebApplicationFactory<Program>? factory = null)
     {
-        using var scope = _factory.Services.CreateScope();
+        var targetFactory = factory ?? _factory;
+        using var scope = targetFactory.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var user = await userManager.FindByEmailAsync(email);
         user.ShouldNotBeNull();
@@ -287,9 +298,38 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
         await assignmentService.AssignRolesAsync(user!.Id, new[] { roleName });
     }
 
-    private async Task<HttpClient> CreateAuthenticatedClientAsync(string email, string password)
+    private async Task<string> CreateAccessTokenAsync(string email, string password, WebApplicationFactory<Program>? factory = null, string scope = "identity.api identity.admin openid profile")
     {
-        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        var targetFactory = factory ?? _factory;
+        using var client = targetFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = false
+        });
+
+        using var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string?>
+        {
+            [OpenIddictConstants.Parameters.GrantType] = OpenIddictConstants.GrantTypes.Password,
+            [OpenIddictConstants.Parameters.Username] = email,
+            [OpenIddictConstants.Parameters.Password] = password,
+            [OpenIddictConstants.Parameters.ClientId] = "test-client",
+            [OpenIddictConstants.Parameters.ClientSecret] = "test-secret",
+            [OpenIddictConstants.Parameters.Scope] = scope
+        });
+
+        using var response = await client.PostAsync("/connect/token", tokenRequest);
+        var payload = await response.Content.ReadAsStringAsync();
+        response.IsSuccessStatusCode.ShouldBeTrue(payload);
+
+        using var document = JsonDocument.Parse(payload);
+        return document.RootElement.GetProperty("access_token").GetString()!;
+    }
+
+    private async Task<HttpClient> CreateAuthenticatedClientAsync(string email, string password, WebApplicationFactory<Program>? factory = null)
+    {
+        var targetFactory = factory ?? _factory;
+
+        var client = targetFactory.CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false,
             HandleCookies = true
@@ -308,5 +348,101 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
         loginResponse.IsSuccessStatusCode.ShouldBeTrue(loginPayload);
 
         return client;
+    }
+    [Fact]
+    public async Task UserPermissions_ReturnsUserRolesOnly_WhenNoOrganizationHeader()
+    {
+        const string email = "permissions-no-org@example.com";
+        const string password = "StrongPass!2345";
+        await SeedUserAsync(email, password, confirmEmail: true);
+        await AssignRoleAsync(email, "IdentityAdmin");
+
+        var token = await CreateAccessTokenAsync(email, password);
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = false
+        });
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var response = await client.GetAsync("/users/me/permissions");
+        var payload = await response.Content.ReadAsStringAsync();
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, payload);
+
+        var document = JsonDocument.Parse(payload);
+        var permissions = document.RootElement.GetProperty("permissions").EnumerateArray().Select(element => element.GetString()).ToList();
+        permissions.ShouldContain("users.create");
+        permissions.ShouldContain("roles.manage");
+        permissions.ShouldNotContain("user.organizations.members.manage");
+    }
+
+    [Fact]
+    public async Task UserPermissions_IncludesOrganizationPermissions_WhenHeaderPresent()
+    {
+        const string email = "permissions-with-org@example.com";
+        const string password = "StrongPass!2345";
+        using var organizationFactory = new OrganizationApiFactory();
+        await SeedUserAsync(email, password, confirmEmail: true, organizationFactory);
+        await AssignRoleAsync(email, "IdentityAdmin", organizationFactory);
+
+        var organizationId = await CreateOrganizationAsync($"perm-org-{Guid.NewGuid():N}", "Permission Org", organizationFactory);
+        await AddMembershipAsync(organizationId, email, organizationFactory);
+
+        var token = await CreateAccessTokenAsync(email, password, organizationFactory);
+        using var client = organizationFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = false
+        });
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        client.DefaultRequestHeaders.Add(OrganizationContextHeaderNames.OrganizationId, organizationId.ToString("D"));
+
+        var response = await client.GetAsync("/users/me/permissions");
+        var payload = await response.Content.ReadAsStringAsync();
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, payload);
+
+        var document = JsonDocument.Parse(payload);
+        var permissions = document.RootElement.GetProperty("permissions").EnumerateArray().Select(element => element.GetString()).ToList();
+        permissions.ShouldContain("users.create");
+        permissions.ShouldContain("roles.manage");
+        permissions.ShouldContain("user.organizations.members.manage");
+    }
+
+    private async Task<Guid> CreateOrganizationAsync(string slug, string displayName, WebApplicationFactory<Program> factory)
+    {
+        using var scope = factory.Services.CreateScope();
+        var organizationService = scope.ServiceProvider.GetRequiredService<IOrganizationService>();
+        var organization = await organizationService.CreateAsync(new OrganizationCreateRequest
+        {
+            Slug = slug,
+            DisplayName = displayName
+        });
+        return organization.Id;
+    }
+
+    private async Task AddMembershipAsync(Guid organizationId, string email, WebApplicationFactory<Program> factory)
+    {
+        using var scope = factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await userManager.FindByEmailAsync(email);
+        user.ShouldNotBeNull();
+
+        var roleSeeder = scope.ServiceProvider.GetRequiredService<OrganizationRoleSeeder>();
+        await roleSeeder.SeedAsync();
+
+        var membershipService = scope.ServiceProvider.GetRequiredService<IOrganizationMembershipService>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<OrganizationDbContext>();
+
+        var ownerRoleId = await dbContext.OrganizationRoles
+            .AsNoTracking()
+            .Where(role => role.OrganizationId == null && role.Name == "OrgOwner")
+            .Select(role => role.Id)
+            .FirstAsync();
+
+        await membershipService.AddMemberAsync(new OrganizationMembershipRequest
+        {
+            OrganizationId = organizationId,
+            UserId = user!.Id,
+            RoleIds = new[] { ownerRoleId }
+        });
     }
 }

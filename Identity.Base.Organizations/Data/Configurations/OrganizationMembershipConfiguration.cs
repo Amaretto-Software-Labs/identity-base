@@ -12,9 +12,6 @@ public sealed class OrganizationMembershipConfiguration : IEntityTypeConfigurati
 
         builder.HasKey(membership => new { membership.OrganizationId, membership.UserId });
 
-        builder.Property(membership => membership.IsPrimary)
-            .HasDefaultValue(false);
-
         builder.Property(membership => membership.CreatedAtUtc)
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 

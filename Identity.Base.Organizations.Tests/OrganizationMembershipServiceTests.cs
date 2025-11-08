@@ -22,11 +22,9 @@ public class OrganizationMembershipServiceTests
         {
             OrganizationId = organization.Id,
             UserId = Guid.NewGuid(),
-            IsPrimary = true,
             RoleIds = new[] { role.Id }
         });
 
-        membership.IsPrimary.ShouldBeTrue();
         var assignment = membership.RoleAssignments.ShouldHaveSingleItem();
         assignment.RoleId.ShouldBe(role.Id);
 
@@ -57,7 +55,7 @@ public class OrganizationMembershipServiceTests
     }
 
     [Fact]
-    public async Task UpdateMembershipAsync_SetsPrimaryAndUpdatesRoles()
+    public async Task UpdateMembershipAsync_UpdatesRoles()
     {
         await using var context = CreateContext(out var appContext, out var organization, out var role);
         await using var appDbContext = appContext;
@@ -74,11 +72,9 @@ public class OrganizationMembershipServiceTests
         {
             OrganizationId = organization.Id,
             UserId = userId,
-            IsPrimary = true,
             RoleIds = new[] { role.Id }
         });
 
-        updated.IsPrimary.ShouldBeTrue();
         var updatedAssignment = updated.RoleAssignments.ShouldHaveSingleItem();
         updatedAssignment.RoleId.ShouldBe(role.Id);
     }

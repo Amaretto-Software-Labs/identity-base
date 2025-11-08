@@ -96,7 +96,6 @@ export function OrganizationMemberRow({
           </p>
         )}
       </div>
-      <div className="text-xs text-slate-600">{member.isPrimary ? 'Yes' : 'No'}</div>
       <div className="text-xs text-slate-600">{dayjs(member.createdAtUtc).format('YYYY-MM-DD HH:mm')}</div>
       <div className="flex flex-col gap-2">
         <button

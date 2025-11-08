@@ -384,7 +384,6 @@ public class OrganizationInvitationServiceTests
                 OrganizationId = request.OrganizationId,
                 UserId = request.UserId,
                 TenantId = request.TenantId,
-                IsPrimary = request.IsPrimary,
                 CreatedAtUtc = DateTimeOffset.UtcNow
             };
 

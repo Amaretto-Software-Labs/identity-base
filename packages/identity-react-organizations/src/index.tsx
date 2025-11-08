@@ -37,7 +37,6 @@ interface MembershipDto {
   organizationId: string
   userId: string
   tenantId?: string | null
-  isPrimary: boolean
   roleIds: string[]
   createdAtUtc: string
   updatedAtUtc?: string | null
@@ -133,7 +132,6 @@ export interface OrganizationMember {
   organizationId: string
   userId: string
   tenantId?: string | null
-  isPrimary: boolean
   roleIds: string[]
   createdAtUtc: string
   updatedAtUtc: string | null
@@ -148,7 +146,6 @@ export interface OrganizationMemberQuery {
   pageSize?: number
   search?: string
   roleId?: string
-  isPrimary?: boolean
   sort?: OrganizationMemberSort
 }
 
@@ -157,7 +154,6 @@ export interface OrganizationMemberQueryState {
   pageSize: number
   search?: string
   roleId?: string
-  isPrimary?: boolean
   sort: OrganizationMemberSort
 }
 
@@ -184,7 +180,6 @@ export interface OrganizationInvitationListQuery {
 
 export interface UpdateOrganizationMemberOptions {
   roleIds?: string[]
-  isPrimary?: boolean
 }
 
 export interface SwitchOrganizationResult {
@@ -259,7 +254,6 @@ function mapMembership(dto: MembershipDto): Membership {
     organizationId: dto.organizationId,
     userId: dto.userId,
     tenantId: dto.tenantId,
-    isPrimary: dto.isPrimary,
     roleIds: dto.roleIds,
     createdAtUtc: dto.createdAtUtc,
     updatedAtUtc: dto.updatedAtUtc ?? null,
@@ -271,7 +265,6 @@ function mapOrganizationMember(dto: OrganizationMembershipDto): OrganizationMemb
     organizationId: dto.organizationId,
     userId: dto.userId,
     tenantId: dto.tenantId ?? null,
-    isPrimary: dto.isPrimary,
     roleIds: dto.roleIds,
     createdAtUtc: dto.createdAtUtc,
     updatedAtUtc: dto.updatedAtUtc ?? null,
@@ -336,10 +329,6 @@ function buildMemberListPath(organizationId: string, query?: OrganizationMemberQ
 
   if (query?.roleId) {
     params.set('roleId', query.roleId)
-  }
-
-  if (typeof query?.isPrimary === 'boolean') {
-    params.set('isPrimary', String(query.isPrimary))
   }
 
   if (query?.sort) {
@@ -582,12 +571,9 @@ export function OrganizationsProvider({
       if (Array.isArray(options.roleIds)) {
         payload.roleIds = options.roleIds
       }
-      if (typeof options.isPrimary === 'boolean') {
-        payload.isPrimary = options.isPrimary
-      }
 
       if (Object.keys(payload).length === 0) {
-        throw new Error('At least one property (roleIds, isPrimary) must be provided to update a membership.')
+        throw new Error('At least one role must be provided to update a membership.')
       }
 
       const dto = await authorizedFetch<OrganizationMembershipDto>(
@@ -721,9 +707,8 @@ export function OrganizationsProvider({
       return
     }
 
-    const primary = memberships.find((membership) => membership.isPrimary)
     const fallback = memberships[0] ?? null
-    const nextActive = primary?.organizationId ?? fallback?.organizationId ?? null
+    const nextActive = fallback?.organizationId ?? null
 
     if (nextActive !== activeOrganizationId) {
       setActiveOrganizationId(nextActive)
@@ -878,7 +863,6 @@ function normalizeMemberQuery(input?: OrganizationMemberQuery | OrganizationMemb
     pageSize,
     search: search && search.length > 0 ? search : undefined,
     roleId: roleId && roleId.length > 0 ? roleId : undefined,
-    isPrimary: typeof input?.isPrimary === 'boolean' ? input.isPrimary : undefined,
     sort,
   }
 }
@@ -887,7 +871,6 @@ function hasBaseQueryChanged(a: OrganizationMemberQueryState, b: OrganizationMem
   return a.pageSize !== b.pageSize
     || a.search !== b.search
     || a.roleId !== b.roleId
-    || a.isPrimary !== b.isPrimary
     || a.sort !== b.sort
 }
 
@@ -913,7 +896,6 @@ export function useOrganizationMembers(
       options.initialQuery?.pageSize,
       options.initialQuery?.search,
       options.initialQuery?.roleId,
-      options.initialQuery?.isPrimary,
       options.initialQuery?.sort,
     ],
   )
@@ -1036,7 +1018,6 @@ export function useOrganizationMembers(
         pageSize: queryState.pageSize,
         search: queryState.search,
         roleId: queryState.roleId,
-        isPrimary: queryState.isPrimary,
         sort: queryState.sort,
       })
 
@@ -1060,7 +1041,7 @@ export function useOrganizationMembers(
       loadingPagesRef.current.delete(targetPage)
       setIsLoading(loadingPagesRef.current.size > 0)
     }
-  }, [client, organizationId, queryState.page, queryState.pageSize, queryState.search, queryState.roleId, queryState.isPrimary, queryState.sort])
+  }, [client, organizationId, queryState.page, queryState.pageSize, queryState.search, queryState.roleId, queryState.sort])
 
   const reload = useCallback(async () => {
     if (!organizationId) {
@@ -1145,7 +1126,7 @@ export function useOrganizationMembers(
     if (!cacheRef.current.has(queryState.page)) {
       ensurePage(queryState.page).catch(() => undefined)
     }
-  }, [organizationId, queryState.page, queryState.pageSize, queryState.search, queryState.roleId, queryState.isPrimary, queryState.sort, ensurePage, fetchOnMount])
+  }, [organizationId, queryState.page, queryState.pageSize, queryState.search, queryState.roleId, queryState.sort, ensurePage, fetchOnMount])
 
   return {
     members,

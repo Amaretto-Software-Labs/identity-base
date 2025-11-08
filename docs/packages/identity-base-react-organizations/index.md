@@ -32,7 +32,7 @@ export function Root() {
 
 - `useOrganizations()` – returns `{ memberships, activeOrganizationId, isLoadingMemberships, membershipError, organizations, isLoadingOrganizations, reloadMemberships, setActiveOrganizationId, client }`.
 - `useOrganizationSwitcher()` – updates the active organization id (persists to storage) and refreshes memberships/tokens when needed.
-- `useOrganizationMembers(organizationId, query)` – paginated member listing with helpers (`members`, `isLoading`, `ensurePage`, `updateMember`, `removeMember`, `refresh`). Supports server-side filters (`search`, `roleId`, `isPrimary`, `page`, `pageSize`, `sort`).
+- `useOrganizationMembers(organizationId, query)` – paginated member listing with helpers (`members`, `isLoading`, `ensurePage`, `updateMember`, `removeMember`, `refresh`). Supports server-side filters (`search`, `roleId`, `page`, `pageSize`, `sort`).
 - `client` (from `useOrganizations().client`) exposes typed helpers: `listMembers`, `inviteMember`, `revokeInvitation`, `listInvitations`, `getRolePermissions`, `updateRolePermissions`, `listRoles`, `createRole`, `deleteRole`, etc. The list helpers accept `query` objects (e.g., `{ page, pageSize, search, sort }`) so your UI can request the exact slice it needs while still receiving normalized arrays.
 - Exported types: `OrganizationMembership`, `OrganizationSummary`, `OrganizationRole`, `OrganizationInvitation`, plus query/paging types like `OrganizationMemberQuery`, `OrganizationRoleListQuery`, and `OrganizationInvitationListQuery`.
 

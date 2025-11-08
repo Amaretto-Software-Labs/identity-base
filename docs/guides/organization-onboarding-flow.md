@@ -64,9 +64,10 @@ var org = await organizationService.CreateAsync(new OrganizationCreateRequest {
     Slug = request.OrganizationSlug
 });
 
-await organizationMembershipService.AddMemberAsync(org.Id, user.Id, new OrganizationMembershipRequest {
-    RoleIds = { OrgRoles.Owner },
-    IsPrimary = true
+await organizationMembershipService.AddMemberAsync(new OrganizationMembershipRequest {
+    OrganizationId = org.Id,
+    UserId = user.Id,
+    RoleIds = new[] { OrgRoles.Owner }
 });
 
 await signInManager.RefreshSignInAsync(user);
@@ -128,9 +129,9 @@ app.MapPost("/admin/organizations/{orgId:guid}/invitations", async (
 ## 5. Managing Members & Organization Roles
 
 Server endpoints and flows:
-- `GET /admin/organizations/{orgId}/members` – list memberships (paged result, supports `page`, `pageSize`, `search`, `roleId`, `isPrimary`, `sort`).
+- `GET /admin/organizations/{orgId}/members` – list memberships (paged result, supports `page`, `pageSize`, `search`, `roleId`, `sort`).
 - `POST /admin/organizations/{orgId}/members` – add an existing user immediately (no invite flow).
-- `PUT /admin/organizations/{orgId}/members/{userId}` – update roles (`RoleIds`) and primary flag.
+- `PUT /admin/organizations/{orgId}/members/{userId}` – update roles (`RoleIds`).
 - `DELETE /admin/organizations/{orgId}/members/{userId}` – remove membership.
 - `GET/POST/DELETE /admin/organizations/{orgId}/roles` – manage org-specific roles (the list route returns `PagedResult<OrganizationRoleDto>` and honors `page`, `pageSize`, `search`, `sort`).
 - `GET/PUT /admin/organizations/{orgId}/roles/{roleId}/permissions` – inspect/update permission overrides (merges with global RBAC definitions).

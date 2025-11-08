@@ -83,7 +83,7 @@ curl -s -X POST http://localhost:8080/invitations/claim \
 
 Command: Verify invitee membership
 ```bash
-curl -s http://localhost:8080/users/me/organizations -H "Authorization: Bearer $INV_TOKEN" | jq 'map({organization: .organization.displayName, isPrimary})[0]'
+curl -s http://localhost:8080/users/me/organizations -H "Authorization: Bearer $INV_TOKEN" | jq 'map({organization: .organization.displayName, roles: .roleIds})[0]'
 ```
 
 # Verification
@@ -108,7 +108,7 @@ sequenceDiagram
   Invitee->>Host: POST /invitations/claim { code }
   Host-->>Invitee: 200 OK { requiresTokenRefresh: true }
   Invitee->>Host: GET /users/me/organizations
-  Host-->>Invitee: [{ organization, isPrimary }]
+  Host-->>Invitee: [{ organization, roles }]
 ```
 
 # Outputs

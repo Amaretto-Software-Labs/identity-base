@@ -152,7 +152,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         var organizationId = await CreateOrganizationAsync($"org-user-{Guid.NewGuid():N}", "User Org");
         var (userId, _) = await CreateStandardUserAndTokenAsync("org-member@example.com", "UserPass!2345");
 
-        await AddMembershipAsync(organizationId, userId, isPrimary: true, assignOwnerRole: true);
+        await AddMembershipAsync(organizationId, userId, assignOwnerRole: true);
 
         var (_, refreshedToken) = await CreateStandardUserAndTokenAsync("org-member@example.com", "UserPass!2345");
 
@@ -177,9 +177,9 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         var secondaryOrgId = await CreateOrganizationAsync($"secondary-org-{Guid.NewGuid():N}", "Secondary Org");
         var tertiaryOrgId = await CreateOrganizationAsync($"tertiary-org-{Guid.NewGuid():N}", "Tertiary Org");
 
-        await AddMembershipAsync(primaryOrgId, userId, isPrimary: true);
-        await AddMembershipAsync(secondaryOrgId, userId, isPrimary: false);
-        await AddMembershipAsync(tertiaryOrgId, userId, isPrimary: false);
+        await AddMembershipAsync(primaryOrgId, userId, assignOwnerRole: true);
+        await AddMembershipAsync(secondaryOrgId, userId);
+        await AddMembershipAsync(tertiaryOrgId, userId);
 
         using var client = CreateAuthorizedClient(token);
 
@@ -230,11 +230,50 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     }
 
     [Fact]
+    public async Task User_Can_Create_Organization_Via_User_Endpoint()
+    {
+        var (userId, token) = await CreateStandardUserAndTokenAsync("org-creator@example.com", "UserPass!2345");
+        using var client = CreateAuthorizedClient(token);
+
+        var slug = $"user-create-{Guid.NewGuid():N}";
+        var response = await client.PostAsJsonAsync("/users/me/organizations", new
+        {
+            Slug = slug,
+            DisplayName = "User Created Org"
+        });
+
+        var body = await response.Content.ReadAsStringAsync();
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, body);
+
+        var dto = JsonSerializer.Deserialize<OrganizationDto>(body, JsonOptions);
+        dto.ShouldNotBeNull();
+        dto!.Slug.ShouldBe(slug);
+        dto.DisplayName.ShouldBe("User Created Org");
+        dto.Status.ShouldBe(OrganizationStatus.Active);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var membershipService = scope.ServiceProvider.GetRequiredService<IOrganizationMembershipService>();
+            var membership = await membershipService.GetMembershipAsync(dto.Id, userId);
+            membership.ShouldNotBeNull();
+            membership!.RoleAssignments.ShouldNotBeEmpty();
+        }
+
+        var listResponse = await client.GetAsync("/users/me/organizations");
+        var listBody = await listResponse.Content.ReadAsStringAsync();
+        listResponse.StatusCode.ShouldBe(HttpStatusCode.OK, listBody);
+
+        var list = JsonSerializer.Deserialize<PagedResult<UserOrganizationMembershipDto>>(listBody, JsonOptions);
+        list.ShouldNotBeNull();
+        list!.Items.ShouldContain(item => item.OrganizationId == dto.Id);
+    }
+
+    [Fact]
     public async Task User_Can_Get_Organization_Detail()
     {
         var organizationId = await CreateOrganizationAsync($"org-user-detail-{Guid.NewGuid():N}", "Detail Org");
         var (userId, token) = await CreateStandardUserAndTokenAsync("org-detail@example.com", "UserPass!2345");
-        await AddMembershipAsync(organizationId, userId, isPrimary: true, assignOwnerRole: true);
+        await AddMembershipAsync(organizationId, userId, assignOwnerRole: true);
 
         using var client = CreateAuthorizedClient(token);
         var response = await client.GetAsync($"/users/me/organizations/{organizationId:D}");
@@ -250,7 +289,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     {
         var organizationId = await CreateOrganizationAsync($"org-user-patch-{Guid.NewGuid():N}", "Patch Org");
         var (ownerId, ownerToken) = await CreateStandardUserAndTokenAsync("owner-patch@example.com", "UserPass!2345");
-        await AddMembershipAsync(organizationId, ownerId, isPrimary: true, assignOwnerRole: true);
+        await AddMembershipAsync(organizationId, ownerId, assignOwnerRole: true);
 
         using var client = CreateAuthorizedClient(ownerToken);
         var response = await client.PatchAsJsonAsync($"/users/me/organizations/{organizationId:D}", new
@@ -269,10 +308,10 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     {
         var organizationId = await CreateOrganizationAsync($"org-user-members-{Guid.NewGuid():N}", "User Members Org");
         var (ownerId, ownerToken) = await CreateStandardUserAndTokenAsync("owner-members@example.com", "UserPass!2345");
-        await AddMembershipAsync(organizationId, ownerId, isPrimary: true, assignOwnerRole: true);
+        await AddMembershipAsync(organizationId, ownerId, assignOwnerRole: true);
 
         var (memberId, _) = await CreateStandardUserAndTokenAsync("member-to-add@example.com", "UserPass!2345");
-        await AddMembershipAsync(organizationId, memberId, isPrimary: false);
+        await AddMembershipAsync(organizationId, memberId);
 
         using var client = CreateAuthorizedClient(ownerToken);
 
@@ -287,7 +326,6 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         var createResponse = await client.PostAsJsonAsync($"/users/me/organizations/{organizationId:D}/members", new
         {
             UserId = memberId,
-            IsPrimary = false,
             RoleIds = Array.Empty<Guid>()
         });
         createResponse.StatusCode.ShouldBe(HttpStatusCode.Conflict);
@@ -298,12 +336,12 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     {
         var organizationId = await CreateOrganizationAsync($"org-user-members-paging-{Guid.NewGuid():N}", "User Members Paging Org");
         var (ownerId, ownerToken) = await CreateStandardUserAndTokenAsync("owner-members-paging@example.com", "UserPass!2345");
-        await AddMembershipAsync(organizationId, ownerId, isPrimary: true, assignOwnerRole: true);
+        await AddMembershipAsync(organizationId, ownerId, assignOwnerRole: true);
 
         var (searchTargetId, _) = await CreateStandardUserAndTokenAsync("search-target@example.com", "UserPass!2345");
         var (secondaryId, _) = await CreateStandardUserAndTokenAsync("secondary-member@example.com", "UserPass!2345");
-        await AddMembershipAsync(organizationId, searchTargetId, isPrimary: false);
-        await AddMembershipAsync(organizationId, secondaryId, isPrimary: false);
+        await AddMembershipAsync(organizationId, searchTargetId);
+        await AddMembershipAsync(organizationId, secondaryId);
 
         using var client = CreateAuthorizedClient(ownerToken);
 
@@ -329,7 +367,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     {
         var organizationId = await CreateOrganizationAsync($"org-user-members-crud-{Guid.NewGuid():N}", "User Members CRUD");
         var (ownerId, ownerToken) = await CreateStandardUserAndTokenAsync("owner-members-crud@example.com", "UserPass!2345");
-        await AddMembershipAsync(organizationId, ownerId, isPrimary: true, assignOwnerRole: true);
+        await AddMembershipAsync(organizationId, ownerId, assignOwnerRole: true);
 
         var (memberId, _) = await CreateStandardUserAndTokenAsync("member-crud@example.com", "UserPass!2345");
 
@@ -338,7 +376,6 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         var addResponse = await client.PostAsJsonAsync($"/users/me/organizations/{organizationId:D}/members", new
         {
             UserId = memberId,
-            IsPrimary = false,
             RoleIds = Array.Empty<Guid>()
         });
         addResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
@@ -347,7 +384,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
 
         var updateResponse = await client.PutAsJsonAsync($"/users/me/organizations/{organizationId:D}/members/{memberId:D}", new
         {
-            IsPrimary = true
+            RoleIds = new[] { await GetSystemRoleIdAsync("OrgMember") }
         });
         updateResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -360,7 +397,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     {
         var organizationId = await CreateOrganizationAsync($"org-user-roles-{Guid.NewGuid():N}", "User Roles Org");
         var (ownerId, ownerToken) = await CreateStandardUserAndTokenAsync("owner-roles@example.com", "UserPass!2345");
-        await AddMembershipAsync(organizationId, ownerId, isPrimary: true, assignOwnerRole: true);
+        await AddMembershipAsync(organizationId, ownerId, assignOwnerRole: true);
 
         using var client = CreateAuthorizedClient(ownerToken);
 
@@ -398,7 +435,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     {
         var organizationId = await CreateOrganizationAsync($"org-user-roles-paging-{Guid.NewGuid():N}", "User Roles Paging Org");
         var (ownerId, ownerToken) = await CreateStandardUserAndTokenAsync("owner-roles-paging@example.com", "UserPass!2345");
-        await AddMembershipAsync(organizationId, ownerId, isPrimary: true, assignOwnerRole: true);
+        await AddMembershipAsync(organizationId, ownerId, assignOwnerRole: true);
 
         using var client = CreateAuthorizedClient(ownerToken);
 
@@ -435,7 +472,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     {
         var organizationId = await CreateOrganizationAsync($"org-user-invitations-{Guid.NewGuid():N}", "User Invitation Org");
         var (ownerId, ownerToken) = await CreateStandardUserAndTokenAsync("owner-invite@example.com", "UserPass!2345");
-        await AddMembershipAsync(organizationId, ownerId, isPrimary: true, assignOwnerRole: true);
+        await AddMembershipAsync(organizationId, ownerId, assignOwnerRole: true);
 
         using var client = CreateAuthorizedClient(ownerToken);
         var invitationEmail = $"invite-{Guid.NewGuid():N}@example.com";
@@ -463,7 +500,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     {
         var organizationId = await CreateOrganizationAsync($"org-user-invitations-paging-{Guid.NewGuid():N}", "User Invitations Paging Org");
         var (ownerId, ownerToken) = await CreateStandardUserAndTokenAsync("owner-invite-paging@example.com", "UserPass!2345");
-        await AddMembershipAsync(organizationId, ownerId, isPrimary: true, assignOwnerRole: true);
+        await AddMembershipAsync(organizationId, ownerId, assignOwnerRole: true);
 
         using var client = CreateAuthorizedClient(ownerToken);
 
@@ -499,7 +536,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         var inScopeOrgId = await CreateOrganizationAsync($"org-user-scope-{Guid.NewGuid():N}", "User Scope Org");
         var outOfScopeOrgId = await CreateOrganizationAsync($"org-user-outside-{Guid.NewGuid():N}", "User Outside Org");
         var (ownerId, ownerToken) = await CreateStandardUserAndTokenAsync("owner-scope@example.com", "UserPass!2345");
-        await AddMembershipAsync(inScopeOrgId, ownerId, isPrimary: true, assignOwnerRole: true);
+        await AddMembershipAsync(inScopeOrgId, ownerId, assignOwnerRole: true);
 
         using var client = CreateAuthorizedClient(ownerToken);
 
@@ -509,7 +546,6 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         var createResponse = await client.PostAsJsonAsync($"/users/me/organizations/{outOfScopeOrgId:D}/members", new
         {
             UserId = ownerId,
-            IsPrimary = false,
             RoleIds = Array.Empty<Guid>()
         });
         createResponse.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -521,8 +557,8 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         var ownerOrgId = await CreateOrganizationAsync($"org-owner-scope-{Guid.NewGuid():N}", "Owner Scope Org");
         var restrictedOrgId = await CreateOrganizationAsync($"org-restricted-{Guid.NewGuid():N}", "Restricted Org");
         var (actorId, actorToken) = await CreateStandardUserAndTokenAsync("dual-role@example.com", "UserPass!2345");
-        await AddMembershipAsync(ownerOrgId, actorId, isPrimary: true, assignOwnerRole: true);
-        await AddMembershipAsync(restrictedOrgId, actorId, isPrimary: false, systemRoleName: "OrgMember");
+        await AddMembershipAsync(ownerOrgId, actorId, assignOwnerRole: true);
+        await AddMembershipAsync(restrictedOrgId, actorId, systemRoleName: "OrgMember");
 
         var (targetUserId, _) = await CreateStandardUserAndTokenAsync("restricted-target@example.com", "UserPass!2345");
 
@@ -531,7 +567,6 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         var memberResponse = await client.PostAsJsonAsync($"/users/me/organizations/{restrictedOrgId:D}/members", new
         {
             UserId = targetUserId,
-            IsPrimary = false,
             RoleIds = Array.Empty<Guid>()
         });
         memberResponse.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -556,7 +591,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     {
         var organizationId = await CreateOrganizationAsync($"org-manager-{Guid.NewGuid():N}", "Manager Org");
         var (managerId, managerToken) = await CreateStandardUserAndTokenAsync("org-manager@example.com", "UserPass!2345");
-        await AddMembershipAsync(organizationId, managerId, isPrimary: true, systemRoleName: "OrgManager");
+        await AddMembershipAsync(organizationId, managerId, systemRoleName: "OrgManager");
 
         var (memberId, _) = await CreateStandardUserAndTokenAsync("manager-member@example.com", "UserPass!2345");
 
@@ -565,7 +600,6 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         var addMemberResponse = await client.PostAsJsonAsync($"/users/me/organizations/{organizationId:D}/members", new
         {
             UserId = memberId,
-            IsPrimary = false,
             RoleIds = Array.Empty<Guid>()
         });
         addMemberResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
@@ -620,7 +654,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     {
         var (adminId, token) = await CreateAdminUserAndTokenAsync("admin-memberships@example.com", "AdminPass!2345", includeAdminScope: true);
         var organizationId = await CreateOrganizationAsync($"org-members-{Guid.NewGuid():N}", "Membership Org");
-        await AddMembershipAsync(organizationId, adminId, isPrimary: true);
+        await AddMembershipAsync(organizationId, adminId);
 
         var (memberId, _) = await CreateStandardUserAndTokenAsync("member-user@example.com", "UserPass!2345");
 
@@ -629,7 +663,6 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         var addResponse = await client.PostAsJsonAsync($"/admin/organizations/{organizationId}/members", new
         {
             UserId = memberId,
-            IsPrimary = false,
             RoleIds = Array.Empty<Guid>()
         });
 
@@ -671,7 +704,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
             AdminOrganizationPermissions.OrganizationRolesRead);
 
         var (adminId, token) = await CreateAdminUserAndTokenAsync("admin-member-manager@example.com", "AdminPass!2345", includeAdminScope: true, roleNames: new[] { roleName });
-        await AddMembershipAsync(organizationId, adminId, isPrimary: true, assignOwnerRole: true);
+        await AddMembershipAsync(organizationId, adminId, assignOwnerRole: true);
 
         var (memberId, _) = await CreateStandardUserAndTokenAsync("admin-managed-member@example.com", "UserPass!2345");
 
@@ -680,7 +713,6 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         var addMemberResponse = await client.PostAsJsonAsync($"/admin/organizations/{organizationId}/members", new
         {
             UserId = memberId,
-            IsPrimary = false,
             RoleIds = Array.Empty<Guid>()
         });
         addMemberResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
@@ -909,7 +941,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         return organization.Id;
     }
 
-    private async Task AddMembershipAsync(Guid organizationId, Guid userId, bool isPrimary, bool assignOwnerRole = false, string? systemRoleName = null)
+    private async Task AddMembershipAsync(Guid organizationId, Guid userId, bool assignOwnerRole = false, string? systemRoleName = null)
     {
         if (assignOwnerRole && !string.IsNullOrWhiteSpace(systemRoleName))
         {
@@ -947,17 +979,26 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         {
             OrganizationId = organizationId,
             UserId = userId,
-            IsPrimary = isPrimary,
             RoleIds = roleIds
         });
     }
 
     private sealed record OrganizationDto(Guid Id, string Slug, string DisplayName, OrganizationStatus Status);
 
-    private sealed record OrganizationMembershipDto(Guid OrganizationId, Guid UserId, bool IsPrimary, Guid[] RoleIds);
+    private sealed record OrganizationMembershipDto(Guid OrganizationId, Guid UserId, Guid[] RoleIds);
 
     private sealed record OrganizationMemberListDto(int Page, int PageSize, int TotalCount, OrganizationMembershipDto[] Members);
 
+    private async Task<Guid> GetSystemRoleIdAsync(string roleName)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<OrganizationDbContext>();
+        return await dbContext.OrganizationRoles
+            .AsNoTracking()
+            .Where(role => role.OrganizationId == null && role.Name == roleName)
+            .Select(role => role.Id)
+            .FirstAsync();
+    }
 }
 
 public sealed class OrganizationApiFactory : IdentityApiFactory

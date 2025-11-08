@@ -17,7 +17,7 @@ Packages compose in layers: you can run only the core, add RBAC when you need pe
 
 - **Tenants** – Optional identifier on every organization/membership/role row. OSS treats `TenantId` as nullable; the commercial add-on will supply a tenant context and override the scope resolver. A tenant can own many organizations.
 - **Organizations** – `Organization` entities group users under an optional tenant. They own `Memberships` and `Roles`, enforce unique `Slug` / `DisplayName` per tenant, and carry metadata.
-- **Users** – Stored in the core Identity tables. Belong to organizations via `OrganizationMembership` records (composite key `{OrganizationId, UserId}`) that also track `IsPrimary` and link to an optional tenant.
+- **Users** – Stored in the core Identity tables. Belong to organizations via `OrganizationMembership` records (composite key `{OrganizationId, UserId}`) that link to an optional tenant.
 - **Organization Roles** – `OrganizationRole` rows define org-scoped role names/descriptions. They can be global (no `OrganizationId`) or tied to a single org (and optionally a tenant). `OrganizationRoleAssignment` connects a role to a membership, while `OrganizationRolePermission` captures both default and per-organization permission overrides.
 - **Permissions** – Defined in the RBAC package. `CompositePermissionResolver` in `Identity.Base.Roles` now unions role-based permissions with any registered `IAdditionalPermissionSource` implementations; `Identity.Base.Organizations` contributes one that surfaces the explicit entries stored in `Identity_OrganizationRolePermissions`.
 

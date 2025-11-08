@@ -7,5 +7,4 @@ public sealed record OrganizationMemberListQuery(
     int PageSize = 25,
     string? Search = null,
     Guid? RoleId = null,
-    bool? IsPrimary = null,
     string? Sort = null);

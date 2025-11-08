@@ -44,7 +44,7 @@ For detailed documentation on each package referenced below, use the [Package Do
 
 - [ ] **Registration Flow Enhancements**
   - Extend the post-registration pipeline to call `IOrganizationService.CreateAsync(...)` and create a membership via `IOrganizationMembershipService.AddMemberAsync(...)`.
-  - Assign the creator the `OrgOwner` (organization admin) role. Optionally mark the membership as `IsPrimary` for default context.
+  - Assign the creator the `OrgOwner` (organization admin) role.
   - Trigger token/cookie refresh so the new organization context appears in claims.
 
 - [ ] **Invitation & Membership Management**
@@ -56,7 +56,7 @@ For detailed documentation on each package referenced below, use the [Package Do
     - `POST /admin/organizations/{orgId}/members` to add a member immediately.
     - `PUT /admin/organizations/{orgId}/members/{userId}` to update role assignments / primary flag.
     - `DELETE /admin/organizations/{orgId}/members/{userId}` to remove members.
-    - `GET /admin/organizations/{orgId}/members` supports the shared pagination contract (`page`, `pageSize`, `search`, `roleId`, `isPrimary`, `sort`) and returns `PagedResult<OrganizationMembershipDto>`.
+    - `GET /admin/organizations/{orgId}/members` supports the shared pagination contract (`page`, `pageSize`, `search`, `roleId`, `sort`) and returns `PagedResult<OrganizationMembershipDto>`.
   - Hosts are still responsible for the invite delivery UX (email templates, SPA acceptance page) even though storage and APIs are provided.
 
 - [ ] **Organization Role Management**
