@@ -7,10 +7,10 @@ The NuGet package exposes a small set of entry points intended for host composit
 ## Composition
 - `IdentityBaseBuilder` – returned from `services.AddIdentityBase(...)` for fluent configuration.
 - `IdentityBaseOptions` – allows hosts to override option binding before the builder wires dependencies.
+- `UseTablePrefix(string tablePrefix)` – configures the table prefix used by all Identity Base EF Core contexts (defaults to `Identity_`).
 
 ## Options & Configuration Models
 These remain `public` so consumers can author custom `IConfigureOptions<>` implementations or validate configuration:
-- `DatabaseOptions`
 - `RegistrationOptions` / `RegistrationProfileFieldOptions`
 - `MfaOptions` / `EmailChallengeOptions` / `SmsChallengeOptions`
 - `ExternalProviderOptions` / provider-specific option records
@@ -21,7 +21,7 @@ These remain `public` so consumers can author custom `IConfigureOptions<>` imple
 
 ## Identity & Data Models
 - `ApplicationUser`, `ApplicationRole`
-- `AppDbContext` and design-time `AppDbContextFactory`
+- `AppDbContext`
 - `UserProfileMetadata`
 - Planned additions via `Identity.Base.Roles`:
   - `Role`, `Permission`, `RolePermission`, `UserRole`

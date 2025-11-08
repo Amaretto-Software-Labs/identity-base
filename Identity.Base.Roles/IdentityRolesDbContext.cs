@@ -20,6 +20,7 @@ public class IdentityRolesDbContext(DbContextOptions<IdentityRolesDbContext> opt
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(IdentityRolesDbContext).Assembly);
+        ConfigureTableNaming(modelBuilder);
 
         var customizationOptions = this.GetService<IDbContextOptions>()
                 ?.FindExtension<IdentityBaseModelCustomizationOptionsExtension>()
@@ -32,5 +33,37 @@ public class IdentityRolesDbContext(DbContextOptions<IdentityRolesDbContext> opt
                 configure(modelBuilder);
             }
         }
+    }
+
+    private void ConfigureTableNaming(ModelBuilder modelBuilder)
+    {
+        var prefix = IdentityDbNamingHelper.ResolveTablePrefix(this);
+
+        modelBuilder.Entity<Role>(entity =>
+        {
+            entity.ToTable(IdentityDbNamingHelper.Table(prefix, "RbacRoles"));
+        });
+
+        modelBuilder.Entity<Permission>(entity =>
+        {
+            entity.ToTable(IdentityDbNamingHelper.Table(prefix, "Permissions"));
+        });
+
+        modelBuilder.Entity<RolePermission>(entity =>
+        {
+            entity.ToTable(IdentityDbNamingHelper.Table(prefix, "RolePermissions"));
+        });
+
+        modelBuilder.Entity<UserRole>(entity =>
+        {
+            entity.ToTable(IdentityDbNamingHelper.Table(prefix, "UserRolesRbac"));
+            entity.HasIndex(ur => ur.RoleId)
+                .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "UserRolesRbac_RoleId"));
+        });
+
+        modelBuilder.Entity<AuditEntry>(entity =>
+        {
+            entity.ToTable(IdentityDbNamingHelper.Table(prefix, "AuditEntries"));
+        });
     }
 }

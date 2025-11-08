@@ -1,21 +1,25 @@
+using System.Linq;
 using Identity.Base.Abstractions;
 using Identity.Base.Identity;
 using Identity.Base.Options;
 using Identity.Base.Roles.Abstractions;
-using Identity.Base.Roles.Infrastructure;
 using Identity.Base.Roles.Options;
 using Identity.Base.Roles.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Hosting;
 
 namespace Identity.Base.Roles.Configuration;
 
 public static class ServiceCollectionExtensions
 {
-    public static IdentityRolesBuilder AddIdentityRoles(this IServiceCollection services, IConfiguration configuration)
+    public static IdentityRolesBuilder AddIdentityRoles(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        Action<IServiceProvider, DbContextOptionsBuilder>? configureDbContext = null)
     {
+        services.AddOptions<IdentityDbNamingOptions>();
         services.AddOptions<RoleConfigurationOptions>()
             .Bind(configuration.GetSection(RoleConfigurationOptions.SectionName))
             .Validate(o => o.Definitions.All(d => !string.IsNullOrWhiteSpace(d.Name)), "Role definitions must include a name.")
@@ -34,10 +38,15 @@ public static class ServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IUserCreationListener, DefaultUserRoleAssignmentListener>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IIdentitySeedRoleAssignmentHandler, Infrastructure.IdentitySeedRoleAssignmentHandler>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IClaimsPrincipalAugmentor, PermissionClaimsAugmentor>());
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, IdentityRolesMigrationHostedService>());
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, IdentityRolesSeedHostedService>());
 
-        return new IdentityRolesBuilder(services);
+        var builder = new IdentityRolesBuilder(services);
+
+        if (configureDbContext is not null)
+        {
+            builder.AddDbContext<IdentityRolesDbContext>(configureDbContext);
+        }
+
+        return builder;
     }
 
     public static async Task SeedIdentityRolesAsync(this IServiceProvider services, CancellationToken cancellationToken = default)
@@ -51,4 +60,5 @@ public static class ServiceCollectionExtensions
 
         await seeder.SeedAsync(cancellationToken).ConfigureAwait(false);
     }
+
 }

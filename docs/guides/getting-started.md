@@ -34,12 +34,26 @@ dotnet add package Identity.Base.Email.MailJet # optional Mailjet sender (see do
 Replace the generated file with the following minimal host:
 ```csharp
 using Identity.Base.Extensions;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Registers Identity Base services, including AppDbContext, Identity, OpenIddict, MFA, etc.
-var identity = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
+var configureDbContext = new Action<IServiceProvider, DbContextOptionsBuilder>((sp, options) =>
+{
+    var connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("Primary")
+        ?? throw new InvalidOperationException("ConnectionStrings:Primary must be set.");
 
+    options.UseNpgsql(connectionString, sql => sql.EnableRetryOnFailure());
+    // or options.UseSqlServer(connectionString);
+});
+
+// Registers Identity Base services, including AppDbContext, Identity, OpenIddict, MFA, etc.
+var identity = builder.Services.AddIdentityBase(
+    builder.Configuration,
+    builder.Environment,
+    configureDbContext: configureDbContext);
+
+identity.UseTablePrefix("Contoso");   // optional: override the default Identity_ prefix
 // Optional: enable Mailjet email delivery if the add-on package is installed
 identity.UseMailJetEmailSender();
 
@@ -137,15 +151,17 @@ Key sections:
 - `Mfa`, `ExternalProviders` – supply credentials/enabled flags as needed.
 - `OpenIddict` – register clients, scopes, and key management strategy.
 
+If you need the database objects to use a different prefix than `Identity_`, call `identity.UseTablePrefix("Contoso")` (and the corresponding `UseTablePrefix` helpers on RBAC/organization builders) before running migrations.
+
 ### 2.4 Apply the Core Migrations
 Generate the database schema inside your host project:
 ```bash
 dotnet ef migrations add InitialIdentityBase \
-  --context Identity.Base.Identity.AppDbContext \
+  --context Identity.Base.Data.AppDbContext \
   --output-dir Data/Migrations/IdentityBase
 
 dotnet ef database update \
-  --context Identity.Base.Identity.AppDbContext
+  --context Identity.Base.Data.AppDbContext
 ```
 
 ### 2.5 Run & Verify
@@ -175,12 +191,8 @@ using Identity.Base.Roles.Endpoints;
 using Microsoft.EntityFrameworkCore;
 
 // ... after AddIdentityBase
-var rolesBuilder = builder.Services.AddIdentityRoles(builder.Configuration);
-rolesBuilder.AddDbContext<IdentityRolesDbContext>((provider, options) =>
-{
-    var connectionString = builder.Configuration.GetConnectionString("Primary")!;
-    options.UseNpgsql(connectionString, sql => sql.EnableRetryOnFailure());
-});
+builder.Services.AddIdentityRoles(builder.Configuration, configureDbContext)
+    .UseTablePrefix("Contoso");
 
 var app = builder.Build();
 
@@ -222,13 +234,14 @@ Add the `Permissions` and `Roles` sections to `appsettings.json` (adjust names a
 ```
 
 ### 3.4 Create RBAC Migrations
+Run the following commands from your host project (the one referencing the packages):
 ```bash
 dotnet ef migrations add InitialIdentityRoles \
-  --context Identity.Base.Roles.IdentityRolesDbContext \
+  --context Identity.Base.Roles.Data.IdentityRolesDbContext \
   --output-dir Data/Migrations/IdentityRoles
 
 dotnet ef database update \
-  --context Identity.Base.Roles.IdentityRolesDbContext
+  --context Identity.Base.Roles.Data.IdentityRolesDbContext
 ```
 
 Re-run `dotnet run` and check `GET https://localhost:5000/users/me/permissions` after authenticating—your roles now determine the returned permission set.
@@ -247,15 +260,11 @@ dotnet add package Identity.Base.Organizations
 ### 4.2 Register Services & Endpoints
 Add the organizations registration after Identity Base (and, if present, RBAC) in `Program.cs`:
 ```csharp
-using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Extensions;
 using Microsoft.EntityFrameworkCore;
 
-var organizationsBuilder = builder.Services.AddIdentityBaseOrganizations(options =>
-{
-    var connectionString = builder.Configuration.GetConnectionString("Primary")!;
-    options.UseNpgsql(connectionString);
-});
+var organizationsBuilder = builder.Services.AddIdentityBaseOrganizations(configureDbContext)
+    .UseTablePrefix("Contoso");
 
 organizationsBuilder.ConfigureOrganizationModel(modelBuilder =>
 {
@@ -271,14 +280,17 @@ app.MapIdentityBaseOrganizationEndpoints();
 ```
 
 ### 4.3 Apply Organization Migrations
-Run the packaged migration for `OrganizationDbContext`:
+Run the migrations from your host project so they target your chosen provider:
 ```bash
+dotnet ef migrations add InitialOrganizations \
+  --context Identity.Base.Organizations.Data.OrganizationDbContext \
+  --output-dir Data/Migrations/Organizations
+
 dotnet ef database update \
-  --project Identity.Base.Organizations/Identity.Base.Organizations.csproj \
   --context Identity.Base.Organizations.Data.OrganizationDbContext
 ```
 
-The hosted migration and seed services will also apply any pending migrations and seed default roles (`OrgOwner`, `OrgManager`, `OrgMember`) at runtime.
+The hosted seed service will provision the default organization roles (`OrgOwner`, `OrgManager`, `OrgMember`) after migrations have run.
 
 ### 4.4 Extend Hooks
 Use the builder hooks when you need custom behaviour:
@@ -307,17 +319,12 @@ dotnet add package Identity.Base.Admin
 ```csharp
 using Identity.Base.Admin.Configuration;
 using Identity.Base.Admin.Endpoints;
-using Identity.Base.Roles;
 using Identity.Base.Roles.Endpoints;
 using Microsoft.EntityFrameworkCore;
 
 // ... after AddIdentityBase
-var adminBuilder = builder.Services.AddIdentityAdmin(builder.Configuration);
-adminBuilder.AddDbContext<IdentityRolesDbContext>((provider, options) =>
-{
-    var connectionString = builder.Configuration.GetConnectionString("Primary")!;
-    options.UseNpgsql(connectionString, sql => sql.EnableRetryOnFailure());
-});
+builder.Services.AddIdentityAdmin(builder.Configuration, configureDbContext)
+    .UseTablePrefix("Contoso");
 
 var app = builder.Build();
 

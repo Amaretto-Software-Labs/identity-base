@@ -14,9 +14,7 @@ internal sealed class OrganizationInvitationConfiguration : IEntityTypeConfigura
 
     public void Configure(EntityTypeBuilder<OrganizationInvitationEntity> builder)
     {
-        builder.ToTable("Identity_OrganizationInvitations");
-
-        builder.HasKey(entity => entity.Code).HasName("PK_Identity_OrganizationInvitations");
+        builder.HasKey(entity => entity.Code);
         builder.Property(entity => entity.OrganizationId).IsRequired();
         builder.Property(entity => entity.OrganizationSlug).IsRequired().HasMaxLength(128);
         builder.Property(entity => entity.OrganizationName).IsRequired().HasMaxLength(256);
@@ -36,11 +34,8 @@ internal sealed class OrganizationInvitationConfiguration : IEntityTypeConfigura
                     : JsonSerializer.Deserialize<Guid[]>(json, SerializerOptions) ?? Array.Empty<Guid>())
             .Metadata.SetValueComparer(OrganizationInvitationValueComparers.RoleIds);
 
-        builder.HasIndex(entity => entity.OrganizationId)
-            .HasDatabaseName("IX_Identity_OrganizationInvitations_OrganizationId");
-        builder.HasIndex(entity => entity.Email)
-            .HasDatabaseName("IX_Identity_OrganizationInvitations_Email");
-        builder.HasIndex(entity => entity.UsedAtUtc)
-            .HasDatabaseName("IX_Identity_OrganizationInvitations_UsedAtUtc");
+        builder.HasIndex(entity => entity.OrganizationId);
+        builder.HasIndex(entity => entity.Email);
+        builder.HasIndex(entity => entity.UsedAtUtc);
     }
 }

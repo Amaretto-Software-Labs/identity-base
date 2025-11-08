@@ -2,6 +2,7 @@ using Identity.Base.Admin.Authorization;
 using Identity.Base.Admin.Options;
 using Identity.Base.Roles.Configuration;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -10,12 +11,15 @@ namespace Identity.Base.Admin.Configuration;
 
 public static class ServiceCollectionExtensions
 {
-    public static IdentityRolesBuilder AddIdentityAdmin(this IServiceCollection services, IConfiguration configuration)
+    public static IdentityRolesBuilder AddIdentityAdmin(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        Action<IServiceProvider, DbContextOptionsBuilder>? configureDbContext = null)
     {
         services.Configure<AdminApiOptions>(configuration.GetSection(AdminApiOptions.SectionName));
         services.Configure<AdminDiagnosticsOptions>(configuration.GetSection(AdminDiagnosticsOptions.SectionName));
 
-        var rolesBuilder = services.AddIdentityRoles(configuration);
+        var rolesBuilder = services.AddIdentityRoles(configuration, configureDbContext);
 
         services.TryAddSingleton<IPermissionScopeResolver, DefaultPermissionScopeResolver>();
         services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();

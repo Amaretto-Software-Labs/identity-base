@@ -13,13 +13,18 @@ Register the admin services after `AddIdentityBase`:
 
 ```csharp
 using Identity.Base.Admin;
-using Identity.Base.Roles.Configuration;
-using Identity.Base.Roles.Data;
 using Microsoft.EntityFrameworkCore;
 
-var rolesBuilder = builder.Services.AddIdentityAdmin(builder.Configuration); // internally calls AddIdentityRoles
-rolesBuilder.AddDbContext<IdentityRolesDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Primary")));
+var rolesBuilder = builder.Services.AddIdentityAdmin(
+    builder.Configuration,
+    configureDbContext: (sp, options) =>
+    {
+        var connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("Primary")
+            ?? throw new InvalidOperationException("ConnectionStrings:Primary must be set.");
+
+        options.UseNpgsql(connectionString); // or UseSqlServer(connectionString)
+    });
+rolesBuilder.UseTablePrefix("Contoso"); // optional
 
 var app = builder.Build();
 app.MapApiEndpoints();
@@ -28,6 +33,9 @@ await app.Services.SeedIdentityRolesAsync();
 ```
 
 `AddIdentityAdmin` configures admin authorization helpers (`PermissionAuthorizationHandler` + `RequireAdminPermission`) and returns the underlying `IdentityRolesBuilder` so you can continue configuring RBAC storage.
+
+> **Note:** Identity Base no longer ships EF Core migrations. Generate migrations from your host project (targeting your preferred provider) and apply them before calling `SeedIdentityRolesAsync`.
+> Call `UseTablePrefix("<Prefix>")` if you override the default `Identity_` prefix elsewhere so the admin/RBAC tables match the rest of your schema.
 
 ## Configuration
 

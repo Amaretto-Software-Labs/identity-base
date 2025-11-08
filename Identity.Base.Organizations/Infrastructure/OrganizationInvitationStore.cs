@@ -74,10 +74,10 @@ public sealed class OrganizationInvitationStore : IOrganizationInvitationStore
             }
             else
             {
-                var pattern = SearchPatternHelper.CreateSearchPattern(normalized.Search);
+                var pattern = SearchPatternHelper.CreateSearchPattern(normalized.Search).ToUpperInvariant();
                 query = query.Where(invitation =>
-                    EF.Functions.ILike(invitation.Email, pattern) ||
-                    EF.Functions.ILike(invitation.OrganizationName, pattern));
+                    EF.Functions.Like(invitation.Email.ToUpper(), pattern) ||
+                    EF.Functions.Like(invitation.OrganizationName.ToUpper(), pattern));
             }
         }
 

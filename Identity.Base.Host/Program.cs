@@ -2,13 +2,12 @@ using Identity.Base.Admin.Configuration;
 using Identity.Base.Admin.Endpoints;
 using Identity.Base.Email.MailJet;
 using Identity.Base.Extensions;
-using Identity.Base.Options;
 using Identity.Base.Roles;
 using Identity.Base.Roles.Endpoints;
 using Identity.Base.Roles.Configuration;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.Extensions.Options;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,20 +23,10 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) =>
         .WriteTo.Console();
 });
 
-var identityBuilder = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
-
-identityBuilder
-    .AddGoogleAuth()
-    .AddMicrosoftAuth()
-    .AddAppleAuth()
-    .UseMailJetEmailSender();
-
-var rolesBuilder = builder.Services.AddIdentityAdmin(builder.Configuration);
-
-rolesBuilder.AddDbContext<IdentityRolesDbContext>((provider, options) =>
+Action<IServiceProvider, DbContextOptionsBuilder> configureDbContext = (provider, options) =>
 {
-    var databaseOptions = provider.GetRequiredService<IOptions<DatabaseOptions>>().Value;
-    var connectionString = databaseOptions.Primary ?? string.Empty;
+    var configuration = provider.GetRequiredService<IConfiguration>();
+    var connectionString = configuration.GetConnectionString("Primary");
 
     if (string.IsNullOrWhiteSpace(connectionString))
     {
@@ -46,22 +35,33 @@ rolesBuilder.AddDbContext<IdentityRolesDbContext>((provider, options) =>
 
     if (connectionString.StartsWith("InMemory:", StringComparison.OrdinalIgnoreCase))
     {
-        var databaseName = connectionString[("InMemory:".Length)..];
+        var databaseName = connectionString["InMemory:".Length..];
         if (string.IsNullOrWhiteSpace(databaseName))
         {
             databaseName = "IdentityBaseTests";
         }
 
-        options.UseInMemoryDatabase($"{databaseName}_roles")
+        options.UseInMemoryDatabase(databaseName)
             .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
     }
     else
     {
-        options.UseNpgsql(
-            connectionString,
-            sql => sql.EnableRetryOnFailure());
+        options.UseNpgsql(connectionString, sql => sql.EnableRetryOnFailure());
     }
-});
+};
+
+var identityBuilder = builder.Services.AddIdentityBase(
+    builder.Configuration,
+    builder.Environment,
+    configureDbContext: configureDbContext);
+
+identityBuilder
+    .AddGoogleAuth()
+    .AddMicrosoftAuth()
+    .AddAppleAuth()
+    .UseMailJetEmailSender();
+
+var rolesBuilder = builder.Services.AddIdentityAdmin(builder.Configuration, configureDbContext);
 
 var app = builder.Build();
 

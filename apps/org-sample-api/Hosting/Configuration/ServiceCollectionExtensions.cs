@@ -4,13 +4,10 @@ using FluentValidation;
 using Identity.Base.Features.Authentication.EmailManagement;
 using Identity.Base.Identity;
 using Identity.Base.Options;
-using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Extensions;
-using Identity.Base.Roles;
 using Identity.Base.Admin.Configuration;
 using Identity.Base.Abstractions;
 using Identity.Base.Extensions;
-using Identity.Base.Roles.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -62,24 +59,18 @@ internal static class ServiceCollectionExtensions
 
     public static void ConfigureIdentityBase(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment environment)
     {
-        var identityBuilder = services.AddIdentityBase(configuration, environment);
+        var configureDbContext = new Action<IServiceProvider, DbContextOptionsBuilder>((provider, options) =>
+        {
+            var config = provider.GetRequiredService<IConfiguration>();
+            var connectionString = GetPrimaryConnectionString(config);
+            ConfigureDatabase(options, connectionString);
+        });
+
+        var identityBuilder = services.AddIdentityBase(configuration, environment, configureDbContext: configureDbContext);
         identityBuilder.AddConfiguredExternalProviders();
 
-        var rolesBuilder = services.AddIdentityAdmin(configuration);
-        rolesBuilder.AddDbContext<IdentityRolesDbContext>((provider, options) =>
-        {
-            var config = provider.GetRequiredService<IConfiguration>();
-            var connectionString = GetPrimaryConnectionString(config);
-            ConfigureDatabase(options, connectionString);
-        });
-
-        var organizationsBuilder = services.AddIdentityBaseOrganizations();
-        organizationsBuilder.AddDbContext<OrganizationDbContext>((provider, options) =>
-        {
-            var config = provider.GetRequiredService<IConfiguration>();
-            var connectionString = GetPrimaryConnectionString(config);
-            ConfigureDatabase(options, connectionString);
-        });
+        services.AddIdentityAdmin(configuration, configureDbContext);
+        services.AddIdentityBaseOrganizations(configureDbContext);
 
         identityBuilder.AfterOrganizationSeed(async (serviceProvider, cancellationToken) =>
         {

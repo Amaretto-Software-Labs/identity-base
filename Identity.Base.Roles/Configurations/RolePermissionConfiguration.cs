@@ -8,8 +8,6 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
 {
     public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
-        builder.ToTable("Identity_RolePermissions");
-
         builder.HasKey(rp => new { rp.RoleId, rp.PermissionId });
 
         builder

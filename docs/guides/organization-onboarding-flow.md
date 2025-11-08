@@ -24,15 +24,24 @@ React client dependencies for a new app:
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
-var identity = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
+var configureDbContext = new Action<IServiceProvider, DbContextOptionsBuilder>((sp, options) =>
+{
+    var connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("Primary")
+        ?? throw new InvalidOperationException("ConnectionStrings:Primary must be set.");
+
+    options.UseNpgsql(connectionString);
+});
+
+var identity = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment, configureDbContext: configureDbContext);
 identity.UseMailJetEmailSender(); // optional
 
-var rolesBuilder = builder.Services.AddIdentityRoles(builder.Configuration);
-rolesBuilder.AddDbContext<IdentityRolesDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Primary")));
+builder.Services.AddIdentityRoles(builder.Configuration, configureDbContext)
+    .UseTablePrefix("Contoso");
 
-var orgsBuilder = builder.Services.AddIdentityBaseOrganizations(opt =>
-    opt.UseNpgsql(builder.Configuration.GetConnectionString("Primary")));
+identity.UseTablePrefix("Contoso"); // optional
+
+var orgsBuilder = builder.Services.AddIdentityBaseOrganizations(configureDbContext)
+    .UseTablePrefix("Contoso");
 
 var app = builder.Build();
 app.UseApiPipeline();

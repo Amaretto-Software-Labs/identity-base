@@ -731,11 +731,13 @@ public static class UserOrganizationEndpoints
 
         var inMemory = dbContext.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true;
 
+        var normalizedRoleName = ownerRoleName.ToUpperInvariant();
+
         var ownerRole = inMemory
             ? query.AsEnumerable()
                 .FirstOrDefault(role => string.Equals(role.Name, ownerRoleName, StringComparison.OrdinalIgnoreCase))
             : await query
-                .FirstOrDefaultAsync(role => EF.Functions.ILike(role.Name, ownerRoleName), cancellationToken)
+                .FirstOrDefaultAsync(role => role.Name.ToUpper() == normalizedRoleName, cancellationToken)
                 .ConfigureAwait(false);
 
         return ownerRole?.Id;

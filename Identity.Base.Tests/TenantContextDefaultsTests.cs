@@ -1,7 +1,9 @@
 using System;
 using Identity.Base.Abstractions.MultiTenancy;
+using Identity.Base.Data;
 using Identity.Base.Extensions;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -19,6 +21,8 @@ public class TenantContextDefaultsTests
         services.AddLogging();
         var configuration = new ConfigurationBuilder().AddInMemoryCollection().Build();
         var environment = new FakeWebHostEnvironment();
+
+        services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase("tenant-context-tests"));
 
         services.AddIdentityBase(configuration, environment);
 

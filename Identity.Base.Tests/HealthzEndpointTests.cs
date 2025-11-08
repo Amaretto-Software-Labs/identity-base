@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -12,6 +13,7 @@ using Identity.Base.Identity;
 using Identity.Base.Options;
 using Identity.Base.Tests.Fakes;
 using Identity.Base.Roles.Options;
+using Identity.Base.Roles.Configuration;
 using Identity.Base.Organizations.Authorization;
 using OpenIddict.Abstractions;
 using OpenIddict.Server;
@@ -21,6 +23,7 @@ using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -68,6 +71,15 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Development");
         builder.UseSetting(WebHostDefaults.EnvironmentKey, Environments.Development);
+        builder.ConfigureAppConfiguration((context, configurationBuilder) =>
+        {
+            var overrides = new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:Primary"] = "InMemory:IdentityBaseTests"
+            };
+
+            configurationBuilder.AddInMemoryCollection(overrides!);
+        });
 
         builder.ConfigureServices(services =>
         {
@@ -78,11 +90,6 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
             services.AddScoped<IMfaChallengeSender, EmailMfaChallengeSender>();
             services.AddSingleton<FakeMfaChallengeSender>(_ => SmsChallengeSender);
             services.AddSingleton<IMfaChallengeSender>(provider => provider.GetRequiredService<FakeMfaChallengeSender>());
-
-            services.PostConfigure<DatabaseOptions>(options =>
-            {
-                options.Primary = "InMemory:IdentityBaseTests";
-            });
 
             services.PostConfigure<HealthCheckServiceOptions>(options =>
             {
@@ -256,7 +263,15 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                 {
                     Name = "StandardUser",
                     Description = "Standard user",
-                    Permissions = new List<string>()
+                    Permissions = new List<string>
+                    {
+                        UserOrganizationPermissions.OrganizationsRead,
+                        UserOrganizationPermissions.OrganizationsManage,
+                        UserOrganizationPermissions.OrganizationMembersRead,
+                        UserOrganizationPermissions.OrganizationMembersManage,
+                        UserOrganizationPermissions.OrganizationRolesRead,
+                        UserOrganizationPermissions.OrganizationRolesManage
+                    }
                 });
 
                 options.Definitions.Add(new RoleDefinition
@@ -305,6 +320,7 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                 options.DefaultAdminRoles.Add("IdentityAdmin");
             });
 
+            services.AddHostedService<IdentityRolesSeedStartupService>();
         });
     }
 
@@ -318,12 +334,28 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
         }
     }
 
+    private sealed class IdentityRolesSeedStartupService : IHostedService
+    {
+        private readonly IServiceProvider _serviceProvider;
+
+        public IdentityRolesSeedStartupService(IServiceProvider serviceProvider)
+        {
+            _serviceProvider = serviceProvider;
+        }
+
+        public async Task StartAsync(CancellationToken cancellationToken)
+        {
+            using var scope = _serviceProvider.CreateScope();
+            await scope.ServiceProvider.SeedIdentityRolesAsync(cancellationToken);
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    }
     private sealed class PassThroughHealthCheck : IHealthCheck
     {
         public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
             => Task.FromResult(HealthCheckResult.Healthy());
     }
-
 }
 
 public sealed class FakeEmailSender : ITemplatedEmailSender

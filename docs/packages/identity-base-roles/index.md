@@ -13,20 +13,25 @@ Register the package after `AddIdentityBase`:
 
 ```csharp
 using Identity.Base.Roles.Configuration;
-using Identity.Base.Roles.Data;
 using Microsoft.EntityFrameworkCore;
 
-var rolesBuilder = builder.Services.AddIdentityRoles(builder.Configuration);
+var rolesBuilder = builder.Services.AddIdentityRoles(
+    builder.Configuration,
+    configureDbContext: (sp, options) =>
+    {
+        var connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("Primary")
+            ?? throw new InvalidOperationException("ConnectionStrings:Primary must be set.");
 
-rolesBuilder.AddDbContext<IdentityRolesDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Primary"))); // or SQL Server, etc.
+        options.UseNpgsql(connectionString); // or UseSqlServer(connectionString)
+    });
+rolesBuilder.UseTablePrefix("Contoso"); // optional: keeps RBAC tables consistent with the host
 
 var app = builder.Build();
 app.MapIdentityRolesUserEndpoints(); // exposes GET /users/me/permissions (optional)
 await app.Services.SeedIdentityRolesAsync();
 ```
 
-`AddIdentityRoles` returns an `IdentityRolesBuilder` that lets you register the built-in `IdentityRolesDbContext` (with bundled migrations) or point at an existing context implementing `IRoleDbContext`.
+`AddIdentityRoles` returns an `IdentityRolesBuilder` that lets you register the built-in `IdentityRolesDbContext` (by passing `configureDbContext` or via `builder.AddDbContext<T>()`), override the table prefix via `UseTablePrefix`, or point at an existing context implementing `IRoleDbContext`.
 
 ## Configuration
 
@@ -70,7 +75,7 @@ Call `await app.Services.SeedIdentityRolesAsync()` during startup to synchronise
 ## Dependencies & Compatibility
 - Requires the core `Identity.Base` package.
 - Consumed by `Identity.Base.Admin` and `Identity.Base.Organizations` to enforce permissions.
-- Ships EF Core 9 migrations for `IdentityRolesDbContext`; apply them via `dotnet ef database update --project Identity.Base.Roles/Identity.Base.Roles.csproj --context Identity.Base.Roles.Data.IdentityRolesDbContext` or let your host run migrations automatically.
+- Hosts are responsible for generating/applying EF Core migrations targeting their chosen provider (PostgreSQL, SQL Server, etc.) before invoking `SeedIdentityRolesAsync`.
 
 ## Troubleshooting & Tips
 - **Seed not running** – make sure `SeedIdentityRolesAsync` is called after the host has built the service provider (e.g., right before `RunAsync`).

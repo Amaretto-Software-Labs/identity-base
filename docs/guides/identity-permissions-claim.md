@@ -17,21 +17,24 @@ Install the following NuGet packages:
 
 ```csharp
 using Identity.Base.Extensions;
-using Identity.Base.Roles;
 using Identity.Base.Roles.Endpoints;
-using Identity.Base.Roles.Configuration;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var identity = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
-
-var rolesBuilder = builder.Services.AddIdentityRoles(builder.Configuration);
-rolesBuilder.AddDbContext<IdentityRolesDbContext>((sp, options) =>
+var configureDbContext = new Action<IServiceProvider, DbContextOptionsBuilder>((sp, options) =>
 {
     var configuration = sp.GetRequiredService<IConfiguration>();
-    options.UseNpgsql(configuration.GetConnectionString("Primary"));
+    var connectionString = configuration.GetConnectionString("Primary")
+        ?? throw new InvalidOperationException("ConnectionStrings:Primary must be set.");
+
+    options.UseNpgsql(connectionString);
 });
+
+var identity = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment, configureDbContext: configureDbContext);
+
+builder.Services.AddIdentityRoles(builder.Configuration, configureDbContext)
+    .UseTablePrefix("Contoso"); // optional
 
 var app = builder.Build();
 
@@ -46,6 +49,7 @@ Key points:
 - Call `AddIdentityRoles` **after** `AddIdentityBase` so the claims augmentor is registered.
 - Provide a persistent store (`IdentityRolesDbContext`) so role assignments and permissions can be resolved at runtime.
 - Map `MapIdentityRolesUserEndpoints()` if you want to expose `GET /users/me/permissions` for debugging.
+- Use `UseTablePrefix("<Prefix>")` if you need the RBAC tables to align with a custom prefix (default: `Identity_`).
 
 ## 3. Seed Permissions and Roles
 
@@ -99,7 +103,7 @@ and the client-side `X-Organization-Id` header to indicate which organization is
 
 ## 4. Let Startup Hosted Services Apply Migrations
 
-Calling `AddIdentityBase` automatically registers `MigrationHostedService`, which applies any pending migrations for `AppDbContext` each time the host starts. When you call `AddIdentityRoles`, it similarly registers `IdentityRolesMigrationHostedService` to keep the roles database current.
+Identity Base no longer runs EF Core migrations for you. Generate/apply migrations in your host (for both `AppDbContext` and the RBAC context) before the application starts, then call `SeedIdentityRolesAsync()` to synchronize roles/permissions from configuration.
 
 Nothing else is required: ensure both DbContexts point at databases where the app has migrate permissions, and the hosted services will run before the HTTP pipeline starts handling traffic. For containerised or server environments, keep the health probes delayed until startup migrations complete.
 

@@ -14,8 +14,6 @@ public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organiz
 
     public void Configure(EntityTypeBuilder<Organization> builder)
     {
-        builder.ToTable("Identity_Organizations");
-
         builder.HasKey(organization => organization.Id);
 
         builder.Property(organization => organization.Slug)
@@ -49,12 +47,10 @@ public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organiz
                 metadata => CloneMetadata(metadata)));
 
         builder.HasIndex(organization => new { organization.TenantId, organization.Slug })
-            .IsUnique()
-            .HasDatabaseName("IX_Organizations_Tenant_Slug");
+            .IsUnique();
 
         builder.HasIndex(organization => new { organization.TenantId, organization.DisplayName })
-            .IsUnique()
-            .HasDatabaseName("IX_Organizations_Tenant_DisplayName");
+            .IsUnique();
     }
 
     private static string SerializeMetadata(OrganizationMetadata? metadata)

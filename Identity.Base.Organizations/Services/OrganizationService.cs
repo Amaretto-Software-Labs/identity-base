@@ -131,10 +131,10 @@ public sealed class OrganizationService : IOrganizationService
             }
             else
             {
-                var pattern = SearchPatternHelper.CreateSearchPattern(normalized.Search);
+                var pattern = SearchPatternHelper.CreateSearchPattern(normalized.Search).ToUpperInvariant();
                 query = query.Where(organization =>
-                    EF.Functions.ILike(organization.DisplayName ?? string.Empty, pattern) ||
-                    EF.Functions.ILike(organization.Slug ?? string.Empty, pattern));
+                    EF.Functions.Like((organization.DisplayName ?? string.Empty).ToUpper(), pattern) ||
+                    EF.Functions.Like((organization.Slug ?? string.Empty).ToUpper(), pattern));
             }
         }
 

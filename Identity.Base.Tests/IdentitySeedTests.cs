@@ -42,11 +42,15 @@ public class IdentitySeedTests
         services.AddSingleton<IConfiguration>(configuration);
         var environment = new FakeWebHostEnvironment();
 
-        services.AddIdentityBase(configuration, environment);
-        var rolesBuilder = services.AddIdentityAdmin(configuration);
-        rolesBuilder.AddDbContext<IdentityRolesDbContext>(options =>
+        var configureIdentityDb = new Action<IServiceProvider, DbContextOptionsBuilder>((_, options) =>
+            options.UseInMemoryDatabase(databaseName)
+                .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning)));
+        var configureRolesDb = new Action<IServiceProvider, DbContextOptionsBuilder>((_, options) =>
             options.UseInMemoryDatabase($"{databaseName}_roles")
-                   .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning)));
+                .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning)));
+
+        services.AddIdentityBase(configuration, environment, configureDbContext: configureIdentityDb);
+        services.AddIdentityAdmin(configuration, configureRolesDb);
 
         using var provider = services.BuildServiceProvider();
         await provider.SeedIdentityRolesAsync();

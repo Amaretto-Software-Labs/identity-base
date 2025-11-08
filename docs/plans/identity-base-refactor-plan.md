@@ -31,7 +31,7 @@ Deliver Identity.Base as a reusable NuGet library that encapsulates authenticati
    - Introduce a fluent `IdentityBaseBuilder` returned from `services.AddIdentityBase(...)` to compose features and external providers.
    - Minimise the package's public surface by exposing only builder, option models, identity entities, and extensibility interfaces (see `docs/reference/identity-base-public-api.md`).
 3. **Configuration Surface**
-   - Preserve option classes (`DatabaseOptions`, `RegistrationOptions`, `MfaOptions`, etc.) and ensure validation occurs via DI.
+   - Preserve option classes (`RegistrationOptions`, `MfaOptions`, etc.) and ensure validation occurs via DI.
    - Provide sample `appsettings.json` in host; document required configuration sections for consumers.
    - Allow hosts to override or supplement configuration providers (e.g., database-backed settings) while keeping library defaults.
    - Allow hosts to override email/MFA providers through interfaces.

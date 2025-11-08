@@ -64,30 +64,31 @@ using Identity.Base.Extensions;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Endpoints;
 using Identity.Base.Organizations.Extensions;
-using Identity.Base.Roles;
 using Identity.Base.Roles.Endpoints;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Core identity surface (Identity, OpenIddict, MFA, external providers)
-var identityBuilder = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
-identityBuilder.UseMailJetEmailSender(); // optional Mailjet integration
-
-// Admin API (includes Identity.Base.Roles registration)
-var adminBuilder = builder.Services.AddIdentityAdmin(builder.Configuration);
-adminBuilder.AddDbContext<IdentityRolesDbContext>((provider, options) =>
+var configureDbContext = new Action<IServiceProvider, DbContextOptionsBuilder>((sp, options) =>
 {
-    var connectionString = builder.Configuration.GetConnectionString("Primary")!;
+    var connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("Primary")
+        ?? throw new InvalidOperationException("ConnectionStrings:Primary must be set.");
+
     options.UseNpgsql(connectionString, sql => sql.EnableRetryOnFailure());
 });
 
+// Core identity surface (Identity, OpenIddict, MFA, external providers)
+var identityBuilder = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment, configureDbContext: configureDbContext);
+identityBuilder.UseTablePrefix("Contoso");
+identityBuilder.UseMailJetEmailSender(); // optional Mailjet integration
+
+// Admin API (includes Identity.Base.Roles registration)
+builder.Services.AddIdentityAdmin(builder.Configuration, configureDbContext)
+    .UseTablePrefix("Contoso");
+
 // Organizations (multi-tenant entities, memberships, organization roles)
-var organizationsBuilder = builder.Services.AddIdentityBaseOrganizations(options =>
-{
-    var connectionString = builder.Configuration.GetConnectionString("Primary")!;
-    options.UseNpgsql(connectionString);
-});
+var organizationsBuilder = builder.Services.AddIdentityBaseOrganizations(configureDbContext)
+    .UseTablePrefix("Contoso");
 
 // Optional: extend organization model or seeding pipeline here
 // organizationsBuilder.ConfigureOrganizationModel(modelBuilder => { ... });
@@ -100,7 +101,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     var services = scope.ServiceProvider;
 
-    var identityContext = services.GetRequiredService<Identity.Base.Identity.AppDbContext>();
+    var identityContext = services.GetRequiredService<Identity.Base.Data.AppDbContext>();
     await identityContext.Database.MigrateAsync();
 
     var rolesContext = services.GetService<IdentityRolesDbContext>();

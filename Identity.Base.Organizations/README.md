@@ -8,7 +8,7 @@
 - Organization aggregate (`Organization`, `OrganizationMetadata`) with per-tenant slug/display name uniqueness.
 - Membership service with primary-organization tracking, role assignments, and helper queries for listing memberships.
 - Organization-specific role catalog and claim formatter that augments Identity Base permission claims with organization context.
-- Hosted migration/seed services that keep the organizations schema current and bootstrap default roles (`OrgOwner`, `OrgManager`, `OrgMember`).
+- Hosted seed services that bootstrap default roles (`OrgOwner`, `OrgManager`, `OrgMember`) once your migrations have been applied.
 - Minimal API modules for CRUD, membership management, role management, and user-facing endpoints.
 - Builder hooks (`ConfigureOrganizationModel`, `AfterOrganizationSeed`, `AddOrganizationClaimFormatter`, `AddOrganizationScopeResolver`) mirroring Identity Base extensibility points.
 
@@ -23,25 +23,22 @@ dotnet add package Identity.Base.Organizations
 Add the organizations services after `AddIdentityBase` (and optionally `AddIdentityRoles`) in `Program.cs`:
 ```csharp
 using Identity.Base.Extensions;
-using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
-var rolesBuilder = builder.Services.AddIdentityRoles(builder.Configuration);
-rolesBuilder.AddDbContext<IdentityRolesDbContext>((provider, options) =>
+Action<IServiceProvider, DbContextOptionsBuilder> configureDbContext = (sp, options) =>
 {
-    var connectionString = builder.Configuration.GetConnectionString("Primary")!;
-    options.UseNpgsql(connectionString);
-});
+    var connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("Primary")
+        ?? throw new InvalidOperationException("ConnectionStrings:Primary must be set.");
 
-var organizationsBuilder = builder.Services.AddIdentityBaseOrganizations(options =>
-{
-    var connectionString = builder.Configuration.GetConnectionString("Primary")!;
-    options.UseNpgsql(connectionString);
-});
+    options.UseNpgsql(connectionString); // or UseSqlServer(connectionString)
+};
+
+builder.Services.AddIdentityBase(builder.Configuration, builder.Environment, configureDbContext: configureDbContext);
+builder.Services.AddIdentityRoles(builder.Configuration, configureDbContext);
+builder.Services.AddIdentityBaseOrganizations(configureDbContext);
 
 var app = builder.Build();
 app.UseApiPipeline(appBuilder => appBuilder.UseSerilogRequestLogging());
@@ -51,20 +48,17 @@ app.MapIdentityBaseOrganizationEndpoints();
 await app.RunAsync();
 ```
 
-If you omit the options callback, the package attempts to use the `IdentityOrganizations` connection string from configuration.
+`AddIdentityBaseOrganizations` no longer auto-configures DbContexts. Provide the delegate shown above or register `OrganizationDbContext` yourself before calling the extension.
 
 ### 3. Apply migrations
-`Identity.Base.Organizations` ships with an initial migration for `OrganizationDbContext`:
+Generate and apply migrations from your host project targeting the provider you selected:
 ```bash
-dotnet ef database update \
-  --project Identity.Base.Organizations/Identity.Base.Organizations.csproj \
-  --context Identity.Base.Organizations.Data.OrganizationDbContext
+dotnet ef migrations add InitialOrganizations --context OrganizationDbContext
+dotnet ef database update --context OrganizationDbContext
 ```
 
-The hosted `OrganizationMigrationHostedService` also applies pending migrations on startup when the provider is relational.
-
 ### 4. Seed default roles
-`OrganizationRoleSeeder` creates the default system roles. Register additional callbacks if you need to extend the seed pipeline:
+`OrganizationRoleSeeder` creates the default system roles after your host has applied migrations. Register additional callbacks if you need to extend the seed pipeline:
 ```csharp
 organizationsBuilder.AfterOrganizationSeed(async (sp, ct) =>
 {

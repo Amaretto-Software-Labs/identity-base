@@ -7,19 +7,21 @@ Role-based access control primitives for Identity Base. Includes:
 - EF Core entities and configuration for roles, permissions, role-permission associations, user-role links, and audit entries.
 - Configuration binding for role/permission definitions and default role assignments.
 - Services for role assignment and permission resolution.
-- Optional DbContext (`IdentityRolesDbContext`) and design-time factory.
+- Optional DbContext (`IdentityRolesDbContext`) with convenience registration helpers.
 
 ## Usage
 
 ```csharp
-// Register RBAC services
-var rolesBuilder = services.AddIdentityRoles(configuration);
+// Register RBAC services and configure the provided DbContext
+var rolesBuilder = services.AddIdentityRoles(
+    configuration,
+    configureDbContext: (sp, options) =>
+    {
+        var connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("Primary")
+            ?? throw new InvalidOperationException("ConnectionStrings:Primary must be set.");
 
-// If using the provided context
-rolesBuilder.AddDbContext<IdentityRolesDbContext>(options =>
-{
-    options.UseNpgsql(connectionString);
-});
+        options.UseNpgsql(connectionString); // or UseSqlServer(connectionString)
+    });
 
 // Or map an existing DbContext that implements IRoleDbContext
 rolesBuilder.UseDbContext<AppDbContext>();
@@ -28,7 +30,7 @@ rolesBuilder.UseDbContext<AppDbContext>();
 app.MapIdentityRolesUserEndpoints();
 
 // During startup
-await app.Services.SeedIdentityRolesAsync();
+await app.Services.SeedIdentityRolesAsync(); // host-controlled migrations must run first
 ```
 
 Consumers opt in explicitly; no additional tables are created unless the package is referenced and configured.
