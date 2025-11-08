@@ -573,7 +573,7 @@ export function OrganizationsProvider({
       }
 
       if (Object.keys(payload).length === 0) {
-        throw new Error('roleIds must be provided to update a membership.')
+        throw new Error('At least one role must be provided to update a membership.')
       }
 
       const dto = await authorizedFetch<OrganizationMembershipDto>(

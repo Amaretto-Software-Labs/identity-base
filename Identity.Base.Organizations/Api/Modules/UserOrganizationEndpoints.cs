@@ -74,12 +74,28 @@ public static class UserOrganizationEndpoints
                     Metadata = request.Metadata
                 }, cancellationToken).ConfigureAwait(false);
 
-                await membershipService.AddMemberAsync(new OrganizationMembershipRequest
+                try
                 {
-                    OrganizationId = organization.Id,
-                    UserId = userId,
-                    RoleIds = new[] { ownerRoleId.Value }
-                }, cancellationToken).ConfigureAwait(false);
+                    await membershipService.AddMemberAsync(new OrganizationMembershipRequest
+                    {
+                        OrganizationId = organization.Id,
+                        UserId = userId,
+                        RoleIds = new[] { ownerRoleId.Value }
+                    }, cancellationToken).ConfigureAwait(false);
+                }
+                catch
+                {
+                    try
+                    {
+                        await organizationService.ArchiveAsync(organization.Id, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // Swallow archival failures; original exception will be thrown
+                    }
+
+                    throw;
+                }
 
                 var dto = OrganizationApiMapper.ToOrganizationDto(organization);
                 return Results.Created($"/users/me/organizations/{organization.Id}", dto);
@@ -708,11 +724,6 @@ public static class UserOrganizationEndpoints
             ?.Name;
 
         ownerRoleName = string.IsNullOrWhiteSpace(ownerRoleName) ? "OrgOwner" : ownerRoleName.Trim();
-
-        if (string.IsNullOrWhiteSpace(ownerRoleName))
-        {
-            return null;
-        }
 
         var query = dbContext.OrganizationRoles
             .AsNoTracking()

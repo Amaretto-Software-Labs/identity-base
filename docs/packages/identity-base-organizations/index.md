@@ -58,7 +58,7 @@ Connection strings can be supplied via the `IdentityOrganizations` named connect
 | `DELETE /admin/organizations/{id}` | Archive an organization. | `admin.organizations.manage` |
 | `GET /admin/organizations/{id}/members` | Paged member list with role ids and metadata (`page`, `pageSize`, `search`, `roleId`, `sort`). Returns `PagedResult<OrganizationMembershipDto>`. | `admin.organizations.members.read` |
 | `POST /admin/organizations/{id}/members` | Add an existing user directly (no invite). | `admin.organizations.members.manage` |
-| `PUT /admin/organizations/{id}/members/{userId}` | Update member roles / primary flag. | `admin.organizations.members.manage` |
+| `PUT /admin/organizations/{id}/members/{userId}` | Update member roles. | `admin.organizations.members.manage` |
 | `DELETE /admin/organizations/{id}/members/{userId}` | Remove a member. | `admin.organizations.members.manage` |
 | `GET /admin/organizations/{id}/roles` | Paged list of system + org-specific roles (`page`, `pageSize`, `search`, `sort`). Returns `PagedResult<OrganizationRoleDto>`. | `admin.organizations.roles.read` |
 | `POST /admin/organizations/{id}/roles` | Create an organization-specific role. | `admin.organizations.roles.manage` |
