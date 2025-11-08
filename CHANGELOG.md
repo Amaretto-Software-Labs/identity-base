@@ -4,6 +4,8 @@
 - Reintroduced `POST /users/me/organizations`, allowing authenticated users to create an organization that immediately assigns them the default OrgOwner role (respects custom `Organizations:RoleOptions` seeds).
 - Removed the legacy `IsPrimary` membership concept. Membership DTOs/queries no longer expose the flag, list endpoints dropped the `isPrimary` filter, and React + sample clients were updated accordingly. Organization context must now be set explicitly via `X-Organization-Id`.
 - Organization authorization now enforces a configurable `Organizations:Authorization:AdminRequiredScope` (default `identity.admin`) before honoring `admin.organizations.*` permissions, so admin endpoints reject tokens missing the privileged scope.
+- Doc updates: clarified that `/users/me/permissions` only merges organization permissions when the `X-Organization-Id` header is present, and omitting the header yields just the global RBAC set.
+- Added a shared NuGet icon configuration (`assets/images/logo-white-128x128.png`), so every published package now advertises the logo in the gallery.
 
 ## [0.6.2] - 2025-11-07
 - Added the full `/users/me/organizations/{orgId}/...` management surface (details, patch, members, roles, invitations) guarded by the `user.organizations.*` permissions so organization owners can self-service memberships/roles using the same pagination/authorization model as the admin APIs.
