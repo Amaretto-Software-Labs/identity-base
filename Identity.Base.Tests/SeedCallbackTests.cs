@@ -41,7 +41,7 @@ public class SeedCallbackTests
             return Task.CompletedTask;
         });
 
-        var rolesBuilder = services.AddIdentityRoles(configuration, configureDb);
+        services.AddIdentityRoles(configuration, configureDb);
 
         using var provider = services.BuildServiceProvider();
         await provider.SeedIdentityRolesAsync();

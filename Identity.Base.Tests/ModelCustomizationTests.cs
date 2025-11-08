@@ -116,7 +116,7 @@ public class ModelCustomizationTests
             model.Model.SetAnnotation("Identity.Base.Tests:RoleTenantIndex", true);
         });
 
-        var rolesBuilder = services.AddIdentityRoles(
+        services.AddIdentityRoles(
             configuration,
             (_, options) => options.UseInMemoryDatabase("rolesdb-customization")
                 .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning)));
