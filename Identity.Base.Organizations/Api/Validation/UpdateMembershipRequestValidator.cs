@@ -7,5 +7,9 @@ public sealed class UpdateMembershipRequestValidator : AbstractValidator<UpdateM
 {
     public UpdateMembershipRequestValidator()
     {
+        RuleFor(x => x.RoleIds)
+            .NotNull()
+            .Must(roleIds => roleIds?.Count > 0)
+            .WithMessage("At least one role must be provided.");
     }
 }

@@ -718,20 +718,14 @@ public static class UserOrganizationEndpoints
             .AsNoTracking()
             .Where(role => role.OrganizationId == null && role.TenantId == null);
 
-        OrganizationRole? ownerRole;
         var inMemory = dbContext.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true;
 
-        if (inMemory)
-        {
-            ownerRole = query.AsEnumerable()
-                .FirstOrDefault(role => string.Equals(role.Name, ownerRoleName, StringComparison.OrdinalIgnoreCase));
-        }
-        else
-        {
-            ownerRole = await query
+        var ownerRole = inMemory
+            ? query.AsEnumerable()
+                .FirstOrDefault(role => string.Equals(role.Name, ownerRoleName, StringComparison.OrdinalIgnoreCase))
+            : await query
                 .FirstOrDefaultAsync(role => EF.Functions.ILike(role.Name, ownerRoleName), cancellationToken)
                 .ConfigureAwait(false);
-        }
 
         return ownerRole?.Id;
     }

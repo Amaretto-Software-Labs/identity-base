@@ -93,7 +93,7 @@ internal static class SampleMemberEndpoints
             });
         }
 
-        if (request.RoleIds is null)
+        if (request.RoleIds is null || !request.RoleIds.Any())
         {
             return Results.BadRequest(new ProblemDetails
             {

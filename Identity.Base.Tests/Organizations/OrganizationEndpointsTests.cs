@@ -384,7 +384,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
 
         var updateResponse = await client.PutAsJsonAsync($"/users/me/organizations/{organizationId:D}/members/{memberId:D}", new
         {
-            RoleIds = Array.Empty<Guid>()
+            RoleIds = new[] { await GetSystemRoleIdAsync("OrgMember") }
         });
         updateResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -989,6 +989,16 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
 
     private sealed record OrganizationMemberListDto(int Page, int PageSize, int TotalCount, OrganizationMembershipDto[] Members);
 
+    private async Task<Guid> GetSystemRoleIdAsync(string roleName)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<OrganizationDbContext>();
+        return await dbContext.OrganizationRoles
+            .AsNoTracking()
+            .Where(role => role.OrganizationId == null && role.Name == roleName)
+            .Select(role => role.Id)
+            .FirstAsync();
+    }
 }
 
 public sealed class OrganizationApiFactory : IdentityApiFactory

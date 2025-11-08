@@ -307,7 +307,7 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
             HandleCookies = false
         });
 
-        var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string?>
+        using var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string?>
         {
             [OpenIddictConstants.Parameters.GrantType] = OpenIddictConstants.GrantTypes.Password,
             [OpenIddictConstants.Parameters.Username] = email,
