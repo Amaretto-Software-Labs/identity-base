@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.2] - 2025-11-09
+- React Organizations client now exposes explicit route namespaces and removes generic methods (breaking): use `client.user.*` for `/users/me/organizations/...` and `client.admin.*` for `/admin/organizations/...`. The previous top-level methods like `getOrganization`, `listMembers`, `updateMember`, `listRoles`, `getRolePermissions`, `listInvitations` were removed.
+- React Identity client (@identity-base/react-client) now exposes admin APIs under `authManager.admin.*` (breaking): top-level admin methods were removed. Migrate usages such as `listAdminUsers()` → `admin.users.list()`, `createAdminRole()` → `admin.roles.create()`, and `listAdminPermissions()` → `admin.permissions.list()`.
+- Sample apps updated to prefer user-scoped organization routes; `org-sample-client` switched config and API calls to `/users/me/organizations/{id}/...` for organization details, members, roles, and role permissions.
+- Added a migration guide describing the 0.7.1 → 0.7.2 API changes and code examples.
+
 ## [0.7.1] - 2025-11-08
 - Identity.Base, Admin, Roles, and Organizations no longer ship EF Core migrations or provider-specific `DatabaseOptions`; hosts now pass a `configureDbContext` delegate (or register the contexts directly) so consumers can target PostgreSQL, SQL Server, or any EF provider.
 - Added `IdentityDbNamingOptions`/`UseTablePrefix` plus shared naming helpers so every table/index can adopt a host-defined prefix (the built-in default remains `Identity_`).

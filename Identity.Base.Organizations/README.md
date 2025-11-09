@@ -119,6 +119,13 @@ Bind or override using the standard options pattern:
 builder.Services.Configure<OrganizationOptions>(builder.Configuration.GetSection("Organizations"));
 ```
 
+### Configuration notes
+- Auto-binding: `AddIdentityBaseOrganizations` binds options by default
+  - `Organizations` → `OrganizationOptions`
+  - `Organizations:RoleOptions` → `OrganizationRoleOptions`
+  - `Organizations:Authorization` → `OrganizationAuthorizationOptions`
+- Role definition overrides: defaults are merged with config; definitions are de-duplicated by name (case-insensitive) and the last entry wins. This lets you override built-in `OrgOwner`/`OrgManager`/`OrgMember` definitions without producing duplicate roles.
+
 ## Extensibility
 ```csharp
 organizationsBuilder

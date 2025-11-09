@@ -56,7 +56,7 @@ export function useAdminPermissions(options: UseAdminPermissionsOptions = {}): U
     setError(null)
 
     try {
-      const response = await authManager.listAdminPermissions(nextQuery)
+      const response = await authManager.admin.permissions.list(nextQuery)
       setData(response)
       return response
     } catch (err) {

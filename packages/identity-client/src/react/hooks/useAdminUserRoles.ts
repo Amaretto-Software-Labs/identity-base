@@ -51,7 +51,7 @@ export function useAdminUserRoles(userId?: string | null, options: UseAdminUserR
     setError(null)
 
     try {
-      const response = await authManager.getAdminUserRoles(id)
+      const response = await authManager.admin.users.getRoles(id)
       setRoles(response.roles)
       return response.roles
     } catch (err) {
@@ -78,7 +78,7 @@ export function useAdminUserRoles(userId?: string | null, options: UseAdminUserR
     setError(null)
 
     try {
-      await authManager.updateAdminUserRoles(id, payload)
+      await authManager.admin.users.updateRoles(id, payload)
       const nextRoles = payload.roles ?? []
       setRoles(nextRoles)
       return nextRoles
