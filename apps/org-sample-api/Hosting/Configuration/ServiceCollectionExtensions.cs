@@ -116,6 +116,8 @@ internal static class ServiceCollectionExtensions
         services.AddIdentityBaseOrganizations(configureOrganizationDbContext)
             .UseTablePrefix(TablePrefix);
 
+        // Organization options (Organizations, RoleOptions, Authorization) are bound by default in the package.
+
         identityBuilder.AfterOrganizationSeed(async (serviceProvider, cancellationToken) =>
         {
             using var scope = serviceProvider.CreateScope();

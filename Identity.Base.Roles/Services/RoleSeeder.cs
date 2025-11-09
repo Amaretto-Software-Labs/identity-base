@@ -92,7 +92,13 @@ public sealed class RoleSeeder : IRoleSeeder
 
         foreach (var permissionDefinition in _permissionOptions.Definitions)
         {
-            if (existingPermissions.TryGetValue(permissionDefinition.Name, out var existingPermission))
+            var defName = permissionDefinition.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(defName))
+            {
+                continue;
+            }
+
+            if (existingPermissions.TryGetValue(defName, out var existingPermission))
             {
                 if (!string.Equals(existingPermission.Description, permissionDefinition.Description, StringComparison.Ordinal))
                 {
@@ -103,8 +109,8 @@ public sealed class RoleSeeder : IRoleSeeder
 
             var permission = new Permission
             {
-                Name = permissionDefinition.Name,
-                Description = permissionDefinition.Description
+                Name = defName,
+                Description = permissionDefinition.Description?.Trim()
             };
 
             _dbContext.Permissions.Add(permission);
