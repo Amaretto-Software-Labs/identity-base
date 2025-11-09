@@ -566,7 +566,20 @@ export function OrganizationsProvider({
     }
 
     if (activeOrganizationId) {
-      headers.set(ORGANIZATION_HEADER, activeOrganizationId)
+      // Avoid sending org header on user-scoped org routes to prevent 403s with stale claims
+      let pathOnly = path
+      try {
+        if (path.startsWith('http')) {
+          pathOnly = new URL(path).pathname
+        }
+      } catch {
+        // ignore URL parse errors and fall back to raw path
+      }
+
+      const isUserOrgRoute = pathOnly.startsWith('/users/me/organizations')
+      if (!isUserOrgRoute) {
+        headers.set(ORGANIZATION_HEADER, activeOrganizationId)
+      }
     }
 
     const response = await resolvedFetch(
