@@ -15,7 +15,6 @@ using Identity.Base.Roles.Services;
 using Identity.Base.Options;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -26,10 +25,11 @@ public static class ServiceCollectionExtensions
 {
     public static IdentityBaseOrganizationsBuilder AddIdentityBaseOrganizations(
         this IServiceCollection services,
-        Action<DbContextOptionsBuilder>? configureDbContext = null)
+        Action<IServiceProvider, DbContextOptionsBuilder>? configureDbContext = null)
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddOptions<IdentityDbNamingOptions>();
         services.AddOptions<OrganizationOptions>();
         services.AddOptions<OrganizationRoleOptions>();
         services.AddOptions<OrganizationAuthorizationOptions>();
@@ -59,7 +59,6 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<IValidator<UpdateOrganizationRolePermissionsRequest>, UpdateOrganizationRolePermissionsRequestValidator>();
         services.TryAddScoped<IValidator<CreateOrganizationInvitationRequest>, CreateOrganizationInvitationRequestValidator>();
 
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, OrganizationMigrationHostedService>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, OrganizationSeedHostedService>());
 
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IAuthorizationHandler, OrganizationPermissionAuthorizationHandler>());
@@ -70,18 +69,6 @@ public static class ServiceCollectionExtensions
         if (configureDbContext is not null)
         {
             builder.AddDbContext<OrganizationDbContext>(configureDbContext);
-        }
-        else
-        {
-            builder.AddDbContext<OrganizationDbContext>((provider, optionsBuilder) =>
-            {
-                var configuration = provider.GetService<IConfiguration>();
-                var connectionString = configuration?.GetConnectionString("IdentityOrganizations");
-                if (!string.IsNullOrWhiteSpace(connectionString))
-                {
-                    optionsBuilder.UseNpgsql(connectionString);
-                }
-            });
         }
 
         return builder;

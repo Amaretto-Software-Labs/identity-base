@@ -19,7 +19,7 @@ Identity Base is a .NET 9 minimal API that centralises authentication, user mana
 - `Extensions/` contains DI, middleware, and endpoint mapping helpers.
 - `Features/` holds feature folders (Authentication, Users, Email) with endpoint groups.
 - `Data/` provides the `AppDbContext` for EF Core and future entity configurations.
-- `Options/` contains configuration bindings such as `DatabaseOptions`.
+- `Options/` contains configuration bindings (Registration, MFA, External Providers, OpenIddict, etc.).
 
 ## Identity & Registration
 - ASP.NET Core Identity is configured with GUID keys, strict password policy (12+ characters, upper/lower/digit), and enforced email confirmation.
@@ -31,9 +31,8 @@ Identity Base is a .NET 9 minimal API that centralises authentication, user mana
 
 ## Database & Migrations
 - The `AppDbContext` extends `IdentityDbContext` and stores user metadata as JSONB (`Identity_Users.ProfileMetadata`). Tables use PascalCase with `Identity_` prefixes.
-- Apply migrations locally: `dotnet ef database update --project Identity.Base/Identity.Base.csproj`.
-- Add new schema changes with `dotnet ef migrations add <Name> --project Identity.Base/Identity.Base.csproj --output-dir Data/Migrations`.
-- Test projects set `ConnectionStrings:Primary` to `InMemory:<Name>` to run against EF Core InMemory provider.
+- The library no longer ships migrations; consuming hosts generate them within their projects using `dotnet ef migrations add <Name> --context AppDbContext`.
+- Test projects set `ConnectionStrings:Primary` to `InMemory:<Name>` to run against the EF Core InMemory provider.
 
 ## Configuration Reference
 ```json

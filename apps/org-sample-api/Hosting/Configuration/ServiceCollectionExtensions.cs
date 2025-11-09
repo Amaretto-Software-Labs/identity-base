@@ -1,16 +1,16 @@
 using System;
 using System.Collections.Generic;
 using FluentValidation;
+using Identity.Base.Data;
 using Identity.Base.Features.Authentication.EmailManagement;
 using Identity.Base.Identity;
 using Identity.Base.Options;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Extensions;
-using Identity.Base.Roles;
 using Identity.Base.Admin.Configuration;
 using Identity.Base.Abstractions;
 using Identity.Base.Extensions;
-using Identity.Base.Roles.Configuration;
+using Identity.Base.Roles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -22,6 +22,7 @@ using Microsoft.AspNetCore.Identity;
 using OrgSampleApi.Sample;
 using OrgSampleApi.Sample.Invitations;
 using OrgSampleApi.Sample.Members;
+using OrgSampleApi.Hosting.Infrastructure;
 using Serilog;
 
 namespace OrgSampleApi.Hosting.Configuration;
@@ -62,24 +63,58 @@ internal static class ServiceCollectionExtensions
 
     public static void ConfigureIdentityBase(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment environment)
     {
-        var identityBuilder = services.AddIdentityBase(configuration, environment);
-        identityBuilder.AddConfiguredExternalProviders();
+        var migrationsAssembly = typeof(ServiceCollectionExtensions).Assembly.FullName;
 
-        var rolesBuilder = services.AddIdentityAdmin(configuration);
-        rolesBuilder.AddDbContext<IdentityRolesDbContext>((provider, options) =>
+        var configureAppDbContext = new Action<IServiceProvider, DbContextOptionsBuilder>((provider, options) =>
         {
             var config = provider.GetRequiredService<IConfiguration>();
-            var connectionString = GetPrimaryConnectionString(config);
-            ConfigureDatabase(options, connectionString);
+            if (options is DbContextOptionsBuilder<AppDbContext> typed)
+            {
+                typed.UseOrgSampleProvider(config, migrationsAssembly);
+            }
+            else
+            {
+                throw new InvalidOperationException("Unable to configure AppDbContext options.");
+            }
         });
 
-        var organizationsBuilder = services.AddIdentityBaseOrganizations();
-        organizationsBuilder.AddDbContext<OrganizationDbContext>((provider, options) =>
+        var configureRolesDbContext = new Action<IServiceProvider, DbContextOptionsBuilder>((provider, options) =>
         {
             var config = provider.GetRequiredService<IConfiguration>();
-            var connectionString = GetPrimaryConnectionString(config);
-            ConfigureDatabase(options, connectionString);
+            if (options is DbContextOptionsBuilder<IdentityRolesDbContext> typed)
+            {
+                typed.UseOrgSampleProvider(config, migrationsAssembly);
+            }
+            else
+            {
+                throw new InvalidOperationException("Unable to configure IdentityRolesDbContext options.");
+            }
         });
+
+        var configureOrganizationDbContext = new Action<IServiceProvider, DbContextOptionsBuilder>((provider, options) =>
+        {
+            var config = provider.GetRequiredService<IConfiguration>();
+            if (options is DbContextOptionsBuilder<OrganizationDbContext> typed)
+            {
+                typed.UseOrgSampleProvider(config, migrationsAssembly);
+            }
+            else
+            {
+                throw new InvalidOperationException("Unable to configure OrganizationDbContext options.");
+            }
+        });
+
+        const string TablePrefix = "OrgSample";
+
+        var identityBuilder = services.AddIdentityBase(configuration, environment, configureDbContext: configureAppDbContext);
+        identityBuilder
+            .UseTablePrefix(TablePrefix)
+            .AddConfiguredExternalProviders();
+
+        services.AddIdentityAdmin(configuration, configureRolesDbContext)
+            .UseTablePrefix(TablePrefix);
+        services.AddIdentityBaseOrganizations(configureOrganizationDbContext)
+            .UseTablePrefix(TablePrefix);
 
         identityBuilder.AfterOrganizationSeed(async (serviceProvider, cancellationToken) =>
         {
@@ -111,19 +146,4 @@ internal static class ServiceCollectionExtensions
         });
     }
 
-    private static string GetPrimaryConnectionString(IConfiguration configuration)
-    {
-        var connectionString = configuration.GetConnectionString("Primary");
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException("ConnectionStrings:Primary must be configured.");
-        }
-
-        return connectionString;
-    }
-
-    private static void ConfigureDatabase(DbContextOptionsBuilder options, string connectionString)
-    {
-        options.UseNpgsql(connectionString, sql => sql.EnableRetryOnFailure());
-    }
 }

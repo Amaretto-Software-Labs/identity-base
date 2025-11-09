@@ -8,8 +8,6 @@ public sealed class RoleConfiguration : IEntityTypeConfiguration<Role>
 {
     public void Configure(EntityTypeBuilder<Role> builder)
     {
-        builder.ToTable("Identity_RbacRoles");
-
         builder.HasKey(role => role.Id);
 
         builder.Property(role => role.Name)

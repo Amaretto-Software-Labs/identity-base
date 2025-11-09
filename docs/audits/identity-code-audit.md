@@ -32,7 +32,7 @@
 - **Seeder hardcoding:** `OpenIddictSeeder` (Identity.Base/Seeders/OpenIddictSeeder.cs:47) forces the `identity.api` scope/permission on every client, reducing flexibility for scope-limited clients. Respect the configuration input instead.
 
 ## Strengths
-- Option classes (`DatabaseOptions`, `RegistrationOptions`, `OpenIddict*`, etc.) use `ValidateOnStart` and custom validators, catching misconfiguration early.
+- Option classes (`RegistrationOptions`, `OpenIddict*`, etc.) use `ValidateOnStart` and custom validators, catching misconfiguration early.
 - Identity configuration enforces strong passwords, email confirmation, lockout policy, and MFA, aligning with best practices.
 - MFA delivery uses `IMfaChallengeSender` abstractions with DI-configured enable/disable logic, keeping transport-specific code isolated.
 - Serilog configuration enriches logs with correlation/user identifiers—once PII is redacted, the tracing story will be strong.

@@ -197,10 +197,10 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
             }
             else
             {
-                var pattern = SearchPatternHelper.CreateSearchPattern(normalized.Search);
+                var pattern = SearchPatternHelper.CreateSearchPattern(normalized.Search).ToUpperInvariant();
                 query = query.Where(membership =>
-                    EF.Functions.ILike(membership.Organization!.DisplayName ?? string.Empty, pattern) ||
-                    EF.Functions.ILike(membership.Organization!.Slug ?? string.Empty, pattern));
+                    EF.Functions.Like((membership.Organization!.DisplayName ?? string.Empty).ToUpper(), pattern) ||
+                    EF.Functions.Like((membership.Organization!.Slug ?? string.Empty).ToUpper(), pattern));
             }
         }
 
@@ -273,11 +273,11 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
             }
             else
             {
-                var pattern = CreateSearchPattern(request.Search);
+                var pattern = CreateSearchPattern(request.Search).ToUpperInvariant();
                 usersQuery = usersQuery.Where(user =>
-                    EF.Functions.ILike(user.Email ?? string.Empty, pattern) ||
-                    EF.Functions.ILike(user.DisplayName ?? string.Empty, pattern) ||
-                    EF.Functions.ILike(user.UserName ?? string.Empty, pattern));
+                    EF.Functions.Like((user.Email ?? string.Empty).ToUpper(), pattern) ||
+                    EF.Functions.Like((user.DisplayName ?? string.Empty).ToUpper(), pattern) ||
+                    EF.Functions.Like((user.UserName ?? string.Empty).ToUpper(), pattern));
             }
 
             userFilter = await usersQuery

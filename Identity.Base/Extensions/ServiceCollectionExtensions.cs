@@ -1,5 +1,6 @@
 using System;
 using Identity.Base.Options;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,12 +12,13 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration,
         IWebHostEnvironment environment,
-        Action<IdentityBaseOptions>? configure = null)
+        Action<IdentityBaseOptions>? configure = null,
+        Action<IServiceProvider, DbContextOptionsBuilder>? configureDbContext = null)
     {
         var options = new IdentityBaseOptions();
         configure?.Invoke(options);
 
-        var builder = new IdentityBaseBuilder(services, configuration, environment, options);
+        var builder = new IdentityBaseBuilder(services, configuration, environment, options, configureDbContext);
         return builder.Initialize();
     }
 }

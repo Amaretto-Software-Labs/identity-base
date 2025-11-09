@@ -20,18 +20,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<IdentityUserClaim<Guid>>().ToTable("Identity_UserClaims");
-        modelBuilder.Entity<IdentityUserLogin<Guid>>().ToTable("Identity_UserLogins");
-        modelBuilder.Entity<IdentityUserToken<Guid>>().ToTable("Identity_UserTokens");
-        modelBuilder.Entity<IdentityRoleClaim<Guid>>().ToTable("Identity_RoleClaims");
-        modelBuilder.Entity<IdentityUserRole<Guid>>().ToTable("Identity_UserRoles");
-
-        modelBuilder.Entity<OpenIddictApplication>().ToTable("Identity_OpenIddictApplications");
-        modelBuilder.Entity<OpenIddictAuthorization>().ToTable("Identity_OpenIddictAuthorizations");
-        modelBuilder.Entity<OpenIddictScope>().ToTable("Identity_OpenIddictScopes");
-        modelBuilder.Entity<OpenIddictToken>().ToTable("Identity_OpenIddictTokens");
-
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        ConfigureTableNaming(modelBuilder);
 
         var customizationOptions = this.GetService<IDbContextOptions>()
                 ?.FindExtension<IdentityBaseModelCustomizationOptionsExtension>()
@@ -44,5 +34,47 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
                 configure(modelBuilder);
             }
         }
+    }
+
+    private void ConfigureTableNaming(ModelBuilder modelBuilder)
+    {
+        var prefix = IdentityDbNamingHelper.ResolveTablePrefix(this);
+
+        modelBuilder.Entity<ApplicationUser>(entity =>
+        {
+            entity.ToTable(IdentityDbNamingHelper.Table(prefix, "Users"));
+            entity.HasIndex(user => user.Email)
+                .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "Users_Email"));
+            entity.HasIndex(user => user.NormalizedEmail)
+                .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "Users_NormalizedEmail"))
+                .IsUnique()
+                .HasFilter("\"NormalizedEmail\" IS NOT NULL");
+            entity.HasIndex(user => user.NormalizedUserName)
+                .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "Users_NormalizedUserName"))
+                .IsUnique()
+                .HasFilter("\"NormalizedUserName\" IS NOT NULL");
+            entity.HasIndex(user => user.CreatedAt)
+                .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "Users_CreatedAt"));
+        });
+
+        modelBuilder.Entity<ApplicationRole>(entity =>
+        {
+            entity.ToTable(IdentityDbNamingHelper.Table(prefix, "Roles"));
+            entity.HasIndex(role => role.NormalizedName)
+                .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "Roles_NormalizedName"))
+                .IsUnique()
+                .HasFilter("\"NormalizedName\" IS NOT NULL");
+        });
+
+        modelBuilder.Entity<IdentityUserClaim<Guid>>().ToTable(IdentityDbNamingHelper.Table(prefix, "UserClaims"));
+        modelBuilder.Entity<IdentityUserLogin<Guid>>().ToTable(IdentityDbNamingHelper.Table(prefix, "UserLogins"));
+        modelBuilder.Entity<IdentityUserToken<Guid>>().ToTable(IdentityDbNamingHelper.Table(prefix, "UserTokens"));
+        modelBuilder.Entity<IdentityRoleClaim<Guid>>().ToTable(IdentityDbNamingHelper.Table(prefix, "RoleClaims"));
+        modelBuilder.Entity<IdentityUserRole<Guid>>().ToTable(IdentityDbNamingHelper.Table(prefix, "UserRoles"));
+
+        modelBuilder.Entity<OpenIddictApplication>().ToTable(IdentityDbNamingHelper.Table(prefix, "OpenIddictApplications"));
+        modelBuilder.Entity<OpenIddictAuthorization>().ToTable(IdentityDbNamingHelper.Table(prefix, "OpenIddictAuthorizations"));
+        modelBuilder.Entity<OpenIddictScope>().ToTable(IdentityDbNamingHelper.Table(prefix, "OpenIddictScopes"));
+        modelBuilder.Entity<OpenIddictToken>().ToTable(IdentityDbNamingHelper.Table(prefix, "OpenIddictTokens"));
     }
 }

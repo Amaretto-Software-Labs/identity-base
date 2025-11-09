@@ -20,7 +20,7 @@ public class ServiceRegistrationTests
         services.AddSingleton(new IdentityBaseModelCustomizationOptions());
         services.AddSingleton(new IdentityBaseSeedCallbacks());
 
-        services.AddIdentityBaseOrganizations(options =>
+        services.AddIdentityBaseOrganizations((_, options) =>
             options.UseInMemoryDatabase("test"));
 
         services.ShouldContain(descriptor => descriptor.ServiceType == typeof(IOrganizationService));

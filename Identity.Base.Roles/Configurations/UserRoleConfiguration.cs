@@ -8,8 +8,6 @@ public sealed class UserRoleConfiguration : IEntityTypeConfiguration<UserRole>
 {
     public void Configure(EntityTypeBuilder<UserRole> builder)
     {
-        builder.ToTable("Identity_UserRolesRbac");
-
         builder.HasKey(ur => new { ur.UserId, ur.RoleId });
 
         builder
@@ -17,8 +15,5 @@ public sealed class UserRoleConfiguration : IEntityTypeConfiguration<UserRole>
             .WithMany(role => role.UserRoles)
             .HasForeignKey(ur => ur.RoleId)
             .OnDelete(DeleteBehavior.Cascade);
-
-        builder.HasIndex(ur => ur.RoleId)
-            .HasDatabaseName("IX_Identity_UserRolesRbac_RoleId");
     }
 }

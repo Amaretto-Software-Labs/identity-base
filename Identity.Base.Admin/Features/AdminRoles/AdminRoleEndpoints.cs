@@ -91,10 +91,10 @@ internal static class AdminRoleEndpoints
 
         if (!string.IsNullOrWhiteSpace(pageRequest.Search))
         {
-            var pattern = SearchPatternHelper.CreateSearchPattern(pageRequest.Search);
+            var pattern = SearchPatternHelper.CreateSearchPattern(pageRequest.Search).ToUpperInvariant();
             rolesQuery = rolesQuery.Where(role =>
-                EF.Functions.ILike(role.Name, pattern) ||
-                EF.Functions.ILike(role.Description ?? string.Empty, pattern));
+                EF.Functions.Like(role.Name.ToUpper(), pattern) ||
+                EF.Functions.Like((role.Description ?? string.Empty).ToUpper(), pattern));
         }
 
         if (query.IsSystemRole.HasValue)

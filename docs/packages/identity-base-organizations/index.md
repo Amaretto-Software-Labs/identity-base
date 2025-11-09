@@ -1,7 +1,7 @@
 # Identity.Base.Organizations
 
 ## Overview
-`Identity.Base.Organizations` adds multi-organization support on top of the Identity Base + RBAC stack. It ships EF Core aggregates for organizations, memberships, and organization-specific roles; hosted migration/seed services; Minimal APIs for CRUD operations; and middleware/helpers for flowing the active organization through requests and tokens. Invitations, membership management, and organization-level permission overrides are all handled within this package.
+`Identity.Base.Organizations` adds multi-organization support on top of the Identity Base + RBAC stack. It ships EF Core aggregates for organizations, memberships, and organization-specific roles; hosted seed services; Minimal APIs for CRUD operations; and middleware/helpers for flowing the active organization through requests and tokens. Invitations, membership management, and organization-level permission overrides are all handled within this package.
 
 ## Installation & Wiring
 
@@ -14,16 +14,20 @@ Register services after the core and roles packages:
 ```csharp
 using Identity.Base.Extensions;
 using Identity.Base.Organizations.Extensions;
-using Identity.Base.Organizations.Data;
 using Microsoft.EntityFrameworkCore;
 
-builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
-var rolesBuilder = builder.Services.AddIdentityRoles(builder.Configuration);
-rolesBuilder.AddDbContext<IdentityRolesDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Primary")));
+Action<IServiceProvider, DbContextOptionsBuilder> configureDbContext = (sp, options) =>
+{
+    var connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("Primary")
+        ?? throw new InvalidOperationException("ConnectionStrings:Primary must be set.");
 
-var orgsBuilder = builder.Services.AddIdentityBaseOrganizations(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Primary")));
+    options.UseNpgsql(connectionString); // or UseSqlServer(connectionString)
+};
+
+builder.Services.AddIdentityBase(builder.Configuration, builder.Environment, configureDbContext: configureDbContext);
+builder.Services.AddIdentityRoles(builder.Configuration, configureDbContext);
+builder.Services.AddIdentityBaseOrganizations(configureDbContext)
+    .UseTablePrefix("Contoso"); // optional: use the same prefix as the core/RBAC tables
 
 var app = builder.Build();
 app.UseApiPipeline(appBuilder => appBuilder.UseSerilogRequestLogging());
@@ -34,7 +38,7 @@ app.MapIdentityBaseOrganizationEndpoints();
 await app.RunAsync();
 ```
 
-`OrganizationMigrationHostedService` applies any pending migrations at startup, and `OrganizationSeedHostedService` provisions default roles (`OrgOwner`, `OrgManager`, `OrgMember`). These roles receive the user-scoped permissions (`user.organizations.*`) only—hosts remain in control of any platform-wide `admin.organizations.*` roles.
+`OrganizationSeedHostedService` provisions default roles (`OrgOwner`, `OrgManager`, `OrgMember`) after your host applies migrations. These roles receive the user-scoped permissions (`user.organizations.*`) only—hosts remain in control of any platform-wide `admin.organizations.*` roles.
 
 ## Configuration
 
@@ -43,7 +47,17 @@ await app.RunAsync();
 - Use `orgsBuilder.ConfigureOrganizationModel(...)` to apply additional EF Core configuration (indexes, value converters).
 - Seed hooks: `orgsBuilder.AfterOrganizationSeed(...)` for post-seeding provisioning (e.g., billing setup, tenant metadata).
 
-Connection strings can be supplied via the `IdentityOrganizations` named connection or explicitly through the options callback shown above.
+Connection strings must be supplied via your own DbContext registrations or the delegate shown above; the package no longer infers `IdentityOrganizations` automatically.
+
+### Migrations
+This package no longer ships EF Core migrations. Generate them from your host project so they target your selected provider (PostgreSQL, SQL Server, etc.):
+
+```bash
+dotnet ef migrations add InitialOrganizations --context OrganizationDbContext
+dotnet ef database update --context OrganizationDbContext
+```
+
+Apply these migrations (for example during deploy or CI) before the hosted seed service runs.
 
 ## Public Surface
 

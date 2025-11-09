@@ -21,8 +21,20 @@ Register the package in your identity host:
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
-var identity = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
+var identity = builder.Services.AddIdentityBase(
+    builder.Configuration,
+    builder.Environment,
+    configureDbContext: (sp, options) =>
+    {
+        var connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("Primary")
+            ?? throw new InvalidOperationException("ConnectionStrings:Primary must be set.");
+
+        options.UseNpgsql(connectionString, sql => sql.EnableRetryOnFailure());
+        // or options.UseSqlServer(connectionString);
+    });
+
 identity
+    .UseTablePrefix("Contoso") // optional: set table prefix (defaults to Identity_)
     .AddConfiguredExternalProviders() // auto-configure providers enabled in config
     .UseTemplatedEmailSender<CustomEmailSender>(); // optional overrides
 
@@ -76,6 +88,7 @@ Options are bound automatically from `IConfiguration`. The sections below are th
 | `OpenIddict:Server:Keys` (`OpenIddictServerKeyOptions`) | Signing/encryption key descriptors | Runtime-generated | Override to use persisted keys or external key stores. |
 | `Cors` (`CorsSettings`) | `AllowedOrigins`, `AllowCredentials` | Empty | `UseApiPipeline` consumes this to create the default CORS policy for Minimal APIs. |
 
+Use `identity.UseTablePrefix("Contoso")` if you want every EF Core table created by Identity Base (and add-on packages) to use a different prefix than the default `Identity_`.
 Customisation examples:
 
 ```csharp
@@ -109,7 +122,7 @@ identity.AfterIdentitySeed(async (sp, ct) =>
 
 ### Builders, Services, and Types
 - `IdentityBaseBuilder` fluent helpers: `ConfigureAppDbContextModel`, `ConfigureIdentityRolesModel`, `UseTemplatedEmailSender`, `AfterRoleSeeding`, `AfterIdentitySeed`, `AddConfiguredExternalProviders`, individual provider helpers (`AddGoogleAuth`, `AddMicrosoftAuth`, `AddAppleAuth`).
-- EF Core artefacts: `AppDbContext`, `ApplicationUser`, and the design-time factory (`AppDbContextFactory`).
+- EF Core artefacts: `AppDbContext`, `ApplicationUser`, and fluent configuration hooks to extend the model.
 - Core services: `IAccountEmailService` (confirmation/reset emails), `IMfaChallengeSender`, `IAuditLogger`, `ILogSanitizer`, `IExternalReturnUrlValidator`, `IExternalCallbackUriFactory`.
 - Extension methods: `services.AddIdentityBase`, `app.UseApiPipeline`, `endpoints.MapApiEndpoints`.
 
@@ -132,7 +145,7 @@ identity.AfterIdentitySeed(async (sp, ct) =>
 - **MFA challenge blocked** – `/auth/mfa/challenge` returns `400` with `SMS MFA challenge is disabled.` if `Mfa:Sms:Enabled` is false or credentials are missing.
 - **Unknown client id** – `/auth/login` fails with `Unknown client_id.` unless the client exists under `OpenIddict:Applications` (or is the seeded SPA/confidential client).
 - **CORS issues** – ensure every SPA origin is listed under `Cors:AllowedOrigins`. The pipeline uses the default policy for all Minimal APIs.
-- **Applying migrations** – apply the bundled migrations via `dotnet ef database update --project Identity.Base/Identity.Base.csproj --context Identity.Base.Data.AppDbContext`, or rely on the hosted migrator in `Identity.Base.Host`.
+- **Applying migrations** – generate and apply migrations from your host project (`dotnet ef migrations add InitialIdentityBase --context AppDbContext`) before running the app; Identity Base no longer applies migrations automatically.
 
 ## Examples & Guides
 - [Getting Started](../../guides/getting-started.md)

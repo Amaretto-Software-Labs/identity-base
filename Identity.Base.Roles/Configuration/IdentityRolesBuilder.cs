@@ -48,6 +48,13 @@ public sealed class IdentityRolesBuilder
         return AddDbContext<TContext>((_, builder) => optionsAction(builder));
     }
 
+    public IdentityRolesBuilder UseTablePrefix(string tablePrefix)
+    {
+        var normalized = IdentityDbNamingOptions.Normalize(tablePrefix);
+        Services.Configure<IdentityDbNamingOptions>(options => options.TablePrefix = normalized);
+        return this;
+    }
+
     private static void TryAddCustomizationExtension(IServiceProvider provider, DbContextOptionsBuilder options)
     {
         var customizationOptions = provider.GetService<IdentityBaseModelCustomizationOptions>();

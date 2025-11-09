@@ -27,20 +27,21 @@ For detailed documentation on each package referenced below, use the [Package Do
 ## Implementation Checklist
 
 - [ ] **Wire Identity Base**
-  - `services.AddIdentityBase(configuration, environment)` and `app.MapApiEndpoints()`.
+  - `services.AddIdentityBase(configuration, environment, configureDbContext)` and `app.MapApiEndpoints()`.
   - Ensure OpenIddict clients/apps that will consume organization context can refresh tokens (e.g., using refresh tokens or cookie re-issue).
+  - Call `identity.UseTablePrefix("Contoso")` if you need the EF Core tables to use a prefix other than `Identity_`.
 
 - [ ] **Enable RBAC**
-  - `var rolesBuilder = services.AddIdentityRoles(configuration);`
-  - Choose storage (`rolesBuilder.AddDbContext<IdentityRolesDbContext>(...)`).
+  - `services.AddIdentityRoles(configuration, configureDbContext);`
   - Seed definitions on startup via `await app.Services.SeedIdentityRolesAsync();`.
   - Define permissions covering organization management (e.g. `admin.organizations.manage`, `admin.organizations.members.manage`, with matching `user.organizations.*` entries seeded for future scoped endpoints).
 
 - [ ] **Add Organizations Package**
-  - `var orgBuilder = services.AddIdentityBaseOrganizations(options => options.UseNpgsql(...));`
+  - `var orgBuilder = services.AddIdentityBaseOrganizations(configureDbContext);`
   - Map endpoints with `app.MapIdentityBaseOrganizationEndpoints();`.
   - Configure metadata as needed (`ConfigureOrganizationModel`, `AfterOrganizationSeed`, custom scope resolver/claim formatter overrides).
   - Decide how the default org roles (`OrgOwner`, `OrgManager`, `OrgMember`) map to RBAC permissions.
+  - Reuse `UseTablePrefix` so the organization tables match the rest of the schema if you override the default.
 
 - [ ] **Registration Flow Enhancements**
   - Extend the post-registration pipeline to call `IOrganizationService.CreateAsync(...)` and create a membership via `IOrganizationMembershipService.AddMemberAsync(...)`.
@@ -72,8 +73,9 @@ For detailed documentation on each package referenced below, use the [Package Do
   - Add `app.UseOrganizationContextFromHeader()` and send the `X-Organization-Id` header so each request carries the active organization without reissuing tokens. There is no backend endpoint to set the active org; the header alone establishes context. Refresh tokens only when membership changes (e.g., an owner loses access).
 
 - [ ] **Admin Application**
-  - Use `Identity.Base.Admin` for user & role management (`services.AddIdentityAdmin(...)`, `app.MapIdentityAdminEndpoints()`).
+  - Use `Identity.Base.Admin` for user & role management (`services.AddIdentityAdmin(configuration, configureDbContext)`, `app.MapIdentityAdminEndpoints()`).
   - Organization CRUD, membership, role, and invitation management lives under `/admin/organizations/...` (mapped by `app.MapIdentityBaseOrganizationEndpoints()`). The admin SPA should call these endpoints with the appropriate `admin.organizations.*` permissions; no organization header is required for these calls.
+  - Call `UseTablePrefix` on the admin builder if you overrode the prefix elsewhere so the shared RBAC tables stay aligned.
 
 ## Configuration Notes
 

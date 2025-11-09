@@ -22,7 +22,6 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.10" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="9.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.10" PrivateAssets="all" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.10" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="9.0.10" />
   </ItemGroup>

@@ -8,7 +8,7 @@
 
 # Identity Base
 
-Identity Base is a modular Identity + OpenID Connect platform for .NET 9. It packages ASP.NET Core Identity, EF Core migrations, OpenIddict server setup, MFA, external providers (Google, Microsoft, Apple), optional Mailjet email delivery, and deployment-ready defaults. The recommended architecture is a dedicated Identity Host that runs all identity surfaces, a fleet of JWT-protected microservices, and a React 19 SPA consuming the APIs.
+Identity Base is a modular Identity + OpenID Connect platform for .NET 9. It packages ASP.NET Core Identity, provider-agnostic EF Core contexts, OpenIddict server setup, MFA, external providers (Google, Microsoft, Apple), optional Mailjet email delivery, and deployment-ready defaults. The recommended architecture is a dedicated Identity Host that runs all identity surfaces, a fleet of JWT-protected microservices, and a React 19 SPA consuming the APIs. Hosts are responsible for configuring the DbContexts, generating migrations for their chosen provider (PostgreSQL, SQL Server, etc.), and applying them before Identity Base runs its seeders.
 
 The project is open source under the MIT License.
 
@@ -24,17 +24,28 @@ The project is open source under the MIT License.
 
 ---
 
+## Database Providers & Migrations
+Identity Base is provider-agnostic: the packages expose DbContexts but never register a specific provider or ship migrations. Your host application must:
+
+1. Configure each required DbContext (e.g., via the `configureDbContext` delegate on `AddIdentityBase`, `AddIdentityRoles`, `AddIdentityOrganizations`, `AddIdentityAdmin`) and choose `UseNpgsql`, `UseSqlServer`, etc.
+2. Generate migrations from the host project (`dotnet ef migrations add ...`) and keep them with the host/source control.
+3. Apply migrations (for example, on startup before calling `SeedIdentityRolesAsync`) and then let the Identity Base seeders run.
+
+See `Identity.Base.Host` and `apps/org-sample-api` for reference helper extensions, design-time factories, and per-host table prefixes. The [Getting Started guide](docs/guides/getting-started.md) walks through configuring the delegates and running `dotnet ef`.
+
+---
+
 ## Repository Overview
 
 | Path | Purpose |
 | --- | --- |
-| `Identity.Base/` | Core class library (Identity, OpenIddict, EF Core, MFA) published to NuGet. |
+| `Identity.Base/` | Core class library (Identity, OpenIddict, EF Core contexts, MFA) published to NuGet (no bundled migrations). |
 | `Identity.Base.Roles/` | Role-based access control primitives (roles, permissions, seeding helpers). |
 | `Identity.Base.Admin/` | Admin API/RBAC extensions layered on the core package. |
 | `Identity.Base.Organizations/` | Multi-tenant organization, membership, and role tooling. |
 | `Identity.Base.AspNet/` | Helpers that let microservices validate Identity Base-issued JWTs. |
 | `Identity.Base.Email.MailJet/` | Optional Mailjet email sender and configuration add-on. |
-| `Identity.Base.Host/` | Opinionated ASP.NET Core host wired for local development and integration tests. Applies migrations and seeding on startup. |
+| `Identity.Base.Host/` | Opinionated ASP.NET Core host wired for local development and integration tests. Owns its migrations/prefixes and applies them before seeding on startup. |
 | `apps/` | Sample APIs that demonstrate bearer auth and organization scenarios. |
 | `docs/` | Architecture, engineering principles, sprint plans, onboarding, full-stack integration guides. |
 | `packages/` | React client packages (`@identity-base/react-client`, `@identity-base/react-organizations`). |
@@ -59,7 +70,7 @@ Key documents:
 
 | Package | Description |
 | --- | --- |
-| [`Identity.Base`](https://www.nuget.org/packages/Identity.Base) | Core Identity/OpenIddict services, EF Core context & migrations, MFA, external providers, DI extensions. |
+| [`Identity.Base`](https://www.nuget.org/packages/Identity.Base) | Core Identity/OpenIddict services, EF Core contexts (bring-your-own migrations), MFA, external providers, DI extensions. |
 | [`Identity.Base.Roles`](https://www.nuget.org/packages/Identity.Base.Roles) | Role and permission management primitives (DbContext, seed helpers, configuration). |
 | [`Identity.Base.Admin`](https://www.nuget.org/packages/Identity.Base.Admin) | Admin API extensions layered on Identity Base + roles. |
 | [`Identity.Base.Organizations`](https://www.nuget.org/packages/Identity.Base.Organizations) | Organizations, memberships, and organization-scoped role tooling. |
@@ -174,7 +185,7 @@ Full option reference lives in [docs/guides/getting-started.md](docs/guides/gett
 3. Smoke test the packages locally before pushing to NuGet.
 4. Tag the release and publish notes referencing the changelog.
 
-Process details: [Release Checklist](docs/release/release-checklist.md). The Identity Host and sample APIs rely on automatic migrations at startup; ensure deployments allow database schema updates during boot or pipe the migrations through your existing release automation.
+Process details: [Release Checklist](docs/release/release-checklist.md). The Identity Host and sample APIs own their migrations and attempt to apply them at startup; ensure deployments allow those host-defined migrations to run (or execute them via your existing release automation) before Identity Base seeders kick in.
 
 ---
 

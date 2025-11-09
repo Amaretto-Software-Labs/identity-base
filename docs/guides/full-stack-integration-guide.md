@@ -64,30 +64,31 @@ using Identity.Base.Extensions;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Endpoints;
 using Identity.Base.Organizations.Extensions;
-using Identity.Base.Roles;
 using Identity.Base.Roles.Endpoints;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Core identity surface (Identity, OpenIddict, MFA, external providers)
-var identityBuilder = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
-identityBuilder.UseMailJetEmailSender(); // optional Mailjet integration
-
-// Admin API (includes Identity.Base.Roles registration)
-var adminBuilder = builder.Services.AddIdentityAdmin(builder.Configuration);
-adminBuilder.AddDbContext<IdentityRolesDbContext>((provider, options) =>
+var configureDbContext = new Action<IServiceProvider, DbContextOptionsBuilder>((sp, options) =>
 {
-    var connectionString = builder.Configuration.GetConnectionString("Primary")!;
+    var connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("Primary")
+        ?? throw new InvalidOperationException("ConnectionStrings:Primary must be set.");
+
     options.UseNpgsql(connectionString, sql => sql.EnableRetryOnFailure());
 });
 
+// Core identity surface (Identity, OpenIddict, MFA, external providers)
+var identityBuilder = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment, configureDbContext: configureDbContext);
+identityBuilder.UseTablePrefix("Contoso");
+identityBuilder.UseMailJetEmailSender(); // optional Mailjet integration
+
+// Admin API (includes Identity.Base.Roles registration)
+builder.Services.AddIdentityAdmin(builder.Configuration, configureDbContext)
+    .UseTablePrefix("Contoso");
+
 // Organizations (multi-tenant entities, memberships, organization roles)
-var organizationsBuilder = builder.Services.AddIdentityBaseOrganizations(options =>
-{
-    var connectionString = builder.Configuration.GetConnectionString("Primary")!;
-    options.UseNpgsql(connectionString);
-});
+var organizationsBuilder = builder.Services.AddIdentityBaseOrganizations(configureDbContext)
+    .UseTablePrefix("Contoso");
 
 // Optional: extend organization model or seeding pipeline here
 // organizationsBuilder.ConfigureOrganizationModel(modelBuilder => { ... });
@@ -95,12 +96,12 @@ var organizationsBuilder = builder.Services.AddIdentityBaseOrganizations(options
 
 var app = builder.Build();
 
-// Automatically apply pending migrations and seed data on startup
+// Apply host-generated migrations and seed data on startup
 await using (var scope = app.Services.CreateAsyncScope())
 {
     var services = scope.ServiceProvider;
 
-    var identityContext = services.GetRequiredService<Identity.Base.Identity.AppDbContext>();
+    var identityContext = services.GetRequiredService<Identity.Base.Data.AppDbContext>();
     await identityContext.Database.MigrateAsync();
 
     var rolesContext = services.GetService<IdentityRolesDbContext>();
@@ -251,9 +252,33 @@ Populate the generated `appsettings.json` with the minimal sections shown below.
 
 ### 3.4 Prepare Database Schema
 
-Identity Base, Identity Base Roles, and Identity Base Organizations all ship their migrations inside the packages. The startup routine in `Program.cs` calls `Database.MigrateAsync()` for each DbContext, so the Identity Host automatically creates or updates the schema every time it boots. There is no manual `dotnet ef database update` workflow.
+Identity Base exposes DbContexts but **does not ship migrations**. From your host project (the API that references the packages), run:
 
-Only generate migrations if you extend the supplied contexts with custom entities. In that case, run `dotnet ef migrations add ...` within your host project and the startup block will pick up those additional migrations too.
+```bash
+dotnet ef migrations add InitialIdentityBase \
+  --project IdentityHost/IdentityHost.csproj \
+  --startup-project IdentityHost/IdentityHost.csproj \
+  --context Identity.Base.Data.AppDbContext \
+  --output-dir Data/Migrations/IdentityBase
+
+dotnet ef migrations add InitialIdentityRoles \
+  --project IdentityHost/IdentityHost.csproj \
+  --startup-project IdentityHost/IdentityHost.csproj \
+  --context Identity.Base.Roles.Data.IdentityRolesDbContext \
+  --output-dir Data/Migrations/IdentityRoles
+
+dotnet ef migrations add InitialOrganizations \
+  --project IdentityHost/IdentityHost.csproj \
+  --startup-project IdentityHost/IdentityHost.csproj \
+  --context Identity.Base.Organizations.Data.OrganizationDbContext \
+  --output-dir Data/Migrations/Organizations
+
+dotnet ef database update --project IdentityHost/IdentityHost.csproj --startup-project IdentityHost/IdentityHost.csproj --context Identity.Base.Data.AppDbContext
+dotnet ef database update --project IdentityHost/IdentityHost.csproj --startup-project IdentityHost/IdentityHost.csproj --context Identity.Base.Roles.Data.IdentityRolesDbContext
+dotnet ef database update --project IdentityHost/IdentityHost.csproj --startup-project IdentityHost/IdentityHost.csproj --context Identity.Base.Organizations.Data.OrganizationDbContext
+```
+
+Replace `IdentityHost` with your actual host project (the sample repo uses `Identity.Base.Host`). The startup helper shown earlier still calls `Database.MigrateAsync()` so newly generated migrations run automatically at boot, but you should also run the CLI commands during CI/CD to keep environments consistent.
 
 ### 3.5 Run the Host
 

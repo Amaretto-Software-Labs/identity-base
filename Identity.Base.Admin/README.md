@@ -13,16 +13,19 @@ Consumers opt in by referencing this package and invoking the provided service/e
 ## Usage
 
 ```csharp
-// Configure services
-var adminBuilder = services.AddIdentityAdmin(configuration);
+// Configure services & register the RBAC DbContext
+var adminBuilder = services.AddIdentityAdmin(
+    configuration,
+    configureDbContext: (provider, options) =>
+    {
+        var connectionString = provider.GetRequiredService<IConfiguration>().GetConnectionString("Primary")
+            ?? throw new InvalidOperationException("ConnectionStrings:Primary must be set.");
 
-// Configure RBAC storage (choose one)
-adminBuilder.AddDbContext<IdentityRolesDbContext>((provider, options) =>
-{
-    var databaseOptions = provider.GetRequiredService<IOptions<DatabaseOptions>>();
-    options.UseNpgsql(databaseOptions.Value.Primary);
-});
-// or adminBuilder.UseDbContext<MyAppDbContext>();
+        options.UseNpgsql(connectionString); // or UseSqlServer(connectionString)
+    });
+adminBuilder.UseTablePrefix("Contoso"); // optional
+
+// Alternatively, call adminBuilder.UseDbContext<MyAppDbContext>() if you already registered one.
 
 // During startup seed RBAC data
 await app.Services.SeedIdentityRolesAsync();

@@ -148,10 +148,10 @@ public sealed class OrganizationRoleService : IOrganizationRoleService
             }
             else
             {
-                var pattern = SearchPatternHelper.CreateSearchPattern(normalized.Search);
+                var pattern = SearchPatternHelper.CreateSearchPattern(normalized.Search).ToUpperInvariant();
                 query = query.Where(role =>
-                    EF.Functions.ILike(role.Name, pattern) ||
-                    EF.Functions.ILike(role.Description ?? string.Empty, pattern));
+                    EF.Functions.Like(role.Name.ToUpper(), pattern) ||
+                    EF.Functions.Like((role.Description ?? string.Empty).ToUpper(), pattern));
             }
         }
 

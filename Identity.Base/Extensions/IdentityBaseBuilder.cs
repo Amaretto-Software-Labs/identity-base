@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using FluentValidation;
 using Identity.Base.Abstractions.MultiTenancy;
@@ -27,7 +28,6 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -44,6 +44,7 @@ namespace Identity.Base.Extensions;
 public sealed class IdentityBaseBuilder
 {
     private readonly IdentityBaseOptions _options;
+    private readonly Action<IServiceProvider, DbContextOptionsBuilder>? _configureAppDbContext;
     private readonly IdentityBaseModelCustomizationOptions _modelCustomizationOptions = new();
     private readonly IdentityBaseSeedCallbacks _seedCallbacks = new();
 
@@ -51,12 +52,14 @@ public sealed class IdentityBaseBuilder
         IServiceCollection services,
         IConfiguration configuration,
         IWebHostEnvironment environment,
-        IdentityBaseOptions options)
+        IdentityBaseOptions options,
+        Action<IServiceProvider, DbContextOptionsBuilder>? configureAppDbContext)
     {
         Services = services;
         Configuration = configuration;
         Environment = environment;
         _options = options;
+        _configureAppDbContext = configureAppDbContext;
     }
 
     public IServiceCollection Services { get; }
@@ -77,6 +80,7 @@ public sealed class IdentityBaseBuilder
     internal IdentityBaseBuilder Initialize()
     {
         Services.AddOpenApi();
+        Services.AddOptions<IdentityDbNamingOptions>();
         Services.AddControllers();
         Services.TryAddSingleton(_ => _modelCustomizationOptions);
         Services.TryAddSingleton(_ => _seedCallbacks);
@@ -103,6 +107,13 @@ public sealed class IdentityBaseBuilder
     {
         ArgumentNullException.ThrowIfNull(configure);
         _modelCustomizationOptions.AddAppDbContextCustomization(configure);
+        return this;
+    }
+
+    public IdentityBaseBuilder UseTablePrefix(string tablePrefix)
+    {
+        var normalized = IdentityDbNamingOptions.Normalize(tablePrefix);
+        Services.Configure<IdentityDbNamingOptions>(options => options.TablePrefix = normalized);
         return this;
     }
 
@@ -344,37 +355,17 @@ public sealed class IdentityBaseBuilder
 
     private void ConfigureDatabase()
     {
-        Services.AddDbContext<AppDbContext>((provider, options) =>
+        if (_configureAppDbContext is not null)
         {
-            var databaseOptions = provider.GetRequiredService<IOptions<DatabaseOptions>>().Value;
-            var connectionString = databaseOptions.Primary ?? string.Empty;
-
-            if (string.IsNullOrWhiteSpace(connectionString))
+            Services.AddDbContext<AppDbContext>((provider, options) =>
             {
-                throw new InvalidOperationException("ConnectionStrings:Primary must be provided.");
-            }
+                _configureAppDbContext(provider, options);
+                AttachModelCustomization(options);
+            });
+            return;
+        }
 
-            if (connectionString.StartsWith("InMemory:", StringComparison.OrdinalIgnoreCase))
-            {
-                var databaseName = connectionString.Substring("InMemory:".Length);
-                if (string.IsNullOrWhiteSpace(databaseName))
-                {
-                    databaseName = "IdentityBaseTests";
-                }
-
-                options.UseInMemoryDatabase(databaseName)
-                    .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
-            }
-            else
-            {
-                options.UseNpgsql(
-                    connectionString,
-                    builder => builder.EnableRetryOnFailure());
-            }
-
-            ((IDbContextOptionsBuilderInfrastructure)options)
-                .AddOrUpdateExtension(new IdentityBaseModelCustomizationOptionsExtension(_modelCustomizationOptions));
-        });
+        EnsureDbContextRegistered<AppDbContext>(nameof(ServiceCollectionExtensions.AddIdentityBase));
     }
 
     private void ConfigureIdentity()
@@ -410,7 +401,6 @@ public sealed class IdentityBaseBuilder
 
     private void RegisterHostedServices()
     {
-        Services.AddHostedService<MigrationHostedService>();
         Services.AddScoped<IdentityDataSeeder>();
         Services.AddHostedService<IdentitySeedHostedService>();
         Services.AddScoped<OpenIddictSeeder>();
@@ -579,6 +569,27 @@ public sealed class IdentityBaseBuilder
             .AddCheck<ExternalProvidersHealthCheck>("externalProviders");
     }
 
+    private void AttachModelCustomization(DbContextOptionsBuilder options)
+    {
+        ((IDbContextOptionsBuilderInfrastructure)options)
+            .AddOrUpdateExtension(new IdentityBaseModelCustomizationOptionsExtension(_modelCustomizationOptions));
+    }
+
+    private void EnsureDbContextRegistered<TContext>(string registrationSource)
+        where TContext : DbContext
+    {
+        var hasRegistration = Services.Any(descriptor =>
+            descriptor.ServiceType == typeof(DbContextOptions<TContext>) ||
+            descriptor.ServiceType == typeof(DbContextOptions));
+
+        if (!hasRegistration)
+        {
+            throw new InvalidOperationException(
+                $"No DbContext registration found for {typeof(TContext).Name}. " +
+                $"Register it before calling {registrationSource} or pass a configureDbContext delegate.");
+        }
+    }
+
     internal readonly record struct ExternalProviderFlags(bool GoogleEnabled, bool MicrosoftEnabled, bool AppleEnabled)
     {
         public static readonly ExternalProviderFlags None = new(false, false, false);
@@ -588,15 +599,6 @@ public sealed class IdentityBaseBuilder
     {
         public static void Configure(IServiceCollection services, IConfiguration configuration)
         {
-            services
-                .AddOptions<DatabaseOptions>()
-                .BindConfiguration(DatabaseOptions.SectionName)
-                .ValidateDataAnnotations()
-                .Validate(
-                    options => !string.IsNullOrWhiteSpace(options.Primary),
-                    "ConnectionStrings:Primary must be provided.")
-                .ValidateOnStart();
-
             services
                 .AddOptions<IdentitySeedOptions>()
                 .BindConfiguration(IdentitySeedOptions.SectionName)

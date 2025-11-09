@@ -114,12 +114,14 @@ public sealed class OrganizationRoleSeeder
 
         var useInMemory = _dbContext.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true;
 
+        var normalizedName = definition.Name.ToUpperInvariant();
+
         OrganizationRole? role = useInMemory
             ? baseQuery
                 .AsEnumerable()
                 .FirstOrDefault(entity => string.Equals(entity.Name, definition.Name, StringComparison.OrdinalIgnoreCase))
             : await baseQuery
-                .FirstOrDefaultAsync(entity => EF.Functions.ILike(entity.Name, definition.Name), cancellationToken)
+                .FirstOrDefaultAsync(entity => entity.Name.ToUpper() == normalizedName, cancellationToken)
                 .ConfigureAwait(false);
 
         if (role is null)

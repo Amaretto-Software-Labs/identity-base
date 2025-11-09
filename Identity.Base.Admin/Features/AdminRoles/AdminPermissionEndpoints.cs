@@ -62,10 +62,10 @@ internal static class AdminPermissionEndpoints
 
         if (!string.IsNullOrWhiteSpace(pageRequest.Search))
         {
-            var pattern = SearchPatternHelper.CreateSearchPattern(pageRequest.Search);
+            var pattern = SearchPatternHelper.CreateSearchPattern(pageRequest.Search).ToUpperInvariant();
             permissionsQuery = permissionsQuery.Where(permission =>
-                EF.Functions.ILike(permission.Name, pattern) ||
-                EF.Functions.ILike(permission.Description ?? string.Empty, pattern));
+                EF.Functions.Like((permission.Name ?? string.Empty).ToUpper(), pattern) ||
+                EF.Functions.Like((permission.Description ?? string.Empty).ToUpper(), pattern));
         }
 
         var total = await permissionsQuery.CountAsync(cancellationToken).ConfigureAwait(false);

@@ -8,7 +8,7 @@ This note captures how the major Identity Base OSS packages relate to one anothe
 | --- | --- | --- | --- | --- |
 | `Identity.Base` | Core identity server: ASP.NET Identity, OpenIddict endpoints, MFA, profile flows. | — | Required foundation | Call `services.AddIdentityBase(...)` and map `app.MapApiEndpoints()` / Identity pipelines |
 | `Identity.Base.Roles` | Role-based permission system (catalog, seeding, claim augmentation). | `Identity.Base` | Optional | `services.AddIdentityRoles(...)`, then `SeedIdentityRolesAsync()` and map role endpoints if desired |
-| `Identity.Base.Organizations` | Organization domain + EF migrations, services (memberships, roles, invitations), hosted seed/migration jobs, Minimal APIs, organization-aware claim formatter & scope resolver. | `Identity.Base`, `Identity.Base.Roles` | Optional | `services.AddIdentityBaseOrganizations(...)` and `app.MapIdentityBaseOrganizationEndpoints()` |
+| `Identity.Base.Organizations` | Organization domain + services (memberships, roles, invitations), hosted seed jobs, Minimal APIs, organization-aware claim formatter & scope resolver. | `Identity.Base`, `Identity.Base.Roles` | Optional | `services.AddIdentityBaseOrganizations(configureDbContext)` and `app.MapIdentityBaseOrganizationEndpoints()` |
 | `Identity.Base.Admin` | Opinionated admin endpoints for users/roles, admin authorization helpers. | `Identity.Base`, `Identity.Base.Roles` | Optional | `services.AddIdentityAdmin(...)` and `app.MapIdentityAdminEndpoints()` |
 
 Packages compose in layers: you can run only the core, add RBAC when you need permissions, layer organizations for multi-org apps, and opt into admin endpoints last. Nothing turns on automatically—registration + endpoint mapping are explicit.

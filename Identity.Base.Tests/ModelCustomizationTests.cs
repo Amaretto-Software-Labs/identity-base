@@ -16,12 +16,32 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Identity.Base.Tests;
 
 public class ModelCustomizationTests
 {
+    [Fact]
+    public void UseTablePrefix_ConfiguresNamingOptions()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        var configuration = BuildConfiguration("table-prefix");
+        services.AddSingleton<IConfiguration>(configuration);
+        var environment = new FakeWebHostEnvironment();
+
+        RegisterAppDbContext(services, "table-prefix");
+        var builder = services.AddIdentityBase(configuration, environment);
+        builder.UseTablePrefix("Contoso");
+
+        using var provider = services.BuildServiceProvider();
+        var namingOptions = provider.GetRequiredService<IOptions<IdentityDbNamingOptions>>().Value;
+
+        Assert.Equal("Contoso", namingOptions.TablePrefix);
+    }
+
     [Fact]
     public void AddIdentityBase_RegistersCustomizationOptions()
     {
@@ -31,6 +51,7 @@ public class ModelCustomizationTests
         services.AddSingleton<IConfiguration>(configuration);
         var environment = new FakeWebHostEnvironment();
 
+        RegisterAppDbContext(services, "model-options");
         services.AddIdentityBase(configuration, environment);
 
         using var provider = services.BuildServiceProvider();
@@ -49,7 +70,12 @@ public class ModelCustomizationTests
         services.AddSingleton<IConfiguration>(configuration);
         var environment = new FakeWebHostEnvironment();
 
-        var builder = services.AddIdentityBase(configuration, environment);
+        var builder = services.AddIdentityBase(
+            configuration,
+            environment,
+            configureDbContext: (_, options) => options
+                .UseInMemoryDatabase("appdb-customization")
+                .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning)));
         var invoked = false;
         builder.ConfigureAppDbContextModel(model =>
         {
@@ -81,6 +107,7 @@ public class ModelCustomizationTests
         services.AddSingleton<IConfiguration>(configuration);
         var environment = new FakeWebHostEnvironment();
 
+        RegisterAppDbContext(services, "rolesdb-customization");
         var identityBuilder = services.AddIdentityBase(configuration, environment);
         var invoked = false;
         identityBuilder.ConfigureIdentityRolesModel(model =>
@@ -89,9 +116,9 @@ public class ModelCustomizationTests
             model.Model.SetAnnotation("Identity.Base.Tests:RoleTenantIndex", true);
         });
 
-        var rolesBuilder = services.AddIdentityRoles(configuration);
-        rolesBuilder.AddDbContext<IdentityRolesDbContext>(options =>
-            options.UseInMemoryDatabase("rolesdb-customization")
+        services.AddIdentityRoles(
+            configuration,
+            (_, options) => options.UseInMemoryDatabase("rolesdb-customization")
                 .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning)));
 
         using var provider = services.BuildServiceProvider();
@@ -107,6 +134,13 @@ public class ModelCustomizationTests
         var model = dbContext.Model;
         Assert.True(invoked);
         Assert.True((bool?)model.FindAnnotation("Identity.Base.Tests:RoleTenantIndex")?.Value ?? false);
+    }
+
+    private static void RegisterAppDbContext(IServiceCollection services, string databaseName)
+    {
+        services.AddDbContext<AppDbContext>(options =>
+            options.UseInMemoryDatabase(databaseName)
+                .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning)));
     }
 
     private static IConfiguration BuildConfiguration(string databaseName)

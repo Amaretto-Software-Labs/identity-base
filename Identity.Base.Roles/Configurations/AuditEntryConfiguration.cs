@@ -8,8 +8,6 @@ public sealed class AuditEntryConfiguration : IEntityTypeConfiguration<AuditEntr
 {
     public void Configure(EntityTypeBuilder<AuditEntry> builder)
     {
-        builder.ToTable("Identity_AuditEntries");
-
         builder.HasKey(audit => audit.Id);
 
         builder.Property(audit => audit.Action)

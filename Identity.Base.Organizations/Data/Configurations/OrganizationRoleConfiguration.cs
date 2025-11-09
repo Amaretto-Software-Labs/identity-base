@@ -8,8 +8,6 @@ public sealed class OrganizationRoleConfiguration : IEntityTypeConfiguration<Org
 {
     public void Configure(EntityTypeBuilder<OrganizationRole> builder)
     {
-        builder.ToTable("Identity_OrganizationRoles");
-
         builder.HasKey(role => role.Id);
 
         builder.Property(role => role.Name)
@@ -28,8 +26,7 @@ public sealed class OrganizationRoleConfiguration : IEntityTypeConfiguration<Org
         builder.Property(role => role.UpdatedAtUtc);
 
         builder.HasIndex(role => new { role.TenantId, role.OrganizationId, role.Name })
-            .IsUnique()
-            .HasDatabaseName("IX_OrganizationRoles_Tenant_Organization_Name");
+            .IsUnique();
 
         builder.HasOne(role => role.Organization)
             .WithMany(organization => organization.Roles)

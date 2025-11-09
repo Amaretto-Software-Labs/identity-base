@@ -1,14 +1,15 @@
 using Identity.Base.Admin.Configuration;
 using Identity.Base.Admin.Endpoints;
+using Identity.Base.Data;
 using Identity.Base.Email.MailJet;
 using Identity.Base.Extensions;
-using Identity.Base.Options;
+using Identity.Base.Host.Extensions;
+using Identity.Base.Organizations.Data;
 using Identity.Base.Roles;
-using Identity.Base.Roles.Endpoints;
 using Identity.Base.Roles.Configuration;
+using Identity.Base.Roles.Endpoints;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,7 +25,40 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) =>
         .WriteTo.Console();
 });
 
-var identityBuilder = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment);
+var migrationsAssembly = typeof(Program).Assembly.FullName;
+const string TablePrefix = "Host";
+
+Action<IServiceProvider, DbContextOptionsBuilder> configureAppDbContext = (provider, options) =>
+{
+    var configuration = provider.GetRequiredService<IConfiguration>();
+    if (options is DbContextOptionsBuilder<AppDbContext> typed)
+    {
+        typed.UseHostProvider(configuration, migrationsAssembly);
+    }
+    else
+    {
+        throw new InvalidOperationException("Unable to configure AppDbContext options.");
+    }
+};
+
+Action<IServiceProvider, DbContextOptionsBuilder> configureRolesDbContext = (provider, options) =>
+{
+    var configuration = provider.GetRequiredService<IConfiguration>();
+    if (options is DbContextOptionsBuilder<IdentityRolesDbContext> typed)
+    {
+        typed.UseHostProvider(configuration, migrationsAssembly);
+    }
+    else
+    {
+        throw new InvalidOperationException("Unable to configure IdentityRolesDbContext options.");
+    }
+};
+
+var identityBuilder = builder.Services.AddIdentityBase(
+    builder.Configuration,
+    builder.Environment,
+    configureDbContext: configureAppDbContext);
+identityBuilder.UseTablePrefix(TablePrefix);
 
 identityBuilder
     .AddGoogleAuth()
@@ -32,36 +66,8 @@ identityBuilder
     .AddAppleAuth()
     .UseMailJetEmailSender();
 
-var rolesBuilder = builder.Services.AddIdentityAdmin(builder.Configuration);
-
-rolesBuilder.AddDbContext<IdentityRolesDbContext>((provider, options) =>
-{
-    var databaseOptions = provider.GetRequiredService<IOptions<DatabaseOptions>>().Value;
-    var connectionString = databaseOptions.Primary ?? string.Empty;
-
-    if (string.IsNullOrWhiteSpace(connectionString))
-    {
-        throw new InvalidOperationException("ConnectionStrings:Primary must be provided.");
-    }
-
-    if (connectionString.StartsWith("InMemory:", StringComparison.OrdinalIgnoreCase))
-    {
-        var databaseName = connectionString[("InMemory:".Length)..];
-        if (string.IsNullOrWhiteSpace(databaseName))
-        {
-            databaseName = "IdentityBaseTests";
-        }
-
-        options.UseInMemoryDatabase($"{databaseName}_roles")
-            .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
-    }
-    else
-    {
-        options.UseNpgsql(
-            connectionString,
-            sql => sql.EnableRetryOnFailure());
-    }
-});
+var rolesBuilder = builder.Services.AddIdentityAdmin(builder.Configuration, configureRolesDbContext);
+rolesBuilder.UseTablePrefix(TablePrefix);
 
 var app = builder.Build();
 
@@ -72,6 +78,39 @@ app.MapApiEndpoints();
 app.MapIdentityAdminEndpoints();
 app.MapIdentityRolesUserEndpoints();
 
+await HostMigrationRunner.ApplyMigrationsAsync(app.Services);
+
 await app.RunAsync();
 
 public partial class Program;
+
+internal static class HostMigrationRunner
+{
+    public static async Task ApplyMigrationsAsync(IServiceProvider services)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var provider = scope.ServiceProvider;
+
+        await MigrateAsync<AppDbContext>(provider);
+        await MigrateAsync<IdentityRolesDbContext>(provider);
+        await MigrateAsync<OrganizationDbContext>(provider);
+
+        await provider.SeedIdentityRolesAsync();
+    }
+
+    private static async Task MigrateAsync<TContext>(IServiceProvider provider) where TContext : DbContext
+    {
+        var context = provider.GetService<TContext>();
+        if (context is null)
+        {
+            return;
+        }
+
+        if (!context.Database.IsRelational())
+        {
+            return;
+        }
+
+        await context.Database.MigrateAsync();
+    }
+}

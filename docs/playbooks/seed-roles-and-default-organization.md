@@ -44,6 +44,24 @@ Command: docker compose -f docker-compose.local.yml up -d postgres mailhog
 docker compose -f docker-compose.local.yml up -d postgres mailhog
 ```
 
+Command: Apply migrations for all DbContexts (run from the repo root; adjust host project if needed)
+```bash
+dotnet ef database update \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
+  --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
+  --context Identity.Base.Data.AppDbContext
+
+dotnet ef database update \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
+  --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
+  --context Identity.Base.Roles.Data.IdentityRolesDbContext
+
+dotnet ef database update \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
+  --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
+  --context Identity.Base.Organizations.Data.OrganizationDbContext
+```
+
 # File Edits
 - path: Identity.Base.Host/Program.cs
   - Insert after `identityBuilder.UseMailJetEmailSender();`:
@@ -138,7 +156,7 @@ Command: dotnet run --project Identity.Base.Host
 ```bash
 dotnet run --project Identity.Base.Host
 ```
-Expect: Host starts, migrations apply, seeds run. Log contains "Seed user admin@example.com created successfully" and organization creation messages.
+Expect: Host starts, the migration helper confirms the schema is current, and seeds run. Log contains "Seed user admin@example.com created successfully" and organization creation messages.
 
 Command: Acquire access token via password grant
 ```bash

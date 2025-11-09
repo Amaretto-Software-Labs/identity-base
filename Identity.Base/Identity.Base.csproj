@@ -39,7 +39,6 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="9.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount" Version="9.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="9.0.10" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.0.0" />
     <PackageReference Include="OpenIddict.EntityFrameworkCore" Version="7.1.0" />
     <PackageReference Include="OpenIddict.Server" Version="7.1.0" />

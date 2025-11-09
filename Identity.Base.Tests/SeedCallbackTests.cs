@@ -25,7 +25,15 @@ public class SeedCallbackTests
         services.AddSingleton<IConfiguration>(configuration);
         var environment = new FakeWebHostEnvironment();
 
-        var identityBuilder = services.AddIdentityBase(configuration, environment);
+        var dbName = "role-seed-callback";
+        var configureDb = new Action<IServiceProvider, DbContextOptionsBuilder>((_, options) =>
+            options.UseInMemoryDatabase(dbName)
+                .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning)));
+
+        var identityBuilder = services.AddIdentityBase(
+            configuration,
+            environment,
+            configureDbContext: configureDb);
         var callbackInvoked = false;
         identityBuilder.AfterRoleSeeding((_, _) =>
         {
@@ -33,10 +41,7 @@ public class SeedCallbackTests
             return Task.CompletedTask;
         });
 
-        var rolesBuilder = services.AddIdentityRoles(configuration);
-        rolesBuilder.AddDbContext<IdentityRolesDbContext>(options =>
-            options.UseInMemoryDatabase("role-seed-callback")
-                .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning)));
+        services.AddIdentityRoles(configuration, configureDb);
 
         using var provider = services.BuildServiceProvider();
         await provider.SeedIdentityRolesAsync();
@@ -56,7 +61,14 @@ public class SeedCallbackTests
         services.AddSingleton<IConfiguration>(configuration);
         var environment = new FakeWebHostEnvironment();
 
-        var identityBuilder = services.AddIdentityBase(configuration, environment);
+        var configureDb = new Action<IServiceProvider, DbContextOptionsBuilder>((_, options) =>
+            options.UseInMemoryDatabase("identity-seed-callback")
+                .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning)));
+
+        var identityBuilder = services.AddIdentityBase(
+            configuration,
+            environment,
+            configureDbContext: configureDb);
         var callbackInvoked = false;
         identityBuilder.AfterIdentitySeed((_, _) =>
         {

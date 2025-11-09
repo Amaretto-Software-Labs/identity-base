@@ -177,11 +177,11 @@ namespace Identity.Base.Admin.Features.AdminUsers;
 
         if (!string.IsNullOrWhiteSpace(pageRequest.Search))
         {
-            var pattern = SearchPatternHelper.CreateSearchPattern(pageRequest.Search);
+            var pattern = SearchPatternHelper.CreateSearchPattern(pageRequest.Search).ToUpperInvariant();
             usersQuery = usersQuery.Where(user =>
-                EF.Functions.ILike(user.Email ?? string.Empty, pattern) ||
-                EF.Functions.ILike(user.DisplayName ?? string.Empty, pattern) ||
-                EF.Functions.ILike(user.UserName ?? string.Empty, pattern));
+                EF.Functions.Like((user.Email ?? string.Empty).ToUpper(), pattern) ||
+                EF.Functions.Like((user.DisplayName ?? string.Empty).ToUpper(), pattern) ||
+                EF.Functions.Like((user.UserName ?? string.Empty).ToUpper(), pattern));
         }
 
         if (query.Locked.HasValue)

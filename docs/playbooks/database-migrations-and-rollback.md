@@ -19,7 +19,7 @@ required_secrets:
 Manage EF Core migrations for the Identity Base solution: inspect, add (when extending contexts), apply, script, and roll back migrations for the three DbContexts (AppDbContext, IdentityRolesDbContext, OrganizationDbContext).
 
 # Preconditions
-- Most hosts rely on packaged migrations and auto-apply on startup; only add migrations when you extend the contexts.
+- Hosts own their migrations. The commands below target the sample host (`Identity.Base.Host`). Substitute your own host project when running them.
 - Commands target PostgreSQL; adapt as needed if using a different provider.
 
 # Resources
@@ -35,7 +35,7 @@ dotnet tool update -g dotnet-ef
 Command: List AppDbContext migrations (core identity)
 ```bash
 dotnet ef migrations list \
-  --project Identity.Base/Identity.Base.csproj \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Data.AppDbContext
 ```
@@ -43,7 +43,7 @@ dotnet ef migrations list \
 Command: List IdentityRolesDbContext migrations (RBAC)
 ```bash
 dotnet ef migrations list \
-  --project Identity.Base.Roles/Identity.Base.Roles.csproj \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Roles.Data.IdentityRolesDbContext
 ```
@@ -51,7 +51,7 @@ dotnet ef migrations list \
 Command: List OrganizationDbContext migrations (organizations)
 ```bash
 dotnet ef migrations list \
-  --project Identity.Base.Organizations/Identity.Base.Organizations.csproj \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Organizations.Data.OrganizationDbContext
 ```
@@ -60,7 +60,7 @@ Optional Step 4: Add a custom migration to AppDbContext (only when extending)
 Command: dotnet ef migrations add Custom_AddSampleIndex --project Identity.Base/Identity.Base.csproj --startup-project Identity.Base.Host/Identity.Base.Host.csproj --context Identity.Base.Data.AppDbContext
 ```bash
 dotnet ef migrations add Custom_AddSampleIndex \
-  --project Identity.Base/Identity.Base.csproj \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Data.AppDbContext
 ```
@@ -69,7 +69,7 @@ Optional Step 5: Add a custom migration to IdentityRolesDbContext
 Command: dotnet ef migrations add Rbac_Custom_AddCol --project Identity.Base.Roles/Identity.Base.Roles.csproj --startup-project Identity.Base.Host/Identity.Base.Host.csproj --context Identity.Base.Roles.Data.IdentityRolesDbContext
 ```bash
 dotnet ef migrations add Rbac_Custom_AddCol \
-  --project Identity.Base.Roles/Identity.Base.Roles.csproj \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Roles.Data.IdentityRolesDbContext
 ```
@@ -78,7 +78,7 @@ Optional Step 6: Add a custom migration to OrganizationDbContext
 Command: dotnet ef migrations add Orgs_Custom_AddIndex --project Identity.Base.Organizations/Identity.Base.Organizations.csproj --startup-project Identity.Base.Host/Identity.Base.Host.csproj --context Identity.Base.Organizations.Data.OrganizationDbContext
 ```bash
 dotnet ef migrations add Orgs_Custom_AddIndex \
-  --project Identity.Base.Organizations/Identity.Base.Organizations.csproj \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Organizations.Data.OrganizationDbContext
 ```
@@ -86,7 +86,7 @@ dotnet ef migrations add Orgs_Custom_AddIndex \
 Command: Apply AppDbContext migrations
 ```bash
 dotnet ef database update \
-  --project Identity.Base/Identity.Base.csproj \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Data.AppDbContext
 ```
@@ -94,7 +94,7 @@ dotnet ef database update \
 Command: Apply IdentityRolesDbContext migrations
 ```bash
 dotnet ef database update \
-  --project Identity.Base.Roles/Identity.Base.Roles.csproj \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Roles.Data.IdentityRolesDbContext
 ```
@@ -102,7 +102,7 @@ dotnet ef database update \
 Command: Apply OrganizationDbContext migrations
 ```bash
 dotnet ef database update \
-  --project Identity.Base.Organizations/Identity.Base.Organizations.csproj \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Organizations.Data.OrganizationDbContext
 ```
@@ -111,21 +111,21 @@ Command: Generate idempotent SQL scripts (for CI/CD)
 ```bash
 mkdir -p scripts
 dotnet ef migrations script \
-  --project Identity.Base/Identity.Base.csproj \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Data.AppDbContext \
   --idempotent \
   --output scripts/appdb.sql
 
 dotnet ef migrations script \
-  --project Identity.Base.Roles/Identity.Base.Roles.csproj \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Roles.Data.IdentityRolesDbContext \
   --idempotent \
   --output scripts/rbac.sql
 
 dotnet ef migrations script \
-  --project Identity.Base.Organizations/Identity.Base.Organizations.csproj \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Organizations.Data.OrganizationDbContext \
   --idempotent \
@@ -135,7 +135,7 @@ dotnet ef migrations script \
 Command: Roll back AppDbContext to previous migration (example)
 ```bash
 dotnet ef database update LastGoodMigration \
-  --project Identity.Base/Identity.Base.csproj \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Data.AppDbContext
 ```
@@ -155,7 +155,10 @@ CONNECTIONSTRINGS__PRIMARY=Host=localhost;Database=identity;Username=identity;Pa
 # Verification
 Command: List migrations after add/apply
 ```bash
-dotnet ef migrations list --project Identity.Base/Identity.Base.csproj --startup-project Identity.Base.Host/Identity.Base.Host.csproj --context Identity.Base.Data.AppDbContext | tail -n 5
+dotnet ef migrations list \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
+  --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
+  --context Identity.Base.Data.AppDbContext | tail -n 5
 ```
 Expect: New migration name appears and `database update` completed without errors.
 

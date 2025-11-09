@@ -8,8 +8,6 @@ public sealed class OrganizationMembershipConfiguration : IEntityTypeConfigurati
 {
     public void Configure(EntityTypeBuilder<OrganizationMembership> builder)
     {
-        builder.ToTable("Identity_OrganizationMemberships");
-
         builder.HasKey(membership => new { membership.OrganizationId, membership.UserId });
 
         builder.Property(membership => membership.CreatedAtUtc)
@@ -17,14 +15,11 @@ public sealed class OrganizationMembershipConfiguration : IEntityTypeConfigurati
 
         builder.Property(membership => membership.UpdatedAtUtc);
 
-        builder.HasIndex(membership => new { membership.UserId, membership.TenantId })
-            .HasDatabaseName("IX_OrganizationMemberships_User_Tenant");
+        builder.HasIndex(membership => new { membership.UserId, membership.TenantId });
 
-        builder.HasIndex(membership => new { membership.OrganizationId, membership.CreatedAtUtc })
-            .HasDatabaseName("IX_OrganizationMemberships_Organization_Created");
+        builder.HasIndex(membership => new { membership.OrganizationId, membership.CreatedAtUtc });
 
-        builder.HasIndex(membership => new { membership.OrganizationId, membership.UserId })
-            .HasDatabaseName("IX_OrganizationMemberships_Organization_User");
+        builder.HasIndex(membership => new { membership.OrganizationId, membership.UserId });
 
         builder.HasOne(membership => membership.Organization)
             .WithMany(organization => organization.Memberships)
