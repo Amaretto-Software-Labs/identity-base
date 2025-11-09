@@ -27,15 +27,18 @@ public sealed class OrganizationService : IOrganizationService
     private readonly OrganizationDbContext _dbContext;
     private readonly OrganizationOptions _options;
     private readonly ILogger<OrganizationService>? _logger;
+    private readonly IReadOnlyCollection<IOrganizationCreationListener> _creationListeners;
 
     public OrganizationService(
         OrganizationDbContext dbContext,
         IOptions<OrganizationOptions> options,
-        ILogger<OrganizationService>? logger = null)
+        ILogger<OrganizationService>? logger = null,
+        IEnumerable<IOrganizationCreationListener>? creationListeners = null)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _logger = logger;
+        _creationListeners = creationListeners?.ToArray() ?? Array.Empty<IOrganizationCreationListener>();
     }
 
     public async Task<Organization> CreateAsync(OrganizationCreateRequest request, CancellationToken cancellationToken = default)
@@ -63,6 +66,14 @@ public sealed class OrganizationService : IOrganizationService
 
         _dbContext.Organizations.Add(organization);
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        if (_creationListeners.Count > 0)
+        {
+            foreach (var listener in _creationListeners)
+            {
+                await listener.OnOrganizationCreatedAsync(organization, cancellationToken).ConfigureAwait(false);
+            }
+        }
 
         _logger?.LogInformation("Created organization {OrganizationId} (Slug: {Slug})", organization.Id, organization.Slug);
         return organization;

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.3] - 2025-11-10
+- Introduced `IOrganizationCreationListener` and `AddOrganizationCreationListener<T>()` so hosts can hook into organization creation events (billing, automation, audit) without modifying core services.
+- Refresh-token flow now re-applies organization membership claims (new `RefreshTokenAugmentorHandler`), and the React org client skips `X-Organization-Id` on user routes to avoid 403s immediately after org creation. Added integration tests illustrating the pre-refresh failure and safe post-refresh/user-route behavior.
+
 ## [0.7.2] - 2025-11-09
 - React Organizations client now exposes explicit route namespaces and removes generic methods (breaking): use `client.user.*` for `/users/me/organizations/...` and `client.admin.*` for `/admin/organizations/...`. The previous top-level methods like `getOrganization`, `listMembers`, `updateMember`, `listRoles`, `getRolePermissions`, `listInvitations` were removed.
 - React Identity client (@identity-base/react-client) now exposes admin APIs under `authManager.admin.*` (breaking): top-level admin methods were removed. Migrate usages such as `listAdminUsers()` → `admin.users.list()`, `createAdminRole()` → `admin.roles.create()`, and `listAdminPermissions()` → `admin.permissions.list()`.

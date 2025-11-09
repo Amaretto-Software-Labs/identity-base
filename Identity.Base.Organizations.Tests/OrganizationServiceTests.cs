@@ -84,9 +84,36 @@ public class OrganizationServiceTests
         return new OrganizationDbContext(options);
     }
 
-    private static OrganizationService CreateService(OrganizationDbContext context)
+    private static OrganizationService CreateService(OrganizationDbContext context, IEnumerable<IOrganizationCreationListener>? listeners = null)
     {
         var options = Microsoft.Extensions.Options.Options.Create(new OrganizationOptions());
-        return new OrganizationService(context, options, NullLogger<OrganizationService>.Instance);
+        return new OrganizationService(context, options, NullLogger<OrganizationService>.Instance, listeners ?? Array.Empty<IOrganizationCreationListener>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_InvokesCreationListeners()
+    {
+        await using var context = CreateContext();
+        var listener = new TestCreationListener();
+        var service = CreateService(context, new[] { listener });
+
+        var organization = await service.CreateAsync(new OrganizationCreateRequest
+        {
+            Slug = "listener-org",
+            DisplayName = "Listener Org"
+        });
+
+        listener.Created.ShouldContain(organization.Id);
+    }
+
+    private sealed class TestCreationListener : IOrganizationCreationListener
+    {
+        public List<Guid> Created { get; } = new();
+
+        public Task OnOrganizationCreatedAsync(Organization organization, CancellationToken cancellationToken = default)
+        {
+            Created.Add(organization.Id);
+            return Task.CompletedTask;
+        }
     }
 }

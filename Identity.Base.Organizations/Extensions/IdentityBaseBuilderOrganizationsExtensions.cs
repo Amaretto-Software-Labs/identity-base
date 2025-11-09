@@ -54,4 +54,13 @@ public static class IdentityBaseBuilderOrganizationsExtensions
         builder.Services.Replace(ServiceDescriptor.Scoped<IOrganizationScopeResolver, TResolver>());
         return builder;
     }
+
+    public static IdentityBaseBuilder AddOrganizationCreationListener<TListener>(this IdentityBaseBuilder builder)
+        where TListener : class, IOrganizationCreationListener
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Services.AddScoped<IOrganizationCreationListener, TListener>();
+        return builder;
+    }
 }

@@ -131,9 +131,14 @@ builder.Services.Configure<OrganizationOptions>(builder.Configuration.GetSection
 organizationsBuilder
     .ConfigureOrganizationModel(modelBuilder => { /* custom EF configuration */ })
     .AfterOrganizationSeed(async (sp, ct) => { /* custom seeding */ })
+    .AddOrganizationCreationListener<CustomOrganizationCreationListener>()
     .AddOrganizationClaimFormatter<CustomFormatter>()
     .AddOrganizationScopeResolver<CustomScopeResolver>();
 ```
+
+### Organization creation listeners
+- Register one or more `IOrganizationCreationListener` implementations via `AddOrganizationCreationListener<T>()`.
+- Each listener runs after `OrganizationService.CreateAsync` persists a new organization, enabling billing, automation, or audit hooks without modifying the core service.
 
 ## Testing
 Run the solution tests to execute the organizations unit suite alongside the existing Identity Base coverage:
