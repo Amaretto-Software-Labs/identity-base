@@ -326,7 +326,10 @@ function mapOrganizationInvitation(dto: OrganizationInvitationDto): Organization
   }
 }
 
-function buildMemberListPath(organizationId: string, query?: OrganizationMemberQuery): string {
+const ADMIN_ORG_PREFIX = '/admin/organizations'
+const USER_ME_ORG_PREFIX = '/users/me/organizations'
+
+function buildMemberListPathBase(prefix: string, organizationId: string, query?: OrganizationMemberQuery): string {
   const params = new URLSearchParams()
 
   if (query?.page && query.page > 1) {
@@ -346,17 +349,26 @@ function buildMemberListPath(organizationId: string, query?: OrganizationMemberQ
     params.set('roleId', query.roleId)
   }
 
-  if (query?.sort) {
-    params.set('sort', query.sort)
+  const trimmedSort = query?.sort?.trim()
+  if (trimmedSort) {
+    params.set('sort', trimmedSort)
   }
 
   const queryString = params.toString()
   return queryString.length > 0
-    ? `/admin/organizations/${organizationId}/members?${queryString}`
-    : `/admin/organizations/${organizationId}/members`
+    ? `${prefix}/${organizationId}/members?${queryString}`
+    : `${prefix}/${organizationId}/members`
+}
+
+function buildMemberListPath(organizationId: string, query?: OrganizationMemberQuery): string {
+  return buildMemberListPathBase(ADMIN_ORG_PREFIX, organizationId, query)
 }
 
 function buildUserMemberListPath(organizationId: string, query?: OrganizationMemberQuery): string {
+  return buildMemberListPathBase(USER_ME_ORG_PREFIX, organizationId, query)
+}
+
+function buildRoleListPathBase(prefix: string, organizationId: string, query?: OrganizationRoleListQuery): string {
   const params = new URLSearchParams()
 
   if (query?.page && query.page > 1) {
@@ -372,72 +384,23 @@ function buildUserMemberListPath(organizationId: string, query?: OrganizationMem
     params.set('search', trimmedSearch)
   }
 
-  if (query?.roleId) {
-    params.set('roleId', query.roleId)
-  }
-
-  if (query?.sort) {
-    params.set('sort', query.sort)
+  const trimmedSort = query?.sort?.trim()
+  if (trimmedSort) {
+    params.set('sort', trimmedSort)
   }
 
   const queryString = params.toString()
   return queryString.length > 0
-    ? `/users/me/organizations/${organizationId}/members?${queryString}`
-    : `/users/me/organizations/${organizationId}/members`
+    ? `${prefix}/${organizationId}/roles?${queryString}`
+    : `${prefix}/${organizationId}/roles`
 }
 
 function buildRoleListPath(organizationId: string, query?: OrganizationRoleListQuery): string {
-  const params = new URLSearchParams()
-
-  if (query?.page && query.page > 1) {
-    params.set('page', String(query.page))
-  }
-
-  if (query?.pageSize) {
-    params.set('pageSize', String(query.pageSize))
-  }
-
-  const trimmedSearch = query?.search?.trim()
-  if (trimmedSearch) {
-    params.set('search', trimmedSearch)
-  }
-
-  const trimmedSort = query?.sort?.trim()
-  if (trimmedSort) {
-    params.set('sort', trimmedSort)
-  }
-
-  const queryString = params.toString()
-  return queryString.length > 0
-    ? `/admin/organizations/${organizationId}/roles?${queryString}`
-    : `/admin/organizations/${organizationId}/roles`
+  return buildRoleListPathBase(ADMIN_ORG_PREFIX, organizationId, query)
 }
 
 function buildUserRoleListPath(organizationId: string, query?: OrganizationRoleListQuery): string {
-  const params = new URLSearchParams()
-
-  if (query?.page && query.page > 1) {
-    params.set('page', String(query.page))
-  }
-
-  if (query?.pageSize) {
-    params.set('pageSize', String(query.pageSize))
-  }
-
-  const trimmedSearch = query?.search?.trim()
-  if (trimmedSearch) {
-    params.set('search', trimmedSearch)
-  }
-
-  const trimmedSort = query?.sort?.trim()
-  if (trimmedSort) {
-    params.set('sort', trimmedSort)
-  }
-
-  const queryString = params.toString()
-  return queryString.length > 0
-    ? `/users/me/organizations/${organizationId}/roles?${queryString}`
-    : `/users/me/organizations/${organizationId}/roles`
+  return buildRoleListPathBase(USER_ME_ORG_PREFIX, organizationId, query)
 }
 
 function buildInvitationListPath(organizationId: string, query?: OrganizationInvitationListQuery): string {
@@ -463,11 +426,11 @@ function buildInvitationListPath(organizationId: string, query?: OrganizationInv
 
   const queryString = params.toString()
   return queryString.length > 0
-    ? `/admin/organizations/${organizationId}/invitations?${queryString}`
-    : `/admin/organizations/${organizationId}/invitations`
+    ? `${ADMIN_ORG_PREFIX}/${organizationId}/invitations?${queryString}`
+    : `${ADMIN_ORG_PREFIX}/${organizationId}/invitations`
 }
 
-function buildUserInvitationListPath(organizationId: string, query?: OrganizationInvitationListQuery): string {
+function buildInvitationListPathBase(prefix: string, organizationId: string, query?: OrganizationInvitationListQuery): string {
   const params = new URLSearchParams()
 
   if (query?.page && query.page > 1) {
@@ -490,8 +453,12 @@ function buildUserInvitationListPath(organizationId: string, query?: Organizatio
 
   const queryString = params.toString()
   return queryString.length > 0
-    ? `/users/me/organizations/${organizationId}/invitations?${queryString}`
-    : `/users/me/organizations/${organizationId}/invitations`
+    ? `${prefix}/${organizationId}/invitations?${queryString}`
+    : `${prefix}/${organizationId}/invitations`
+}
+
+function buildUserInvitationListPath(organizationId: string, query?: OrganizationInvitationListQuery): string {
+  return buildInvitationListPathBase(USER_ME_ORG_PREFIX, organizationId, query)
 }
 
 function assertFetcher(fetcher: Fetcher | undefined): Fetcher {
