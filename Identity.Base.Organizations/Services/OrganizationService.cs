@@ -28,17 +28,23 @@ public sealed class OrganizationService : IOrganizationService
     private readonly OrganizationOptions _options;
     private readonly ILogger<OrganizationService>? _logger;
     private readonly IReadOnlyCollection<IOrganizationCreationListener> _creationListeners;
+    private readonly IReadOnlyCollection<IOrganizationUpdateListener> _updateListeners;
+    private readonly IReadOnlyCollection<IOrganizationArchiveListener> _archiveListeners;
 
     public OrganizationService(
         OrganizationDbContext dbContext,
         IOptions<OrganizationOptions> options,
         ILogger<OrganizationService>? logger = null,
-        IEnumerable<IOrganizationCreationListener>? creationListeners = null)
+        IEnumerable<IOrganizationCreationListener>? creationListeners = null,
+        IEnumerable<IOrganizationUpdateListener>? updateListeners = null,
+        IEnumerable<IOrganizationArchiveListener>? archiveListeners = null)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _logger = logger;
         _creationListeners = creationListeners?.ToArray() ?? Array.Empty<IOrganizationCreationListener>();
+        _updateListeners = updateListeners?.ToArray() ?? Array.Empty<IOrganizationUpdateListener>();
+        _archiveListeners = archiveListeners?.ToArray() ?? Array.Empty<IOrganizationArchiveListener>();
     }
 
     public async Task<Organization> CreateAsync(OrganizationCreateRequest request, CancellationToken cancellationToken = default)
@@ -67,12 +73,9 @@ public sealed class OrganizationService : IOrganizationService
         _dbContext.Organizations.Add(organization);
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        if (_creationListeners.Count > 0)
+        foreach (var listener in _creationListeners)
         {
-            foreach (var listener in _creationListeners)
-            {
-                await listener.OnOrganizationCreatedAsync(organization, cancellationToken).ConfigureAwait(false);
-            }
+            await listener.OnOrganizationCreatedAsync(organization, cancellationToken).ConfigureAwait(false);
         }
 
         _logger?.LogInformation("Created organization {OrganizationId} (Slug: {Slug})", organization.Id, organization.Slug);
@@ -227,6 +230,10 @@ public sealed class OrganizationService : IOrganizationService
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         _logger?.LogInformation("Updated organization {OrganizationId}", organization.Id);
+        foreach (var listener in _updateListeners)
+        {
+            await listener.OnOrganizationUpdatedAsync(organization, cancellationToken).ConfigureAwait(false);
+        }
         return organization;
     }
 
@@ -252,6 +259,10 @@ public sealed class OrganizationService : IOrganizationService
 
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         _logger?.LogInformation("Archived organization {OrganizationId}", organization.Id);
+        foreach (var listener in _archiveListeners)
+        {
+            await listener.OnOrganizationArchivedAsync(organization, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private string NormalizeSlug(string slug)

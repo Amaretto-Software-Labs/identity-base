@@ -14,6 +14,7 @@ using Identity.Base.Admin.Options;
 using Identity.Base.Data;
 using Identity.Base.Extensions;
 using Identity.Base.Features.Authentication.EmailManagement;
+using Identity.Base.Abstractions;
 using Identity.Base.Identity;
 using Identity.Base.Logging;
 using Identity.Base.Options;
@@ -503,6 +504,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         IRoleAssignmentService roleAssignmentService,
         IOptions<RegistrationOptions> registrationOptions,
         IAuditLogger auditLogger,
+        IEnumerable<IUserUpdateListener> updateListeners,
         CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(id.ToString());
@@ -610,6 +612,11 @@ namespace Identity.Base.Admin.Features.AdminUsers;
                 user.LockoutEnabled
             },
             cancellationToken).ConfigureAwait(false);
+
+        foreach (var listener in updateListeners)
+        {
+            await listener.OnUserUpdatedAsync(user, cancellationToken).ConfigureAwait(false);
+        }
 
         return await GetUserAsync(id, userManager, roleAssignmentService, cancellationToken);
     }
@@ -844,6 +851,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         Guid id,
         UserManager<ApplicationUser> userManager,
         IAuditLogger auditLogger,
+        IEnumerable<IUserDeletionListener> deletionListeners,
         CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(id.ToString());
@@ -893,6 +901,11 @@ namespace Identity.Base.Admin.Features.AdminUsers;
             new { user.Email },
             cancellationToken).ConfigureAwait(false);
 
+        foreach (var listener in deletionListeners)
+        {
+            await listener.OnUserDeletedAsync(user, cancellationToken).ConfigureAwait(false);
+        }
+
         return Results.NoContent();
     }
 
@@ -900,6 +913,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         Guid id,
         UserManager<ApplicationUser> userManager,
         IAuditLogger auditLogger,
+        IEnumerable<IUserRestoreListener> restoreListeners,
         CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(id.ToString());
@@ -939,6 +953,11 @@ namespace Identity.Base.Admin.Features.AdminUsers;
             user.Id,
             new { user.Email },
             cancellationToken).ConfigureAwait(false);
+
+        foreach (var listener in restoreListeners)
+        {
+            await listener.OnUserRestoredAsync(user, cancellationToken).ConfigureAwait(false);
+        }
 
         return Results.NoContent();
     }

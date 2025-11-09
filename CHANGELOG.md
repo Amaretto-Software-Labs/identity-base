@@ -3,6 +3,7 @@
 ## [0.7.3] - 2025-11-10
 - Introduced `IOrganizationCreationListener` and `AddOrganizationCreationListener<T>()` so hosts can hook into organization creation events (billing, automation, audit) without modifying core services.
 - Refresh-token flow now re-applies organization membership claims (new `RefreshTokenAugmentorHandler`), and the React org client skips `X-Organization-Id` on user routes to avoid 403s immediately after org creation. Added integration tests illustrating the pre-refresh failure and safe post-refresh/user-route behavior.
+- Added user lifecycle listeners (`IUserCreationListener`, `IUserUpdateListener`, `IUserDeletionListener`, `IUserRestoreListener`) and builder helpers; profile and admin endpoints now invoke them, with new integration tests covering update/delete/restore hooks.
 
 ## [0.7.2] - 2025-11-09
 - React Organizations client now exposes explicit route namespaces and removes generic methods (breaking): use `client.user.*` for `/users/me/organizations/...` and `client.admin.*` for `/admin/organizations/...`. The previous top-level methods like `getOrganization`, `listMembers`, `updateMember`, `listRoles`, `getRolePermissions`, `listInvitations` were removed.
