@@ -94,6 +94,64 @@ public class OrganizationRoleSeederTests
     }
 
     [Fact]
+    public async Task SeedAsync_DeduplicatesRolesByNameWhenOptionsContainDuplicates()
+    {
+        await using var organizationContext = new OrganizationDbContext(new DbContextOptionsBuilder<OrganizationDbContext>()
+            .UseInMemoryDatabase($"org-seeder-dup-{Guid.NewGuid()}")
+            .Options);
+
+        await using var roleContext = new IdentityRolesDbContext(new DbContextOptionsBuilder<IdentityRolesDbContext>()
+            .UseInMemoryDatabase($"role-seeder-dup-{Guid.NewGuid()}")
+            .Options);
+
+        // Seed base org permissions into catalog
+        var catalogPermissions = new[]
+        {
+            UserOrganizationPermissions.OrganizationsRead,
+            UserOrganizationPermissions.OrganizationsManage,
+            UserOrganizationPermissions.OrganizationMembersRead,
+            UserOrganizationPermissions.OrganizationMembersManage,
+            UserOrganizationPermissions.OrganizationRolesRead,
+            UserOrganizationPermissions.OrganizationRolesManage,
+        };
+        foreach (var name in catalogPermissions)
+        {
+            roleContext.Permissions.Add(new Permission { Name = name, Description = name });
+        }
+        await roleContext.SaveChangesAsync();
+
+        // Prepare options with duplicates by name
+        var options = Microsoft.Extensions.Options.Options.Create(new OrganizationRoleOptions());
+        options.Value.DefaultRoles.Add(new OrganizationRoleDefinitionOptions
+        {
+            DefaultType = OrganizationRoleDefaultType.Owner,
+            Name = options.Value.OwnerRoleName, // duplicate existing default name
+            Description = "Override Owner",
+            Permissions =
+            [
+                UserOrganizationPermissions.OrganizationsRead,
+                UserOrganizationPermissions.OrganizationMembersRead,
+                UserOrganizationPermissions.OrganizationRolesRead
+            ]
+        });
+
+        var services = new ServiceCollection().BuildServiceProvider();
+        var seedCallbacks = new IdentityBaseSeedCallbacks();
+        var seeder = new OrganizationRoleSeeder(
+            organizationContext,
+            options,
+            seedCallbacks,
+            services,
+            NullLogger<OrganizationRoleSeeder>.Instance,
+            roleContext);
+
+        await seeder.SeedAsync();
+
+        var roles = await organizationContext.OrganizationRoles.ToListAsync();
+        roles.Count.ShouldBe(3); // deduplicated to 3 by name
+    }
+
+    [Fact]
     public async Task SeedAsync_AssignsCustomPermissionsWhenDefinedInCatalog()
     {
         await using var organizationContext = new OrganizationDbContext(new DbContextOptionsBuilder<OrganizationDbContext>()
