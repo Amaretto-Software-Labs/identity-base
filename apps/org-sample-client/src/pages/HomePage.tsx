@@ -86,7 +86,7 @@ export default function HomePage() {
             follow-up requests.
           </li>
           <li>
-            <code>{'/admin/organizations/{id}'}</code>, <code>{'/admin/organizations/{id}/members'}</code>, <code>{'/admin/organizations/{id}/roles'}</code>
+            <code>{'/users/me/organizations/{id}'}</code>, <code>{'/users/me/organizations/{id}/members'}</code>, <code>{'/users/me/organizations/{id}/roles'}</code>
             {' '}– manage organization surface secured via permission scopes.
           </li>
           <li>

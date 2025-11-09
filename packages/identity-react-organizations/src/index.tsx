@@ -190,19 +190,34 @@ export interface SwitchOrganizationResult {
 }
 
 interface OrganizationsClient {
+  // Explicit route namespaces only (breaking change)
+  user: OrganizationsUserClient
+  admin: OrganizationsAdminClient
+}
+
+export interface OrganizationsUserClient {
+  // User-scoped endpoints under /users/me/organizations/{orgId}
   listMemberships: () => Promise<Membership[]>
   getOrganization: (organizationId: string) => Promise<OrganizationSummary>
+  listMembers: (organizationId: string, query?: OrganizationMemberQuery) => Promise<OrganizationMembersPage>
+  updateMember: (organizationId: string, userId: string, options: UpdateOrganizationMemberOptions) => Promise<OrganizationMember>
+  removeMember: (organizationId: string, userId: string) => Promise<void>
   listRoles: (organizationId: string, query?: OrganizationRoleListQuery) => Promise<OrganizationRole[]>
   getRolePermissions: (organizationId: string, roleId: string) => Promise<OrganizationRolePermissions>
   updateRolePermissions: (organizationId: string, roleId: string, permissions: string[]) => Promise<void>
-  listMembers: (organizationId: string, query?: OrganizationMemberQuery) => Promise<OrganizationMembersPage>
   listInvitations: (organizationId: string, query?: OrganizationInvitationListQuery) => Promise<OrganizationInvitation[]>
-  updateMember: (
-    organizationId: string,
-    userId: string,
-    options: UpdateOrganizationMemberOptions,
-  ) => Promise<OrganizationMember>
+}
+
+export interface OrganizationsAdminClient {
+  // Admin endpoints under /admin/organizations/{orgId}
+  getOrganization: (organizationId: string) => Promise<OrganizationSummary>
+  listMembers: (organizationId: string, query?: OrganizationMemberQuery) => Promise<OrganizationMembersPage>
+  updateMember: (organizationId: string, userId: string, options: UpdateOrganizationMemberOptions) => Promise<OrganizationMember>
   removeMember: (organizationId: string, userId: string) => Promise<void>
+  listRoles: (organizationId: string, query?: OrganizationRoleListQuery) => Promise<OrganizationRole[]>
+  getRolePermissions: (organizationId: string, roleId: string) => Promise<OrganizationRolePermissions>
+  updateRolePermissions: (organizationId: string, roleId: string, permissions: string[]) => Promise<void>
+  listInvitations: (organizationId: string, query?: OrganizationInvitationListQuery) => Promise<OrganizationInvitation[]>
 }
 
 interface OrganizationsContextValue {
@@ -311,7 +326,10 @@ function mapOrganizationInvitation(dto: OrganizationInvitationDto): Organization
   }
 }
 
-function buildMemberListPath(organizationId: string, query?: OrganizationMemberQuery): string {
+const ADMIN_ORG_PREFIX = '/admin/organizations'
+const USER_ME_ORG_PREFIX = '/users/me/organizations'
+
+function buildMemberListPathBase(prefix: string, organizationId: string, query?: OrganizationMemberQuery): string {
   const params = new URLSearchParams()
 
   if (query?.page && query.page > 1) {
@@ -331,17 +349,26 @@ function buildMemberListPath(organizationId: string, query?: OrganizationMemberQ
     params.set('roleId', query.roleId)
   }
 
-  if (query?.sort) {
-    params.set('sort', query.sort)
+  const trimmedSort = query?.sort?.trim()
+  if (trimmedSort) {
+    params.set('sort', trimmedSort)
   }
 
   const queryString = params.toString()
   return queryString.length > 0
-    ? `/admin/organizations/${organizationId}/members?${queryString}`
-    : `/admin/organizations/${organizationId}/members`
+    ? `${prefix}/${organizationId}/members?${queryString}`
+    : `${prefix}/${organizationId}/members`
 }
 
-function buildRoleListPath(organizationId: string, query?: OrganizationRoleListQuery): string {
+function buildMemberListPath(organizationId: string, query?: OrganizationMemberQuery): string {
+  return buildMemberListPathBase(ADMIN_ORG_PREFIX, organizationId, query)
+}
+
+function buildUserMemberListPath(organizationId: string, query?: OrganizationMemberQuery): string {
+  return buildMemberListPathBase(USER_ME_ORG_PREFIX, organizationId, query)
+}
+
+function buildRoleListPathBase(prefix: string, organizationId: string, query?: OrganizationRoleListQuery): string {
   const params = new URLSearchParams()
 
   if (query?.page && query.page > 1) {
@@ -364,8 +391,16 @@ function buildRoleListPath(organizationId: string, query?: OrganizationRoleListQ
 
   const queryString = params.toString()
   return queryString.length > 0
-    ? `/admin/organizations/${organizationId}/roles?${queryString}`
-    : `/admin/organizations/${organizationId}/roles`
+    ? `${prefix}/${organizationId}/roles?${queryString}`
+    : `${prefix}/${organizationId}/roles`
+}
+
+function buildRoleListPath(organizationId: string, query?: OrganizationRoleListQuery): string {
+  return buildRoleListPathBase(ADMIN_ORG_PREFIX, organizationId, query)
+}
+
+function buildUserRoleListPath(organizationId: string, query?: OrganizationRoleListQuery): string {
+  return buildRoleListPathBase(USER_ME_ORG_PREFIX, organizationId, query)
 }
 
 function buildInvitationListPath(organizationId: string, query?: OrganizationInvitationListQuery): string {
@@ -391,8 +426,39 @@ function buildInvitationListPath(organizationId: string, query?: OrganizationInv
 
   const queryString = params.toString()
   return queryString.length > 0
-    ? `/admin/organizations/${organizationId}/invitations?${queryString}`
-    : `/admin/organizations/${organizationId}/invitations`
+    ? `${ADMIN_ORG_PREFIX}/${organizationId}/invitations?${queryString}`
+    : `${ADMIN_ORG_PREFIX}/${organizationId}/invitations`
+}
+
+function buildInvitationListPathBase(prefix: string, organizationId: string, query?: OrganizationInvitationListQuery): string {
+  const params = new URLSearchParams()
+
+  if (query?.page && query.page > 1) {
+    params.set('page', String(query.page))
+  }
+
+  if (query?.pageSize) {
+    params.set('pageSize', String(query.pageSize))
+  }
+
+  const trimmedSearch = query?.search?.trim()
+  if (trimmedSearch) {
+    params.set('search', trimmedSearch)
+  }
+
+  const trimmedSort = query?.sort?.trim()
+  if (trimmedSort) {
+    params.set('sort', trimmedSort)
+  }
+
+  const queryString = params.toString()
+  return queryString.length > 0
+    ? `${prefix}/${organizationId}/invitations?${queryString}`
+    : `${prefix}/${organizationId}/invitations`
+}
+
+function buildUserInvitationListPath(organizationId: string, query?: OrganizationInvitationListQuery): string {
+  return buildInvitationListPathBase(USER_ME_ORG_PREFIX, organizationId, query)
 }
 
 function assertFetcher(fetcher: Fetcher | undefined): Fetcher {
@@ -539,57 +605,93 @@ export function OrganizationsProvider({
   }, [activeOrganizationId, authManager, baseUrl, resolvedFetch])
 
   const client = useMemo<OrganizationsClient>(() => ({
-    listMemberships: async () => {
-      const result = await authorizedFetch<MembershipListResponseDto>('/users/me/organizations?pageSize=200')
-      return result.items.map(mapMembership)
-    },
-  getOrganization: async (organizationId: string) => {
-    const dto = await authorizedFetch<OrganizationDto>(`/admin/organizations/${organizationId}`)
-    return mapOrganization(dto)
-  },
-  listRoles: async (organizationId: string, query?: OrganizationRoleListQuery) => {
-    const dto = await authorizedFetch<OrganizationRoleListResponseDto>(buildRoleListPath(organizationId, query))
-    return dto.items.map(mapOrganizationRole)
-  },
-  getRolePermissions: async (organizationId: string, roleId: string) =>
-    authorizedFetch<OrganizationRolePermissions>(`/admin/organizations/${organizationId}/roles/${roleId}/permissions`),
-  updateRolePermissions: async (organizationId: string, roleId: string, permissions: string[]) =>
-    authorizedFetch<void>(`/admin/organizations/${organizationId}/roles/${roleId}/permissions`, {
-      method: 'PUT',
-      body: JSON.stringify({ permissions }),
-    }),
-  listMembers: async (organizationId: string, query?: OrganizationMemberQuery) => {
-    const dto = await authorizedFetch<OrganizationMemberListResponseDto>(buildMemberListPath(organizationId, query))
-    return mapOrganizationMembersPage(dto)
-  },
-  listInvitations: async (organizationId: string, query?: OrganizationInvitationListQuery) => {
-    const dto = await authorizedFetch<OrganizationInvitationListResponseDto>(buildInvitationListPath(organizationId, query))
-    return dto.items.map(mapOrganizationInvitation)
-  },
-    updateMember: async (organizationId: string, userId: string, options: UpdateOrganizationMemberOptions) => {
-      const payload: Record<string, unknown> = {}
-      if (Array.isArray(options.roleIds)) {
-        payload.roleIds = options.roleIds
-      }
-
-      if (Object.keys(payload).length === 0) {
-        throw new Error('At least one role must be provided to update a membership.')
-      }
-
-      const dto = await authorizedFetch<OrganizationMembershipDto>(
-        `/admin/organizations/${organizationId}/members/${userId}`,
-        {
+    user: {
+      listMemberships: async () => {
+        const result = await authorizedFetch<MembershipListResponseDto>('/users/me/organizations?pageSize=200')
+        return result.items.map(mapMembership)
+      },
+      getOrganization: async (organizationId: string) => {
+        const dto = await authorizedFetch<OrganizationDto>(`/users/me/organizations/${organizationId}`)
+        return mapOrganization(dto)
+      },
+      listMembers: async (organizationId: string, query?: OrganizationMemberQuery) => {
+        const dto = await authorizedFetch<OrganizationMemberListResponseDto>(buildUserMemberListPath(organizationId, query))
+        return mapOrganizationMembersPage(dto)
+      },
+      updateMember: async (organizationId: string, userId: string, options: UpdateOrganizationMemberOptions) => {
+        const payload: Record<string, unknown> = {}
+        if (Array.isArray(options.roleIds)) {
+          payload.roleIds = options.roleIds
+        }
+        if (Object.keys(payload).length === 0) {
+          throw new Error('At least one role must be provided to update a membership.')
+        }
+        const dto = await authorizedFetch<OrganizationMembershipDto>(
+          `/users/me/organizations/${organizationId}/members/${userId}`,
+          { method: 'PUT', body: JSON.stringify(payload) },
+        )
+        return mapOrganizationMember(dto)
+      },
+      removeMember: async (organizationId: string, userId: string) => {
+        await authorizedFetch<void>(`/users/me/organizations/${organizationId}/members/${userId}`, { method: 'DELETE' })
+      },
+      listRoles: async (organizationId: string, query?: OrganizationRoleListQuery) => {
+        const dto = await authorizedFetch<OrganizationRoleListResponseDto>(buildUserRoleListPath(organizationId, query))
+        return dto.items.map(mapOrganizationRole)
+      },
+      getRolePermissions: async (organizationId: string, roleId: string) =>
+        authorizedFetch<OrganizationRolePermissions>(`/users/me/organizations/${organizationId}/roles/${roleId}/permissions`),
+      updateRolePermissions: async (organizationId: string, roleId: string, permissions: string[]) =>
+        authorizedFetch<void>(`/users/me/organizations/${organizationId}/roles/${roleId}/permissions`, {
           method: 'PUT',
-          body: JSON.stringify(payload),
-        },
-      )
-
-      return mapOrganizationMember(dto)
+          body: JSON.stringify({ permissions }),
+        }),
+      listInvitations: async (organizationId: string, query?: OrganizationInvitationListQuery) => {
+        const dto = await authorizedFetch<OrganizationInvitationListResponseDto>(buildUserInvitationListPath(organizationId, query))
+        return dto.items.map(mapOrganizationInvitation)
+      },
     },
-    removeMember: async (organizationId: string, userId: string) => {
-      await authorizedFetch<void>(`/admin/organizations/${organizationId}/members/${userId}`, {
-        method: 'DELETE',
-      })
+    admin: {
+      getOrganization: async (organizationId: string) => {
+        const dto = await authorizedFetch<OrganizationDto>(`/admin/organizations/${organizationId}`)
+        return mapOrganization(dto)
+      },
+      listMembers: async (organizationId: string, query?: OrganizationMemberQuery) => {
+        const dto = await authorizedFetch<OrganizationMemberListResponseDto>(buildMemberListPath(organizationId, query))
+        return mapOrganizationMembersPage(dto)
+      },
+      updateMember: async (organizationId: string, userId: string, options: UpdateOrganizationMemberOptions) => {
+        const payload: Record<string, unknown> = {}
+        if (Array.isArray(options.roleIds)) {
+          payload.roleIds = options.roleIds
+        }
+        if (Object.keys(payload).length === 0) {
+          throw new Error('At least one role must be provided to update a membership.')
+        }
+        const dto = await authorizedFetch<OrganizationMembershipDto>(
+          `/admin/organizations/${organizationId}/members/${userId}`,
+          { method: 'PUT', body: JSON.stringify(payload) },
+        )
+        return mapOrganizationMember(dto)
+      },
+      removeMember: async (organizationId: string, userId: string) => {
+        await authorizedFetch<void>(`/admin/organizations/${organizationId}/members/${userId}`, { method: 'DELETE' })
+      },
+      listRoles: async (organizationId: string, query?: OrganizationRoleListQuery) => {
+        const dto = await authorizedFetch<OrganizationRoleListResponseDto>(buildRoleListPath(organizationId, query))
+        return dto.items.map(mapOrganizationRole)
+      },
+      getRolePermissions: async (organizationId: string, roleId: string) =>
+        authorizedFetch<OrganizationRolePermissions>(`/admin/organizations/${organizationId}/roles/${roleId}/permissions`),
+      updateRolePermissions: async (organizationId: string, roleId: string, permissions: string[]) =>
+        authorizedFetch<void>(`/admin/organizations/${organizationId}/roles/${roleId}/permissions`, {
+          method: 'PUT',
+          body: JSON.stringify({ permissions }),
+        }),
+      listInvitations: async (organizationId: string, query?: OrganizationInvitationListQuery) => {
+        const dto = await authorizedFetch<OrganizationInvitationListResponseDto>(buildInvitationListPath(organizationId, query))
+        return dto.items.map(mapOrganizationInvitation)
+      },
     },
   }), [authorizedFetch])
 
@@ -604,7 +706,7 @@ export function OrganizationsProvider({
     setMembershipsLoading(true)
     setMembershipsError(null)
     try {
-      const response = await client.listMemberships()
+      const response = await client.user.listMemberships()
       setMemberships(response)
     } catch (error) {
       setMembershipsError(error)
@@ -650,7 +752,7 @@ export function OrganizationsProvider({
     ;(async () => {
       const results = await Promise.allSettled(
         uniqueOrganizationIds.map(async (organizationId) => {
-          const organization = await client.getOrganization(organizationId)
+          const organization = await client.user.getOrganization(organizationId)
           return { organizationId, organization } as const
         }),
       )
@@ -725,7 +827,7 @@ export function OrganizationsProvider({
       summary = cached
     } else {
       try {
-        const fetched = await client.getOrganization(organizationId)
+        const fetched = await client.user.getOrganization(organizationId)
         summary = fetched
         setOrganizations((previous) => ({
           ...previous,
@@ -1013,7 +1115,7 @@ export function useOrganizationMembers(
     setIsLoading(true)
 
     try {
-      const response = await client.listMembers(organizationId, {
+      const response = await client.user.listMembers(organizationId, {
         page: targetPage,
         pageSize: queryState.pageSize,
         search: queryState.search,
@@ -1058,7 +1160,7 @@ export function useOrganizationMembers(
       throw new Error('Organization identifier is required.')
     }
 
-    const updated = await client.updateMember(organizationId, userId, update)
+    const updated = await client.user.updateMember(organizationId, userId, update)
 
     let found = false
     cacheRef.current.forEach((pageMembers, pageNumber) => {
@@ -1093,7 +1195,7 @@ export function useOrganizationMembers(
       throw new Error('Organization identifier is required.')
     }
 
-    await client.removeMember(organizationId, userId)
+    await client.user.removeMember(organizationId, userId)
 
     cacheRef.current.clear()
     loadingPagesRef.current.clear()

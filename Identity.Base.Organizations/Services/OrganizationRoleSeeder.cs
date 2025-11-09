@@ -44,6 +44,9 @@ public sealed class OrganizationRoleSeeder
         var definitions = (_options.DefaultRoles ?? new List<OrganizationRoleDefinitionOptions>())
             .Where(definition => !string.IsNullOrWhiteSpace(definition.Name))
             .Select(definition => NormalizeDefinition(definition))
+            // De-duplicate by name (case-insensitive). Later entries override earlier ones.
+            .GroupBy(def => def.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
             .ToList();
 
         var now = DateTimeOffset.UtcNow;

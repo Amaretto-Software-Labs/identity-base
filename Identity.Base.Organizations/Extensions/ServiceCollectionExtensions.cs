@@ -15,6 +15,7 @@ using Identity.Base.Roles.Services;
 using Identity.Base.Options;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -30,9 +31,12 @@ public static class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddOptions<IdentityDbNamingOptions>();
-        services.AddOptions<OrganizationOptions>();
-        services.AddOptions<OrganizationRoleOptions>();
-        services.AddOptions<OrganizationAuthorizationOptions>();
+        services.AddOptions<OrganizationOptions>()
+            .BindConfiguration("Organizations");
+        services.AddOptions<OrganizationRoleOptions>()
+            .BindConfiguration("Organizations:RoleOptions");
+        services.AddOptions<OrganizationAuthorizationOptions>()
+            .BindConfiguration("Organizations:Authorization");
 
         services.TryAddSingleton<IdentityBaseModelCustomizationOptions>();
         services.TryAddSingleton<IdentityBaseSeedCallbacks>();

@@ -41,12 +41,140 @@ export class IdentityAuthManager {
   private tokenManager: TokenManager
   private pkceManager: PKCEManager
   private eventListeners: Array<(event: AuthEvent) => void> = []
+  public admin!: {
+    users: {
+      list: (query?: AdminUserListQuery) => Promise<AdminUserListResponse>
+      get: (id: string) => Promise<AdminUserDetail>
+      create: (payload: AdminUserCreateRequest) => Promise<AdminUserCreateResponse>
+      update: (id: string, payload: AdminUserUpdateRequest) => Promise<AdminUserDetail>
+      lock: (id: string, payload?: AdminUserLockRequest) => Promise<void>
+      unlock: (id: string) => Promise<void>
+      forcePasswordReset: (id: string) => Promise<void>
+      resetMfa: (id: string) => Promise<void>
+      resendConfirmation: (id: string) => Promise<void>
+      getRoles: (id: string) => Promise<AdminUserRolesResponse>
+      updateRoles: (id: string, payload: AdminUserRolesUpdateRequest) => Promise<void>
+      softDelete: (id: string) => Promise<void>
+      restore: (id: string) => Promise<void>
+    }
+    roles: {
+      list: (query?: AdminRoleListQuery) => Promise<AdminRoleListResponse>
+      create: (payload: AdminRoleCreateRequest) => Promise<AdminRoleDetail>
+      update: (id: string, payload: AdminRoleUpdateRequest) => Promise<AdminRoleDetail>
+      delete: (id: string) => Promise<void>
+    }
+    permissions: {
+      list: (query?: AdminPermissionListQuery) => Promise<AdminPermissionListResponse>
+    }
+  }
 
   constructor(config: IdentityConfig) {
     this.config = config
     this.apiClient = new ApiClient(config)
     this.tokenManager = new TokenManager(config)
     this.pkceManager = new PKCEManager()
+
+    // Explicit admin namespaces (parallel to org client)
+    this.admin = {
+      users: {
+        list: async (query: AdminUserListQuery = {}): Promise<AdminUserListResponse> => {
+          const params = new URLSearchParams()
+          if (typeof query.page === 'number') params.set('page', String(query.page))
+          if (typeof query.pageSize === 'number') params.set('pageSize', String(query.pageSize))
+          if (typeof query.locked === 'boolean') params.set('locked', String(query.locked))
+          if (query.search && query.search.trim().length > 0) params.set('search', query.search.trim())
+          if (query.role && query.role.trim().length > 0) params.set('role', query.role.trim())
+          if (typeof query.deleted === 'boolean') params.set('deleted', String(query.deleted))
+          appendSortParam(params, query.sort)
+          const qs = params.toString()
+          const path = qs.length > 0 ? `/admin/users?${qs}` : '/admin/users'
+          return await this.authorizedFetch<AdminUserListResponse>(path)
+        },
+        get: async (id: string): Promise<AdminUserDetail> => {
+          const encodedId = encodeURIComponent(id)
+          return await this.authorizedFetch<AdminUserDetail>(`/admin/users/${encodedId}`)
+        },
+        create: async (payload: AdminUserCreateRequest): Promise<AdminUserCreateResponse> => {
+          return await this.authorizedFetch<AdminUserCreateResponse>('/admin/users', { method: 'POST', body: JSON.stringify(payload) })
+        },
+        update: async (id: string, payload: AdminUserUpdateRequest): Promise<AdminUserDetail> => {
+          const encodedId = encodeURIComponent(id)
+          return await this.authorizedFetch<AdminUserDetail>(`/admin/users/${encodedId}`, { method: 'PUT', body: JSON.stringify(payload) })
+        },
+        lock: async (id: string, payload?: AdminUserLockRequest): Promise<void> => {
+          const encodedId = encodeURIComponent(id)
+          return await this.authorizedFetch<void>(`/admin/users/${encodedId}/lock`, { method: 'POST', body: JSON.stringify(payload ?? {}) })
+        },
+        unlock: async (id: string): Promise<void> => {
+          const encodedId = encodeURIComponent(id)
+          return await this.authorizedFetch<void>(`/admin/users/${encodedId}/unlock`, { method: 'POST' })
+        },
+        forcePasswordReset: async (id: string): Promise<void> => {
+          const encodedId = encodeURIComponent(id)
+          return await this.authorizedFetch<void>(`/admin/users/${encodedId}/force-password-reset`, { method: 'POST' })
+        },
+        resetMfa: async (id: string): Promise<void> => {
+          const encodedId = encodeURIComponent(id)
+          return await this.authorizedFetch<void>(`/admin/users/${encodedId}/mfa/reset`, { method: 'POST' })
+        },
+        resendConfirmation: async (id: string): Promise<void> => {
+          const encodedId = encodeURIComponent(id)
+          return await this.authorizedFetch<void>(`/admin/users/${encodedId}/resend-confirmation`, { method: 'POST' })
+        },
+        getRoles: async (id: string): Promise<AdminUserRolesResponse> => {
+          const encodedId = encodeURIComponent(id)
+          return await this.authorizedFetch<AdminUserRolesResponse>(`/admin/users/${encodedId}/roles`)
+        },
+        updateRoles: async (id: string, payload: AdminUserRolesUpdateRequest): Promise<void> => {
+          const encodedId = encodeURIComponent(id)
+          return await this.authorizedFetch<void>(`/admin/users/${encodedId}/roles`, { method: 'PUT', body: JSON.stringify(payload ?? { roles: [] }) })
+        },
+        softDelete: async (id: string): Promise<void> => {
+          const encodedId = encodeURIComponent(id)
+          return await this.authorizedFetch<void>(`/admin/users/${encodedId}`, { method: 'DELETE' })
+        },
+        restore: async (id: string): Promise<void> => {
+          const encodedId = encodeURIComponent(id)
+          return await this.authorizedFetch<void>(`/admin/users/${encodedId}/restore`, { method: 'POST' })
+        },
+      },
+      roles: {
+        list: async (query: AdminRoleListQuery = {}): Promise<AdminRoleListResponse> => {
+          const params = new URLSearchParams()
+          if (typeof query.page === 'number') params.set('page', String(query.page))
+          if (typeof query.pageSize === 'number') params.set('pageSize', String(query.pageSize))
+          if (query.search && query.search.trim().length > 0) params.set('search', query.search.trim())
+          if (typeof query.isSystemRole === 'boolean') params.set('isSystemRole', String(query.isSystemRole))
+          appendSortParam(params, query.sort)
+          const qs = params.toString()
+          const path = qs.length > 0 ? `/admin/roles?${qs}` : '/admin/roles'
+          return await this.authorizedFetch<AdminRoleListResponse>(path)
+        },
+        create: async (payload: AdminRoleCreateRequest): Promise<AdminRoleDetail> => {
+          return await this.authorizedFetch<AdminRoleDetail>('/admin/roles', { method: 'POST', body: JSON.stringify(payload) })
+        },
+        update: async (id: string, payload: AdminRoleUpdateRequest): Promise<AdminRoleDetail> => {
+          const encodedId = encodeURIComponent(id)
+          return await this.authorizedFetch<AdminRoleDetail>(`/admin/roles/${encodedId}`, { method: 'PUT', body: JSON.stringify(payload) })
+        },
+        delete: async (id: string): Promise<void> => {
+          const encodedId = encodeURIComponent(id)
+          return await this.authorizedFetch<void>(`/admin/roles/${encodedId}`, { method: 'DELETE' })
+        },
+      },
+      permissions: {
+        list: async (query: AdminPermissionListQuery = {}): Promise<AdminPermissionListResponse> => {
+          const params = new URLSearchParams()
+          if (typeof query.page === 'number') params.set('page', String(query.page))
+          if (typeof query.pageSize === 'number') params.set('pageSize', String(query.pageSize))
+          if (query.search && query.search.trim().length > 0) params.set('search', query.search.trim())
+          appendSortParam(params, query.sort)
+          const qs = params.toString()
+          const path = qs.length > 0 ? `/admin/permissions?${qs}` : '/admin/permissions'
+          return await this.authorizedFetch<AdminPermissionListResponse>(path)
+        },
+      },
+    }
   }
 
   // Event system
@@ -295,194 +423,7 @@ export class IdentityAuthManager {
     }
   }
 
-  // Admin APIs – Users
-  async listAdminUsers(query: AdminUserListQuery = {}): Promise<AdminUserListResponse> {
-    const params = new URLSearchParams()
-
-    if (typeof query.page === 'number') {
-      params.set('page', String(query.page))
-    }
-
-    if (typeof query.pageSize === 'number') {
-      params.set('pageSize', String(query.pageSize))
-    }
-
-    if (typeof query.locked === 'boolean') {
-      params.set('locked', String(query.locked))
-    }
-
-    if (query.search && query.search.trim().length > 0) {
-      params.set('search', query.search.trim())
-    }
-
-    if (query.role && query.role.trim().length > 0) {
-      params.set('role', query.role.trim())
-    }
-
-    if (typeof query.deleted === 'boolean') {
-      params.set('deleted', String(query.deleted))
-    }
-
-    appendSortParam(params, query.sort)
-
-    const queryString = params.toString()
-    const path = queryString.length > 0 ? `/admin/users?${queryString}` : '/admin/users'
-    return await this.authorizedFetch<AdminUserListResponse>(path)
-  }
-
-  async getAdminUser(id: string): Promise<AdminUserDetail> {
-    const encodedId = encodeURIComponent(id)
-    return await this.authorizedFetch<AdminUserDetail>(`/admin/users/${encodedId}`)
-  }
-
-  async createAdminUser(payload: AdminUserCreateRequest): Promise<AdminUserCreateResponse> {
-    return await this.authorizedFetch<AdminUserCreateResponse>('/admin/users', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
-  }
-
-  async updateAdminUser(id: string, payload: AdminUserUpdateRequest): Promise<AdminUserDetail> {
-    const encodedId = encodeURIComponent(id)
-    return await this.authorizedFetch<AdminUserDetail>(`/admin/users/${encodedId}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    })
-  }
-
-  async lockAdminUser(id: string, payload?: AdminUserLockRequest): Promise<void> {
-    const encodedId = encodeURIComponent(id)
-    return await this.authorizedFetch<void>(`/admin/users/${encodedId}/lock`, {
-      method: 'POST',
-      body: JSON.stringify(payload ?? {}),
-    })
-  }
-
-  async unlockAdminUser(id: string): Promise<void> {
-    const encodedId = encodeURIComponent(id)
-    return await this.authorizedFetch<void>(`/admin/users/${encodedId}/unlock`, {
-      method: 'POST',
-    })
-  }
-
-  async forceAdminPasswordReset(id: string): Promise<void> {
-    const encodedId = encodeURIComponent(id)
-    return await this.authorizedFetch<void>(`/admin/users/${encodedId}/force-password-reset`, {
-      method: 'POST',
-    })
-  }
-
-  async resetAdminUserMfa(id: string): Promise<void> {
-    const encodedId = encodeURIComponent(id)
-    return await this.authorizedFetch<void>(`/admin/users/${encodedId}/mfa/reset`, {
-      method: 'POST',
-    })
-  }
-
-  async resendAdminConfirmation(id: string): Promise<void> {
-    const encodedId = encodeURIComponent(id)
-    return await this.authorizedFetch<void>(`/admin/users/${encodedId}/resend-confirmation`, {
-      method: 'POST',
-    })
-  }
-
-  async getAdminUserRoles(id: string): Promise<AdminUserRolesResponse> {
-    const encodedId = encodeURIComponent(id)
-    return await this.authorizedFetch<AdminUserRolesResponse>(`/admin/users/${encodedId}/roles`)
-  }
-
-  async updateAdminUserRoles(id: string, payload: AdminUserRolesUpdateRequest): Promise<void> {
-    const encodedId = encodeURIComponent(id)
-    return await this.authorizedFetch<void>(`/admin/users/${encodedId}/roles`, {
-      method: 'PUT',
-      body: JSON.stringify(payload ?? { roles: [] }),
-    })
-  }
-
-  async softDeleteAdminUser(id: string): Promise<void> {
-    const encodedId = encodeURIComponent(id)
-    return await this.authorizedFetch<void>(`/admin/users/${encodedId}`, {
-      method: 'DELETE',
-    })
-  }
-
-  async restoreAdminUser(id: string): Promise<void> {
-    const encodedId = encodeURIComponent(id)
-    return await this.authorizedFetch<void>(`/admin/users/${encodedId}/restore`, {
-      method: 'POST',
-    })
-  }
-
-  // Admin APIs – Roles
-  async listAdminRoles(query: AdminRoleListQuery = {}): Promise<AdminRoleListResponse> {
-    const params = new URLSearchParams()
-
-    if (typeof query.page === 'number') {
-      params.set('page', String(query.page))
-    }
-
-    if (typeof query.pageSize === 'number') {
-      params.set('pageSize', String(query.pageSize))
-    }
-
-    if (query.search && query.search.trim().length > 0) {
-      params.set('search', query.search.trim())
-    }
-
-    if (typeof query.isSystemRole === 'boolean') {
-      params.set('isSystemRole', String(query.isSystemRole))
-    }
-
-    appendSortParam(params, query.sort)
-
-    const queryString = params.toString()
-    const path = queryString.length > 0 ? `/admin/roles?${queryString}` : '/admin/roles'
-    return await this.authorizedFetch<AdminRoleListResponse>(path)
-  }
-
-  async createAdminRole(payload: AdminRoleCreateRequest): Promise<AdminRoleDetail> {
-    return await this.authorizedFetch<AdminRoleDetail>('/admin/roles', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
-  }
-
-  async updateAdminRole(id: string, payload: AdminRoleUpdateRequest): Promise<AdminRoleDetail> {
-    const encodedId = encodeURIComponent(id)
-    return await this.authorizedFetch<AdminRoleDetail>(`/admin/roles/${encodedId}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    })
-  }
-
-  async deleteAdminRole(id: string): Promise<void> {
-    const encodedId = encodeURIComponent(id)
-    return await this.authorizedFetch<void>(`/admin/roles/${encodedId}`, {
-      method: 'DELETE',
-    })
-  }
-
-  async listAdminPermissions(query: AdminPermissionListQuery = {}): Promise<AdminPermissionListResponse> {
-    const params = new URLSearchParams()
-
-    if (typeof query.page === 'number') {
-      params.set('page', String(query.page))
-    }
-
-    if (typeof query.pageSize === 'number') {
-      params.set('pageSize', String(query.pageSize))
-    }
-
-    if (query.search && query.search.trim().length > 0) {
-      params.set('search', query.search.trim())
-    }
-
-    appendSortParam(params, query.sort)
-
-    const queryString = params.toString()
-    const path = queryString.length > 0 ? `/admin/permissions?${queryString}` : '/admin/permissions'
-    return await this.authorizedFetch<AdminPermissionListResponse>(path)
-  }
+  // Admin APIs moved under this.admin (breaking change)
 
   // OAuth2 Authorization Code Flow
   async startAuthorization(): Promise<void> {

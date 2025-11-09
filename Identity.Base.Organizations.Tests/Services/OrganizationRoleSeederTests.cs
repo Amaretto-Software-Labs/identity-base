@@ -93,6 +93,189 @@ public class OrganizationRoleSeederTests
         });
     }
 
+    [Fact]
+    public async Task SeedAsync_DeduplicatesRolesByNameWhenOptionsContainDuplicates()
+    {
+        await using var organizationContext = new OrganizationDbContext(new DbContextOptionsBuilder<OrganizationDbContext>()
+            .UseInMemoryDatabase($"org-seeder-dup-{Guid.NewGuid()}")
+            .Options);
+
+        await using var roleContext = new IdentityRolesDbContext(new DbContextOptionsBuilder<IdentityRolesDbContext>()
+            .UseInMemoryDatabase($"role-seeder-dup-{Guid.NewGuid()}")
+            .Options);
+
+        // Seed base org permissions into catalog
+        var catalogPermissions = new[]
+        {
+            UserOrganizationPermissions.OrganizationsRead,
+            UserOrganizationPermissions.OrganizationsManage,
+            UserOrganizationPermissions.OrganizationMembersRead,
+            UserOrganizationPermissions.OrganizationMembersManage,
+            UserOrganizationPermissions.OrganizationRolesRead,
+            UserOrganizationPermissions.OrganizationRolesManage,
+        };
+        foreach (var name in catalogPermissions)
+        {
+            roleContext.Permissions.Add(new Permission { Name = name, Description = name });
+        }
+        await roleContext.SaveChangesAsync();
+
+        // Prepare options with duplicates by name
+        var options = Microsoft.Extensions.Options.Options.Create(new OrganizationRoleOptions());
+        options.Value.DefaultRoles.Add(new OrganizationRoleDefinitionOptions
+        {
+            DefaultType = OrganizationRoleDefaultType.Owner,
+            Name = options.Value.OwnerRoleName, // duplicate existing default name
+            Description = "Override Owner",
+            Permissions =
+            [
+                UserOrganizationPermissions.OrganizationsRead,
+                UserOrganizationPermissions.OrganizationMembersRead,
+                UserOrganizationPermissions.OrganizationRolesRead
+            ]
+        });
+
+        var services = new ServiceCollection().BuildServiceProvider();
+        var seedCallbacks = new IdentityBaseSeedCallbacks();
+        var seeder = new OrganizationRoleSeeder(
+            organizationContext,
+            options,
+            seedCallbacks,
+            services,
+            NullLogger<OrganizationRoleSeeder>.Instance,
+            roleContext);
+
+        await seeder.SeedAsync();
+
+        var roles = await organizationContext.OrganizationRoles.ToListAsync();
+        roles.Count.ShouldBe(3); // deduplicated to 3 by name
+    }
+
+    [Fact]
+    public async Task SeedAsync_AssignsCustomPermissionsWhenDefinedInCatalog()
+    {
+        await using var organizationContext = new OrganizationDbContext(new DbContextOptionsBuilder<OrganizationDbContext>()
+            .UseInMemoryDatabase($"org-seeder-custom-{Guid.NewGuid()}")
+            .Options);
+
+        await using var roleContext = new IdentityRolesDbContext(new DbContextOptionsBuilder<IdentityRolesDbContext>()
+            .UseInMemoryDatabase($"role-seeder-custom-{Guid.NewGuid()}")
+            .Options);
+
+        // Seed the base user-scoped permissions + a custom one
+        var customPermission = "user.organizations.custom.export";
+
+        var allPermissionNames = new[]
+        {
+            UserOrganizationPermissions.OrganizationsRead,
+            UserOrganizationPermissions.OrganizationsManage,
+            UserOrganizationPermissions.OrganizationMembersRead,
+            UserOrganizationPermissions.OrganizationMembersManage,
+            UserOrganizationPermissions.OrganizationRolesRead,
+            UserOrganizationPermissions.OrganizationRolesManage,
+            customPermission
+        };
+
+        foreach (var name in allPermissionNames)
+        {
+            roleContext.Permissions.Add(new Permission { Name = name, Description = name });
+        }
+
+        await roleContext.SaveChangesAsync();
+
+        var services = new ServiceCollection().BuildServiceProvider();
+        var options = Microsoft.Extensions.Options.Options.Create(new OrganizationRoleOptions());
+
+        // Add the custom permission to the Owner default definition
+        var ownerDef = options.Value.DefaultRoles.Single(r => r.DefaultType == OrganizationRoleDefaultType.Owner);
+        ownerDef.Permissions.Add(customPermission);
+
+        var seedCallbacks = new IdentityBaseSeedCallbacks();
+        var seeder = new OrganizationRoleSeeder(
+            organizationContext,
+            options,
+            seedCallbacks,
+            services,
+            NullLogger<OrganizationRoleSeeder>.Instance,
+            roleContext);
+
+        await seeder.SeedAsync();
+
+        var ownerRole = await organizationContext.OrganizationRoles.SingleAsync(r => r.Name == options.Value.OwnerRoleName);
+        await AssertRolePermissionsAsync(organizationContext, roleContext, ownerRole.Id, new[]
+        {
+            UserOrganizationPermissions.OrganizationsRead,
+            UserOrganizationPermissions.OrganizationsManage,
+            UserOrganizationPermissions.OrganizationMembersRead,
+            UserOrganizationPermissions.OrganizationMembersManage,
+            UserOrganizationPermissions.OrganizationRolesRead,
+            UserOrganizationPermissions.OrganizationRolesManage,
+            customPermission
+        });
+    }
+
+    [Fact]
+    public async Task SeedAsync_IgnoresMissingCustomPermissions()
+    {
+        await using var organizationContext = new OrganizationDbContext(new DbContextOptionsBuilder<OrganizationDbContext>()
+            .UseInMemoryDatabase($"org-seeder-missing-{Guid.NewGuid()}")
+            .Options);
+
+        await using var roleContext = new IdentityRolesDbContext(new DbContextOptionsBuilder<IdentityRolesDbContext>()
+            .UseInMemoryDatabase($"role-seeder-missing-{Guid.NewGuid()}")
+            .Options);
+
+        // Seed only the default permissions; intentionally omit the custom one
+        var permissionNames = new[]
+        {
+            UserOrganizationPermissions.OrganizationsRead,
+            UserOrganizationPermissions.OrganizationsManage,
+            UserOrganizationPermissions.OrganizationMembersRead,
+            UserOrganizationPermissions.OrganizationMembersManage,
+            UserOrganizationPermissions.OrganizationRolesRead,
+            UserOrganizationPermissions.OrganizationRolesManage
+        };
+
+        foreach (var name in permissionNames)
+        {
+            roleContext.Permissions.Add(new Permission { Name = name, Description = name });
+        }
+
+        await roleContext.SaveChangesAsync();
+
+        var services = new ServiceCollection().BuildServiceProvider();
+        var options = Microsoft.Extensions.Options.Options.Create(new OrganizationRoleOptions());
+
+        // Add a custom permission that does not exist in the catalog
+        var missingPermission = "user.organizations.custom.missing";
+        var ownerDef = options.Value.DefaultRoles.Single(r => r.DefaultType == OrganizationRoleDefaultType.Owner);
+        ownerDef.Permissions.Add(missingPermission);
+
+        var seedCallbacks = new IdentityBaseSeedCallbacks();
+        var seeder = new OrganizationRoleSeeder(
+            organizationContext,
+            options,
+            seedCallbacks,
+            services,
+            NullLogger<OrganizationRoleSeeder>.Instance,
+            roleContext);
+
+        await seeder.SeedAsync();
+
+        var ownerRole = await organizationContext.OrganizationRoles.SingleAsync(r => r.Name == options.Value.OwnerRoleName);
+
+        // The missing permission should not be assigned; only defaults present
+        await AssertRolePermissionsAsync(organizationContext, roleContext, ownerRole.Id, new[]
+        {
+            UserOrganizationPermissions.OrganizationsRead,
+            UserOrganizationPermissions.OrganizationsManage,
+            UserOrganizationPermissions.OrganizationMembersRead,
+            UserOrganizationPermissions.OrganizationMembersManage,
+            UserOrganizationPermissions.OrganizationRolesRead,
+            UserOrganizationPermissions.OrganizationRolesManage
+        });
+    }
+
     private static async Task AssertRolePermissionsAsync(
         OrganizationDbContext organizationContext,
         IdentityRolesDbContext roleContext,

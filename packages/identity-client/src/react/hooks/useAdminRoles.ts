@@ -65,7 +65,7 @@ export function useAdminRoles(options: UseAdminRolesOptions = {}): UseAdminRoles
     setError(null)
 
     try {
-      const response = await authManager.listAdminRoles(nextQuery)
+      const response = await authManager.admin.roles.list(nextQuery)
       setData(response)
       return response
     } catch (err) {
@@ -90,7 +90,7 @@ export function useAdminRoles(options: UseAdminRolesOptions = {}): UseAdminRoles
     setError(null)
 
     try {
-      const detail = await authManager.createAdminRole(payload)
+      const detail = await authManager.admin.roles.create(payload)
       await listRoles()
       return detail
     } catch (err) {
@@ -105,7 +105,7 @@ export function useAdminRoles(options: UseAdminRolesOptions = {}): UseAdminRoles
     setError(null)
 
     try {
-      const detail = await authManager.updateAdminRole(roleId, payload)
+      const detail = await authManager.admin.roles.update(roleId, payload)
       await listRoles()
       return detail
     } catch (err) {
@@ -120,7 +120,7 @@ export function useAdminRoles(options: UseAdminRolesOptions = {}): UseAdminRoles
     setError(null)
 
     try {
-      await authManager.deleteAdminRole(roleId)
+      await authManager.admin.roles.delete(roleId)
       await listRoles()
     } catch (err) {
       throw handleError(err)

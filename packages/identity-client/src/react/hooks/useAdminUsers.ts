@@ -72,7 +72,7 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}): UseAdminUsers
     setError(null)
 
     try {
-      const response = await authManager.listAdminUsers(nextQuery)
+      const response = await authManager.admin.users.list(nextQuery)
       setData(response)
       return response
     } catch (err) {
@@ -97,7 +97,7 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}): UseAdminUsers
     setError(null)
 
     try {
-      return await authManager.createAdminUser(payload)
+      return await authManager.admin.users.create(payload)
     } catch (err) {
       throw handleError(err)
     } finally {
@@ -110,7 +110,7 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}): UseAdminUsers
     setError(null)
 
     try {
-      await authManager.lockAdminUser(userId, payload)
+      await authManager.admin.users.lock(userId, payload)
     } catch (err) {
       throw handleError(err)
     } finally {
@@ -123,7 +123,7 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}): UseAdminUsers
     setError(null)
 
     try {
-      await authManager.unlockAdminUser(userId)
+      await authManager.admin.users.unlock(userId)
     } catch (err) {
       throw handleError(err)
     } finally {
@@ -136,7 +136,7 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}): UseAdminUsers
     setError(null)
 
     try {
-      await authManager.forceAdminPasswordReset(userId)
+      await authManager.admin.users.forcePasswordReset(userId)
     } catch (err) {
       throw handleError(err)
     } finally {
@@ -149,7 +149,7 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}): UseAdminUsers
     setError(null)
 
     try {
-      await authManager.resetAdminUserMfa(userId)
+      await authManager.admin.users.resetMfa(userId)
     } catch (err) {
       throw handleError(err)
     } finally {
@@ -162,7 +162,7 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}): UseAdminUsers
     setError(null)
 
     try {
-      await authManager.resendAdminConfirmation(userId)
+      await authManager.admin.users.resendConfirmation(userId)
     } catch (err) {
       throw handleError(err)
     } finally {
@@ -175,7 +175,7 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}): UseAdminUsers
     setError(null)
 
     try {
-      await authManager.softDeleteAdminUser(userId)
+      await authManager.admin.users.softDelete(userId)
     } catch (err) {
       throw handleError(err)
     } finally {
@@ -188,7 +188,7 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}): UseAdminUsers
     setError(null)
 
     try {
-      await authManager.restoreAdminUser(userId)
+      await authManager.admin.users.restore(userId)
     } catch (err) {
       throw handleError(err)
     } finally {
