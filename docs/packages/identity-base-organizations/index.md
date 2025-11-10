@@ -134,6 +134,8 @@ curl -X POST https://identity.example.com/invitations/claim \
 - `orgsBuilder.AddOrganizationClaimFormatter<TFormatter>()` – change how org metadata is serialized into claims.
 - `orgsBuilder.ConfigureOrganizationModel(...)` – apply EF Core customizations.
 - `orgsBuilder.AfterOrganizationSeed(...)` – run additional provisioning after default roles are created.
+- `orgsBuilder.AddOrganizationCreationListener<TListener>()` – execute custom logic (billing setup, automation) immediately after an organization is created.
+- `orgsBuilder.AddOrganizationUpdateListener<TListener>()` / `AddOrganizationArchiveListener<TListener>()` – react to organization updates or archives.
 - Implement custom invitation stores by replacing `IOrganizationInvitationStore`.
 
 ## Dependencies & Compatibility

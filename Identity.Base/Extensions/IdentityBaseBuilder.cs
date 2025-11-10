@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentValidation;
+using Identity.Base.Abstractions;
 using Identity.Base.Abstractions.MultiTenancy;
 using Identity.Base.Data;
 using Identity.Base.Features.Authentication.EmailManagement;
@@ -148,6 +149,30 @@ public sealed class IdentityBaseBuilder
     {
         ArgumentNullException.ThrowIfNull(callback);
         _seedCallbacks.RegisterIdentitySeedCallback(callback);
+        return this;
+    }
+
+    public IdentityBaseBuilder AddUserCreationListener<TListener>() where TListener : class, IUserCreationListener
+    {
+        Services.AddScoped<IUserCreationListener, TListener>();
+        return this;
+    }
+
+    public IdentityBaseBuilder AddUserUpdateListener<TListener>() where TListener : class, IUserUpdateListener
+    {
+        Services.AddScoped<IUserUpdateListener, TListener>();
+        return this;
+    }
+
+    public IdentityBaseBuilder AddUserDeletionListener<TListener>() where TListener : class, IUserDeletionListener
+    {
+        Services.AddScoped<IUserDeletionListener, TListener>();
+        return this;
+    }
+
+    public IdentityBaseBuilder AddUserRestoreListener<TListener>() where TListener : class, IUserRestoreListener
+    {
+        Services.AddScoped<IUserRestoreListener, TListener>();
         return this;
     }
 
@@ -449,6 +474,7 @@ public sealed class IdentityBaseBuilder
                 options.AddEventHandler(PasswordFlowClientValidator.Descriptor);
                 options.AddEventHandler(PasswordGrantHandler.Descriptor);
                 options.AddEventHandler(AuthorizationCodeAugmentorHandler.Descriptor);
+                options.AddEventHandler(RefreshTokenAugmentorHandler.Descriptor);
             })
             .AddValidation(options =>
             {

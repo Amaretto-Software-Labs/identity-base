@@ -84,9 +84,94 @@ public class OrganizationServiceTests
         return new OrganizationDbContext(options);
     }
 
-    private static OrganizationService CreateService(OrganizationDbContext context)
+    private static OrganizationService CreateService(
+        OrganizationDbContext context,
+        IEnumerable<IOrganizationCreationListener>? creationListeners = null,
+        IEnumerable<IOrganizationUpdateListener>? updateListeners = null,
+        IEnumerable<IOrganizationArchiveListener>? archiveListeners = null)
     {
         var options = Microsoft.Extensions.Options.Options.Create(new OrganizationOptions());
-        return new OrganizationService(context, options, NullLogger<OrganizationService>.Instance);
+        return new OrganizationService(
+            context,
+            options,
+            NullLogger<OrganizationService>.Instance,
+            creationListeners ?? Array.Empty<IOrganizationCreationListener>(),
+            updateListeners ?? Array.Empty<IOrganizationUpdateListener>(),
+            archiveListeners ?? Array.Empty<IOrganizationArchiveListener>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_InvokesCreationListeners()
+    {
+        await using var context = CreateContext();
+        var listener = new TestCreationListener();
+        var service = CreateService(context, new[] { listener });
+
+        var organization = await service.CreateAsync(new OrganizationCreateRequest
+        {
+            Slug = "listener-org",
+            DisplayName = "Listener Org"
+        });
+
+        listener.Created.ShouldContain(organization.Id);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_InvokesUpdateListeners()
+    {
+        await using var context = CreateContext();
+        var listener = new TestUpdateListener();
+        var service = CreateService(context, updateListeners: new[] { listener });
+
+        var organization = await service.CreateAsync(new OrganizationCreateRequest { Slug = "u-listener", DisplayName = "Before" });
+        await service.UpdateAsync(organization.Id, new OrganizationUpdateRequest { DisplayName = "After" });
+
+        listener.Updated.ShouldContain(organization.Id);
+    }
+
+    [Fact]
+    public async Task ArchiveAsync_InvokesArchiveListeners()
+    {
+        await using var context = CreateContext();
+        var listener = new TestArchiveListener();
+        var service = CreateService(context, archiveListeners: new[] { listener });
+
+        var organization = await service.CreateAsync(new OrganizationCreateRequest { Slug = "a-listener", DisplayName = "Org" });
+        await service.ArchiveAsync(organization.Id);
+
+        listener.Archived.ShouldContain(organization.Id);
+    }
+
+    private sealed class TestCreationListener : IOrganizationCreationListener
+    {
+        public List<Guid> Created { get; } = new();
+
+        public Task OnOrganizationCreatedAsync(Organization organization, CancellationToken cancellationToken = default)
+        {
+            Created.Add(organization.Id);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class TestUpdateListener : IOrganizationUpdateListener
+    {
+        public List<Guid> Updated { get; } = new();
+
+        public Task OnOrganizationUpdatedAsync(Organization organization, CancellationToken cancellationToken = default)
+        {
+            Updated.Add(organization.Id);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class TestArchiveListener : IOrganizationArchiveListener
+    {
+        public List<Guid> Archived { get; } = new();
+
+        public Task OnOrganizationArchivedAsync(Organization organization, CancellationToken cancellationToken = default)
+        {
+            Archived.Add(organization.Id);
+            return Task.CompletedTask;
+        }
     }
 }

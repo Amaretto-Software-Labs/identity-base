@@ -1,4 +1,5 @@
 using FluentValidation;
+using Identity.Base.Abstractions;
 using Identity.Base.Extensions;
 using Identity.Base.Identity;
 using Identity.Base.Logging;
@@ -84,6 +85,7 @@ public static class UserEndpoints
         SignInManager<ApplicationUser> signInManager,
         IOptions<RegistrationOptions> registrationOptions,
         IAuditLogger auditLogger,
+        IEnumerable<IUserUpdateListener> updateListeners,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -132,6 +134,11 @@ public static class UserEndpoints
         await signInManager.RefreshSignInAsync(user);
 
         await auditLogger.LogAsync(AuditEventTypes.ProfileUpdated, user.Id, normalized, cancellationToken);
+
+        foreach (var listener in updateListeners)
+        {
+            await listener.OnUserUpdatedAsync(user, cancellationToken).ConfigureAwait(false);
+        }
 
         return Results.Ok(new UserProfileResponse(
             user.Id,
