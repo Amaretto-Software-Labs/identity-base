@@ -4,6 +4,7 @@ using Identity.Base.Extensions;
 using Identity.Base.Identity;
 using Identity.Base.Logging;
 using Identity.Base.Options;
+using Identity.Base.Lifecycle;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -85,7 +86,7 @@ public static class UserEndpoints
         SignInManager<ApplicationUser> signInManager,
         IOptions<RegistrationOptions> registrationOptions,
         IAuditLogger auditLogger,
-        IEnumerable<IUserUpdateListener> updateListeners,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -118,6 +119,18 @@ public static class UserEndpoints
             normalized[field.Name] = string.IsNullOrWhiteSpace(value) ? null : value;
         }
 
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.ProfileUpdated,
+            user,
+            ActorUserId: user.Id,
+            Source: nameof(UpdateProfileAsync),
+            Items: new Dictionary<string, object?>
+            {
+                ["Metadata"] = normalized
+            });
+
+        await lifecycleDispatcher.EnsureCanUpdateProfileAsync(lifecycleContext, cancellationToken);
+
         user.SetProfileMetadata(normalized);
 
         if (normalized.TryGetValue("displayName", out var displayName) && !string.IsNullOrWhiteSpace(displayName))
@@ -135,10 +148,7 @@ public static class UserEndpoints
 
         await auditLogger.LogAsync(AuditEventTypes.ProfileUpdated, user.Id, normalized, cancellationToken);
 
-        foreach (var listener in updateListeners)
-        {
-            await listener.OnUserUpdatedAsync(user, cancellationToken).ConfigureAwait(false);
-        }
+        await lifecycleDispatcher.NotifyUserProfileUpdatedAsync(lifecycleContext, cancellationToken);
 
         return Results.Ok(new UserProfileResponse(
             user.Id,

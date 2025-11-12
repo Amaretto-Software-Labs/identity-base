@@ -10,8 +10,10 @@ using Identity.Base.Extensions;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Domain;
+using Identity.Base.Organizations.Lifecycle;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Identity.Base.Lifecycle;
 
 namespace Identity.Base.Organizations.Services;
 
@@ -20,15 +22,18 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
     private readonly OrganizationDbContext _dbContext;
     private readonly AppDbContext _appDbContext;
     private readonly ILogger<OrganizationMembershipService>? _logger;
+    private readonly IOrganizationLifecycleHookDispatcher _lifecycleDispatcher;
 
     public OrganizationMembershipService(
         OrganizationDbContext dbContext,
         AppDbContext appDbContext,
-        ILogger<OrganizationMembershipService>? logger = null)
+        ILogger<OrganizationMembershipService>? logger = null,
+        IOrganizationLifecycleHookDispatcher? lifecycleDispatcher = null)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _appDbContext = appDbContext ?? throw new ArgumentNullException(nameof(appDbContext));
         _logger = logger;
+        _lifecycleDispatcher = lifecycleDispatcher ?? NullOrganizationLifecycleDispatcher.Instance;
     }
 
     public async Task<OrganizationMembership> AddMemberAsync(OrganizationMembershipRequest request, CancellationToken cancellationToken = default)
@@ -116,6 +121,14 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
             membership.UserId,
             membership.OrganizationId,
             membership.RoleAssignments.Count);
+
+        var lifecycleContext = new OrganizationLifecycleContext(
+            OrganizationLifecycleEvent.MemberAdded,
+            membership.OrganizationId,
+            organization.Slug,
+            organization.DisplayName,
+            TargetUserId: membership.UserId);
+        await _lifecycleDispatcher.NotifyMemberAddedAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
 
         return membership;
     }
@@ -553,6 +566,14 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         _logger?.LogInformation("Removed user {UserId} from organization {OrganizationId}", userId, organizationId);
+
+        var lifecycleContext = new OrganizationLifecycleContext(
+            OrganizationLifecycleEvent.MembershipRevoked,
+            membership.OrganizationId,
+            membership.Organization?.Slug,
+            membership.Organization?.DisplayName,
+            TargetUserId: membership.UserId);
+        await _lifecycleDispatcher.NotifyMembershipRevokedAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
     }
 
     private static HashSet<Guid> NormalizeRoleIds(IEnumerable<Guid> roleIds)

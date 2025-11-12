@@ -11,6 +11,7 @@ using Identity.Base.Identity;
 using Identity.Base.Logging;
 using Identity.Base.Options;
 using Identity.Base.Organizations.Services;
+using Identity.Base.Lifecycle;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
@@ -47,7 +48,7 @@ internal static class SampleRegistrationEndpoints
         UserManager<ApplicationUser> userManager,
         IAccountEmailService accountEmailService,
         IOptions<RegistrationOptions> registrationOptions,
-        IEnumerable<IUserCreationListener> creationListeners,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
         ILoggerFactory loggerFactory,
         ILogSanitizer logSanitizer,
         CancellationToken cancellationToken)
@@ -89,6 +90,25 @@ internal static class SampleRegistrationEndpoints
 
         user.SetProfileMetadata(request.Metadata);
 
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.Registration,
+            user,
+            Source: nameof(HandleInvitationRegistrationAsync),
+            Items: new Dictionary<string, object?>
+            {
+                ["InvitationCode"] = invitation.Code,
+                ["Invitation"] = invitation
+            });
+
+        try
+        {
+            await lifecycleDispatcher.EnsureCanRegisterAsync(lifecycleContext, cancellationToken);
+        }
+        catch (LifecycleHookRejectedException exception)
+        {
+            return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var createResult = await userManager.CreateAsync(user, request.Password).ConfigureAwait(false);
         if (!createResult.Succeeded)
         {
@@ -107,10 +127,7 @@ internal static class SampleRegistrationEndpoints
             return Results.Problem("Failed to dispatch confirmation email.", statusCode: StatusCodes.Status500InternalServerError);
         }
 
-        foreach (var listener in creationListeners)
-        {
-            await listener.OnUserCreatedAsync(user, cancellationToken).ConfigureAwait(false);
-        }
+        await lifecycleDispatcher.NotifyUserRegisteredAsync(lifecycleContext, cancellationToken);
 
         try
         {

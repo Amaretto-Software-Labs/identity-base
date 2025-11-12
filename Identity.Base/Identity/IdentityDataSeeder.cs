@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using Identity.Base.Abstractions;
 using Identity.Base.Logging;
 using Identity.Base.Options;
+using Identity.Base.Lifecycle;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -16,34 +17,34 @@ internal sealed class IdentityDataSeeder
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<ApplicationRole> _roleManager;
-    private readonly IEnumerable<IUserCreationListener> _creationListeners;
     private readonly IOptions<IdentitySeedOptions> _options;
     private readonly ILogger<IdentityDataSeeder> _logger;
     private readonly ILogSanitizer _sanitizer;
     private readonly IdentityBaseSeedCallbacks _seedCallbacks;
     private readonly IServiceProvider _serviceProvider;
     private readonly IEnumerable<IIdentitySeedRoleAssignmentHandler> _roleAssignmentHandlers;
+    private readonly IUserLifecycleHookDispatcher _lifecycleDispatcher;
 
     public IdentityDataSeeder(
         UserManager<ApplicationUser> userManager,
         RoleManager<ApplicationRole> roleManager,
-        IEnumerable<IUserCreationListener> creationListeners,
         IOptions<IdentitySeedOptions> options,
         ILogger<IdentityDataSeeder> logger,
         ILogSanitizer sanitizer,
         IdentityBaseSeedCallbacks seedCallbacks,
         IServiceProvider serviceProvider,
-        IEnumerable<IIdentitySeedRoleAssignmentHandler> roleAssignmentHandlers)
+        IEnumerable<IIdentitySeedRoleAssignmentHandler> roleAssignmentHandlers,
+        IUserLifecycleHookDispatcher lifecycleDispatcher)
     {
         _userManager = userManager;
         _roleManager = roleManager;
-        _creationListeners = creationListeners;
         _options = options;
         _logger = logger;
         _sanitizer = sanitizer;
         _seedCallbacks = seedCallbacks;
         _serviceProvider = serviceProvider;
         _roleAssignmentHandlers = roleAssignmentHandlers;
+        _lifecycleDispatcher = lifecycleDispatcher;
     }
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
@@ -125,10 +126,12 @@ internal sealed class IdentityDataSeeder
 
         if (!userExists && user is not null)
         {
-            foreach (var listener in _creationListeners)
-            {
-                await listener.OnUserCreatedAsync(user, cancellationToken).ConfigureAwait(false);
-            }
+            var lifecycleContext = new UserLifecycleContext(
+                UserLifecycleEvent.Registration,
+                user,
+                Source: nameof(IdentityDataSeeder));
+
+            await _lifecycleDispatcher.NotifyUserRegisteredAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
 
             _logger.LogInformation("Seed user {Email} created successfully.", _sanitizer.RedactEmail(options.Email));
         }

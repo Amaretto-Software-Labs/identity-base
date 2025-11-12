@@ -9,6 +9,7 @@ using Identity.Base.Logging;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Domain;
 using Microsoft.Extensions.Logging;
+using Identity.Base.Organizations.Lifecycle;
 
 namespace Identity.Base.Organizations.Services;
 
@@ -24,6 +25,7 @@ public sealed class OrganizationInvitationService
     private readonly IOrganizationRoleService _roleService;
     private readonly ILogger<OrganizationInvitationService> _logger;
     private readonly ILogSanitizer _logSanitizer;
+    private readonly IOrganizationLifecycleHookDispatcher _lifecycleDispatcher;
 
     public OrganizationInvitationService(
         IOrganizationInvitationStore store,
@@ -31,7 +33,8 @@ public sealed class OrganizationInvitationService
         IOrganizationMembershipService membershipService,
         IOrganizationRoleService roleService,
         ILogger<OrganizationInvitationService> logger,
-        ILogSanitizer logSanitizer)
+        ILogSanitizer logSanitizer,
+        IOrganizationLifecycleHookDispatcher lifecycleDispatcher)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _organizationService = organizationService ?? throw new ArgumentNullException(nameof(organizationService));
@@ -39,6 +42,7 @@ public sealed class OrganizationInvitationService
         _roleService = roleService ?? throw new ArgumentNullException(nameof(roleService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _logSanitizer = logSanitizer ?? throw new ArgumentNullException(nameof(logSanitizer));
+        _lifecycleDispatcher = lifecycleDispatcher ?? throw new ArgumentNullException(nameof(lifecycleDispatcher));
     }
 
     public async Task<OrganizationInvitationRecord> CreateAsync(
@@ -90,6 +94,16 @@ public sealed class OrganizationInvitationService
             ExpiresAtUtc = DateTimeOffset.UtcNow.Add(lifetime)
         };
 
+        var lifecycleContext = new OrganizationLifecycleContext(
+            OrganizationLifecycleEvent.InvitationCreated,
+            organization.Id,
+            organization.Slug,
+            organization.DisplayName,
+            ActorUserId: createdBy,
+            Invitation: record);
+
+        await _lifecycleDispatcher.EnsureCanCreateInvitationAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
+
         await _store.CreateAsync(record, cancellationToken).ConfigureAwait(false);
 
         _logger.LogInformation(
@@ -97,6 +111,8 @@ public sealed class OrganizationInvitationService
             record.Code,
             organization.Id,
             _logSanitizer.RedactEmail(normalizedEmail));
+
+        await _lifecycleDispatcher.NotifyInvitationCreatedAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
 
         return record;
     }
@@ -123,6 +139,15 @@ public sealed class OrganizationInvitationService
             "Revoked invitation {InvitationCode} for organization {OrganizationId}.",
             code,
             organizationId);
+
+        var lifecycleContext = new OrganizationLifecycleContext(
+            OrganizationLifecycleEvent.InvitationRevoked,
+            organizationId,
+            null,
+            null,
+            Invitation: invitation);
+
+        await _lifecycleDispatcher.NotifyInvitationRevokedAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
         return true;
     }
 

@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Identity.Base.Abstractions;
 using Identity.Base.Identity;
@@ -17,6 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OpenIddict.Abstractions;
 using Shouldly;
 using Xunit;
+using Identity.Base.Lifecycle;
 
 namespace Identity.Base.Tests;
 
@@ -119,6 +121,36 @@ public class UserListenerTests : IClassFixture<IdentityApiFactory>
 
         var listener = factory.Services.GetRequiredService<TestUserRestoreListener>();
         listener.Restored.ShouldContain(targetUserId);
+    }
+
+    [Fact]
+    public async Task RegisterUser_BeforeLifecycleHookBlocksRegistration()
+    {
+        var factory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.AddSingleton<RejectingLifecycleListener>();
+                services.AddScoped<IUserLifecycleListener>(sp => sp.GetRequiredService<RejectingLifecycleListener>());
+            });
+        });
+
+        using var client = factory.CreateClient();
+        var response = await client.PostAsJsonAsync("/auth/register", new
+        {
+            email = $"blocked-{Guid.NewGuid():N}@example.com",
+            password = "StrongPass!2345",
+            metadata = new Dictionary<string, string?>
+            {
+                ["displayName"] = "Blocked User"
+            }
+        });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        using var scope = factory.Services.CreateScope();
+        var listener = scope.ServiceProvider.GetRequiredService<RejectingLifecycleListener>();
+        listener.BeforeRegistrationCalls.ShouldBeGreaterThan(0);
     }
 
     private static async Task<Guid> SeedUserAsync(WebApplicationFactory<Program> factory, string email, string password)
@@ -293,6 +325,17 @@ public class UserListenerTests : IClassFixture<IdentityApiFactory>
         {
             Restored.Add(user.Id);
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RejectingLifecycleListener : IUserLifecycleListener
+    {
+        public int BeforeRegistrationCalls { get; private set; }
+
+        public ValueTask<LifecycleHookResult> BeforeUserRegisteredAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        {
+            BeforeRegistrationCalls++;
+            return ValueTask.FromResult(LifecycleHookResult.Fail("Registration disabled."));
         }
     }
 }

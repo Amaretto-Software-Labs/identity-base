@@ -1,6 +1,7 @@
 using System;
 using Identity.Base.Options;
 using Identity.Base.Organizations.Data;
+using Identity.Base.Organizations.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +16,13 @@ public sealed class IdentityBaseOrganizationsBuilder
     }
 
     public IServiceCollection Services { get; }
+
+    public IdentityBaseOrganizationsBuilder AddOrganizationLifecycleListener<TListener>()
+        where TListener : class, IOrganizationLifecycleListener
+    {
+        Services.AddScoped<IOrganizationLifecycleListener, TListener>();
+        return this;
+    }
 
     public IdentityBaseOrganizationsBuilder UseDbContext<TContext>() where TContext : OrganizationDbContext
     {

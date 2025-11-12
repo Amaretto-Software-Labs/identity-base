@@ -6,6 +6,7 @@ using Identity.Base.Identity;
 using Identity.Base.Logging;
 using Identity.Base.Features.Authentication.EmailManagement;
 using Identity.Base.Options;
+using Identity.Base.Lifecycle;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -36,7 +37,7 @@ public static class RegisterUserEndpoint
         IOptions<RegistrationOptions> registrationOptions,
         ILoggerFactory loggerFactory,
         ILogSanitizer logSanitizer,
-        IEnumerable<IUserCreationListener> creationListeners,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
         CancellationToken cancellationToken)
     {
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
@@ -56,6 +57,24 @@ public static class RegisterUserEndpoint
 
         user.SetProfileMetadata(request.Metadata);
 
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.Registration,
+            user,
+            Source: nameof(RegisterUserEndpoint),
+            Items: new Dictionary<string, object?>
+            {
+                ["Metadata"] = request.Metadata
+            });
+
+        try
+        {
+            await lifecycleDispatcher.EnsureCanRegisterAsync(lifecycleContext, cancellationToken);
+        }
+        catch (LifecycleHookRejectedException exception)
+        {
+            return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var createResult = await userManager.CreateAsync(user, request.Password);
         if (!createResult.Succeeded)
         {
@@ -74,10 +93,7 @@ public static class RegisterUserEndpoint
             return Results.Problem("Failed to dispatch confirmation email.", statusCode: StatusCodes.Status500InternalServerError);
         }
 
-        foreach (var listener in creationListeners)
-        {
-            await listener.OnUserCreatedAsync(user, cancellationToken).ConfigureAwait(false);
-        }
+        await lifecycleDispatcher.NotifyUserRegisteredAsync(lifecycleContext, cancellationToken);
 
         var correlationId = Guid.NewGuid().ToString("N");
         return Results.Accepted($"/auth/register/{correlationId}", new { correlationId });

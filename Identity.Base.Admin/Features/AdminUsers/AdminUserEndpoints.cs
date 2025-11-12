@@ -17,6 +17,7 @@ using Identity.Base.Features.Authentication.EmailManagement;
 using Identity.Base.Abstractions;
 using Identity.Base.Identity;
 using Identity.Base.Logging;
+using Identity.Base.Lifecycle;
 using Identity.Base.Options;
 using Identity.Base.Roles.Abstractions;
 using Identity.Base.Roles.Services;
@@ -504,7 +505,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         IRoleAssignmentService roleAssignmentService,
         IOptions<RegistrationOptions> registrationOptions,
         IAuditLogger auditLogger,
-        IEnumerable<IUserUpdateListener> updateListeners,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
         CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(id.ToString());
@@ -532,6 +533,25 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         {
             return Results.ValidationProblem(metadataErrors);
         }
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.ProfileUpdated,
+            user,
+            Source: nameof(UpdateUserAsync),
+            Items: new Dictionary<string, object?>
+            {
+                ["AdminRequest"] = request,
+                ["Metadata"] = metadata
+            });
+
+        try
+        {
+            await lifecycleDispatcher.EnsureCanUpdateProfileAsync(lifecycleContext, cancellationToken);
+        }
+        catch (LifecycleHookRejectedException exception)
+        {
+            return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
+        }
+
         user.SetProfileMetadata(metadata);
 
         if (request.DisplayName is { Length: > 0 })
@@ -613,10 +633,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
             },
             cancellationToken).ConfigureAwait(false);
 
-        foreach (var listener in updateListeners)
-        {
-            await listener.OnUserUpdatedAsync(user, cancellationToken).ConfigureAwait(false);
-        }
+        await lifecycleDispatcher.NotifyUserProfileUpdatedAsync(lifecycleContext, cancellationToken);
 
         return await GetUserAsync(id, userManager, roleAssignmentService, cancellationToken);
     }
@@ -851,13 +868,27 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         Guid id,
         UserManager<ApplicationUser> userManager,
         IAuditLogger auditLogger,
-        IEnumerable<IUserDeletionListener> deletionListeners,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
         CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(id.ToString());
         if (user is null)
         {
             return Results.NotFound();
+        }
+
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.Deleted,
+            user,
+            Source: nameof(SoftDeleteUserAsync));
+
+        try
+        {
+            await lifecycleDispatcher.EnsureCanDeleteUserAsync(lifecycleContext, cancellationToken);
+        }
+        catch (LifecycleHookRejectedException exception)
+        {
+            return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
         }
 
         var lockoutEnabledResult = await userManager.SetLockoutEnabledAsync(user, true);
@@ -901,10 +932,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
             new { user.Email },
             cancellationToken).ConfigureAwait(false);
 
-        foreach (var listener in deletionListeners)
-        {
-            await listener.OnUserDeletedAsync(user, cancellationToken).ConfigureAwait(false);
-        }
+        await lifecycleDispatcher.NotifyUserDeletedAsync(lifecycleContext, cancellationToken);
 
         return Results.NoContent();
     }
@@ -913,7 +941,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         Guid id,
         UserManager<ApplicationUser> userManager,
         IAuditLogger auditLogger,
-        IEnumerable<IUserRestoreListener> restoreListeners,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
         CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(id.ToString());
@@ -925,6 +953,20 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         if (!IsSoftDeleted(user))
         {
             return Results.NoContent();
+        }
+
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.Restored,
+            user,
+            Source: nameof(RestoreUserAsync));
+
+        try
+        {
+            await lifecycleDispatcher.EnsureCanRestoreUserAsync(lifecycleContext, cancellationToken);
+        }
+        catch (LifecycleHookRejectedException exception)
+        {
+            return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
         }
 
         var lockoutEndResult = await userManager.SetLockoutEndDateAsync(user, null);
@@ -954,10 +996,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
             new { user.Email },
             cancellationToken).ConfigureAwait(false);
 
-        foreach (var listener in restoreListeners)
-        {
-            await listener.OnUserRestoredAsync(user, cancellationToken).ConfigureAwait(false);
-        }
+        await lifecycleDispatcher.NotifyUserRestoredAsync(lifecycleContext, cancellationToken);
 
         return Results.NoContent();
     }
