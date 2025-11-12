@@ -402,6 +402,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         IAccountEmailService accountEmailService,
         IOptions<RegistrationOptions> registrationOptions,
         IAuditLogger auditLogger,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
         CancellationToken cancellationToken)
     {
         var normalizedEmail = request.Email?.Trim();
@@ -448,6 +449,25 @@ namespace Identity.Base.Admin.Features.AdminUsers;
             user.DisplayName = fromMetadata;
         }
 
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.Registration,
+            user,
+            Source: nameof(CreateUserAsync),
+            Items: new Dictionary<string, object?>
+            {
+                ["Roles"] = normalizedRoles,
+                ["AdminCreated"] = true
+            });
+
+        try
+        {
+            await lifecycleDispatcher.EnsureCanRegisterAsync(lifecycleContext, cancellationToken);
+        }
+        catch (LifecycleHookRejectedException exception)
+        {
+            return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
+        }
+
         IdentityResult createResult;
         if (!string.IsNullOrWhiteSpace(request.Password))
         {
@@ -489,6 +509,8 @@ namespace Identity.Base.Admin.Features.AdminUsers;
                 user.EmailConfirmed
             },
             cancellationToken).ConfigureAwait(false);
+
+        await lifecycleDispatcher.NotifyUserRegisteredAsync(lifecycleContext, cancellationToken);
 
         return Results.Created($"/admin/users/{user.Id:D}", new
         {
@@ -643,6 +665,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         AdminUserLockRequest request,
         UserManager<ApplicationUser> userManager,
         IAuditLogger auditLogger,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
         CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(id.ToString());
@@ -654,6 +677,24 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         var lockoutEnd = request?.Minutes is > 0
             ? DateTimeOffset.UtcNow.AddMinutes(request!.Minutes.Value)
             : DateTimeOffset.UtcNow.AddDays(DefaultLockoutDays);
+
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.Locked,
+            user,
+            Source: nameof(LockUserAsync),
+            Items: new Dictionary<string, object?>
+            {
+                ["LockoutEnd"] = lockoutEnd
+            });
+
+        try
+        {
+            await lifecycleDispatcher.EnsureCanLockUserAsync(lifecycleContext, cancellationToken);
+        }
+        catch (LifecycleHookRejectedException exception)
+        {
+            return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
+        }
 
         var lockoutEnabledResult = await userManager.SetLockoutEnabledAsync(user, true);
         var issue = EnsureSuccess(lockoutEnabledResult);
@@ -682,6 +723,8 @@ namespace Identity.Base.Admin.Features.AdminUsers;
             new { user.Email, lockoutEnd },
             cancellationToken).ConfigureAwait(false);
 
+        await lifecycleDispatcher.NotifyUserLockedAsync(lifecycleContext, cancellationToken);
+
         return Results.NoContent();
     }
 
@@ -689,12 +732,27 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         Guid id,
         UserManager<ApplicationUser> userManager,
         IAuditLogger auditLogger,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
         CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(id.ToString());
         if (user is null)
         {
             return Results.NotFound();
+        }
+
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.Unlocked,
+            user,
+            Source: nameof(UnlockUserAsync));
+
+        try
+        {
+            await lifecycleDispatcher.EnsureCanUnlockUserAsync(lifecycleContext, cancellationToken);
+        }
+        catch (LifecycleHookRejectedException exception)
+        {
+            return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
         }
 
         var lockoutResetResult = await userManager.SetLockoutEndDateAsync(user, null);
@@ -723,6 +781,8 @@ namespace Identity.Base.Admin.Features.AdminUsers;
             user.Id,
             new { user.Email },
             cancellationToken).ConfigureAwait(false);
+
+        await lifecycleDispatcher.NotifyUserUnlockedAsync(lifecycleContext, cancellationToken);
 
         return Results.NoContent();
     }
@@ -755,12 +815,27 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         Guid id,
         UserManager<ApplicationUser> userManager,
         IAuditLogger auditLogger,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
         CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(id.ToString());
         if (user is null)
         {
             return Results.NotFound();
+        }
+
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.MfaReset,
+            user,
+            Source: nameof(ResetMfaAsync));
+
+        try
+        {
+            await lifecycleDispatcher.EnsureCanResetMfaAsync(lifecycleContext, cancellationToken);
+        }
+        catch (LifecycleHookRejectedException exception)
+        {
+            return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
         }
 
         var twoFactorResult = await userManager.SetTwoFactorEnabledAsync(user, false);
@@ -789,6 +864,8 @@ namespace Identity.Base.Admin.Features.AdminUsers;
             user.Id,
             new { user.Email },
             cancellationToken).ConfigureAwait(false);
+
+        await lifecycleDispatcher.NotifyUserMfaResetAsync(lifecycleContext, cancellationToken);
 
         return Results.NoContent();
     }
@@ -844,6 +921,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         IRoleAssignmentService roleAssignmentService,
         UserManager<ApplicationUser> userManager,
         IAuditLogger auditLogger,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
         CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(id.ToString());
@@ -853,6 +931,24 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         }
 
         var normalizedRoles = NormalizeRoleNames(request.Roles);
+
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.RolesUpdated,
+            user,
+            Source: nameof(UpdateUserRolesAsync),
+            Items: new Dictionary<string, object?>
+            {
+                ["Roles"] = normalizedRoles
+            });
+
+        try
+        {
+            await lifecycleDispatcher.EnsureCanUpdateRolesAsync(lifecycleContext, cancellationToken);
+        }
+        catch (LifecycleHookRejectedException exception)
+        {
+            return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
+        }
         await roleAssignmentService.AssignRolesAsync(user.Id, normalizedRoles, cancellationToken).ConfigureAwait(false);
 
         await auditLogger.LogAsync(
@@ -860,6 +956,8 @@ namespace Identity.Base.Admin.Features.AdminUsers;
             user.Id,
             new { user.Email, Roles = normalizedRoles },
             cancellationToken).ConfigureAwait(false);
+
+        await lifecycleDispatcher.NotifyUserRolesUpdatedAsync(lifecycleContext, cancellationToken);
 
         return Results.NoContent();
     }

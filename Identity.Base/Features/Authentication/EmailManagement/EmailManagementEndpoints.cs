@@ -181,6 +181,7 @@ public static class EmailManagementEndpoints
         ResetPasswordRequest request,
         IValidator<ResetPasswordRequest> validator,
         UserManager<ApplicationUser> userManager,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
         CancellationToken cancellationToken)
     {
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
@@ -200,11 +201,32 @@ public static class EmailManagementEndpoints
             return Results.Problem("Invalid password reset token.", statusCode: StatusCodes.Status400BadRequest);
         }
 
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.PasswordReset,
+            user,
+            ActorUserId: user.Id,
+            Source: nameof(ResetPasswordAsync),
+            Items: new Dictionary<string, object?>
+            {
+                ["ResetFlow"] = "Token"
+            });
+
+        try
+        {
+            await lifecycleDispatcher.EnsureCanResetPasswordAsync(lifecycleContext, cancellationToken);
+        }
+        catch (LifecycleHookRejectedException exception)
+        {
+            return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var result = await userManager.ResetPasswordAsync(user, token, request.Password);
         if (!result.Succeeded)
         {
             return Results.ValidationProblem(result.ToDictionary());
         }
+
+        await lifecycleDispatcher.NotifyUserPasswordResetAsync(lifecycleContext, cancellationToken);
 
         return Results.Ok(new { message = "Password reset successful." });
     }

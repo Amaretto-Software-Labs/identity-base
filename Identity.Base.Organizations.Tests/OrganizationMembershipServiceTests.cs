@@ -6,6 +6,7 @@ using Identity.Base.Organizations.Domain;
 using Identity.Base.Organizations.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Identity.Base.Organizations.Lifecycle;
 
 namespace Identity.Base.Organizations.Tests;
 
@@ -16,7 +17,7 @@ public class OrganizationMembershipServiceTests
     {
         await using var context = CreateContext(out var appContext, out var organization, out var role);
         await using var appDbContext = appContext;
-        var service = new OrganizationMembershipService(context, appDbContext, NullLogger<OrganizationMembershipService>.Instance);
+        var service = new OrganizationMembershipService(context, appDbContext, NullLogger<OrganizationMembershipService>.Instance, NullOrganizationLifecycleDispatcher.Instance);
 
         var membership = await service.AddMemberAsync(new OrganizationMembershipRequest
         {
@@ -38,7 +39,7 @@ public class OrganizationMembershipServiceTests
     {
         await using var context = CreateContext(out var appContext, out var organization, out _);
         await using var appDbContext = appContext;
-        var service = new OrganizationMembershipService(context, appDbContext, NullLogger<OrganizationMembershipService>.Instance);
+        var service = new OrganizationMembershipService(context, appDbContext, NullLogger<OrganizationMembershipService>.Instance, NullOrganizationLifecycleDispatcher.Instance);
         var userId = Guid.NewGuid();
 
         await service.AddMemberAsync(new OrganizationMembershipRequest
@@ -59,7 +60,7 @@ public class OrganizationMembershipServiceTests
     {
         await using var context = CreateContext(out var appContext, out var organization, out var role);
         await using var appDbContext = appContext;
-        var service = new OrganizationMembershipService(context, appDbContext, NullLogger<OrganizationMembershipService>.Instance);
+        var service = new OrganizationMembershipService(context, appDbContext, NullLogger<OrganizationMembershipService>.Instance, NullOrganizationLifecycleDispatcher.Instance);
         var userId = Guid.NewGuid();
 
         await service.AddMemberAsync(new OrganizationMembershipRequest
@@ -84,7 +85,7 @@ public class OrganizationMembershipServiceTests
     {
         await using var context = CreateContext(out var appContext, out var organization, out _);
         await using var appDbContext = appContext;
-        var service = new OrganizationMembershipService(context, appDbContext, NullLogger<OrganizationMembershipService>.Instance);
+        var service = new OrganizationMembershipService(context, appDbContext, NullLogger<OrganizationMembershipService>.Instance, NullOrganizationLifecycleDispatcher.Instance);
         var userId = Guid.NewGuid();
 
         await service.AddMemberAsync(new OrganizationMembershipRequest

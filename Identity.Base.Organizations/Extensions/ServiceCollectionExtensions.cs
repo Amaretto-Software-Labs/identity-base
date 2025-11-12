@@ -58,6 +58,7 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<IOrganizationInvitationStore, OrganizationInvitationStore>();
         services.TryAddScoped<OrganizationInvitationService>();
         services.TryAddScoped<IOrganizationLifecycleHookDispatcher, OrganizationLifecycleHookDispatcher>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IOrganizationLifecycleListener, LegacyOrganizationLifecycleListener>());
 
         services.TryAddScoped<IValidator<CreateOrganizationRequest>, CreateOrganizationRequestValidator>();
         services.TryAddScoped<IValidator<UpdateOrganizationRequest>, UpdateOrganizationRequestValidator>();

@@ -100,6 +100,7 @@ public sealed class OrganizationInvitationService
             organization.Slug,
             organization.DisplayName,
             ActorUserId: createdBy,
+            Organization: organization,
             Invitation: record);
 
         await _lifecycleDispatcher.EnsureCanCreateInvitationAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
@@ -134,18 +135,20 @@ public sealed class OrganizationInvitationService
             return false;
         }
 
-        await _store.RemoveAsync(code, cancellationToken).ConfigureAwait(false);
-        _logger.LogInformation(
-            "Revoked invitation {InvitationCode} for organization {OrganizationId}.",
-            code,
-            organizationId);
-
         var lifecycleContext = new OrganizationLifecycleContext(
             OrganizationLifecycleEvent.InvitationRevoked,
             organizationId,
             null,
             null,
             Invitation: invitation);
+
+        await _lifecycleDispatcher.EnsureCanRevokeInvitationAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
+
+        await _store.RemoveAsync(code, cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation(
+            "Revoked invitation {InvitationCode} for organization {OrganizationId}.",
+            code,
+            organizationId);
 
         await _lifecycleDispatcher.NotifyInvitationRevokedAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
         return true;
@@ -180,6 +183,17 @@ public sealed class OrganizationInvitationService
 
         var membership = await _membershipService.GetMembershipAsync(invitation.OrganizationId, user.Id, cancellationToken).ConfigureAwait(false);
         var roleIds = invitation.RoleIds ?? Array.Empty<Guid>();
+
+        var acceptanceContext = new OrganizationLifecycleContext(
+            OrganizationLifecycleEvent.InvitationAccepted,
+            organization.Id,
+            organization.Slug,
+            organization.DisplayName,
+            TargetUserId: user.Id,
+            Organization: organization,
+            Invitation: invitation);
+
+        await _lifecycleDispatcher.EnsureCanAcceptInvitationAsync(acceptanceContext, cancellationToken).ConfigureAwait(false);
 
         if (membership is null)
         {
@@ -218,6 +232,8 @@ public sealed class OrganizationInvitationService
             user.Id,
             code,
             invitation.OrganizationId);
+
+        await _lifecycleDispatcher.NotifyInvitationAcceptedAsync(acceptanceContext, cancellationToken).ConfigureAwait(false);
 
         return new OrganizationInvitationAcceptanceResult
         {

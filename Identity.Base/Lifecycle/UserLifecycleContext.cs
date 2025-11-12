@@ -8,8 +8,18 @@ public enum UserLifecycleEvent
 {
     Registration,
     EmailConfirmation,
+    EmailConfirmationRequested,
     PasswordReset,
+    PasswordResetRequested,
+    PasswordChanged,
     ProfileUpdated,
+    Locked,
+    Unlocked,
+    RolesUpdated,
+    MfaEnabled,
+    MfaDisabled,
+    MfaReset,
+    MfaRecoveryCodesGenerated,
     Deleted,
     Restored
 }

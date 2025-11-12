@@ -32,6 +32,30 @@ internal sealed class LegacyUserLifecycleListener : IUserLifecycleListener
         }
     }
 
+    public ValueTask AfterUserEmailConfirmedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ValueTask.CompletedTask;
+
+    public ValueTask AfterEmailConfirmationRequestedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ValueTask.CompletedTask;
+
+    public ValueTask AfterPasswordResetRequestedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ValueTask.CompletedTask;
+
+    public ValueTask AfterUserLockedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ValueTask.CompletedTask;
+
+    public ValueTask AfterUserUnlockedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ValueTask.CompletedTask;
+
+    public ValueTask AfterUserMfaEnabledAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ValueTask.CompletedTask;
+
+    public ValueTask AfterUserMfaDisabledAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ValueTask.CompletedTask;
+
+    public ValueTask AfterRecoveryCodesGeneratedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ValueTask.CompletedTask;
+
     public async ValueTask AfterUserProfileUpdatedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
     {
         foreach (var listener in _updateListeners)

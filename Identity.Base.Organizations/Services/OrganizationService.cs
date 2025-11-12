@@ -13,6 +13,7 @@ using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Domain;
 using Identity.Base.Organizations.Options;
+using Identity.Base.Organizations.Lifecycle;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -27,24 +28,18 @@ public sealed class OrganizationService : IOrganizationService
     private readonly OrganizationDbContext _dbContext;
     private readonly OrganizationOptions _options;
     private readonly ILogger<OrganizationService>? _logger;
-    private readonly IReadOnlyCollection<IOrganizationCreationListener> _creationListeners;
-    private readonly IReadOnlyCollection<IOrganizationUpdateListener> _updateListeners;
-    private readonly IReadOnlyCollection<IOrganizationArchiveListener> _archiveListeners;
+    private readonly IOrganizationLifecycleHookDispatcher _lifecycleDispatcher;
 
     public OrganizationService(
         OrganizationDbContext dbContext,
         IOptions<OrganizationOptions> options,
         ILogger<OrganizationService>? logger = null,
-        IEnumerable<IOrganizationCreationListener>? creationListeners = null,
-        IEnumerable<IOrganizationUpdateListener>? updateListeners = null,
-        IEnumerable<IOrganizationArchiveListener>? archiveListeners = null)
+        IOrganizationLifecycleHookDispatcher? lifecycleDispatcher = null)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _logger = logger;
-        _creationListeners = creationListeners?.ToArray() ?? Array.Empty<IOrganizationCreationListener>();
-        _updateListeners = updateListeners?.ToArray() ?? Array.Empty<IOrganizationUpdateListener>();
-        _archiveListeners = archiveListeners?.ToArray() ?? Array.Empty<IOrganizationArchiveListener>();
+        _lifecycleDispatcher = lifecycleDispatcher ?? NullOrganizationLifecycleDispatcher.Instance;
     }
 
     public async Task<Organization> CreateAsync(OrganizationCreateRequest request, CancellationToken cancellationToken = default)
@@ -70,13 +65,19 @@ public sealed class OrganizationService : IOrganizationService
             CreatedAtUtc = DateTimeOffset.UtcNow
         };
 
+        var lifecycleContext = new OrganizationLifecycleContext(
+            OrganizationLifecycleEvent.OrganizationCreated,
+            organization.Id,
+            organization.Slug,
+            organization.DisplayName,
+            Organization: organization);
+
+        await _lifecycleDispatcher.EnsureCanCreateOrganizationAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
+
         _dbContext.Organizations.Add(organization);
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        foreach (var listener in _creationListeners)
-        {
-            await listener.OnOrganizationCreatedAsync(organization, cancellationToken).ConfigureAwait(false);
-        }
+        await _lifecycleDispatcher.NotifyOrganizationCreatedAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
 
         _logger?.LogInformation("Created organization {OrganizationId} (Slug: {Slug})", organization.Id, organization.Slug);
         return organization;
@@ -189,6 +190,9 @@ public sealed class OrganizationService : IOrganizationService
         }
 
         var hasChanges = false;
+        var originalStatus = organization.Status;
+        var statusChangedToArchived = false;
+        var statusChangedToActive = false;
 
         if (!string.IsNullOrWhiteSpace(request.DisplayName))
         {
@@ -219,6 +223,8 @@ public sealed class OrganizationService : IOrganizationService
                 ? DateTimeOffset.UtcNow
                 : null;
             hasChanges = true;
+            statusChangedToArchived = request.Status.Value == OrganizationStatus.Archived && originalStatus != OrganizationStatus.Archived;
+            statusChangedToActive = request.Status.Value != OrganizationStatus.Archived && originalStatus == OrganizationStatus.Archived;
         }
 
         if (!hasChanges)
@@ -226,14 +232,49 @@ public sealed class OrganizationService : IOrganizationService
             return organization;
         }
 
+        var updateContext = new OrganizationLifecycleContext(
+            OrganizationLifecycleEvent.OrganizationUpdated,
+            organization.Id,
+            organization.Slug,
+            organization.DisplayName,
+            Organization: organization,
+            Items: new Dictionary<string, object?>
+            {
+                ["Request"] = request
+            });
+
+        await _lifecycleDispatcher.EnsureCanUpdateOrganizationAsync(updateContext, cancellationToken).ConfigureAwait(false);
+
+        OrganizationLifecycleContext? archiveContext = null;
+        if (statusChangedToArchived)
+        {
+            archiveContext = updateContext with { Event = OrganizationLifecycleEvent.OrganizationArchived };
+            await _lifecycleDispatcher.EnsureCanArchiveOrganizationAsync(archiveContext, cancellationToken).ConfigureAwait(false);
+        }
+
+        OrganizationLifecycleContext? restoreContext = null;
+        if (statusChangedToActive)
+        {
+            restoreContext = updateContext with { Event = OrganizationLifecycleEvent.OrganizationRestored };
+            await _lifecycleDispatcher.EnsureCanRestoreOrganizationAsync(restoreContext, cancellationToken).ConfigureAwait(false);
+        }
+
         organization.UpdatedAtUtc = DateTimeOffset.UtcNow;
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         _logger?.LogInformation("Updated organization {OrganizationId}", organization.Id);
-        foreach (var listener in _updateListeners)
+        await _lifecycleDispatcher.NotifyOrganizationUpdatedAsync(updateContext, cancellationToken).ConfigureAwait(false);
+
+        if (archiveContext is not null)
         {
-            await listener.OnOrganizationUpdatedAsync(organization, cancellationToken).ConfigureAwait(false);
+            await _lifecycleDispatcher.NotifyOrganizationArchivedAsync(archiveContext, cancellationToken).ConfigureAwait(false);
         }
+
+        if (restoreContext is not null)
+        {
+            await _lifecycleDispatcher.NotifyOrganizationRestoredAsync(restoreContext, cancellationToken).ConfigureAwait(false);
+        }
+
         return organization;
     }
 
@@ -253,16 +294,22 @@ public sealed class OrganizationService : IOrganizationService
             return;
         }
 
+        var lifecycleContext = new OrganizationLifecycleContext(
+            OrganizationLifecycleEvent.OrganizationArchived,
+            organization.Id,
+            organization.Slug,
+            organization.DisplayName,
+            Organization: organization);
+
+        await _lifecycleDispatcher.EnsureCanArchiveOrganizationAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
+
         organization.Status = OrganizationStatus.Archived;
         organization.ArchivedAtUtc = DateTimeOffset.UtcNow;
         organization.UpdatedAtUtc = organization.ArchivedAtUtc;
 
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         _logger?.LogInformation("Archived organization {OrganizationId}", organization.Id);
-        foreach (var listener in _archiveListeners)
-        {
-            await listener.OnOrganizationArchivedAsync(organization, cancellationToken).ConfigureAwait(false);
-        }
+        await _lifecycleDispatcher.NotifyOrganizationArchivedAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
     }
 
     private string NormalizeSlug(string slug)

@@ -36,11 +36,77 @@ internal sealed class UserLifecycleHookDispatcher : IUserLifecycleHookDispatcher
     public Task NotifyUserEmailConfirmedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
         => ExecuteAfterAsync(context, static (listener, ctx, token) => listener.AfterUserEmailConfirmedAsync(ctx, token), nameof(IUserLifecycleListener.AfterUserEmailConfirmedAsync), cancellationToken);
 
+    public Task EnsureCanRequestEmailConfirmationAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteBeforeAsync(context, static (listener, ctx, token) => listener.BeforeEmailConfirmationRequestedAsync(ctx, token), nameof(IUserLifecycleListener.BeforeEmailConfirmationRequestedAsync), cancellationToken);
+
+    public Task NotifyEmailConfirmationRequestedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteAfterAsync(context, static (listener, ctx, token) => listener.AfterEmailConfirmationRequestedAsync(ctx, token), nameof(IUserLifecycleListener.AfterEmailConfirmationRequestedAsync), cancellationToken);
+
+    public Task EnsureCanResetPasswordAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteBeforeAsync(context, static (listener, ctx, token) => listener.BeforeUserPasswordResetAsync(ctx, token), nameof(IUserLifecycleListener.BeforeUserPasswordResetAsync), cancellationToken);
+
+    public Task NotifyUserPasswordResetAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteAfterAsync(context, static (listener, ctx, token) => listener.AfterUserPasswordResetAsync(ctx, token), nameof(IUserLifecycleListener.AfterUserPasswordResetAsync), cancellationToken);
+
+    public Task EnsureCanRequestPasswordResetAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteBeforeAsync(context, static (listener, ctx, token) => listener.BeforePasswordResetRequestedAsync(ctx, token), nameof(IUserLifecycleListener.BeforePasswordResetRequestedAsync), cancellationToken);
+
+    public Task NotifyPasswordResetRequestedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteAfterAsync(context, static (listener, ctx, token) => listener.AfterPasswordResetRequestedAsync(ctx, token), nameof(IUserLifecycleListener.AfterPasswordResetRequestedAsync), cancellationToken);
+
+    public Task EnsureCanChangePasswordAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteBeforeAsync(context, static (listener, ctx, token) => listener.BeforeUserPasswordChangedAsync(ctx, token), nameof(IUserLifecycleListener.BeforeUserPasswordChangedAsync), cancellationToken);
+
+    public Task NotifyUserPasswordChangedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteAfterAsync(context, static (listener, ctx, token) => listener.AfterUserPasswordChangedAsync(ctx, token), nameof(IUserLifecycleListener.AfterUserPasswordChangedAsync), cancellationToken);
+
     public Task EnsureCanUpdateProfileAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
         => ExecuteBeforeAsync(context, static (listener, ctx, token) => listener.BeforeUserProfileUpdatedAsync(ctx, token), nameof(IUserLifecycleListener.BeforeUserProfileUpdatedAsync), cancellationToken);
 
     public Task NotifyUserProfileUpdatedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
         => ExecuteAfterAsync(context, static (listener, ctx, token) => listener.AfterUserProfileUpdatedAsync(ctx, token), nameof(IUserLifecycleListener.AfterUserProfileUpdatedAsync), cancellationToken);
+
+    public Task EnsureCanLockUserAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteBeforeAsync(context, static (listener, ctx, token) => listener.BeforeUserLockedAsync(ctx, token), nameof(IUserLifecycleListener.BeforeUserLockedAsync), cancellationToken);
+
+    public Task NotifyUserLockedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteAfterAsync(context, static (listener, ctx, token) => listener.AfterUserLockedAsync(ctx, token), nameof(IUserLifecycleListener.AfterUserLockedAsync), cancellationToken);
+
+    public Task EnsureCanUnlockUserAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteBeforeAsync(context, static (listener, ctx, token) => listener.BeforeUserUnlockedAsync(ctx, token), nameof(IUserLifecycleListener.BeforeUserUnlockedAsync), cancellationToken);
+
+    public Task NotifyUserUnlockedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteAfterAsync(context, static (listener, ctx, token) => listener.AfterUserUnlockedAsync(ctx, token), nameof(IUserLifecycleListener.AfterUserUnlockedAsync), cancellationToken);
+
+    public Task EnsureCanUpdateRolesAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteBeforeAsync(context, static (listener, ctx, token) => listener.BeforeUserRolesUpdatedAsync(ctx, token), nameof(IUserLifecycleListener.BeforeUserRolesUpdatedAsync), cancellationToken);
+
+    public Task NotifyUserRolesUpdatedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteAfterAsync(context, static (listener, ctx, token) => listener.AfterUserRolesUpdatedAsync(ctx, token), nameof(IUserLifecycleListener.AfterUserRolesUpdatedAsync), cancellationToken);
+
+    public Task EnsureCanEnableMfaAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteBeforeAsync(context, static (listener, ctx, token) => listener.BeforeUserMfaEnabledAsync(ctx, token), nameof(IUserLifecycleListener.BeforeUserMfaEnabledAsync), cancellationToken);
+
+    public Task NotifyUserMfaEnabledAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteAfterAsync(context, static (listener, ctx, token) => listener.AfterUserMfaEnabledAsync(ctx, token), nameof(IUserLifecycleListener.AfterUserMfaEnabledAsync), cancellationToken);
+
+    public Task EnsureCanDisableMfaAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteBeforeAsync(context, static (listener, ctx, token) => listener.BeforeUserMfaDisabledAsync(ctx, token), nameof(IUserLifecycleListener.BeforeUserMfaDisabledAsync), cancellationToken);
+
+    public Task NotifyUserMfaDisabledAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteAfterAsync(context, static (listener, ctx, token) => listener.AfterUserMfaDisabledAsync(ctx, token), nameof(IUserLifecycleListener.AfterUserMfaDisabledAsync), cancellationToken);
+
+    public Task EnsureCanResetMfaAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteBeforeAsync(context, static (listener, ctx, token) => listener.BeforeUserMfaResetAsync(ctx, token), nameof(IUserLifecycleListener.BeforeUserMfaResetAsync), cancellationToken);
+
+    public Task NotifyUserMfaResetAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteAfterAsync(context, static (listener, ctx, token) => listener.AfterUserMfaResetAsync(ctx, token), nameof(IUserLifecycleListener.AfterUserMfaResetAsync), cancellationToken);
+
+    public Task EnsureCanGenerateRecoveryCodesAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteBeforeAsync(context, static (listener, ctx, token) => listener.BeforeRecoveryCodesGeneratedAsync(ctx, token), nameof(IUserLifecycleListener.BeforeRecoveryCodesGeneratedAsync), cancellationToken);
+
+    public Task NotifyRecoveryCodesGeneratedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteAfterAsync(context, static (listener, ctx, token) => listener.AfterRecoveryCodesGeneratedAsync(ctx, token), nameof(IUserLifecycleListener.AfterRecoveryCodesGeneratedAsync), cancellationToken);
 
     public Task EnsureCanDeleteUserAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
         => ExecuteBeforeAsync(context, static (listener, ctx, token) => listener.BeforeUserDeletedAsync(ctx, token), nameof(IUserLifecycleListener.BeforeUserDeletedAsync), cancellationToken);

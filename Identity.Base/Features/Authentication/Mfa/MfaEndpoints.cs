@@ -6,6 +6,7 @@ using FluentValidation;
 using Identity.Base.Extensions;
 using Identity.Base.Identity;
 using Identity.Base.Logging;
+using Identity.Base.Lifecycle;
 using Identity.Base.Options;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
@@ -98,6 +99,7 @@ public static class MfaEndpoints
         SignInManager<ApplicationUser> signInManager,
         IAuditLogger auditLogger,
         IOptions<MfaOptions> mfaOptions,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
         CancellationToken cancellationToken)
     {
         var validationResult = await validator.ValidateAsync(request, cancellationToken);
@@ -147,11 +149,24 @@ public static class MfaEndpoints
                 return Results.Problem("Invalid authenticator code.", statusCode: StatusCodes.Status400BadRequest);
             }
 
+            var lifecycleContext = new UserLifecycleContext(
+                UserLifecycleEvent.MfaEnabled,
+                user,
+                ActorUserId: user.Id,
+                Source: nameof(VerifyAsync),
+                Items: new Dictionary<string, object?>
+                {
+                    ["Method"] = method
+                });
+
+            await lifecycleDispatcher.EnsureCanEnableMfaAsync(lifecycleContext, cancellationToken);
+
             await userManager.SetTwoFactorEnabledAsync(user, true);
             await userManager.UpdateSecurityStampAsync(user);
             var recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
 
             await auditLogger.LogAsync(AuditEventTypes.MfaEnabled, user.Id, new { Method = "authenticator" }, cancellationToken);
+            await lifecycleDispatcher.NotifyUserMfaEnabledAsync(lifecycleContext, cancellationToken);
 
             return Results.Ok(new
             {
@@ -202,6 +217,7 @@ public static class MfaEndpoints
         HttpContext context,
         UserManager<ApplicationUser> userManager,
         IAuditLogger auditLogger,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
         CancellationToken cancellationToken)
     {
         var user = await userManager.GetUserAsync(context.User);
@@ -209,6 +225,14 @@ public static class MfaEndpoints
         {
             return Results.Unauthorized();
         }
+
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.MfaDisabled,
+            user,
+            ActorUserId: user.Id,
+            Source: nameof(DisableAsync));
+
+        await lifecycleDispatcher.EnsureCanDisableMfaAsync(lifecycleContext, cancellationToken);
 
         var disableResult = await userManager.SetTwoFactorEnabledAsync(user, false);
         if (!disableResult.Succeeded)
@@ -220,6 +244,7 @@ public static class MfaEndpoints
         await userManager.UpdateSecurityStampAsync(user);
 
         await auditLogger.LogAsync(AuditEventTypes.MfaDisabled, user.Id, null, cancellationToken);
+        await lifecycleDispatcher.NotifyUserMfaDisabledAsync(lifecycleContext, cancellationToken);
 
         return Results.Ok(new { message = "MFA disabled." });
     }
@@ -228,6 +253,7 @@ public static class MfaEndpoints
         HttpContext context,
         UserManager<ApplicationUser> userManager,
         IAuditLogger auditLogger,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
         CancellationToken cancellationToken)
     {
         var user = await userManager.GetUserAsync(context.User);
@@ -241,8 +267,24 @@ public static class MfaEndpoints
             return Results.Problem("MFA is not enabled for this user.", statusCode: StatusCodes.Status400BadRequest);
         }
 
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.MfaRecoveryCodesGenerated,
+            user,
+            ActorUserId: user.Id,
+            Source: nameof(RegenerateRecoveryCodesAsync));
+
+        await lifecycleDispatcher.EnsureCanGenerateRecoveryCodesAsync(lifecycleContext, cancellationToken);
+
         var recoveryCodes = (await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10) ?? Array.Empty<string>()).ToArray();
         await auditLogger.LogAsync(AuditEventTypes.MfaRecoveryCodesRegenerated, user.Id, new { Count = recoveryCodes.Length }, cancellationToken);
+        lifecycleContext = lifecycleContext with
+        {
+            Items = new Dictionary<string, object?>
+            {
+                ["Count"] = recoveryCodes.Length
+            }
+        };
+        await lifecycleDispatcher.NotifyRecoveryCodesGeneratedAsync(lifecycleContext, cancellationToken);
         return Results.Ok(new { recoveryCodes });
     }
 

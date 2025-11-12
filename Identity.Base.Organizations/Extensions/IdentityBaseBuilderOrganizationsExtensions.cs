@@ -55,6 +55,7 @@ public static class IdentityBaseBuilderOrganizationsExtensions
         return builder;
     }
 
+    [Obsolete("Use IdentityBaseOrganizationsBuilder.AddOrganizationLifecycleListener instead.")]
     public static IdentityBaseBuilder AddOrganizationCreationListener<TListener>(this IdentityBaseBuilder builder)
         where TListener : class, IOrganizationCreationListener
     {
@@ -64,6 +65,7 @@ public static class IdentityBaseBuilderOrganizationsExtensions
         return builder;
     }
 
+    [Obsolete("Use IdentityBaseOrganizationsBuilder.AddOrganizationLifecycleListener instead.")]
     public static IdentityBaseBuilder AddOrganizationUpdateListener<TListener>(this IdentityBaseBuilder builder)
         where TListener : class, IOrganizationUpdateListener
     {
@@ -73,6 +75,7 @@ public static class IdentityBaseBuilderOrganizationsExtensions
         return builder;
     }
 
+    [Obsolete("Use IdentityBaseOrganizationsBuilder.AddOrganizationLifecycleListener instead.")]
     public static IdentityBaseBuilder AddOrganizationArchiveListener<TListener>(this IdentityBaseBuilder builder)
         where TListener : class, IOrganizationArchiveListener
     {

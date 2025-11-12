@@ -1,9 +1,11 @@
+using System.Collections.Generic;
 using System.Text;
 using Identity.Base.Features.Email;
 using Identity.Base.Identity;
 using Identity.Base.Logging;
 using Identity.Base.Options;
 using Identity.Base.Features.Notifications;
+using Identity.Base.Lifecycle;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
@@ -27,6 +29,7 @@ internal sealed class AccountEmailService : IAccountEmailService
     private readonly ILogSanitizer _sanitizer;
     private readonly INotificationContextPipeline<EmailConfirmationNotificationContext> _confirmationPipeline;
     private readonly INotificationContextPipeline<PasswordResetNotificationContext> _passwordResetPipeline;
+    private readonly IUserLifecycleHookDispatcher _lifecycleDispatcher;
 
     public AccountEmailService(
         UserManager<ApplicationUser> userManager,
@@ -34,6 +37,7 @@ internal sealed class AccountEmailService : IAccountEmailService
         IOptions<RegistrationOptions> registrationOptions,
         INotificationContextPipeline<EmailConfirmationNotificationContext> confirmationPipeline,
         INotificationContextPipeline<PasswordResetNotificationContext> passwordResetPipeline,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
         ILogger<AccountEmailService> logger,
         ILogSanitizer sanitizer)
     {
@@ -44,6 +48,7 @@ internal sealed class AccountEmailService : IAccountEmailService
         _sanitizer = sanitizer;
         _confirmationPipeline = confirmationPipeline;
         _passwordResetPipeline = passwordResetPipeline;
+        _lifecycleDispatcher = lifecycleDispatcher;
     }
 
     public async Task SendConfirmationEmailAsync(ApplicationUser user, CancellationToken cancellationToken = default)
@@ -55,11 +60,24 @@ internal sealed class AccountEmailService : IAccountEmailService
             ("token", encodedToken),
             ("userId", user.Id.ToString()));
 
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.EmailConfirmationRequested,
+            user,
+            ActorUserId: user.Id,
+            Source: nameof(AccountEmailService),
+            Items: new Dictionary<string, object?>
+            {
+                ["ConfirmationUrl"] = confirmationUrl
+            });
+
+        await _lifecycleDispatcher.EnsureCanRequestEmailConfirmationAsync(lifecycleContext, cancellationToken);
+
         var context = new EmailConfirmationNotificationContext(user, confirmationUrl);
         context.Metadata["ConfirmationUrlTemplate"] = _registrationOptions.ConfirmationUrlTemplate;
 
         await _confirmationPipeline.RunAsync(context, cancellationToken);
         await SendAsync(context.ToTemplatedEmail(), user.Email!, cancellationToken);
+        await _lifecycleDispatcher.NotifyEmailConfirmationRequestedAsync(lifecycleContext, cancellationToken);
     }
 
     public async Task SendPasswordResetEmailAsync(ApplicationUser user, CancellationToken cancellationToken = default)
@@ -71,11 +89,24 @@ internal sealed class AccountEmailService : IAccountEmailService
             ("token", encodedToken),
             ("userId", user.Id.ToString()));
 
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.PasswordResetRequested,
+            user,
+            ActorUserId: user.Id,
+            Source: nameof(AccountEmailService),
+            Items: new Dictionary<string, object?>
+            {
+                ["ResetUrl"] = resetUrl
+            });
+
+        await _lifecycleDispatcher.EnsureCanRequestPasswordResetAsync(lifecycleContext, cancellationToken);
+
         var context = new PasswordResetNotificationContext(user, resetUrl);
         context.Metadata["PasswordResetUrlTemplate"] = _registrationOptions.PasswordResetUrlTemplate;
 
         await _passwordResetPipeline.RunAsync(context, cancellationToken);
         await SendAsync(context.ToTemplatedEmail(), user.Email!, cancellationToken);
+        await _lifecycleDispatcher.NotifyPasswordResetRequestedAsync(lifecycleContext, cancellationToken);
     }
 
     private async Task SendAsync(TemplatedEmail email, string recipient, CancellationToken cancellationToken)

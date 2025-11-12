@@ -167,6 +167,7 @@ public static class UserEndpoints
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         IAuditLogger auditLogger,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -183,6 +184,21 @@ public static class UserEndpoints
             return Results.Unauthorized();
         }
 
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.PasswordChanged,
+            user,
+            ActorUserId: user.Id,
+            Source: nameof(ChangePasswordAsync));
+
+        try
+        {
+            await lifecycleDispatcher.EnsureCanChangePasswordAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
+        }
+        catch (LifecycleHookRejectedException exception)
+        {
+            return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var result = await userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword).ConfigureAwait(false);
         if (!result.Succeeded)
         {
@@ -191,6 +207,8 @@ public static class UserEndpoints
 
         await signInManager.RefreshSignInAsync(user).ConfigureAwait(false);
         await auditLogger.LogAsync(AuditEventTypes.PasswordChanged, user.Id, new { ChangedAtUtc = DateTimeOffset.UtcNow }, cancellationToken).ConfigureAwait(false);
+
+        await lifecycleDispatcher.NotifyUserPasswordChangedAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
 
         return Results.NoContent();
     }
