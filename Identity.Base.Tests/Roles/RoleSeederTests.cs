@@ -8,6 +8,7 @@ using Identity.Base.Roles.Entities;
 using Identity.Base.Roles.Options;
 using Identity.Base.Roles.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
@@ -23,6 +24,7 @@ public class RoleSeederTests
     {
         var options = new DbContextOptionsBuilder<IdentityRolesDbContext>()
             .UseInMemoryDatabase($"role-seeder-{Guid.NewGuid():N}")
+            .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning))
             .Options;
 
         await using var context = new IdentityRolesDbContext(options);
@@ -100,6 +102,7 @@ public class RoleSeederTests
     {
         var options = new DbContextOptionsBuilder<IdentityRolesDbContext>()
             .UseInMemoryDatabase($"role-seeder-update-{Guid.NewGuid():N}")
+            .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning))
             .Options;
 
         await using var context = new IdentityRolesDbContext(options);

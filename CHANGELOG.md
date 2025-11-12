@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.4] - 2025-11-13
+- Consolidated lifecycle handling:
+  - Introduced `IUserLifecycleListener` + `IUserLifecycleHookDispatcher` with before/after hooks for every user event (self/admin registration, email confirmation, password reset/change, MFA enable/disable/recovery, resend confirmation, forgot password, lock/unlock, role updates, delete/restore). Minimal APIs now build `UserLifecycleContext` instances and run through the dispatcher; `AccountEmailService`, MFA endpoints, and admin endpoints all emit lifecycle events. Legacy `IUser*Listener` implementations continue to work through the shim.
+  - Added notification context augmentors (`INotificationContextAugmentor<TContext>`) and pipelines for confirmation/password/MFA emails so hosts can mutate template keys/variables/channels before delivery.
+  - Extended organization lifecycle with a single `IOrganizationLifecycleListener` plus dispatcher covering organization create/update/archive/restore, invitation created/revoked/accepted, and membership add/update/remove. Legacy organization listeners map through a compatibility adapter.
+- Documentation now highlights the new lifecycle APIs (Identity Base + Organizations package references), including the builder helpers and the plan doc for deeper guidance.
+
 ## [0.7.3] - 2025-11-10
 - Introduced `IOrganizationCreationListener` and `AddOrganizationCreationListener<T>()` so hosts can hook into organization creation events (billing, automation, audit) without modifying core services.
 - Refresh-token flow now re-applies organization membership claims (new `RefreshTokenAugmentorHandler`), and the React org client skips `X-Organization-Id` on user routes to avoid 403s immediately after org creation. Added integration tests illustrating the pre-refresh failure and safe post-refresh/user-route behavior.

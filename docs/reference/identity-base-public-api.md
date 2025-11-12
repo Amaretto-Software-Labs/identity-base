@@ -47,3 +47,4 @@ The library keeps concrete implementations (`TwilioMfaChallengeSender`, `AuditLo
 - `IdentityBaseBuilder.AddUserLifecycleListener<TListener>()`
 - `IdentityBaseBuilder.AddNotificationContextAugmentor<TContext, TAugmentor>()`
 - `IdentityBaseOrganizationsBuilder.AddOrganizationLifecycleListener<TListener>()`
+* [Lifecycle Hooks & Notification Augmentors](../plans/identity-base-lifecycle-hooks-and-notification-augmentors.md)
