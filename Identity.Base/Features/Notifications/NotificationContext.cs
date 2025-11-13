@@ -22,8 +22,8 @@ public abstract class NotificationContext
         User = user;
         Subject = subject;
         Channel = channel;
-        Variables = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-        Metadata = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        Variables = new Dictionary<string, object?>(StringComparer.Ordinal);
+        Metadata = new Dictionary<string, object?>(StringComparer.Ordinal);
     }
 
     public string TemplateKey { get; set; }

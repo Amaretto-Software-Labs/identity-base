@@ -18,6 +18,6 @@ public readonly record struct LifecycleHookResult
 
     public static LifecycleHookResult Fail(string? error = null) => new(false, error);
 
-    [MemberNotNullWhen(false, nameof(ErrorMessage))]
+    [MemberNotNullWhen(true, nameof(ErrorMessage))]
     public bool IsFailure => !Succeeded;
 }

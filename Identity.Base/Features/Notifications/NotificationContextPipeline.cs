@@ -33,6 +33,11 @@ internal sealed class NotificationContextPipeline<TContext> : INotificationConte
             }
             catch (Exception exception)
             {
+                if (IsCriticalException(exception))
+                {
+                    throw;
+                }
+
                 _logger.LogError(
                     exception,
                     "Notification augmentor {Augmentor} failed for template {TemplateKey}.",
@@ -52,4 +57,7 @@ internal sealed class NotificationContextPipeline<TContext> : INotificationConte
             }
         }
     }
+
+    private static bool IsCriticalException(Exception exception)
+        => exception is OutOfMemoryException or StackOverflowException or ThreadAbortException;
 }

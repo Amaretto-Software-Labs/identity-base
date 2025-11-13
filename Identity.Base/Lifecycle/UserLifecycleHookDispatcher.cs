@@ -140,6 +140,11 @@ internal sealed class UserLifecycleHookDispatcher : IUserLifecycleHookDispatcher
             }
             catch (Exception exception)
             {
+                if (IsCriticalException(exception))
+                {
+                    throw;
+                }
+
                 throw new LifecycleHookExecutionException(operation, exception);
             }
 
@@ -165,6 +170,11 @@ internal sealed class UserLifecycleHookDispatcher : IUserLifecycleHookDispatcher
             }
             catch (Exception exception)
             {
+                if (IsCriticalException(exception))
+                {
+                    throw;
+                }
+
                 if (_options.AfterFailureBehavior == LifecycleHookFailureBehavior.Bubble)
                 {
                     throw new LifecycleHookExecutionException(operation, exception);
@@ -178,4 +188,7 @@ internal sealed class UserLifecycleHookDispatcher : IUserLifecycleHookDispatcher
             }
         }
     }
+
+    private static bool IsCriticalException(Exception exception)
+        => exception is OutOfMemoryException or StackOverflowException or ThreadAbortException;
 }

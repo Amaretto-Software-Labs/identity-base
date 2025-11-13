@@ -507,21 +507,19 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
 
                 ValidateRolesForOrganization(request.OrganizationId, organization.TenantId, roles);
 
-                if (!changed)
-                {
-                    updateContext = new OrganizationLifecycleContext(
-                        OrganizationLifecycleEvent.MembershipUpdated,
-                        organization.Id,
-                        organization.Slug,
-                        organization.DisplayName,
-                        TargetUserId: membership.UserId,
-                        Items: new Dictionary<string, object?>
-                        {
-                            ["RoleIds"] = roleIds.ToArray()
-                        });
+                var requestedRoleIds = roleIds.ToArray();
+                updateContext ??= new OrganizationLifecycleContext(
+                    OrganizationLifecycleEvent.MembershipUpdated,
+                    organization.Id,
+                    organization.Slug,
+                    organization.DisplayName,
+                    TargetUserId: membership.UserId,
+                    Items: new Dictionary<string, object?>
+                    {
+                        ["RoleIds"] = requestedRoleIds
+                    });
 
-                    await _lifecycleDispatcher.EnsureCanUpdateMembershipAsync(updateContext, cancellationToken).ConfigureAwait(false);
-                }
+                await _lifecycleDispatcher.EnsureCanUpdateMembershipAsync(updateContext, cancellationToken).ConfigureAwait(false);
 
                 foreach (var assignment in existingAssignments.Values)
                 {
