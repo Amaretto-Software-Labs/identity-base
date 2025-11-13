@@ -102,7 +102,7 @@ internal sealed class MailJetEmailSender : ITemplatedEmailSender
 
         if (templateId == 0 && !long.TryParse(templateKey, out templateId))
         {
-            _logger.LogWarning("Can not convert templateKey '{TemplateKey}' to long!", templateKey);
+            _logger.LogWarning("Template key '{TemplateKey}' is either not configured or cannot be converted to long!", templateKey);
         }
 
         return templateId;
