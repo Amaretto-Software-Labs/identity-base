@@ -12,9 +12,11 @@ using Identity.Base.Features.Authentication.Login;
 using Identity.Base.Features.Authentication.Mfa;
 using Identity.Base.Features.Authentication.Register;
 using Identity.Base.Features.Email;
+using Identity.Base.Features.Notifications;
 using Identity.Base.Features.Users;
 using Identity.Base.Health;
 using Identity.Base.Identity;
+using Identity.Base.Lifecycle;
 using Identity.Base.Logging;
 using Identity.Base.OpenIddict;
 using Identity.Base.OpenIddict.Handlers;
@@ -152,24 +154,42 @@ public sealed class IdentityBaseBuilder
         return this;
     }
 
+    public IdentityBaseBuilder AddUserLifecycleListener<TListener>() where TListener : class, IUserLifecycleListener
+    {
+        Services.AddScoped<IUserLifecycleListener, TListener>();
+        return this;
+    }
+
+    public IdentityBaseBuilder AddNotificationContextAugmentor<TContext, TAugmentor>()
+        where TContext : NotificationContext
+        where TAugmentor : class, INotificationContextAugmentor<TContext>
+    {
+        Services.AddScoped<INotificationContextAugmentor<TContext>, TAugmentor>();
+        return this;
+    }
+
+    [Obsolete("Use AddUserLifecycleListener instead.")]
     public IdentityBaseBuilder AddUserCreationListener<TListener>() where TListener : class, IUserCreationListener
     {
         Services.AddScoped<IUserCreationListener, TListener>();
         return this;
     }
 
+    [Obsolete("Use AddUserLifecycleListener instead.")]
     public IdentityBaseBuilder AddUserUpdateListener<TListener>() where TListener : class, IUserUpdateListener
     {
         Services.AddScoped<IUserUpdateListener, TListener>();
         return this;
     }
 
+    [Obsolete("Use AddUserLifecycleListener instead.")]
     public IdentityBaseBuilder AddUserDeletionListener<TListener>() where TListener : class, IUserDeletionListener
     {
         Services.AddScoped<IUserDeletionListener, TListener>();
         return this;
     }
 
+    [Obsolete("Use AddUserLifecycleListener instead.")]
     public IdentityBaseBuilder AddUserRestoreListener<TListener>() where TListener : class, IUserRestoreListener
     {
         Services.AddScoped<IUserRestoreListener, TListener>();
@@ -558,8 +578,12 @@ public sealed class IdentityBaseBuilder
         Services.AddSingleton<IExternalCallbackUriFactory, ExternalCallbackUriFactory>();
         Services.TryAddScoped<ITemplatedEmailSender, NoOpTemplatedEmailSender>();
         Services.AddScoped<IAccountEmailService, AccountEmailService>();
+        Services.TryAddScoped(typeof(INotificationContextPipeline<>), typeof(NotificationContextPipeline<>));
         Services.AddScoped<ExternalAuthenticationService>();
         Services.AddScoped<IAuditLogger, AuditLogger>();
+        Services.AddOptions<LifecycleHookOptions>();
+        Services.AddScoped<IUserLifecycleHookDispatcher, UserLifecycleHookDispatcher>();
+        Services.TryAddEnumerable(ServiceDescriptor.Scoped<IUserLifecycleListener, LegacyUserLifecycleListener>());
     }
 
     private void ConfigureMfaChallengeSenders()

@@ -9,6 +9,7 @@ using Identity.Base.Logging;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Domain;
 using Identity.Base.Organizations.Services;
+using Identity.Base.Organizations.Lifecycle;
 using Microsoft.Extensions.Logging.Abstractions;
 using Shouldly;
 
@@ -216,7 +217,8 @@ public class OrganizationInvitationServiceTests
             membershipService,
             roleService,
             logger,
-            sanitizer);
+            sanitizer,
+            NullOrganizationLifecycleDispatcher.Instance);
 
         return (service, store);
     }

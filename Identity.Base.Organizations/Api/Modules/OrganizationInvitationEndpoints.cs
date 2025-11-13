@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Identity.Base.Lifecycle;
 
 namespace Identity.Base.Organizations.Api.Modules;
 
@@ -126,6 +127,10 @@ public static class OrganizationInvitationEndpoints
             catch (KeyNotFoundException)
             {
                 return Results.NotFound(new ProblemDetails { Title = "Organization not found", Status = StatusCodes.Status404NotFound });
+            }
+            catch (LifecycleHookRejectedException ex)
+            {
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status400BadRequest);
             }
             catch (OrganizationInvitationAlreadyExistsException ex)
             {

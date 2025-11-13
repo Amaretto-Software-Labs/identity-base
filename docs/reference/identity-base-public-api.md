@@ -36,6 +36,15 @@ Consumers can replace default services by implementing the following interfaces:
 - `ILogSanitizer`
 - `IExternalReturnUrlValidator`
 - `IExternalCallbackUriFactory`
+- `IUserLifecycleListener`
+- `IOrganizationLifecycleListener` (via `IdentityBaseOrganizationsBuilder`)
+- `INotificationContextAugmentor<TContext>`
 
 The library keeps concrete implementations (`TwilioMfaChallengeSender`, `AuditLogger`, etc.) internal while still registering them by default through the builder. Email providers ship as optional packages (for example, `Identity.Base.Email.MailJet`). This limits the public API to dependency boundaries that hosts are expected to customise.
 - `IdentityBaseBuilder.Services` and `.Configuration` (introduced to support optional add-ons such as Mailjet).
+
+### Builder helpers
+- `IdentityBaseBuilder.AddUserLifecycleListener<TListener>()`
+- `IdentityBaseBuilder.AddNotificationContextAugmentor<TContext, TAugmentor>()`
+- `IdentityBaseOrganizationsBuilder.AddOrganizationLifecycleListener<TListener>()`
+* [Lifecycle Hooks & Notification Augmentors](../plans/identity-base-lifecycle-hooks-and-notification-augmentors.md)

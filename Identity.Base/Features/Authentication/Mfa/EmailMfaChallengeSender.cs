@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Identity.Base.Features.Email;
 using Identity.Base.Identity;
 using Identity.Base.Options;
+using Identity.Base.Features.Notifications;
 using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Features.Authentication.Mfa;
@@ -10,13 +11,16 @@ internal sealed class EmailMfaChallengeSender : IMfaChallengeSender
 {
     private readonly ITemplatedEmailSender _emailSender;
     private readonly IOptions<MfaOptions> _mfaOptions;
+    private readonly INotificationContextPipeline<EmailMfaChallengeNotificationContext> _pipeline;
 
     public EmailMfaChallengeSender(
         ITemplatedEmailSender emailSender,
-        IOptions<MfaOptions> mfaOptions)
+        IOptions<MfaOptions> mfaOptions,
+        INotificationContextPipeline<EmailMfaChallengeNotificationContext> pipeline)
     {
         _emailSender = emailSender;
         _mfaOptions = mfaOptions;
+        _pipeline = pipeline;
     }
 
     public string Method => "email";
@@ -33,20 +37,8 @@ internal sealed class EmailMfaChallengeSender : IMfaChallengeSender
             throw new InvalidOperationException("Email MFA challenge is disabled.");
         }
 
-        var variables = new Dictionary<string, object?>
-        {
-            ["email"] = user.Email,
-            ["displayName"] = user.DisplayName ?? user.Email,
-            ["code"] = code
-        };
-
-        var email = new TemplatedEmail(
-            TemplatedEmailKeys.EmailMfaChallenge,
-            user.Email!,
-            user.DisplayName ?? user.Email!,
-            variables,
-            "Your verification code");
-
-        await _emailSender.SendAsync(email, cancellationToken);
+        var context = new EmailMfaChallengeNotificationContext(user, code);
+        await _pipeline.RunAsync(context, cancellationToken);
+        await _emailSender.SendAsync(context.ToTemplatedEmail(), cancellationToken);
     }
 }

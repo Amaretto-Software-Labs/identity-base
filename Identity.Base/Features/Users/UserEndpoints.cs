@@ -4,6 +4,7 @@ using Identity.Base.Extensions;
 using Identity.Base.Identity;
 using Identity.Base.Logging;
 using Identity.Base.Options;
+using Identity.Base.Lifecycle;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -85,7 +86,7 @@ public static class UserEndpoints
         SignInManager<ApplicationUser> signInManager,
         IOptions<RegistrationOptions> registrationOptions,
         IAuditLogger auditLogger,
-        IEnumerable<IUserUpdateListener> updateListeners,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -118,6 +119,18 @@ public static class UserEndpoints
             normalized[field.Name] = string.IsNullOrWhiteSpace(value) ? null : value;
         }
 
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.ProfileUpdated,
+            user,
+            ActorUserId: user.Id,
+            Source: nameof(UpdateProfileAsync),
+            Items: new Dictionary<string, object?>
+            {
+                ["Metadata"] = normalized
+            });
+
+        await lifecycleDispatcher.EnsureCanUpdateProfileAsync(lifecycleContext, cancellationToken);
+
         user.SetProfileMetadata(normalized);
 
         if (normalized.TryGetValue("displayName", out var displayName) && !string.IsNullOrWhiteSpace(displayName))
@@ -135,10 +148,7 @@ public static class UserEndpoints
 
         await auditLogger.LogAsync(AuditEventTypes.ProfileUpdated, user.Id, normalized, cancellationToken);
 
-        foreach (var listener in updateListeners)
-        {
-            await listener.OnUserUpdatedAsync(user, cancellationToken).ConfigureAwait(false);
-        }
+        await lifecycleDispatcher.NotifyUserProfileUpdatedAsync(lifecycleContext, cancellationToken);
 
         return Results.Ok(new UserProfileResponse(
             user.Id,
@@ -157,6 +167,7 @@ public static class UserEndpoints
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         IAuditLogger auditLogger,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -173,6 +184,21 @@ public static class UserEndpoints
             return Results.Unauthorized();
         }
 
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.PasswordChanged,
+            user,
+            ActorUserId: user.Id,
+            Source: nameof(ChangePasswordAsync));
+
+        try
+        {
+            await lifecycleDispatcher.EnsureCanChangePasswordAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
+        }
+        catch (LifecycleHookRejectedException exception)
+        {
+            return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var result = await userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword).ConfigureAwait(false);
         if (!result.Succeeded)
         {
@@ -181,6 +207,8 @@ public static class UserEndpoints
 
         await signInManager.RefreshSignInAsync(user).ConfigureAwait(false);
         await auditLogger.LogAsync(AuditEventTypes.PasswordChanged, user.Id, new { ChangedAtUtc = DateTimeOffset.UtcNow }, cancellationToken).ConfigureAwait(false);
+
+        await lifecycleDispatcher.NotifyUserPasswordChangedAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
 
         return Results.NoContent();
     }

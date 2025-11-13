@@ -10,8 +10,10 @@ using Identity.Base.Extensions;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Domain;
+using Identity.Base.Organizations.Lifecycle;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Identity.Base.Lifecycle;
 
 namespace Identity.Base.Organizations.Services;
 
@@ -20,15 +22,18 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
     private readonly OrganizationDbContext _dbContext;
     private readonly AppDbContext _appDbContext;
     private readonly ILogger<OrganizationMembershipService>? _logger;
+    private readonly IOrganizationLifecycleHookDispatcher _lifecycleDispatcher;
 
     public OrganizationMembershipService(
         OrganizationDbContext dbContext,
         AppDbContext appDbContext,
-        ILogger<OrganizationMembershipService>? logger = null)
+        ILogger<OrganizationMembershipService>? logger = null,
+        IOrganizationLifecycleHookDispatcher? lifecycleDispatcher = null)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _appDbContext = appDbContext ?? throw new ArgumentNullException(nameof(appDbContext));
         _logger = logger;
+        _lifecycleDispatcher = lifecycleDispatcher ?? NullOrganizationLifecycleDispatcher.Instance;
     }
 
     public async Task<OrganizationMembership> AddMemberAsync(OrganizationMembershipRequest request, CancellationToken cancellationToken = default)
@@ -77,6 +82,20 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
         };
 
         var roleIds = NormalizeRoleIds(request.RoleIds);
+        var lifecycleContext = new OrganizationLifecycleContext(
+            OrganizationLifecycleEvent.MemberAdded,
+            organization.Id,
+            organization.Slug,
+            organization.DisplayName,
+            TargetUserId: request.UserId,
+            Organization: organization,
+            Items: new Dictionary<string, object?>
+            {
+                ["RoleIds"] = roleIds.ToArray()
+            });
+
+        await _lifecycleDispatcher.EnsureCanAddMemberAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
+
         if (roleIds.Count > 0)
         {
             var roles = await _dbContext.OrganizationRoles
@@ -116,6 +135,8 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
             membership.UserId,
             membership.OrganizationId,
             membership.RoleAssignments.Count);
+
+        await _lifecycleDispatcher.NotifyMemberAddedAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
 
         return membership;
     }
@@ -465,6 +486,7 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
         }
 
         var changed = false;
+        OrganizationLifecycleContext? updateContext = null;
 
         if (request.RoleIds is not null)
         {
@@ -484,6 +506,20 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
                 }
 
                 ValidateRolesForOrganization(request.OrganizationId, organization.TenantId, roles);
+
+                var requestedRoleIds = roleIds.ToArray();
+                updateContext ??= new OrganizationLifecycleContext(
+                    OrganizationLifecycleEvent.MembershipUpdated,
+                    organization.Id,
+                    organization.Slug,
+                    organization.DisplayName,
+                    TargetUserId: membership.UserId,
+                    Items: new Dictionary<string, object?>
+                    {
+                        ["RoleIds"] = requestedRoleIds
+                    });
+
+                await _lifecycleDispatcher.EnsureCanUpdateMembershipAsync(updateContext, cancellationToken).ConfigureAwait(false);
 
                 foreach (var assignment in existingAssignments.Values)
                 {
@@ -525,6 +561,11 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
             membership.UserId,
             membership.OrganizationId);
 
+        if (updateContext is not null)
+        {
+            await _lifecycleDispatcher.NotifyMembershipUpdatedAsync(updateContext, cancellationToken).ConfigureAwait(false);
+        }
+
         return membership;
     }
 
@@ -541,6 +582,7 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
         }
 
         var membership = await _dbContext.OrganizationMemberships
+            .Include(entity => entity.Organization)
             .FirstOrDefaultAsync(entity => entity.OrganizationId == organizationId && entity.UserId == userId, cancellationToken)
             .ConfigureAwait(false);
 
@@ -549,10 +591,21 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
             return;
         }
 
+        var lifecycleContext = new OrganizationLifecycleContext(
+            OrganizationLifecycleEvent.MembershipRevoked,
+            membership.OrganizationId,
+            membership.Organization?.Slug,
+            membership.Organization?.DisplayName,
+            TargetUserId: membership.UserId);
+
+        await _lifecycleDispatcher.EnsureCanRevokeMembershipAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
+
         _dbContext.OrganizationMemberships.Remove(membership);
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         _logger?.LogInformation("Removed user {UserId} from organization {OrganizationId}", userId, organizationId);
+
+        await _lifecycleDispatcher.NotifyMembershipRevokedAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
     }
 
     private static HashSet<Guid> NormalizeRoleIds(IEnumerable<Guid> roleIds)

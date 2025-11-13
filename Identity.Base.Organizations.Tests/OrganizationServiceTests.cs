@@ -7,6 +7,7 @@ using Identity.Base.Organizations.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Identity.Base.Organizations.Lifecycle;
 
 namespace Identity.Base.Organizations.Tests;
 
@@ -86,91 +87,129 @@ public class OrganizationServiceTests
 
     private static OrganizationService CreateService(
         OrganizationDbContext context,
-        IEnumerable<IOrganizationCreationListener>? creationListeners = null,
-        IEnumerable<IOrganizationUpdateListener>? updateListeners = null,
-        IEnumerable<IOrganizationArchiveListener>? archiveListeners = null)
+        IOrganizationLifecycleHookDispatcher? lifecycleDispatcher = null)
     {
         var options = Microsoft.Extensions.Options.Options.Create(new OrganizationOptions());
         return new OrganizationService(
             context,
             options,
             NullLogger<OrganizationService>.Instance,
-            creationListeners ?? Array.Empty<IOrganizationCreationListener>(),
-            updateListeners ?? Array.Empty<IOrganizationUpdateListener>(),
-            archiveListeners ?? Array.Empty<IOrganizationArchiveListener>());
+            lifecycleDispatcher ?? NullOrganizationLifecycleDispatcher.Instance);
     }
 
     [Fact]
-    public async Task CreateAsync_InvokesCreationListeners()
+    public async Task CreateAsync_EmitsLifecycleEvents()
     {
         await using var context = CreateContext();
-        var listener = new TestCreationListener();
-        var service = CreateService(context, new[] { listener });
+        var dispatcher = new TestLifecycleDispatcher();
+        var service = CreateService(context, dispatcher);
 
-        var organization = await service.CreateAsync(new OrganizationCreateRequest
+        await service.CreateAsync(new OrganizationCreateRequest
         {
             Slug = "listener-org",
             DisplayName = "Listener Org"
         });
 
-        listener.Created.ShouldContain(organization.Id);
+        dispatcher.Events.ShouldContain(OrganizationLifecycleEvent.OrganizationCreated);
     }
 
     [Fact]
-    public async Task UpdateAsync_InvokesUpdateListeners()
+    public async Task UpdateAsync_EmitsLifecycleEvents()
     {
         await using var context = CreateContext();
-        var listener = new TestUpdateListener();
-        var service = CreateService(context, updateListeners: new[] { listener });
+        var dispatcher = new TestLifecycleDispatcher();
+        var service = CreateService(context, dispatcher);
 
         var organization = await service.CreateAsync(new OrganizationCreateRequest { Slug = "u-listener", DisplayName = "Before" });
         await service.UpdateAsync(organization.Id, new OrganizationUpdateRequest { DisplayName = "After" });
 
-        listener.Updated.ShouldContain(organization.Id);
+        dispatcher.Events.ShouldContain(OrganizationLifecycleEvent.OrganizationUpdated);
     }
 
     [Fact]
-    public async Task ArchiveAsync_InvokesArchiveListeners()
+    public async Task ArchiveAsync_EmitsLifecycleEvents()
     {
         await using var context = CreateContext();
-        var listener = new TestArchiveListener();
-        var service = CreateService(context, archiveListeners: new[] { listener });
+        var dispatcher = new TestLifecycleDispatcher();
+        var service = CreateService(context, dispatcher);
 
         var organization = await service.CreateAsync(new OrganizationCreateRequest { Slug = "a-listener", DisplayName = "Org" });
         await service.ArchiveAsync(organization.Id);
 
-        listener.Archived.ShouldContain(organization.Id);
+        dispatcher.Events.ShouldContain(OrganizationLifecycleEvent.OrganizationArchived);
     }
 
-    private sealed class TestCreationListener : IOrganizationCreationListener
+    private sealed class TestLifecycleDispatcher : IOrganizationLifecycleHookDispatcher
     {
-        public List<Guid> Created { get; } = new();
+        public List<OrganizationLifecycleEvent> Events { get; } = new();
 
-        public Task OnOrganizationCreatedAsync(Organization organization, CancellationToken cancellationToken = default)
+        public Task EnsureCanCreateOrganizationAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task NotifyOrganizationCreatedAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default)
         {
-            Created.Add(organization.Id);
+            Events.Add(context.Event);
             return Task.CompletedTask;
         }
-    }
 
-    private sealed class TestUpdateListener : IOrganizationUpdateListener
-    {
-        public List<Guid> Updated { get; } = new();
-
-        public Task OnOrganizationUpdatedAsync(Organization organization, CancellationToken cancellationToken = default)
+        public Task EnsureCanUpdateOrganizationAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task NotifyOrganizationUpdatedAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default)
         {
-            Updated.Add(organization.Id);
+            Events.Add(context.Event);
             return Task.CompletedTask;
         }
-    }
 
-    private sealed class TestArchiveListener : IOrganizationArchiveListener
-    {
-        public List<Guid> Archived { get; } = new();
-
-        public Task OnOrganizationArchivedAsync(Organization organization, CancellationToken cancellationToken = default)
+        public Task EnsureCanArchiveOrganizationAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task NotifyOrganizationArchivedAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default)
         {
-            Archived.Add(organization.Id);
+            Events.Add(context.Event);
+            return Task.CompletedTask;
+        }
+
+        public Task EnsureCanRestoreOrganizationAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task NotifyOrganizationRestoredAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default)
+        {
+            Events.Add(context.Event);
+            return Task.CompletedTask;
+        }
+
+        public Task EnsureCanCreateInvitationAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task NotifyInvitationCreatedAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default)
+        {
+            Events.Add(context.Event);
+            return Task.CompletedTask;
+        }
+
+        public Task EnsureCanRevokeInvitationAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task NotifyInvitationRevokedAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default)
+        {
+            Events.Add(context.Event);
+            return Task.CompletedTask;
+        }
+
+        public Task EnsureCanAddMemberAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task NotifyMemberAddedAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default)
+        {
+            Events.Add(context.Event);
+            return Task.CompletedTask;
+        }
+
+        public Task EnsureCanUpdateMembershipAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task NotifyMembershipUpdatedAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default)
+        {
+            Events.Add(context.Event);
+            return Task.CompletedTask;
+        }
+
+        public Task EnsureCanRevokeMembershipAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task NotifyMembershipRevokedAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default)
+        {
+            Events.Add(context.Event);
+            return Task.CompletedTask;
+        }
+
+        public Task EnsureCanAcceptInvitationAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task NotifyInvitationAcceptedAsync(OrganizationLifecycleContext context, CancellationToken cancellationToken = default)
+        {
+            Events.Add(context.Event);
             return Task.CompletedTask;
         }
     }

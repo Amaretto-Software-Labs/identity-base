@@ -134,7 +134,8 @@ identity.AfterIdentitySeed(async (sp, ct) =>
 - **External provider plumbing** – enable providers via configuration and call `identity.AddConfiguredExternalProviders()` or customise each via `AddGoogleAuth`/`AddMicrosoftAuth`/`AddAppleAuth`.
 - **Seeding callbacks** – use `AfterRoleSeeding` and `AfterIdentitySeed` to run arbitrary provisioning steps once the core seeds finish.
 - **EF Core model customisation** – `ConfigureAppDbContextModel` and `ConfigureIdentityRolesModel` let you add indexes/shadow properties without forking the package.
-- **User lifecycle hooks** – register listeners via `AddUserCreationListener<T>()`, `AddUserUpdateListener<T>()`, `AddUserDeletionListener<T>()`, and `AddUserRestoreListener<T>()` to react to profile changes or soft deletes.
+- **User & organization lifecycle hooks** – implement `IUserLifecycleListener` / `IOrganizationLifecycleListener` (or add them via `IdentityBaseBuilder.AddUserLifecycleListener<T>()` / `IdentityBaseOrganizationsBuilder.AddOrganizationLifecycleListener<T>()`) to observe/veto registration, confirmation, password resets, MFA enable/disable, admin actions, org creation/update/archive, invitation acceptance, membership changes, etc. Legacy listeners (`IUserCreationListener`, `IOrganizationCreationListener`, etc.) still function through compatibility shims.
+- **Notification augmentors** – customize email/SMS payloads before they hit the transport by registering `INotificationContextAugmentor<TContext>` implementations (confirmation, password reset, MFA challenge).
 
 ## Dependencies & Compatibility
 - Requires .NET 9 / ASP.NET Core 9 and EF Core 9.

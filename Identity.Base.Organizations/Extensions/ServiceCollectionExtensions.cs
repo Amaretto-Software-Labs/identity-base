@@ -10,6 +10,8 @@ using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Infrastructure;
 using Identity.Base.Organizations.Options;
 using Identity.Base.Organizations.Services;
+using Identity.Base.Organizations.Lifecycle;
+using Identity.Base.Lifecycle;
 using Identity.Base.Roles.Abstractions;
 using Identity.Base.Roles.Services;
 using Identity.Base.Options;
@@ -37,6 +39,7 @@ public static class ServiceCollectionExtensions
             .BindConfiguration("Organizations:RoleOptions");
         services.AddOptions<OrganizationAuthorizationOptions>()
             .BindConfiguration("Organizations:Authorization");
+        services.AddOptions<LifecycleHookOptions>();
 
         services.TryAddSingleton<IdentityBaseModelCustomizationOptions>();
         services.TryAddSingleton<IdentityBaseSeedCallbacks>();
@@ -54,6 +57,8 @@ public static class ServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IClaimsPrincipalAugmentor, OrganizationMembershipClaimsAugmentor>());
         services.TryAddScoped<IOrganizationInvitationStore, OrganizationInvitationStore>();
         services.TryAddScoped<OrganizationInvitationService>();
+        services.TryAddScoped<IOrganizationLifecycleHookDispatcher, OrganizationLifecycleHookDispatcher>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IOrganizationLifecycleListener, LegacyOrganizationLifecycleListener>());
 
         services.TryAddScoped<IValidator<CreateOrganizationRequest>, CreateOrganizationRequestValidator>();
         services.TryAddScoped<IValidator<UpdateOrganizationRequest>, UpdateOrganizationRequestValidator>();
