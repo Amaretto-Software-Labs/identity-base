@@ -92,12 +92,19 @@ internal sealed class MailJetEmailSender : ITemplatedEmailSender
 
     private long ResolveTemplateId(string templateKey)
     {
-        return templateKey switch
+        long templateId = templateKey switch
         {
             TemplatedEmailKeys.AccountConfirmation => _options.Templates.Confirmation,
             TemplatedEmailKeys.PasswordReset => _options.Templates.PasswordReset,
             TemplatedEmailKeys.EmailMfaChallenge => _options.Templates.MfaChallenge,
             _ => 0
         };
+
+        if (templateId == 0 && !long.TryParse(templateKey, out templateId))
+        {
+            _logger.LogWarning("Template key '{TemplateKey}' is either not configured or cannot be converted to long!", templateKey);
+        }
+
+        return templateId;
     }
 }

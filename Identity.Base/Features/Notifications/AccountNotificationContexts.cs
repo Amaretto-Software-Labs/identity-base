@@ -6,7 +6,7 @@ namespace Identity.Base.Features.Notifications;
 public sealed class EmailConfirmationNotificationContext : NotificationContext
 {
     public EmailConfirmationNotificationContext(ApplicationUser user, string confirmationUrl)
-        : base(TemplatedEmailKeys.AccountConfirmation, user, "Confirm your Identity Base account")
+        : base(TemplatedEmailKeys.AccountConfirmation, user)
     {
         ConfirmationUrl = confirmationUrl;
         Variables["email"] = user.Email;
@@ -20,7 +20,7 @@ public sealed class EmailConfirmationNotificationContext : NotificationContext
 public sealed class PasswordResetNotificationContext : NotificationContext
 {
     public PasswordResetNotificationContext(ApplicationUser user, string resetUrl)
-        : base(TemplatedEmailKeys.PasswordReset, user, "Reset your Identity Base password")
+        : base(TemplatedEmailKeys.PasswordReset, user)
     {
         ResetUrl = resetUrl;
         Variables["email"] = user.Email;
@@ -34,7 +34,7 @@ public sealed class PasswordResetNotificationContext : NotificationContext
 public sealed class EmailMfaChallengeNotificationContext : NotificationContext
 {
     public EmailMfaChallengeNotificationContext(ApplicationUser user, string code)
-        : base(TemplatedEmailKeys.EmailMfaChallenge, user, "Your verification code")
+        : base(TemplatedEmailKeys.EmailMfaChallenge, user)
     {
         Code = code;
         Variables["email"] = user.Email;
