@@ -180,7 +180,8 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                         OpenIddictConstants.Permissions.Prefixes.Scope + "identity.api",
                         OpenIddictConstants.Permissions.Prefixes.Scope + "identity.admin"
                     },
-                    AllowPasswordFlow = true
+                    AllowPasswordFlow = true,
+                    AllowClientCredentialsFlow = true
                 });
 
                 options.Applications.Add(new OpenIddictApplicationOptions

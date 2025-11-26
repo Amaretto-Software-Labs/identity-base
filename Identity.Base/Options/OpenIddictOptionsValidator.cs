@@ -34,6 +34,11 @@ internal sealed class OpenIddictOptionsValidator : IValidateOptions<OpenIddictOp
             {
                 return ValidateOptionsResult.Fail($"Password flow can only be enabled for confidential clients (client '{application.ClientId}').");
             }
+
+            if (application.AllowClientCredentialsFlow && application.ClientType != OpenIddictConstants.ClientTypes.Confidential)
+            {
+                return ValidateOptionsResult.Fail($"Client credentials flow can only be enabled for confidential clients (client '{application.ClientId}').");
+            }
         }
 
         if (options.Scopes is not null)
