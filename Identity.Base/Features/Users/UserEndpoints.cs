@@ -1,22 +1,13 @@
 using FluentValidation;
-using Identity.Base.Abstractions;
 using Identity.Base.Extensions;
 using Identity.Base.Identity;
 using Identity.Base.Logging;
 using Identity.Base.Options;
 using Identity.Base.Lifecycle;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Options;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Identity.Base.Features.Users;
 

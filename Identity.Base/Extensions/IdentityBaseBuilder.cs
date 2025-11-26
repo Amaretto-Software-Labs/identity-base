@@ -476,6 +476,7 @@ public sealed class IdentityBaseBuilder
                        .SetIntrospectionEndpointUris("/connect/introspect");
 
                 options.AllowAuthorizationCodeFlow()
+                       .AllowClientCredentialsFlow()
                        .AllowRefreshTokenFlow()
                        .AllowPasswordFlow();
 
@@ -491,6 +492,8 @@ public sealed class IdentityBaseBuilder
                     .EnableAuthorizationEndpointPassthrough()
                     .EnableStatusCodePagesIntegration();
 
+                options.AddEventHandler(ClientCredentialsGrantHandler.Descriptor);
+                options.AddEventHandler(ClientCredentialsFlowValidator.Descriptor);
                 options.AddEventHandler(PasswordFlowClientValidator.Descriptor);
                 options.AddEventHandler(PasswordGrantHandler.Descriptor);
                 options.AddEventHandler(AuthorizationCodeAugmentorHandler.Descriptor);

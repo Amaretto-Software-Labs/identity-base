@@ -47,7 +47,7 @@ jobs:
           node-version: 20
 
       - name: Install Nerdbank.GitVersioning tool
-        run: dotnet tool install --global nbgv --version 3.8.118
+        run: dotnet tool update --global nbgv || dotnet tool install --global nbgv
 
       - name: Restore
         run: dotnet restore Identity.sln
@@ -206,7 +206,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Install Nerdbank.GitVersioning tool
-        run: dotnet tool install --global nbgv --version 3.8.118
+        run: dotnet tool update --global nbgv || dotnet tool install --global nbgv
 
       - name: Determine package version
         id: release-version

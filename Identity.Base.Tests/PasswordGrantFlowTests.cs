@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net.Http.Json;
+using OpenIddict.Abstractions;
 using Xunit;
 
 namespace Identity.Base.Tests;
@@ -77,6 +78,62 @@ public class PasswordGrantFlowTests : IClassFixture<IdentityApiFactory>
                 ["grant_type"] = "password",
                 ["username"] = "someone@example.com",
                 ["password"] = "does-not-matter"
+            })
+        };
+        request.Headers.Authorization = CreateBasicAuth("spa-client", string.Empty);
+
+        using var response = await client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var json = await response.Content.ReadFromJsonAsync<JsonDocument>();
+        json.ShouldNotBeNull();
+        json!.RootElement.GetProperty("error").GetString().ShouldBe("unauthorized_client");
+    }
+
+    [Fact]
+    public async Task ClientCredentialsGrant_Succeeds_ForAllowedClient()
+    {
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        client.BaseAddress ??= new Uri("https://localhost");
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/connect/token")
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = OpenIddictConstants.GrantTypes.ClientCredentials,
+                ["scope"] = "identity.api"
+            })
+        };
+        request.Headers.Authorization = CreateBasicAuth("test-client", "test-secret");
+
+        using var response = await client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var json = await response.Content.ReadFromJsonAsync<JsonDocument>();
+        json.ShouldNotBeNull();
+        json!.RootElement.GetProperty("access_token").GetString().ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task ClientCredentialsGrant_Fails_ForDisallowedClient()
+    {
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        client.BaseAddress ??= new Uri("https://localhost");
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/connect/token")
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = OpenIddictConstants.GrantTypes.ClientCredentials,
+                ["scope"] = "identity.api"
             })
         };
         request.Headers.Authorization = CreateBasicAuth("spa-client", string.Empty);
