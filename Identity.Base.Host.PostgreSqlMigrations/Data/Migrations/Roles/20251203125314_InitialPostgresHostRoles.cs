@@ -3,10 +3,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Identity.Base.Host.Data.Migrations.Roles
+namespace Identity.Base.Host.PostgreSqlMigrations.Data.Migrations.Roles
 {
     /// <inheritdoc />
-    public partial class InitialIdentityBaseHostRoles : Migration
+    public partial class InitialPostgresHostRoles : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -19,7 +19,7 @@ namespace Identity.Base.Host.Data.Migrations.Roles
                     ActorUserId = table.Column<Guid>(type: "uuid", nullable: false),
                     TargetUserId = table.Column<Guid>(type: "uuid", nullable: true),
                     Action = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    Metadata = table.Column<string>(type: "jsonb", nullable: true),
+                    Metadata = table.Column<string>(type: "text", nullable: true),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>

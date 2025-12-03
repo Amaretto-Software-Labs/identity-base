@@ -59,7 +59,7 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
             throw new KeyNotFoundException($"Organization {request.OrganizationId} was not found.");
         }
 
-        if (organization.TenantId.HasValue && request.TenantId.HasValue && organization.TenantId != request.TenantId)
+        if (organization.TenantId != Guid.Empty && request.TenantId.HasValue && organization.TenantId != request.TenantId)
         {
             throw new InvalidOperationException("Organization and membership tenants do not match.");
         }
@@ -628,12 +628,12 @@ public sealed class OrganizationMembershipService : IOrganizationMembershipServi
     {
         foreach (var role in roles)
         {
-            if (role.OrganizationId.HasValue && role.OrganizationId != organizationId)
+            if (role.OrganizationId != Guid.Empty && role.OrganizationId != organizationId)
             {
                 throw new InvalidOperationException($"Role {role.Id} does not belong to organization {organizationId}.");
             }
 
-            if (tenantId.HasValue && role.TenantId.HasValue && role.TenantId != tenantId)
+            if (tenantId.HasValue && role.TenantId != Guid.Empty && role.TenantId != tenantId)
             {
                 throw new InvalidOperationException($"Role {role.Id} does not belong to the tenant for this organization.");
             }

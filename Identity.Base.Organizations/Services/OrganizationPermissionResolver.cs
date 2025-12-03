@@ -103,16 +103,16 @@ public sealed class OrganizationPermissionResolver : IOrganizationPermissionReso
         var scopedPermissionsQuery = _organizationDbContext.OrganizationRolePermissions
             .AsNoTracking()
             .Where(permission => roleIds.Contains(permission.RoleId))
-            .Where(permission => permission.OrganizationId == null || permission.OrganizationId == organizationId);
+            .Where(permission => permission.OrganizationId == Guid.Empty || permission.OrganizationId == organizationId);
 
-        if (membership.TenantId.HasValue)
+        if (membership.TenantId != Guid.Empty)
         {
-            var tenantId = membership.TenantId.Value;
-            scopedPermissionsQuery = scopedPermissionsQuery.Where(permission => permission.TenantId == null || permission.TenantId == tenantId);
+            var tenantId = membership.TenantId;
+            scopedPermissionsQuery = scopedPermissionsQuery.Where(permission => permission.TenantId == Guid.Empty || permission.TenantId == tenantId);
         }
         else
         {
-            scopedPermissionsQuery = scopedPermissionsQuery.Where(permission => permission.TenantId == null);
+            scopedPermissionsQuery = scopedPermissionsQuery.Where(permission => permission.TenantId == Guid.Empty);
         }
 
         var permissionIds = await scopedPermissionsQuery

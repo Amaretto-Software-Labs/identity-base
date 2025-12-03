@@ -18,8 +18,6 @@ public sealed class ApplicationUserConfiguration : IEntityTypeConfiguration<Appl
         builder.Property(user => user.ProfileMetadata)
             .HasConversion(
                 metadata => metadata.ToJson(),
-                json => UserProfileMetadata.FromJson(json))
-            .HasColumnType("jsonb")
-            .HasDefaultValueSql("'{}'::jsonb");
+                json => UserProfileMetadata.FromJson(json));
     }
 }

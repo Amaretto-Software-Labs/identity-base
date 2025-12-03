@@ -10,9 +10,9 @@ public sealed class OrganizationRolePermission
 
     public Guid PermissionId { get; set; }
 
-    public Guid? TenantId { get; set; }
+    public Guid TenantId { get; set; }
 
-    public Guid? OrganizationId { get; set; }
+    public Guid OrganizationId { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; }
 

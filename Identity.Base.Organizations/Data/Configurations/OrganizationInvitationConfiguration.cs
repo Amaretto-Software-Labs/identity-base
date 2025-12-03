@@ -26,7 +26,6 @@ internal sealed class OrganizationInvitationConfiguration : IEntityTypeConfigura
         builder.Property(entity => entity.CreatedBy);
 
         builder.Property(entity => entity.RoleIds)
-            .HasColumnType("jsonb")
             .HasConversion(
                 roleIds => JsonSerializer.Serialize(roleIds ?? Array.Empty<Guid>(), SerializerOptions),
                 json => string.IsNullOrWhiteSpace(json)

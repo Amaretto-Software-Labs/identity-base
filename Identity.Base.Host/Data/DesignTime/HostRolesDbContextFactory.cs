@@ -21,17 +21,37 @@ internal sealed class HostRolesDbContextFactory : IDesignTimeDbContextFactory<Id
             .AddEnvironmentVariables()
             .Build();
 
+        var connectionString = configuration.GetConnectionString("Primary")
+            ?? throw new InvalidOperationException("ConnectionStrings:Primary must be configured.");
+        var databaseProvider = HostDatabaseProviderResolver.Resolve(configuration, connectionString);
+        var migrationsAssembly = HostDatabaseProviderResolver.ResolveMigrationsAssembly(
+            configuration,
+            nameof(IdentityRolesDbContext));
+
         var services = new ServiceCollection();
-        services.AddEntityFrameworkNpgsql();
         services.AddSingleton<IOptions<IdentityDbNamingOptions>>(Microsoft.Extensions.Options.Options.Create(new IdentityDbNamingOptions
         {
             TablePrefix = TablePrefix
         }));
-        var provider = services.BuildServiceProvider();
+        switch (databaseProvider)
+        {
+            case HostDatabaseProvider.SqlServer:
+                services.AddEntityFrameworkSqlServer();
+                break;
+            case HostDatabaseProvider.PostgreSql:
+                services.AddEntityFrameworkNpgsql();
+                break;
+            case HostDatabaseProvider.InMemory:
+                services.AddEntityFrameworkInMemoryDatabase();
+                break;
+            default:
+                throw new InvalidOperationException($"Unsupported database provider '{databaseProvider}'.");
+        }
+        var serviceProvider = services.BuildServiceProvider();
 
         var builder = new DbContextOptionsBuilder<IdentityRolesDbContext>()
-            .UseInternalServiceProvider(provider)
-            .UseHostProvider(configuration, typeof(Program).Assembly.FullName);
+            .UseInternalServiceProvider(serviceProvider)
+            .UseHostProvider(configuration, migrationsAssembly);
 
         return new IdentityRolesDbContext(builder.Options);
     }

@@ -1,3 +1,4 @@
+using System;
 using Identity.Base.Organizations.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -9,6 +10,12 @@ public sealed class OrganizationRoleConfiguration : IEntityTypeConfiguration<Org
     public void Configure(EntityTypeBuilder<OrganizationRole> builder)
     {
         builder.HasKey(role => role.Id);
+
+        builder.Property(role => role.TenantId)
+            .HasDefaultValue(Guid.Empty);
+
+        builder.Property(role => role.OrganizationId)
+            .HasDefaultValue(Guid.Empty);
 
         builder.Property(role => role.Name)
             .IsRequired()

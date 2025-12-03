@@ -50,6 +50,8 @@ See `Identity.Base.Host` and `apps/org-sample-api` for reference helper extensio
 | `docs/` | Architecture, engineering principles, sprint plans, onboarding, full-stack integration guides. |
 | `packages/` | React client packages (`@identity-base/react-client`, `@identity-base/react-organizations`). |
 
+Provider selection in the sample host is config-driven: set `Database:Provider` to `PostgreSql`, `SqlServer`, or `InMemory`, and optionally point `Database:Migrations:{ContextName}` (or `Database:Migrations:Default`) at provider-specific migration assemblies.
+
 Key documents:
 - [Package Documentation Hub](docs/packages/README.md)
 - [Project Plan](docs/plans/identity-oidc-project-plan.md)

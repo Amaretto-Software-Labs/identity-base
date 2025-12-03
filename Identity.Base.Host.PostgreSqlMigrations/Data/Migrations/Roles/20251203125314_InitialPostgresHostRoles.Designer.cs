@@ -3,17 +3,20 @@ using System;
 using Identity.Base.Roles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Identity.Base.Host.Data.Migrations.Roles
+namespace Identity.Base.Host.PostgreSqlMigrations.Data.Migrations.Roles
 {
     [DbContext(typeof(IdentityRolesDbContext))]
-    partial class IdentityRolesDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251203125314_InitialPostgresHostRoles")]
+    partial class InitialPostgresHostRoles
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -40,7 +43,7 @@ namespace Identity.Base.Host.Data.Migrations.Roles
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Metadata")
-                        .HasColumnType("jsonb");
+                        .HasColumnType("text");
 
                     b.Property<Guid?>("TargetUserId")
                         .HasColumnType("uuid");

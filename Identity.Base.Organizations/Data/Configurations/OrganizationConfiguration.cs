@@ -16,6 +16,9 @@ public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organiz
     {
         builder.HasKey(organization => organization.Id);
 
+        builder.Property(organization => organization.TenantId)
+            .HasDefaultValue(Guid.Empty);
+
         builder.Property(organization => organization.Slug)
             .IsRequired()
             .HasMaxLength(128);
@@ -39,8 +42,6 @@ public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organiz
                 metadata => SerializeMetadata(metadata),
                 json => DeserializeMetadata(json))
             .HasColumnName("Metadata")
-            .HasColumnType("jsonb")
-            .HasDefaultValueSql("'{}'::jsonb")
             .Metadata.SetValueComparer(new ValueComparer<OrganizationMetadata>(
                 (left, right) => SerializeMetadata(left) == SerializeMetadata(right),
                 metadata => SerializeMetadata(metadata).GetHashCode(),

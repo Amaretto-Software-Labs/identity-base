@@ -25,15 +25,23 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) =>
         .WriteTo.Console();
 });
 
-var migrationsAssembly = typeof(Program).Assembly.FullName;
-const string TablePrefix = "Host";
+// Configure the table prefix FIRST, before any DbContext registration.
+// This ensures IOptions<IdentityDbNamingOptions> is available with the correct prefix.
+builder.Services.ConfigureHostTablePrefix();
+
+var migrationsAssemblyApp = HostDatabaseProviderResolver.ResolveMigrationsAssembly(
+    builder.Configuration,
+    nameof(AppDbContext));
+var migrationsAssemblyRoles = HostDatabaseProviderResolver.ResolveMigrationsAssembly(
+    builder.Configuration,
+    nameof(IdentityRolesDbContext));
 
 Action<IServiceProvider, DbContextOptionsBuilder> configureAppDbContext = (provider, options) =>
 {
     var configuration = provider.GetRequiredService<IConfiguration>();
     if (options is DbContextOptionsBuilder<AppDbContext> typed)
     {
-        typed.UseHostProvider(configuration, migrationsAssembly);
+        typed.UseHostProvider(configuration, migrationsAssemblyApp, provider);
     }
     else
     {
@@ -46,7 +54,7 @@ Action<IServiceProvider, DbContextOptionsBuilder> configureRolesDbContext = (pro
     var configuration = provider.GetRequiredService<IConfiguration>();
     if (options is DbContextOptionsBuilder<IdentityRolesDbContext> typed)
     {
-        typed.UseHostProvider(configuration, migrationsAssembly);
+        typed.UseHostProvider(configuration, migrationsAssemblyRoles, provider);
     }
     else
     {
@@ -58,7 +66,8 @@ var identityBuilder = builder.Services.AddIdentityBase(
     builder.Configuration,
     builder.Environment,
     configureDbContext: configureAppDbContext);
-identityBuilder.UseTablePrefix(TablePrefix);
+
+// Table prefix is configured globally via ConfigureHostTablePrefix() above
 
 identityBuilder
     .AddGoogleAuth()
@@ -66,8 +75,7 @@ identityBuilder
     .AddAppleAuth()
     .UseMailJetEmailSender();
 
-var rolesBuilder = builder.Services.AddIdentityAdmin(builder.Configuration, configureRolesDbContext);
-rolesBuilder.UseTablePrefix(TablePrefix);
+builder.Services.AddIdentityAdmin(builder.Configuration, configureRolesDbContext);
 
 var app = builder.Build();
 

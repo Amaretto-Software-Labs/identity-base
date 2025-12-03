@@ -169,7 +169,7 @@ public class OrganizationInvitationServiceTests
             Id = organizationId ?? Guid.NewGuid(),
             Slug = "org",
             DisplayName = "Organization",
-            TenantId = null
+            TenantId = Guid.Empty
         };
 
         var roles = new List<OrganizationRole>
@@ -178,7 +178,7 @@ public class OrganizationInvitationServiceTests
             {
                 Id = Guid.NewGuid(),
                 OrganizationId = organization.Id,
-                TenantId = null,
+                TenantId = Guid.Empty,
                 Name = "RoleA",
                 CreatedAtUtc = DateTimeOffset.UtcNow
             },
@@ -186,7 +186,7 @@ public class OrganizationInvitationServiceTests
             {
                 Id = Guid.NewGuid(),
                 OrganizationId = organization.Id,
-                TenantId = null,
+                TenantId = Guid.Empty,
                 Name = "RoleB",
                 CreatedAtUtc = DateTimeOffset.UtcNow
             }
@@ -385,7 +385,7 @@ public class OrganizationInvitationServiceTests
             {
                 OrganizationId = request.OrganizationId,
                 UserId = request.UserId,
-                TenantId = request.TenantId,
+                TenantId = request.TenantId ?? Guid.Empty,
                 CreatedAtUtc = DateTimeOffset.UtcNow
             };
 

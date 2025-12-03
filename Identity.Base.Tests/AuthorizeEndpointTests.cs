@@ -434,7 +434,7 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
 
         var ownerRoleId = await dbContext.OrganizationRoles
             .AsNoTracking()
-            .Where(role => role.OrganizationId == null && role.Name == "OrgOwner")
+            .Where(role => role.OrganizationId == Guid.Empty && role.Name == "OrgOwner")
             .Select(role => role.Id)
             .FirstAsync();
 

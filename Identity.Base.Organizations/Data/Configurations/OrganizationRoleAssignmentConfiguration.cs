@@ -1,3 +1,4 @@
+using System;
 using Identity.Base.Organizations.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -9,6 +10,9 @@ public sealed class OrganizationRoleAssignmentConfiguration : IEntityTypeConfigu
     public void Configure(EntityTypeBuilder<OrganizationRoleAssignment> builder)
     {
         builder.HasKey(assignment => new { assignment.OrganizationId, assignment.UserId, assignment.RoleId });
+
+        builder.Property(assignment => assignment.TenantId)
+            .HasDefaultValue(Guid.Empty);
 
         builder.Property(assignment => assignment.CreatedAtUtc)
             .HasDefaultValueSql("CURRENT_TIMESTAMP");

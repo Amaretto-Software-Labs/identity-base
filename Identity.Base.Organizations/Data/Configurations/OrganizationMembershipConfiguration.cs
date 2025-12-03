@@ -1,3 +1,4 @@
+using System;
 using Identity.Base.Organizations.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -9,6 +10,9 @@ public sealed class OrganizationMembershipConfiguration : IEntityTypeConfigurati
     public void Configure(EntityTypeBuilder<OrganizationMembership> builder)
     {
         builder.HasKey(membership => new { membership.OrganizationId, membership.UserId });
+
+        builder.Property(membership => membership.TenantId)
+            .HasDefaultValue(Guid.Empty);
 
         builder.Property(membership => membership.CreatedAtUtc)
             .HasDefaultValueSql("CURRENT_TIMESTAMP");

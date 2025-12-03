@@ -69,12 +69,12 @@ public sealed class OrganizationRoleService : IOrganizationRoleService
                 throw new KeyNotFoundException($"Organization {request.OrganizationId.Value} was not found.");
             }
 
-            if (tenantId is Guid tenantFilter && organization.TenantId is Guid organizationTenant && tenantFilter != organizationTenant)
+            if (tenantId is Guid tenantFilter && organization.TenantId != Guid.Empty && tenantFilter != organization.TenantId)
             {
                 throw new InvalidOperationException("Organization and role tenants do not match.");
             }
 
-            tenantId ??= organization.TenantId;
+            tenantId ??= organization.TenantId != Guid.Empty ? organization.TenantId : null;
         }
 
         await EnsureRoleNameIsUniqueAsync(tenantId, request.OrganizationId, name, cancellationToken).ConfigureAwait(false);
@@ -82,8 +82,8 @@ public sealed class OrganizationRoleService : IOrganizationRoleService
         var role = new OrganizationRole
         {
             Id = Guid.NewGuid(),
-            OrganizationId = request.OrganizationId,
-            TenantId = tenantId,
+            OrganizationId = request.OrganizationId ?? Guid.Empty,
+            TenantId = tenantId ?? Guid.Empty,
             Name = name,
             Description = request.Description?.Trim(),
             IsSystemRole = request.IsSystemRole,
@@ -120,7 +120,7 @@ public sealed class OrganizationRoleService : IOrganizationRoleService
         var query = BuildRoleQuery(tenantId, organizationId);
 
         return await query
-            .OrderBy(role => role.OrganizationId.HasValue ? 1 : 0)
+            .OrderBy(role => role.OrganizationId != Guid.Empty ? 1 : 0)
             .ThenBy(role => role.Name)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -235,15 +235,15 @@ public sealed class OrganizationRoleService : IOrganizationRoleService
         var effectiveIds = new HashSet<Guid>();
         var explicitIds = new HashSet<Guid>();
 
-        var tenantId = organization.TenantId ?? role.TenantId;
+        var tenantId = organization.TenantId != Guid.Empty ? organization.TenantId : role.TenantId;
 
         var permissionQuery = _dbContext.OrganizationRolePermissions
             .AsNoTracking()
             .Where(permission => permission.RoleId == roleId);
 
-        permissionQuery = tenantId is Guid tenantFilter
-            ? permissionQuery.Where(permission => permission.TenantId == null || permission.TenantId == tenantFilter)
-            : permissionQuery.Where(permission => permission.TenantId == null);
+        permissionQuery = tenantId != Guid.Empty
+            ? permissionQuery.Where(permission => permission.TenantId == Guid.Empty || permission.TenantId == tenantId)
+            : permissionQuery.Where(permission => permission.TenantId == Guid.Empty);
 
         var explicitPermissionIds = await permissionQuery
             .Where(permission => permission.OrganizationId == organizationId)
@@ -257,7 +257,7 @@ public sealed class OrganizationRoleService : IOrganizationRoleService
             effectiveIds.Add(id);
         }
 
-        if (!role.OrganizationId.HasValue || role.OrganizationId.Value != organizationId)
+        if (role.OrganizationId == Guid.Empty || role.OrganizationId != organizationId)
         {
             var inheritedIds = await permissionQuery
                 .Where(permission => permission.OrganizationId == role.OrganizationId)
@@ -348,7 +348,7 @@ public sealed class OrganizationRoleService : IOrganizationRoleService
             throw new KeyNotFoundException($"Organization role {roleId} was not found.");
         }
 
-        if (role.OrganizationId.HasValue && role.OrganizationId.Value != organizationId)
+        if (role.OrganizationId != Guid.Empty && role.OrganizationId != organizationId)
         {
             throw new InvalidOperationException("Role does not belong to the specified organization scope.");
         }
@@ -406,7 +406,7 @@ public sealed class OrganizationRoleService : IOrganizationRoleService
             .Select(assignment => assignment.PermissionId)
             .ToHashSet();
 
-        var tenantId = organization.TenantId ?? role.TenantId;
+        var tenantId = organization.TenantId != Guid.Empty ? organization.TenantId : role.TenantId;
         var added = 0;
         foreach (var permissionId in desiredIds)
         {
@@ -442,12 +442,12 @@ public sealed class OrganizationRoleService : IOrganizationRoleService
         var query = _dbContext.OrganizationRoles.AsNoTracking().AsQueryable();
 
         query = tenantId is Guid tenantFilter
-            ? query.Where(role => role.TenantId == tenantFilter || role.TenantId == null)
-            : query.Where(role => role.TenantId == null);
+            ? query.Where(role => role.TenantId == tenantFilter || role.TenantId == Guid.Empty)
+            : query.Where(role => role.TenantId == Guid.Empty);
 
         if (organizationId is Guid organizationFilter)
         {
-            query = query.Where(role => role.OrganizationId == organizationFilter || role.OrganizationId == null);
+            query = query.Where(role => role.OrganizationId == organizationFilter || role.OrganizationId == Guid.Empty);
         }
 
         return query;
@@ -478,7 +478,7 @@ public sealed class OrganizationRoleService : IOrganizationRoleService
         }
 
         ordered ??= source
-            .OrderBy(role => role.OrganizationId.HasValue ? 1 : 0)
+            .OrderBy(role => role.OrganizationId != Guid.Empty ? 1 : 0)
             .ThenBy(role => role.Name);
 
         return ordered.ThenBy(role => role.Id);
@@ -509,11 +509,11 @@ public sealed class OrganizationRoleService : IOrganizationRoleService
 
         query = tenantId is Guid tenantFilter
             ? query.Where(role => role.TenantId == tenantFilter)
-            : query.Where(role => role.TenantId == null);
+            : query.Where(role => role.TenantId == Guid.Empty);
 
         query = organizationId is Guid organizationFilter
             ? query.Where(role => role.OrganizationId == organizationFilter)
-            : query.Where(role => role.OrganizationId == null);
+            : query.Where(role => role.OrganizationId == Guid.Empty);
 
         var exists = await query.AnyAsync(cancellationToken).ConfigureAwait(false);
         if (exists)
