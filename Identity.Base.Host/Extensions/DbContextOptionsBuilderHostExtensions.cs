@@ -122,10 +122,10 @@ internal static class HostDatabaseProviderResolver
             throw new InvalidOperationException("Database:Provider must be configured (PostgreSql or SqlServer).");
         }
 
-        return provider switch
+        return provider.ToLowerInvariant() switch
         {
-            var p when p.Equals("PostgreSql", StringComparison.OrdinalIgnoreCase) => HostDatabaseProvider.PostgreSql,
-            var p when p.Equals("SqlServer", StringComparison.OrdinalIgnoreCase) => HostDatabaseProvider.SqlServer,
+            "postgresql" => HostDatabaseProvider.PostgreSql,
+            "sqlserver" => HostDatabaseProvider.SqlServer,
             _ => throw new InvalidOperationException(
                 $"Unsupported database provider '{provider}'. Allowed values: PostgreSql, SqlServer.")
         };
