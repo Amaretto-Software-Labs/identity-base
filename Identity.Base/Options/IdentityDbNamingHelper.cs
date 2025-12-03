@@ -10,8 +10,21 @@ internal static class IdentityDbNamingHelper
 {
     public static string ResolveTablePrefix(DbContext context)
     {
-        var serviceProvider = ((IInfrastructure<IServiceProvider>)context).Instance;
-        var options = serviceProvider?.GetService<IOptions<IdentityDbNamingOptions>>();
+        // Try to get from the application service provider (set via UseApplicationServiceProvider)
+        // The application service provider is stored in CoreOptionsExtension
+        var dbContextOptions = context.GetService<IDbContextOptions>();
+        var coreExtension = dbContextOptions?.FindExtension<CoreOptionsExtension>();
+        var applicationServiceProvider = coreExtension?.ApplicationServiceProvider;
+
+        var options = applicationServiceProvider?.GetService<IOptions<IdentityDbNamingOptions>>();
+        if (options is not null)
+        {
+            return IdentityDbNamingOptions.Normalize(options.Value?.TablePrefix);
+        }
+
+        // Fallback to internal service provider (for design-time with UseInternalServiceProvider)
+        var internalServiceProvider = ((IInfrastructure<IServiceProvider>)context).Instance;
+        options = internalServiceProvider?.GetService<IOptions<IdentityDbNamingOptions>>();
         return IdentityDbNamingOptions.Normalize(options?.Value?.TablePrefix);
     }
 

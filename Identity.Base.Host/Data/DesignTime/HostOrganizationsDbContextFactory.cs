@@ -1,6 +1,6 @@
 using Identity.Base.Host.Extensions;
 using Identity.Base.Options;
-using Identity.Base.Roles;
+using Identity.Base.Organizations.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
@@ -9,11 +9,11 @@ using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Host.Data.DesignTime;
 
-internal sealed class HostRolesDbContextFactory : IDesignTimeDbContextFactory<IdentityRolesDbContext>
+internal sealed class HostOrganizationsDbContextFactory : IDesignTimeDbContextFactory<OrganizationDbContext>
 {
     private const string TablePrefix = "Host";
 
-    public IdentityRolesDbContext CreateDbContext(string[] args)
+    public OrganizationDbContext CreateDbContext(string[] args)
     {
         var configuration = new ConfigurationBuilder()
             .AddJsonFile("appsettings.json", optional: true)
@@ -26,7 +26,7 @@ internal sealed class HostRolesDbContextFactory : IDesignTimeDbContextFactory<Id
         var databaseProvider = HostDatabaseProviderResolver.Resolve(configuration, connectionString);
         var migrationsAssembly = HostDatabaseProviderResolver.ResolveMigrationsAssembly(
             configuration,
-            nameof(IdentityRolesDbContext));
+            nameof(OrganizationDbContext));
 
         var services = new ServiceCollection();
         services.AddSingleton<IOptions<IdentityDbNamingOptions>>(Microsoft.Extensions.Options.Options.Create(new IdentityDbNamingOptions
@@ -49,10 +49,10 @@ internal sealed class HostRolesDbContextFactory : IDesignTimeDbContextFactory<Id
         }
         var serviceProvider = services.BuildServiceProvider();
 
-        var builder = new DbContextOptionsBuilder<IdentityRolesDbContext>()
+        var builder = new DbContextOptionsBuilder<OrganizationDbContext>()
             .UseInternalServiceProvider(serviceProvider)
             .UseHostProvider(configuration, migrationsAssembly);
 
-        return new IdentityRolesDbContext(builder.Options);
+        return new OrganizationDbContext(builder.Options);
     }
 }
