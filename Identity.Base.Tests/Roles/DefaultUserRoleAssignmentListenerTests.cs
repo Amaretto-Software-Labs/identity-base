@@ -21,6 +21,7 @@ public class DefaultUserRoleAssignmentListenerTests
     {
         var options = new DbContextOptionsBuilder<IdentityRolesDbContext>()
             .UseInMemoryDatabase(name)
+            .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning))
             .Options;
         return new IdentityRolesDbContext(options);
     }

@@ -27,6 +27,7 @@ public class OrganizationRoleSeederTests
     {
         var roleDbOptions = new DbContextOptionsBuilder<IdentityRolesDbContext>()
             .UseInMemoryDatabase($"org-role-seeder-rbac-{Guid.NewGuid():N}")
+            .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning))
             .Options;
         await using var roleContext = new IdentityRolesDbContext(roleDbOptions);
 
@@ -54,6 +55,7 @@ public class OrganizationRoleSeederTests
 
         var orgDbOptions = new DbContextOptionsBuilder<OrganizationDbContext>()
             .UseInMemoryDatabase($"org-role-seeder-{Guid.NewGuid():N}")
+            .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning))
             .Options;
         await using var orgContext = new OrganizationDbContext(orgDbOptions);
 
@@ -142,6 +144,7 @@ public class OrganizationRoleSeederTests
     {
         var roleDbOptions = new DbContextOptionsBuilder<IdentityRolesDbContext>()
             .UseInMemoryDatabase($"org-role-seeder-update-rbac-{Guid.NewGuid():N}")
+            .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning))
             .Options;
         await using var roleContext = new IdentityRolesDbContext(roleDbOptions);
 
@@ -156,6 +159,7 @@ public class OrganizationRoleSeederTests
 
         var orgDbOptions = new DbContextOptionsBuilder<OrganizationDbContext>()
             .UseInMemoryDatabase($"org-role-seeder-update-{Guid.NewGuid():N}")
+            .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning))
             .Options;
         await using var orgContext = new OrganizationDbContext(orgDbOptions);
 

@@ -14,8 +14,7 @@ public sealed class AuditEntryConfiguration : IEntityTypeConfiguration<AuditEntr
             .IsRequired()
             .HasMaxLength(128);
 
-        builder.Property(audit => audit.Metadata)
-            .HasColumnType("jsonb");
+        builder.Property(audit => audit.Metadata);
 
         builder.HasIndex(audit => audit.ActorUserId);
         builder.HasIndex(audit => audit.TargetUserId);

@@ -16,6 +16,7 @@ public class RoleAssignmentServiceTests
     {
         var options = new DbContextOptionsBuilder<IdentityRolesDbContext>()
             .UseInMemoryDatabase(databaseName)
+            .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning))
             .Options;
         var context = new IdentityRolesDbContext(options);
         return context;

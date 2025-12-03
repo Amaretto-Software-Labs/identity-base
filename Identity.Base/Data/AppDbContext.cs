@@ -47,12 +47,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
                 .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "Users_Email"));
             entity.HasIndex(user => user.NormalizedEmail)
                 .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "Users_NormalizedEmail"))
-                .IsUnique()
-                .HasFilter("\"NormalizedEmail\" IS NOT NULL");
+                .IsUnique();
             entity.HasIndex(user => user.NormalizedUserName)
                 .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "Users_NormalizedUserName"))
-                .IsUnique()
-                .HasFilter("\"NormalizedUserName\" IS NOT NULL");
+                .IsUnique();
             entity.HasIndex(user => user.CreatedAt)
                 .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "Users_CreatedAt"));
         });
@@ -62,8 +60,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             entity.ToTable(IdentityDbNamingHelper.Table(prefix, "Roles"));
             entity.HasIndex(role => role.NormalizedName)
                 .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "Roles_NormalizedName"))
-                .IsUnique()
-                .HasFilter("\"NormalizedName\" IS NOT NULL");
+                .IsUnique();
         });
 
         modelBuilder.Entity<IdentityUserClaim<Guid>>().ToTable(IdentityDbNamingHelper.Table(prefix, "UserClaims"));

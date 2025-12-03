@@ -11,8 +11,7 @@ public sealed class OrganizationRolePermissionConfiguration : IEntityTypeConfigu
         builder.HasKey(permission => permission.Id);
 
         builder.Property(permission => permission.Id)
-            .ValueGeneratedOnAdd()
-            .HasDefaultValueSql("uuid_generate_v4()");
+            .ValueGeneratedOnAdd();
 
         builder.Property(permission => permission.RoleId)
             .IsRequired();
