@@ -996,7 +996,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
             var dbContext = scope.ServiceProvider.GetRequiredService<OrganizationDbContext>();
             var roleId = await dbContext.OrganizationRoles
                 .AsNoTracking()
-                .Where(role => role.OrganizationId == null && role.Name == systemRoleName)
+                .Where(role => role.OrganizationId == Guid.Empty && role.Name == systemRoleName)
                 .Select(role => role.Id)
                 .FirstAsync();
 
@@ -1007,7 +1007,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
             var dbContext = scope.ServiceProvider.GetRequiredService<OrganizationDbContext>();
             var ownerRoleId = await dbContext.OrganizationRoles
                 .AsNoTracking()
-                .Where(role => role.OrganizationId == null && role.Name == "OrgOwner")
+                .Where(role => role.OrganizationId == Guid.Empty && role.Name == "OrgOwner")
                 .Select(role => role.Id)
                 .FirstAsync();
 
@@ -1034,7 +1034,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         var dbContext = scope.ServiceProvider.GetRequiredService<OrganizationDbContext>();
         return await dbContext.OrganizationRoles
             .AsNoTracking()
-            .Where(role => role.OrganizationId == null && role.Name == roleName)
+            .Where(role => role.OrganizationId == Guid.Empty && role.Name == roleName)
             .Select(role => role.Id)
             .FirstAsync();
     }

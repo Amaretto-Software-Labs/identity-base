@@ -10,7 +10,7 @@ public class OrganizationRoleAssignment
 
     public Guid RoleId { get; set; }
 
-    public Guid? TenantId { get; set; }
+    public Guid TenantId { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; }
 

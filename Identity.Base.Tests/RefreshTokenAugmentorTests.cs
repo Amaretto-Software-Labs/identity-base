@@ -79,7 +79,7 @@ public class RefreshTokenAugmentorTests : IClassFixture<OrganizationApiFactory>
                 .Value.OwnerRoleName;
             var ownerRoleId = await orgDb.OrganizationRoles
                 .AsNoTracking()
-                .Where(r => r.OrganizationId == null && r.Name == ownerRoleName)
+                .Where(r => r.OrganizationId == Guid.Empty && r.Name == ownerRoleName)
                 .Select(r => r.Id)
                 .FirstOrDefaultAsync();
             ownerRoleId.ShouldNotBe(Guid.Empty);
@@ -148,7 +148,7 @@ public class RefreshTokenAugmentorTests : IClassFixture<OrganizationApiFactory>
 
             var ownerRoleId = await orgDb.OrganizationRoles
                 .AsNoTracking()
-                .Where(r => r.OrganizationId == null && r.Name == ownerRoleName)
+                .Where(r => r.OrganizationId == Guid.Empty && r.Name == ownerRoleName)
                 .Select(r => r.Id)
                 .FirstOrDefaultAsync();
             ownerRoleId.ShouldNotBe(Guid.Empty);

@@ -7,9 +7,9 @@ public class OrganizationRole
 {
     public Guid Id { get; set; }
 
-    public Guid? OrganizationId { get; set; }
+    public Guid OrganizationId { get; set; }
 
-    public Guid? TenantId { get; set; }
+    public Guid TenantId { get; set; }
 
     public string Name { get; set; } = string.Empty;
 

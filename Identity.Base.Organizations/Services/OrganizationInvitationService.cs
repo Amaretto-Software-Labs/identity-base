@@ -302,7 +302,7 @@ public sealed class OrganizationInvitationService
                 throw new InvalidOperationException("One or more roles are not valid for this organization.");
             }
 
-            if (role.OrganizationId.HasValue && role.OrganizationId != organization.Id)
+            if (role.OrganizationId != Guid.Empty && role.OrganizationId != organization.Id)
             {
                 throw new InvalidOperationException("One or more roles are not valid for this organization.");
             }

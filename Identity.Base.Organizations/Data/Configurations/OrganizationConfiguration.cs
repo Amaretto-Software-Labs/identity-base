@@ -16,6 +16,9 @@ public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organiz
     {
         builder.HasKey(organization => organization.Id);
 
+        builder.Property(organization => organization.TenantId)
+            .HasDefaultValue(Guid.Empty);
+
         builder.Property(organization => organization.Slug)
             .IsRequired()
             .HasMaxLength(128);

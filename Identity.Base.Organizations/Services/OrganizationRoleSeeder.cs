@@ -112,8 +112,8 @@ public sealed class OrganizationRoleSeeder
     {
         var baseQuery = _dbContext.OrganizationRoles
             .Where(entity =>
-                entity.OrganizationId == null &&
-                entity.TenantId == null);
+                entity.OrganizationId == Guid.Empty &&
+                entity.TenantId == Guid.Empty);
 
         var useInMemory = _dbContext.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true;
 

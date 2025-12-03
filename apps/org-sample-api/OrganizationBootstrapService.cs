@@ -145,7 +145,7 @@ public sealed class OrganizationBootstrapService
         }
 
         var roles = await _roleService.ListAsync(null, null, cancellationToken).ConfigureAwait(false);
-        return roles.FirstOrDefault(role => role.OrganizationId is null && role.Name.Equals(ownerRoleName, StringComparison.OrdinalIgnoreCase));
+        return roles.FirstOrDefault(role => role.OrganizationId == Guid.Empty && role.Name.Equals(ownerRoleName, StringComparison.OrdinalIgnoreCase));
     }
 
     private static OrganizationMetadata CreateMetadata(IReadOnlyDictionary<string, string?> metadata)

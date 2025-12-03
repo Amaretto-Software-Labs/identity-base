@@ -90,7 +90,7 @@ public class OrganizationRoleServiceTests
             RoleId = role.Id,
             PermissionId = readPermission.Id,
             OrganizationId = role.OrganizationId,
-            TenantId = null,
+            TenantId = Guid.Empty,
             CreatedAtUtc = DateTimeOffset.UtcNow,
         });
 
@@ -150,7 +150,7 @@ public class OrganizationRoleServiceTests
             RoleId = role.Id,
             PermissionId = readPermission.Id,
             OrganizationId = role.OrganizationId,
-            TenantId = null,
+            TenantId = Guid.Empty,
             CreatedAtUtc = DateTimeOffset.UtcNow,
         });
 

@@ -57,7 +57,7 @@ public sealed class OrganizationService : IOrganizationService
         var organization = new Organization
         {
             Id = Guid.NewGuid(),
-            TenantId = tenantId,
+            TenantId = tenantId ?? Guid.Empty,
             Slug = slug,
             DisplayName = displayName,
             Metadata = metadata,
@@ -491,5 +491,5 @@ public sealed class OrganizationService : IOrganizationService
     private static IQueryable<Organization> QueryByTenant(IQueryable<Organization> query, Guid? tenantId)
         => tenantId is Guid tenantFilter
             ? query.Where(organization => organization.TenantId == tenantFilter)
-            : query.Where(organization => organization.TenantId == null);
+            : query.Where(organization => organization.TenantId == Guid.Empty);
 }

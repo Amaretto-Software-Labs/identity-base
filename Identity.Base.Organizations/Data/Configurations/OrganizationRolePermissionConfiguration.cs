@@ -1,3 +1,4 @@
+using System;
 using Identity.Base.Organizations.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -9,6 +10,12 @@ public sealed class OrganizationRolePermissionConfiguration : IEntityTypeConfigu
     public void Configure(EntityTypeBuilder<OrganizationRolePermission> builder)
     {
         builder.HasKey(permission => permission.Id);
+
+        builder.Property(permission => permission.TenantId)
+            .HasDefaultValue(Guid.Empty);
+
+        builder.Property(permission => permission.OrganizationId)
+            .HasDefaultValue(Guid.Empty);
 
         builder.Property(permission => permission.Id)
             .ValueGeneratedOnAdd();

@@ -727,7 +727,7 @@ public static class UserOrganizationEndpoints
 
         var query = dbContext.OrganizationRoles
             .AsNoTracking()
-            .Where(role => role.OrganizationId == null && role.TenantId == null);
+            .Where(role => role.OrganizationId == Guid.Empty && role.TenantId == Guid.Empty);
 
         var inMemory = dbContext.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true;
 

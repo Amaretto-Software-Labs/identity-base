@@ -7,7 +7,7 @@ public class Organization
 {
     public Guid Id { get; set; }
 
-    public Guid? TenantId { get; set; }
+    public Guid TenantId { get; set; }
 
     public string Slug { get; set; } = string.Empty;
 
