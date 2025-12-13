@@ -53,4 +53,9 @@
   <ItemGroup>
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="OpenIddict/Handlers/PasswordGrantHandler.cs" />
+    <Compile Remove="OpenIddict/Handlers/PasswordFlowClientValidator.cs" />
+  </ItemGroup>
+
 </Project>

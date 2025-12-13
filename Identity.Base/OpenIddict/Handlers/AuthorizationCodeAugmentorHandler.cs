@@ -1,8 +1,8 @@
 using System.Collections.Generic;
-using System.Security.Claims;
 using System.Threading.Tasks;
 using Identity.Base.Abstractions;
 using Identity.Base.Identity;
+using Identity.Base.OpenIddict;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using OpenIddict.Abstractions;
@@ -57,13 +57,13 @@ internal sealed class AuthorizationCodeAugmentorHandler : IOpenIddictServerHandl
             await augmentor.AugmentAsync(user, context.Principal, context.CancellationToken).ConfigureAwait(false);
         }
 
-        context.Principal.SetDestinations(PasswordGrantHandler.GetDestinations);
+        context.Principal.SetDestinations(OpenIddictClaimDestinations.GetDestinations);
     }
 
     public static OpenIddictServerHandlerDescriptor Descriptor { get; } =
         OpenIddictServerHandlerDescriptor.CreateBuilder<OpenIddictServerEvents.ProcessSignInContext>()
             .UseScopedHandler<AuthorizationCodeAugmentorHandler>()
-            .SetOrder(PasswordGrantHandler.Descriptor.Order + 10)
+            .SetOrder(int.MinValue + 5010)
             .SetType(OpenIddictServerHandlerType.Custom)
             .Build();
 }

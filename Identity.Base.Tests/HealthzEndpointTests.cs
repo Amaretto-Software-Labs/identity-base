@@ -29,6 +29,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace Identity.Base.Tests;
 
@@ -66,6 +67,8 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
     public FakeMfaChallengeSender SmsChallengeSender { get; } = new();
 
     private static readonly Uri DefaultBaseAddress = new("https://localhost");
+    private const string SpaClientId = "spa-client";
+    private const string SpaRedirectUri = "https://localhost:3000/auth/callback";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -162,27 +165,25 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
             services.PostConfigure<OpenIddictOptions>(options =>
             {
                 options.Applications.Clear();
-                options.Applications.Add(new OpenIddictApplicationOptions
-                {
-                    ClientId = "test-client",
-                    ClientType = OpenIddictConstants.ClientTypes.Confidential,
-                    ClientSecret = "test-secret",
-                    RedirectUris = { "https://localhost/callback" },
-                    Permissions =
-                    {
-                        OpenIddictConstants.Permissions.Endpoints.Token,
-                        OpenIddictConstants.Permissions.Endpoints.Authorization,
-                        OpenIddictConstants.Permissions.GrantTypes.AuthorizationCode,
-                        OpenIddictConstants.Permissions.GrantTypes.Password,
-                        OpenIddictConstants.Permissions.ResponseTypes.Code,
-                        OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Email,
-                        OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Profile,
-                        OpenIddictConstants.Permissions.Prefixes.Scope + "identity.api",
-                        OpenIddictConstants.Permissions.Prefixes.Scope + "identity.admin"
-                    },
-                    AllowPasswordFlow = true,
-                    AllowClientCredentialsFlow = true
-                });
+	                options.Applications.Add(new OpenIddictApplicationOptions
+	                {
+	                    ClientId = "test-client",
+	                    ClientType = OpenIddictConstants.ClientTypes.Confidential,
+	                    ClientSecret = "test-secret",
+	                    RedirectUris = { "https://localhost/callback" },
+	                    Permissions =
+	                    {
+	                        OpenIddictConstants.Permissions.Endpoints.Token,
+	                        OpenIddictConstants.Permissions.Endpoints.Authorization,
+	                        OpenIddictConstants.Permissions.GrantTypes.AuthorizationCode,
+	                        OpenIddictConstants.Permissions.ResponseTypes.Code,
+	                        OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Email,
+	                        OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Profile,
+	                        OpenIddictConstants.Permissions.Prefixes.Scope + "identity.api",
+	                        OpenIddictConstants.Permissions.Prefixes.Scope + "identity.admin"
+	                    },
+	                    AllowClientCredentialsFlow = true
+	                });
 
                 options.Applications.Add(new OpenIddictApplicationOptions
                 {
@@ -228,6 +229,11 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
             services.PostConfigure<OpenIddictServerAspNetCoreOptions>(options =>
             {
                 options.DisableTransportSecurityRequirement = true;
+            });
+
+            services.PostConfigure<OpenIddictServerOptions>(options =>
+            {
+                options.Issuer = new Uri("https://localhost/");
             });
 
             services.PostConfigure<PermissionCatalogOptions>(options =>
@@ -328,11 +334,119 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
     protected override void ConfigureClient(HttpClient client)
     {
         base.ConfigureClient(client);
+        client.BaseAddress = DefaultBaseAddress;
+    }
 
-        if (client.BaseAddress is null || client.BaseAddress.Scheme != Uri.UriSchemeHttps)
+    public async Task<string> CreateAccessTokenAsync(
+        string email,
+        string password,
+        WebApplicationFactory<Program>? factory = null,
+        string scope = "openid profile email offline_access identity.api identity.admin")
+    {
+        var tokenPayloadJson = await RequestTokenPayloadJsonAsync(email, password, factory, scope);
+        using var tokenDocument = JsonDocument.Parse(tokenPayloadJson);
+        return tokenDocument.RootElement.GetProperty("access_token").GetString()
+            ?? throw new InvalidOperationException("Token response did not include access_token.");
+    }
+
+    public async Task<(string AccessToken, string? RefreshToken)> CreateTokensAsync(
+        string email,
+        string password,
+        WebApplicationFactory<Program>? factory = null,
+        string scope = "openid profile email offline_access identity.api identity.admin")
+    {
+        var tokenPayloadJson = await RequestTokenPayloadJsonAsync(email, password, factory, scope);
+        using var tokenDocument = JsonDocument.Parse(tokenPayloadJson);
+
+        var accessToken = tokenDocument.RootElement.GetProperty("access_token").GetString();
+        if (string.IsNullOrWhiteSpace(accessToken))
         {
-            client.BaseAddress = DefaultBaseAddress;
+            throw new InvalidOperationException("Token response did not include access_token.");
         }
+
+        var refreshToken = tokenDocument.RootElement.TryGetProperty("refresh_token", out var refreshElement)
+            ? refreshElement.GetString()
+            : null;
+
+        return (accessToken, refreshToken);
+    }
+
+    private async Task<string> RequestTokenPayloadJsonAsync(
+        string email,
+        string password,
+        WebApplicationFactory<Program>? factory,
+        string scope)
+    {
+        var targetFactory = factory ?? this;
+
+        using var client = targetFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true,
+            BaseAddress = DefaultBaseAddress
+        });
+
+        var loginResponse = await client.PostAsJsonAsync("/auth/login", new
+        {
+            email,
+            password,
+            clientId = SpaClientId
+        });
+
+        var loginPayload = await loginResponse.Content.ReadAsStringAsync();
+        if (!loginResponse.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"Test login failed: {loginPayload}");
+        }
+
+        var pkce = PkceData.Create();
+        var state = Guid.NewGuid().ToString("N");
+
+        var authorizeUrl = QueryHelpers.AddQueryString("/connect/authorize", new Dictionary<string, string?>
+        {
+            [OpenIddictConstants.Parameters.ResponseType] = OpenIddictConstants.ResponseTypes.Code,
+            [OpenIddictConstants.Parameters.ClientId] = SpaClientId,
+            [OpenIddictConstants.Parameters.RedirectUri] = SpaRedirectUri,
+            [OpenIddictConstants.Parameters.Scope] = scope,
+            [OpenIddictConstants.Parameters.CodeChallenge] = pkce.CodeChallenge,
+            [OpenIddictConstants.Parameters.CodeChallengeMethod] = OpenIddictConstants.CodeChallengeMethods.Sha256,
+            [OpenIddictConstants.Parameters.State] = state
+        });
+
+        using var authorizeResponse = await client.GetAsync(authorizeUrl);
+        var authorizePayload = await authorizeResponse.Content.ReadAsStringAsync();
+        if (authorizeResponse.StatusCode != HttpStatusCode.Redirect)
+        {
+            throw new InvalidOperationException($"Authorization request did not redirect: {authorizeResponse.StatusCode} {authorizePayload}");
+        }
+
+        var location = authorizeResponse.Headers.Location
+            ?? throw new InvalidOperationException("Authorization response did not include a Location header.");
+        var callbackQuery = QueryHelpers.ParseQuery(location.Query);
+        var authorizationCode = callbackQuery[OpenIddictConstants.Parameters.Code].ToString();
+
+        if (string.IsNullOrWhiteSpace(authorizationCode))
+        {
+            throw new InvalidOperationException("Authorization code was missing from redirect URI.");
+        }
+
+        using var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            [OpenIddictConstants.Parameters.GrantType] = OpenIddictConstants.GrantTypes.AuthorizationCode,
+            [OpenIddictConstants.Parameters.Code] = authorizationCode,
+            [OpenIddictConstants.Parameters.RedirectUri] = SpaRedirectUri,
+            [OpenIddictConstants.Parameters.ClientId] = SpaClientId,
+            [OpenIddictConstants.Parameters.CodeVerifier] = pkce.CodeVerifier,
+        });
+
+        using var tokenResponse = await client.PostAsync("/connect/token", tokenRequest);
+        var tokenPayloadJson = await tokenResponse.Content.ReadAsStringAsync();
+        if (!tokenResponse.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"Token exchange failed: {tokenResponse.StatusCode} {tokenPayloadJson}");
+        }
+
+        return tokenPayloadJson;
     }
 
     private sealed class IdentityRolesSeedStartupService : IHostedService

@@ -30,11 +30,6 @@ internal sealed class OpenIddictOptionsValidator : IValidateOptions<OpenIddictOp
                 return ValidateOptionsResult.Fail($"Client secret must be provided for confidential client '{application.ClientId}'.");
             }
 
-            if (application.AllowPasswordFlow && application.ClientType != OpenIddictConstants.ClientTypes.Confidential)
-            {
-                return ValidateOptionsResult.Fail($"Password flow can only be enabled for confidential clients (client '{application.ClientId}').");
-            }
-
             if (application.AllowClientCredentialsFlow && application.ClientType != OpenIddictConstants.ClientTypes.Confidential)
             {
                 return ValidateOptionsResult.Fail($"Client credentials flow can only be enabled for confidential clients (client '{application.ClientId}').");

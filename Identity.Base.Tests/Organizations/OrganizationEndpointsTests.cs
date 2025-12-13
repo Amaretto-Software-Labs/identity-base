@@ -806,15 +806,6 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         return client;
     }
 
-    private HttpClient CreateTokenClient()
-    {
-        return _factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            BaseAddress = new Uri("https://localhost"),
-            HandleCookies = false
-        });
-    }
-
     private async Task<string> EnsureRoleWithPermissionsAsync(string roleName, params string[] permissions)
     {
         if (permissions.Length == 0)
@@ -900,27 +891,10 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
             ? string.Join(' ', new[] { OpenIddictConstants.Scopes.OpenId, OpenIddictConstants.Scopes.Profile, OpenIddictConstants.Scopes.Email, "identity.api", "identity.admin" })
             : string.Join(' ', new[] { OpenIddictConstants.Scopes.OpenId, OpenIddictConstants.Scopes.Profile, OpenIddictConstants.Scopes.Email, "identity.api" });
 
-        using var client = CreateTokenClient();
-        using var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            [OpenIddictConstants.Parameters.GrantType] = OpenIddictConstants.GrantTypes.Password,
-            [OpenIddictConstants.Parameters.Username] = email,
-            [OpenIddictConstants.Parameters.Password] = password,
-            [OpenIddictConstants.Parameters.ClientId] = "test-client",
-            [OpenIddictConstants.Parameters.ClientSecret] = "test-secret",
-            [OpenIddictConstants.Parameters.Scope] = scopeValue
-        });
-        using var response = await client.PostAsync("/connect/token", tokenRequest);
-
-        var responseBody = await response.Content.ReadAsStringAsync();
-        response.StatusCode.ShouldBe(HttpStatusCode.OK, responseBody);
-
-        using var payload = JsonDocument.Parse(responseBody);
-
-        var accessToken = payload.RootElement.GetProperty("access_token").GetString();
+        var accessToken = await _factory.CreateAccessTokenAsync(email, password, scope: scopeValue);
         accessToken.ShouldNotBeNullOrWhiteSpace();
 
-        return (existing.Id, accessToken!);
+        return (existing.Id, accessToken);
     }
 
     private async Task<(Guid UserId, string AccessToken)> CreateStandardUserAndTokenAsync(string email, string password)
@@ -943,27 +917,13 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
             createResult.Succeeded.ShouldBeTrue(createResult.Errors.FirstOrDefault()?.Description);
         }
 
-        using var client = CreateTokenClient();
-        using var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            [OpenIddictConstants.Parameters.GrantType] = OpenIddictConstants.GrantTypes.Password,
-            [OpenIddictConstants.Parameters.Username] = email,
-            [OpenIddictConstants.Parameters.Password] = password,
-            [OpenIddictConstants.Parameters.ClientId] = "test-client",
-            [OpenIddictConstants.Parameters.ClientSecret] = "test-secret",
-            [OpenIddictConstants.Parameters.Scope] = string.Join(' ', new[] { OpenIddictConstants.Scopes.OpenId, OpenIddictConstants.Scopes.Profile, OpenIddictConstants.Scopes.Email, "identity.api" })
-        });
-        using var response = await client.PostAsync("/connect/token", tokenRequest);
-
-        var responseBody = await response.Content.ReadAsStringAsync();
-        response.StatusCode.ShouldBe(HttpStatusCode.OK, responseBody);
-
-        using var payload = JsonDocument.Parse(responseBody);
-
-        var accessToken = payload.RootElement.GetProperty("access_token").GetString();
+        var accessToken = await _factory.CreateAccessTokenAsync(
+            email,
+            password,
+            scope: string.Join(' ', new[] { OpenIddictConstants.Scopes.OpenId, OpenIddictConstants.Scopes.Profile, OpenIddictConstants.Scopes.Email, "identity.api" }));
         accessToken.ShouldNotBeNullOrWhiteSpace();
 
-        return (existing!.Id, accessToken!);
+        return (existing!.Id, accessToken);
     }
 
     private async Task<Guid> CreateOrganizationAsync(string slug, string displayName)

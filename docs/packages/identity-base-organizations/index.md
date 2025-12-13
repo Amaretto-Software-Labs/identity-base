@@ -82,7 +82,7 @@ Apply these migrations (for example during deploy or CI) before the hosted seed 
 | `GET /admin/organizations/{id}/invitations` | Paged list of active invitations (`page`, `pageSize`, `search`, `sort`). Returns `PagedResult<OrganizationInvitationDto>`. | `admin.organizations.members.manage` |
 | `POST /admin/organizations/{id}/invitations` | Create an invitation (stores token + metadata; host is responsible for emailing the code). | `admin.organizations.members.manage` |
 | `DELETE /admin/organizations/{id}/invitations/{code}` | Revoke an invitation. | `admin.organizations.members.manage` |
-| `GET /invitations/{code}` | Public endpoint to validate invite metadata. | Anonymous |
+| `GET /invitations/{code}` | Public endpoint to validate an invite code and return organization preview metadata (no email/role ids). | Anonymous |
 | `POST /invitations/claim` | Accept an invite (authenticated) and add membership. | Authenticated user matching invite email |
 | `POST /users/me/organizations` | Create a new organization owned by the caller; seeds the default owner role membership. | Authenticated |
 | `GET /users/me/organizations` | Paged list of the caller's memberships (`page`, `pageSize`, `search`, `sort`, `includeArchived`). Returns `PagedResult<UserOrganizationMembershipDto>`. | Authenticated |
@@ -109,6 +109,14 @@ All paged endpoints honor the shared query parameters: `page` (default 1), `page
 ```bash
 # 1. SPA fetches invitation metadata
 curl https://identity.example.com/invitations/8ed0e3c8-41c5-4e1c-b3d6-6ec9c7deef6d
+
+# Response (preview)
+{
+  "code": "...",
+  "organizationSlug": "acme",
+  "organizationName": "Acme Corp",
+  "expiresAtUtc": "..."
+}
 
 # 2. Authenticated user claims the invitation
 curl -X POST https://identity.example.com/invitations/claim \

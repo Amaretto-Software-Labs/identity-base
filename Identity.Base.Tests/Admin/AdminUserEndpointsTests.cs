@@ -409,31 +409,10 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
             ? string.Join(' ', new[] { OpenIddictConstants.Scopes.OpenId, OpenIddictConstants.Scopes.Profile, OpenIddictConstants.Scopes.Email, "identity.api", "identity.admin" })
             : string.Join(' ', new[] { OpenIddictConstants.Scopes.OpenId, OpenIddictConstants.Scopes.Profile, OpenIddictConstants.Scopes.Email, "identity.api" });
 
-        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            BaseAddress = new Uri("https://localhost"),
-            HandleCookies = false
-        });
-
-        using var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            [OpenIddictConstants.Parameters.GrantType] = OpenIddictConstants.GrantTypes.Password,
-            [OpenIddictConstants.Parameters.Username] = email,
-            [OpenIddictConstants.Parameters.Password] = password,
-            [OpenIddictConstants.Parameters.ClientId] = "test-client",
-            [OpenIddictConstants.Parameters.ClientSecret] = "test-secret",
-            [OpenIddictConstants.Parameters.Scope] = scopeValue
-        });
-        using var tokenResponse = await client.PostAsync("/connect/token", tokenRequest);
-
-        var tokenPayload = await tokenResponse.Content.ReadFromJsonAsync<JsonDocument>();
-        tokenResponse.StatusCode.ShouldBe(HttpStatusCode.OK, tokenPayload?.RootElement.ToString());
-        tokenPayload.ShouldNotBeNull();
-
-        var accessToken = tokenPayload!.RootElement.GetProperty("access_token").GetString();
+        var accessToken = await _factory.CreateAccessTokenAsync(email, password, scope: scopeValue);
         accessToken.ShouldNotBeNullOrWhiteSpace();
 
-        return (existing!.Id, accessToken!);
+        return (existing!.Id, accessToken);
     }
 
     private static async Task SeedUsersAsync(AppDbContext context, string prefix, int count)

@@ -201,24 +201,6 @@ namespace Identity.Base.Admin.Features.AdminUsers;
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(query.Role))
-        {
-            var roleName = query.Role.Trim();
-            var roleId = await roleDbContext.Roles
-                .Where(role => role.Name == roleName)
-                .Select(role => role.Id)
-                .FirstOrDefaultAsync(cancellationToken)
-                .ConfigureAwait(false);
-
-            if (roleId == Guid.Empty)
-            {
-                return Results.Ok(PagedResult<AdminUserSummary>.Empty(pageRequest.Page, pageRequest.PageSize));
-            }
-
-            usersQuery = usersQuery.Where(user =>
-                roleDbContext.UserRoles.Any(userRole => userRole.RoleId == roleId && userRole.UserId == user.Id));
-        }
-
         if (query.Deleted.HasValue)
         {
             usersQuery = query.Deleted.Value
@@ -232,7 +214,62 @@ namespace Identity.Base.Admin.Features.AdminUsers;
                     user.LockoutEnd != SoftDeleteLockoutEnd);
         }
 
-        var total = await usersQuery.CountAsync(cancellationToken).ConfigureAwait(false);
+        List<ApplicationUser>? roleFilteredUsers = null;
+
+        if (!string.IsNullOrWhiteSpace(query.Role))
+        {
+            const int roleFilterBatchSize = 2000;
+
+            var roleName = query.Role.Trim();
+            var roleId = await roleDbContext.Roles
+                .Where(role => role.Name == roleName)
+                .Select(role => role.Id)
+                .FirstOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            if (roleId == Guid.Empty)
+            {
+                return Results.Ok(PagedResult<AdminUserSummary>.Empty(pageRequest.Page, pageRequest.PageSize));
+            }
+
+            var roleUserIds = await roleDbContext.UserRoles
+                .Where(userRole => userRole.RoleId == roleId)
+                .Select(userRole => userRole.UserId)
+                .Distinct()
+                .ToArrayAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            if (roleUserIds.Length == 0)
+            {
+                return Results.Ok(PagedResult<AdminUserSummary>.Empty(pageRequest.Page, pageRequest.PageSize));
+            }
+
+            if (roleUserIds.Length <= roleFilterBatchSize)
+            {
+                usersQuery = usersQuery.Where(user => roleUserIds.Contains(user.Id));
+            }
+            else
+            {
+                roleFilteredUsers = new List<ApplicationUser>(roleUserIds.Length);
+
+                for (var index = 0; index < roleUserIds.Length; index += roleFilterBatchSize)
+                {
+                    var remaining = roleUserIds.Length - index;
+                    var chunk = roleUserIds.AsSpan(index, Math.Min(roleFilterBatchSize, remaining)).ToArray();
+
+                    var batchUsers = await usersQuery
+                        .Where(user => chunk.Contains(user.Id))
+                        .ToListAsync(cancellationToken)
+                        .ConfigureAwait(false);
+
+                    roleFilteredUsers.AddRange(batchUsers);
+                }
+            }
+        }
+
+        var total = roleFilteredUsers is not null
+            ? roleFilteredUsers.Count
+            : await usersQuery.CountAsync(cancellationToken).ConfigureAwait(false);
 
         if (total == 0)
         {
@@ -257,14 +294,25 @@ namespace Identity.Base.Admin.Features.AdminUsers;
             return Results.Ok(empty);
         }
 
-        var orderedQuery = ApplyUserSorting(usersQuery, pageRequest);
-
         var skip = pageRequest.GetSkip();
-        var users = await orderedQuery
-            .Skip(skip)
-            .Take(pageRequest.PageSize)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        List<ApplicationUser> users;
+
+        if (roleFilteredUsers is not null)
+        {
+            users = ApplyUserSorting(roleFilteredUsers.AsQueryable(), pageRequest)
+                .Skip(skip)
+                .Take(pageRequest.PageSize)
+                .ToList();
+        }
+        else
+        {
+            var orderedQuery = ApplyUserSorting(usersQuery, pageRequest);
+            users = await orderedQuery
+                .Skip(skip)
+                .Take(pageRequest.PageSize)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
 
         var userIds = users.Select(user => user.Id).ToList();
         var rolesLookup = new Dictionary<Guid, IReadOnlyList<string>>();
@@ -1144,7 +1192,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
                 continue;
             }
 
-            if (!string.IsNullOrWhiteSpace(field.Pattern) && !Regex.IsMatch(value, field.Pattern))
+            if (!string.IsNullOrWhiteSpace(field.Pattern) && !Regex.IsMatch(value, field.Pattern, RegexOptions.None, TimeSpan.FromMilliseconds(250)))
             {
                 errors[$"metadata.{field.Name}"] = new[] { "Field does not match the required pattern." };
                 continue;

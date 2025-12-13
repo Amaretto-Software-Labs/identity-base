@@ -156,6 +156,19 @@ internal static class OrganizationApiMapper
         };
     }
 
+    public static OrganizationInvitationPreviewDto ToInvitationPreviewDto(OrganizationInvitationRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        return new OrganizationInvitationPreviewDto
+        {
+            Code = record.Code,
+            OrganizationSlug = record.OrganizationSlug,
+            OrganizationName = record.OrganizationName,
+            ExpiresAtUtc = record.ExpiresAtUtc
+        };
+    }
+
     public static PagedResult<OrganizationInvitationDto> ToInvitationPagedResult(PagedResult<OrganizationInvitationRecord> result)
     {
         ArgumentNullException.ThrowIfNull(result);

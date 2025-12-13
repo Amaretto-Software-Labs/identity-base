@@ -475,10 +475,9 @@ public sealed class IdentityBaseBuilder
                     .SetUserInfoEndpointUris("/connect/userinfo")
                        .SetIntrospectionEndpointUris("/connect/introspect");
 
-                options.AllowAuthorizationCodeFlow()
-                       .AllowClientCredentialsFlow()
-                       .AllowRefreshTokenFlow()
-                       .AllowPasswordFlow();
+	                options.AllowAuthorizationCodeFlow()
+	                       .AllowClientCredentialsFlow()
+	                       .AllowRefreshTokenFlow();
 
                 options.RequireProofKeyForCodeExchange();
 
@@ -492,13 +491,11 @@ public sealed class IdentityBaseBuilder
                     .EnableAuthorizationEndpointPassthrough()
                     .EnableStatusCodePagesIntegration();
 
-                options.AddEventHandler(ClientCredentialsGrantHandler.Descriptor);
-                options.AddEventHandler(ClientCredentialsFlowValidator.Descriptor);
-                options.AddEventHandler(PasswordFlowClientValidator.Descriptor);
-                options.AddEventHandler(PasswordGrantHandler.Descriptor);
-                options.AddEventHandler(AuthorizationCodeAugmentorHandler.Descriptor);
-                options.AddEventHandler(RefreshTokenAugmentorHandler.Descriptor);
-            })
+	                options.AddEventHandler(ClientCredentialsGrantHandler.Descriptor);
+	                options.AddEventHandler(ClientCredentialsFlowValidator.Descriptor);
+	                options.AddEventHandler(AuthorizationCodeAugmentorHandler.Descriptor);
+	                options.AddEventHandler(RefreshTokenAugmentorHandler.Descriptor);
+	            })
             .AddValidation(options =>
             {
                 options.UseLocalServer();

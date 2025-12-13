@@ -21,6 +21,10 @@ export function createError(error: unknown): IdentityError {
     return error
   }
 
+  if (error instanceof Error) {
+    return new IdentityError(error.message || 'An unexpected error occurred')
+  }
+
   if (typeof error === 'string') {
     return new IdentityError(error)
   }

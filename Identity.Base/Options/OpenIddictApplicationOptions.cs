@@ -31,8 +31,6 @@ public sealed class OpenIddictApplicationOptions
 
     public IList<string> Requirements { get; init; } = new List<string>();
 
-    public bool AllowPasswordFlow { get; init; }
-
     public bool AllowClientCredentialsFlow { get; init; }
 }
 

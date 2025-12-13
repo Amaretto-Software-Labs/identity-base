@@ -59,11 +59,6 @@ internal sealed class OpenIddictSeeder
                 descriptor.Permissions.Add(permission);
             }
 
-            if (application.AllowPasswordFlow)
-            {
-                descriptor.Permissions.Add(OpenIddictConstants.Permissions.GrantTypes.Password);
-            }
-
             if (application.AllowClientCredentialsFlow)
             {
                 descriptor.Permissions.Add(OpenIddictConstants.Permissions.GrantTypes.ClientCredentials);

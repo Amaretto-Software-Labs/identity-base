@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Identity.Base.Abstractions;
 using Identity.Base.Identity;
+using Identity.Base.OpenIddict;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using OpenIddict.Abstractions;
@@ -60,15 +61,14 @@ internal sealed class RefreshTokenAugmentorHandler : IOpenIddictServerHandler<Op
             await augmentor.AugmentAsync(user, principal, context.CancellationToken).ConfigureAwait(false);
         }
 
-        principal.SetDestinations(PasswordGrantHandler.GetDestinations);
+        principal.SetDestinations(OpenIddictClaimDestinations.GetDestinations);
         context.Principal = principal;
     }
 
     public static OpenIddictServerHandlerDescriptor Descriptor { get; } =
         OpenIddictServerHandlerDescriptor.CreateBuilder<OpenIddictServerEvents.HandleTokenRequestContext>()
             .UseScopedHandler<RefreshTokenAugmentorHandler>()
-            .SetOrder(PasswordGrantHandler.Descriptor.Order + 20)
+            .SetOrder(int.MinValue + 5020)
             .SetType(OpenIddictServerHandlerType.Custom)
             .Build();
 }
-

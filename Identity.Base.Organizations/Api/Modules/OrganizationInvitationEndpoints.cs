@@ -183,7 +183,7 @@ public static class OrganizationInvitationEndpoints
                 return Results.NotFound();
             }
 
-            return Results.Ok(OrganizationApiMapper.ToInvitationDto(invitation));
+            return Results.Ok(OrganizationApiMapper.ToInvitationPreviewDto(invitation));
         })
         .AllowAnonymous();
 

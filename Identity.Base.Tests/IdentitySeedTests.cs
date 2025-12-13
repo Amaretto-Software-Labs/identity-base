@@ -89,28 +89,10 @@ public class IdentitySeedTests
             await seeder.SeedAsync();
         }
 
-        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            BaseAddress = new Uri("https://localhost"),
-            HandleCookies = false
-        });
-
-        using var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            [OpenIddictConstants.Parameters.GrantType] = OpenIddictConstants.GrantTypes.Password,
-            [OpenIddictConstants.Parameters.Username] = "seed-admin@example.com",
-            [OpenIddictConstants.Parameters.Password] = "P@ssword12345!",
-            [OpenIddictConstants.Parameters.ClientId] = "test-client",
-            [OpenIddictConstants.Parameters.ClientSecret] = "test-secret",
-            [OpenIddictConstants.Parameters.Scope] = "openid profile email identity.api identity.admin"
-        });
-
-        using var tokenResponse = await client.PostAsync("/connect/token", tokenRequest);
-        var payload = await tokenResponse.Content.ReadAsStringAsync();
-        tokenResponse.IsSuccessStatusCode.ShouldBeTrue(payload);
-
-        var json = JsonDocument.Parse(payload);
-        var accessToken = json.RootElement.GetProperty("access_token").GetString();
+        var accessToken = await factory.CreateAccessTokenAsync(
+            email: "seed-admin@example.com",
+            password: "P@ssword12345!",
+            scope: "openid profile email identity.api identity.admin");
         accessToken.ShouldNotBeNullOrWhiteSpace();
 
         var parts = accessToken!.Split('.');

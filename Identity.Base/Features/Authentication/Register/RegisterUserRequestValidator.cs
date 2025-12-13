@@ -60,7 +60,11 @@ internal sealed class RegisterUserRequestValidator : AbstractValidator<RegisterU
 
             if (!string.IsNullOrWhiteSpace(field.Pattern) && !string.IsNullOrWhiteSpace(value))
             {
-                if (!System.Text.RegularExpressions.Regex.IsMatch(value, field.Pattern))
+                if (!System.Text.RegularExpressions.Regex.IsMatch(
+                        value,
+                        field.Pattern,
+                        System.Text.RegularExpressions.RegexOptions.None,
+                        TimeSpan.FromMilliseconds(250)))
                 {
                     context.AddFailure(field.Name, $"{field.DisplayName} is not in the expected format.");
                 }

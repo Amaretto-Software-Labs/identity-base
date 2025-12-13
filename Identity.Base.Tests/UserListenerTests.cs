@@ -516,7 +516,7 @@ public class UserListenerTests : IClassFixture<IdentityApiFactory>
         return client;
     }
 
-    private static async Task<(Guid UserId, string AccessToken)> CreateAdminUserAndTokenAsync(
+    private async Task<(Guid UserId, string AccessToken)> CreateAdminUserAndTokenAsync(
         WebApplicationFactory<Program> factory,
         string email,
         string password,
@@ -547,30 +547,10 @@ public class UserListenerTests : IClassFixture<IdentityApiFactory>
             ? string.Join(' ', new[] { OpenIddictConstants.Scopes.OpenId, OpenIddictConstants.Scopes.Profile, OpenIddictConstants.Scopes.Email, "identity.api", "identity.admin" })
             : string.Join(' ', new[] { OpenIddictConstants.Scopes.OpenId, OpenIddictConstants.Scopes.Profile, OpenIddictConstants.Scopes.Email, "identity.api" });
 
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            HandleCookies = false,
-            BaseAddress = new Uri("https://localhost")
-        });
-
-        using var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            [OpenIddictConstants.Parameters.GrantType] = OpenIddictConstants.GrantTypes.Password,
-            [OpenIddictConstants.Parameters.Username] = email,
-            [OpenIddictConstants.Parameters.Password] = password,
-            [OpenIddictConstants.Parameters.ClientId] = "test-client",
-            [OpenIddictConstants.Parameters.ClientSecret] = "test-secret",
-            [OpenIddictConstants.Parameters.Scope] = scopeValue
-        });
-
-        var tokenResponse = await client.PostAsync("/connect/token", tokenRequest);
-        var tokenPayload = await tokenResponse.Content.ReadFromJsonAsync<JsonDocument>();
-        tokenResponse.StatusCode.ShouldBe(HttpStatusCode.OK, tokenPayload?.RootElement.ToString());
-
-        var accessToken = tokenPayload!.RootElement.GetProperty("access_token").GetString();
+        var accessToken = await _factory.CreateAccessTokenAsync(email, password, factory: factory, scope: scopeValue);
         accessToken.ShouldNotBeNullOrWhiteSpace();
 
-        return (user.Id, accessToken!);
+        return (user.Id, accessToken);
     }
 
     private static HttpClient CreateAuthorizedClient(WebApplicationFactory<Program> factory, string accessToken)
