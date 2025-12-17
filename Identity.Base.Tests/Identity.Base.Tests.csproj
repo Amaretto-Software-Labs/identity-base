@@ -28,6 +28,7 @@
     <ProjectReference Include="../Identity.Base.Host/Identity.Base.Host.csproj" />
     <ProjectReference Include="..\Identity.Base.Roles\Identity.Base.Roles.csproj" />
     <ProjectReference Include="..\Identity.Base.Email.MailJet\Identity.Base.Email.MailJet.csproj" />
+    <ProjectReference Include="..\Identity.Base.Email.SendGrid\Identity.Base.Email.SendGrid.csproj" />
     <ProjectReference Include="..\Identity.Base.Organizations\Identity.Base.Organizations.csproj" />
     <ProjectReference Include="..\Identity.Base.Admin\Identity.Base.Admin.csproj" />
   </ItemGroup>

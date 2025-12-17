@@ -8,7 +8,7 @@
 
 # Identity Base
 
-Identity Base is a modular Identity + OpenID Connect platform for .NET 9. It packages ASP.NET Core Identity, provider-agnostic EF Core contexts, OpenIddict server setup, MFA, external providers (Google, Microsoft, Apple), optional Mailjet email delivery, and deployment-ready defaults. The recommended architecture is a dedicated Identity Host that runs all identity surfaces, a fleet of JWT-protected microservices, and a React 19 SPA consuming the APIs. Hosts are responsible for configuring the DbContexts, generating migrations for their chosen provider (PostgreSQL, SQL Server, etc.), and applying them before Identity Base runs its seeders.
+Identity Base is a modular Identity + OpenID Connect platform for .NET 9. It packages ASP.NET Core Identity, provider-agnostic EF Core contexts, OpenIddict server setup, MFA, external providers (Google, Microsoft, Apple), optional email delivery providers (Mailjet, SendGrid), and deployment-ready defaults. The recommended architecture is a dedicated Identity Host that runs all identity surfaces, a fleet of JWT-protected microservices, and a React 19 SPA consuming the APIs. Hosts are responsible for configuring the DbContexts, generating migrations for their chosen provider (PostgreSQL, SQL Server, etc.), and applying them before Identity Base runs its seeders.
 
 The project is open source under the MIT License.
 
@@ -18,7 +18,7 @@ The project is open source under the MIT License.
 - **Identity & OpenIddict orchestration** – authorization-code PKCE flow, refresh tokens, configured scopes, client seeding.
 - **Multi-factor authentication** – authenticator apps, SMS, email challenges, and recovery code support.
 - **External providers** – Google, Microsoft, Apple, plus fluent extension points for additional providers.
-- **Mailjet email integration** – available via the optional `Identity.Base.Email.MailJet` package for confirmation, password reset, and MFA challenges.
+- **Email delivery integrations** – optional packages for Mailjet (`Identity.Base.Email.MailJet`) or SendGrid (`Identity.Base.Email.SendGrid`) to send confirmation, password reset, and MFA challenge emails.
 - **Extensible DI surface** – option validators, templated email sender, MFA challenge senders, audit logging, return URL validation.
 - **Secure defaults** – return URL normalization, request logging with redaction, dedicated health checks.
 
@@ -45,6 +45,7 @@ See `Identity.Base.Host` and `apps/org-sample-api` for reference helper extensio
 | `Identity.Base.Organizations/` | Multi-tenant organization, membership, and role tooling. |
 | `Identity.Base.AspNet/` | Helpers that let microservices validate Identity Base-issued JWTs. |
 | `Identity.Base.Email.MailJet/` | Optional Mailjet email sender and configuration add-on. |
+| `Identity.Base.Email.SendGrid/` | Optional SendGrid email sender and configuration add-on. |
 | `Identity.Base.Host/` | Opinionated ASP.NET Core host wired for local development and integration tests. Owns its migrations/prefixes and applies them before seeding on startup. |
 | `apps/` | Sample APIs that demonstrate bearer auth and organization scenarios. |
 | `docs/` | Architecture, engineering principles, sprint plans, onboarding, full-stack integration guides. |
@@ -79,6 +80,7 @@ Key documents:
 | [`Identity.Base.Organizations`](https://www.nuget.org/packages/Identity.Base.Organizations) | Organizations, memberships, and organization-scoped role tooling. |
 | [`Identity.Base.AspNet`](https://www.nuget.org/packages/Identity.Base.AspNet) | ASP.NET Core helpers for microservices consuming Identity Base tokens via JWT bearer authentication. |
 | [`Identity.Base.Email.MailJet`](https://www.nuget.org/packages/Identity.Base.Email.MailJet) | Optional Mailjet integration (email sender, options, health checks). |
+| [`Identity.Base.Email.SendGrid`](https://www.nuget.org/packages/Identity.Base.Email.SendGrid) | Optional SendGrid integration (email sender, options, health checks). |
 
 Install via .NET CLI (replace `<latest>` with the published version):
 
@@ -90,6 +92,7 @@ dotnet add package Identity.Base.Admin --version <latest>
 dotnet add package Identity.Base.Organizations --version <latest>
 dotnet add package Identity.Base.AspNet --version <latest>
 dotnet add package Identity.Base.Email.MailJet --version <latest>
+dotnet add package Identity.Base.Email.SendGrid --version <latest>
 ```
 
 Manual package builds are available through the GitHub Actions **CI** workflow (see [Release Checklist](docs/release/release-checklist.md)).
@@ -110,7 +113,7 @@ The host wires the full pipeline:
 
 The host applies all bundled migrations on startup (Identity, Roles, Organizations) and seeds the admin account based on configuration. No manual `dotnet ef database update` is required unless you add custom entities.
 
-If you install the Mailjet add-on, call `identity.UseMailJetEmailSender();` (or `builder.Services.AddMailJetEmailSender(...)`) when configuring services. Follow the [Getting Started guide](docs/guides/getting-started.md) for configuration schema, Mailjet setup, and OpenIddict application registration.
+If you install an email add-on, call `identity.UseMailJetEmailSender();` or `identity.UseSendGridEmailSender();` (or the corresponding `builder.Services.Add*EmailSender(...)`) when configuring services. Follow the [Getting Started guide](docs/guides/getting-started.md) for configuration schema and OpenIddict application registration.
 
 ### 2. Secure .NET microservices
 
@@ -201,14 +204,14 @@ export const appConfig = {
 ### Prerequisites
 - .NET 9 SDK
 - PostgreSQL 16 (local or Docker)
-- Optional: Mailjet credentials (or MailHog for local stubbing)
+- Optional: Mailjet or SendGrid credentials (or MailHog for local stubbing)
 - Node.js 20 / npm 10 if you run the React clients
 
 ### Configuration snapshot
 
 ### Configuration snapshot
 - `Registration` – profile fields, confirmation/reset URL templates (embed `{token}` + `{userId}`).
-- `MailJet` – API keys, sender info, template IDs (confirmation/reset/MFA). Only required when the Mailjet package is enabled.
+- `MailJet` / `SendGrid` – API keys, sender info, template IDs (confirmation/reset/MFA). Only required when the corresponding package is enabled.
 - `Mfa` – issuer name, email/SMS toggles, Twilio credentials (if SMS is enabled).
 - `ExternalProviders` – Google/Microsoft/Apple client IDs, secrets, scopes, callback paths.
 - `OpenIddict` – client applications, scopes, server key provider (development, file-system, Azure Key Vault).

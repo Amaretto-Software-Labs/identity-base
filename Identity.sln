@@ -37,6 +37,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sample-api", "sample-api", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SampleApi", "apps\sample-api\SampleApi.csproj", "{DA61A114-9CDD-40BC-B4C0-0792A0EF3A37}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Identity.Base.Email.SendGrid", "Identity.Base.Email.SendGrid\Identity.Base.Email.SendGrid.csproj", "{CBA57B8A-B955-4E56-AB34-2388FB6DEC48}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -215,6 +217,18 @@ Global
 		{DA61A114-9CDD-40BC-B4C0-0792A0EF3A37}.Release|x64.Build.0 = Release|Any CPU
 		{DA61A114-9CDD-40BC-B4C0-0792A0EF3A37}.Release|x86.ActiveCfg = Release|Any CPU
 		{DA61A114-9CDD-40BC-B4C0-0792A0EF3A37}.Release|x86.Build.0 = Release|Any CPU
+		{CBA57B8A-B955-4E56-AB34-2388FB6DEC48}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CBA57B8A-B955-4E56-AB34-2388FB6DEC48}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CBA57B8A-B955-4E56-AB34-2388FB6DEC48}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CBA57B8A-B955-4E56-AB34-2388FB6DEC48}.Debug|x64.Build.0 = Debug|Any CPU
+		{CBA57B8A-B955-4E56-AB34-2388FB6DEC48}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{CBA57B8A-B955-4E56-AB34-2388FB6DEC48}.Debug|x86.Build.0 = Debug|Any CPU
+		{CBA57B8A-B955-4E56-AB34-2388FB6DEC48}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CBA57B8A-B955-4E56-AB34-2388FB6DEC48}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CBA57B8A-B955-4E56-AB34-2388FB6DEC48}.Release|x64.ActiveCfg = Release|Any CPU
+		{CBA57B8A-B955-4E56-AB34-2388FB6DEC48}.Release|x64.Build.0 = Release|Any CPU
+		{CBA57B8A-B955-4E56-AB34-2388FB6DEC48}.Release|x86.ActiveCfg = Release|Any CPU
+		{CBA57B8A-B955-4E56-AB34-2388FB6DEC48}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

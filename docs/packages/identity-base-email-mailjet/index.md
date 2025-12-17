@@ -63,7 +63,6 @@ Disable the sender in non-production environments by setting `MailJet.Enabled` t
 ## Extension Points
 
 - Replace `MailJetEmailSender` with a custom implementation by registering your own `ITemplatedEmailSender`.
-- Implement custom error-reporting hooks by providing your own `IMailJetErrorReporter`.
 - Use configuration providers (secret stores, environment variables) to inject API credentials securely.
 
 ## Dependencies & Compatibility

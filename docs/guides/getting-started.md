@@ -28,6 +28,7 @@ Refer to [docs/packages/identity-base/index.md](../packages/identity-base/index.
 ```bash
 dotnet add package Identity.Base
 dotnet add package Identity.Base.Email.MailJet # optional Mailjet sender (see docs/packages/identity-base-email-mailjet/index.md)
+dotnet add package Identity.Base.Email.SendGrid # optional SendGrid sender (see docs/packages/identity-base-email-sendgrid/index.md)
 ```
 
 ### 2.2 Configure `Program.cs`
@@ -54,8 +55,9 @@ var identity = builder.Services.AddIdentityBase(
     configureDbContext: configureDbContext);
 
 identity.UseTablePrefix("Contoso");   // optional: override the default Identity_ prefix
-// Optional: enable Mailjet email delivery if the add-on package is installed
+// Optional: enable email delivery if an add-on package is installed (choose one)
 identity.UseMailJetEmailSender();
+// identity.UseSendGridEmailSender();
 
 var app = builder.Build();
 
@@ -101,6 +103,17 @@ Add an `appsettings.json` (or edit the existing file) with at least the followin
       "Confirmation": 123456,
       "PasswordReset": 234567,
       "MfaChallenge": 345678
+    }
+  },
+  "SendGrid": {
+    "Enabled": false,
+    "FromEmail": "noreply@example.com",
+    "FromName": "Identity Base",
+    "ApiKey": "your-sendgrid-key",
+    "Templates": {
+      "Confirmation": "d-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "PasswordReset": "d-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "MfaChallenge": "d-cccccccccccccccccccccccccccccccc"
     }
   },
   "Mfa": {
@@ -159,7 +172,7 @@ Key sections:
 - `ConnectionStrings:Primary` – required for the internal `AppDbContext`.
 - `IdentitySeed` – optionally bootstrap an admin user.
 - `Registration` – confirmation and password reset URLs must include `{token}` **and** `{userId}` placeholders.
-- `MailJet` (optional) – configure only when the Mailjet package is referenced. Leave `Enabled` as `false` to skip sends.
+- `MailJet` / `SendGrid` (optional) – configure only when the corresponding package is referenced. Leave `Enabled` as `false` to skip sends.
 - `Mfa`, `ExternalProviders` – supply credentials/enabled flags as needed.
 - `OpenIddict` – register clients, scopes, and key management strategy.
 

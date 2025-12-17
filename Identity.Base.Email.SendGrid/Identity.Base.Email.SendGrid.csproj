@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>Identity.Base.Email.SendGrid</AssemblyName>
+    <RootNamespace>Identity.Base.Email.SendGrid</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <PackageId>Identity.Base.Email.SendGrid</PackageId>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Optional SendGrid email sender integration for Identity Base hosts.</Description>
+    <Authors>Identity Base Maintainers</Authors>
+    <PackageTags>identity;sendgrid;email;aspnetcore</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Identity.Base/Identity.Base.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+</Project>
+

@@ -8,6 +8,7 @@
 - Anonymous invitation lookup now returns a public preview DTO (no invitee email/role ids).
 - Added regex match timeouts for configurable profile field patterns and slug validation.
 - Replaced `Mailjet.Api` with a lightweight `HttpClient` Mailjet implementation; resolved vulnerable transitive packages.
+- Added `Identity.Base.Email.SendGrid`, a SendGrid-backed `ITemplatedEmailSender` package (options, health check, and DI wiring).
 - Removed legacy `Microsoft.AspNetCore.Routing.Abstractions` package references in favor of `Microsoft.AspNetCore.App`.
 - React/JS client defaults: token storage now defaults to `sessionStorage`, and `createError()` preserves `Error.message`.
 - Added missing projects to `Identity.sln` (host migration assemblies + `apps/sample-api`).

@@ -5,7 +5,7 @@ This guide describes how to exercise Identity Base end-to-end using the sample R
 ## 1. Prerequisites
 - Identity Base API running locally (for example via `docker-compose.local.yml`).
 - Node.js 20+ and npm 10+.
-- MailJet credentials (or placeholder values for local testing).
+- MailJet or SendGrid credentials (or placeholder values for local testing).
 - Optional: configured social provider credentials (Google, Microsoft, Apple).
 
 ## 2. Start the API Stack
@@ -59,7 +59,7 @@ After completing consent, the callback page stores the authorization code and le
 ## 7. Tips & Troubleshooting
 - Ensure the browser accepts cookies from `localhost:8080`; the Identity cookie powers MFA and profile endpoints.
 - When testing external providers, configure the same redirect URL in the provider console and set the `VITE_EXTERNAL_*` flag to `true`.
-- Use MailHog (`http://localhost:8025`) to verify confirmation and MFA emails if real MailJet credentials are not configured.
+- Use MailHog (`http://localhost:8025`) to verify confirmation and MFA emails if real MailJet/SendGrid credentials are not configured.
 - Clear PKCE values via the “Clear stored PKCE verifier” button if you restart flows mid-way.
 
 ## 8. ASP.NET Core API Integration

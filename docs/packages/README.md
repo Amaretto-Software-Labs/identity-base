@@ -20,6 +20,7 @@ Use the links below to jump directly to the package you are integrating.
 | `Identity.Base.Organizations` | NuGet | [Organizations & Memberships](identity-base-organizations/index.md) |
 | `Identity.Base.Admin` | NuGet | [Admin API Surface](identity-base-admin/index.md) |
 | `Identity.Base.Email.MailJet` | NuGet | [Mailjet Email Sender](identity-base-email-mailjet/index.md) |
+| `Identity.Base.Email.SendGrid` | NuGet | [SendGrid Email Sender](identity-base-email-sendgrid/index.md) |
 | `@identity-base/client-core` | npm | [Client Core](identity-base-client-core/index.md) |
 | `@identity-base/react-client` | npm | [React Auth Client](identity-base-react-client/index.md) |
 | `@identity-base/react-organizations` | npm | [React Organizations Add-on](identity-base-react-organizations/index.md) |
