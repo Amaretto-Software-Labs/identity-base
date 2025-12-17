@@ -19,7 +19,7 @@
     "vite": "^7.1.7"
   },
   "dependencies": {
-    "@identity-base/react-client": "file:../../packages/identity-client",
+    "@identity-base/react-client": "file:../../packages/identity-react-client",
     "@identity-base/react-organizations": "file:../../packages/identity-react-organizations",
     "@tanstack/react-virtual": "^3.10.9",
     "@types/qrcode": "^1.5.5",
