@@ -9,6 +9,7 @@
     "dist"
   ],
   "scripts": {
+    "prebuild": "node ../scripts/build-core-if-present.cjs",
     "build": "tsup src/index.ts --format cjs,esm --dts --clean --external @angular/core --external @angular/common/http --external rxjs --external rxjs/operators --external @identity-base/client-core --external @identity-base/angular-client",
     "test": "npm run build && node --test test/*.test.mjs",
     "typecheck": "tsc --noEmit",

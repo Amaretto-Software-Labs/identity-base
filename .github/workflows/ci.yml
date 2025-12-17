@@ -278,6 +278,16 @@ jobs:
           }
           NODE
 
+      - name: Build client core package
+        if: ${{ hashFiles('packages/identity-client-core/package.json') != '' }}
+        working-directory: packages/identity-client-core
+        run: npm run build
+
+      - name: Test client core package
+        if: ${{ hashFiles('packages/identity-client-core/package.json') != '' }}
+        working-directory: packages/identity-client-core
+        run: npm test
+
       - name: Build React client package
         working-directory: packages/identity-react-client
         run: npm run build
@@ -292,16 +302,6 @@ jobs:
 
       - name: Test React organizations package
         working-directory: packages/identity-react-organizations
-        run: npm test
-
-      - name: Build client core package
-        if: ${{ hashFiles('packages/identity-client-core/package.json') != '' }}
-        working-directory: packages/identity-client-core
-        run: npm run build
-
-      - name: Test client core package
-        if: ${{ hashFiles('packages/identity-client-core/package.json') != '' }}
-        working-directory: packages/identity-client-core
         run: npm test
 
       - name: Build Angular client package
@@ -631,6 +631,16 @@ jobs:
           }
           NODE
 
+      - name: Build client core package
+        if: ${{ hashFiles('packages/identity-client-core/package.json') != '' }}
+        working-directory: packages/identity-client-core
+        run: npm run build
+
+      - name: Test client core package
+        if: ${{ hashFiles('packages/identity-client-core/package.json') != '' }}
+        working-directory: packages/identity-client-core
+        run: npm test
+
       - name: Build React client package
         working-directory: packages/identity-react-client
         run: npm run build
@@ -645,16 +655,6 @@ jobs:
 
       - name: Test React organizations package
         working-directory: packages/identity-react-organizations
-        run: npm test
-
-      - name: Build client core package
-        if: ${{ hashFiles('packages/identity-client-core/package.json') != '' }}
-        working-directory: packages/identity-client-core
-        run: npm run build
-
-      - name: Test client core package
-        if: ${{ hashFiles('packages/identity-client-core/package.json') != '' }}
-        working-directory: packages/identity-client-core
         run: npm test
 
       - name: Build Angular client package

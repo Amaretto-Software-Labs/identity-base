@@ -16,6 +16,7 @@
     "dist"
   ],
   "scripts": {
+    "prebuild": "node ../scripts/build-core-if-present.cjs",
     "build": "tsup src/index.ts --format cjs,esm --dts --clean --external react --external react-dom --external @identity-base/client-core",
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch --external react --external react-dom --external @identity-base/client-core",
     "test": "npm run build && node --test test/*.test.mjs",
