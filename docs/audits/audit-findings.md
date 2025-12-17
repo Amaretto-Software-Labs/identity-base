@@ -18,11 +18,11 @@ The following items summarize the issues flagged during the code audit. Line ref
    - **Issue:** `BuildCallbackUri` ignored `Request.PathBase` and forwarded headers, generating invalid callback URLs behind reverse proxies or sub-path deployments.
    - **Status:** **Fixed** — now honors forwarded proto/host headers and `PathBase` when constructing callback URLs.
 
-2. `packages/identity-client/src/core/TokenManager.ts:98`
+2. `packages/identity-react-client/src/core/TokenManager.ts:98`
    - **Issue:** `ensureValidToken` returned stored access tokens without checking expiration or honoring `autoRefresh`, leading to repeated 401s when tokens expire.
    - **Status:** **Fixed** — JWT expiry is decoded and tokens are refreshed/cleared automatically based on configuration.
 
-3. `packages/identity-client/src/react/IdentityProvider.tsx:22`
+3. `packages/identity-react-client/src/react/IdentityProvider.tsx:22`
    - **Issue:** Provider memoized `IdentityAuthManager` via `useState`, so updates to the `config` prop were ignored (e.g., switching tenants).
    - **Status:** **Fixed** — the provider now recreates `IdentityAuthManager` when config changes, keeping state in sync.
 

@@ -52,7 +52,7 @@ const requireAuth = useRequireAuth()
 
 ## Package Structure
 ```
-packages/identity-client/
+packages/identity-react-client/
 ├── src/
 │   ├── core/
 │   │   ├── IdentityAuthManager.ts    # Core auth engine

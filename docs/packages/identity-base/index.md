@@ -128,7 +128,7 @@ identity.AfterIdentitySeed(async (sp, ct) =>
 
 ## Extension Points
 
-- **Email delivery** – swap `ITemplatedEmailSender` (e.g., install `Identity.Base.Email.MailJet` or implement your own).
+- **Email delivery** – swap `ITemplatedEmailSender` (e.g., install `Identity.Base.Email.MailJet`, `Identity.Base.Email.SendGrid`, or implement your own).
 - **MFA channels** – register custom `IMfaChallengeSender` implementations; the default supports authenticator apps plus email/SMS (when enabled in configuration).
 - **Audit logging & sanitisation** – override `IAuditLogger` and `ILogSanitizer` to integrate with your logging stack or redact additional fields.
 - **External provider plumbing** – enable providers via configuration and call `identity.AddConfiguredExternalProviders()` or customise each via `AddGoogleAuth`/`AddMicrosoftAuth`/`AddAppleAuth`.

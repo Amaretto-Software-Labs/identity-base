@@ -1,0 +1,36 @@
+{
+  "name": "@identity-base/client-core",
+  "version": "0.4.0",
+  "description": "Framework-agnostic client core for Identity.Base",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "test": "npm run build && node --test test/*.test.cjs",
+    "coverage": "npm run build && c8 --check-coverage --lines 80 --functions 80 --branches 80 --reporter=text --reporter=lcov node --test test/*.test.cjs",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build && npm run typecheck"
+  },
+  "keywords": [
+    "authentication",
+    "oauth2",
+    "pkce",
+    "identity",
+    "client"
+  ],
+  "author": "Identity Base",
+  "license": "MIT",
+  "devDependencies": {
+    "c8": "^10.1.3",
+    "tsup": "^8.5.0",
+    "typescript": "~5.8.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Amaretto-Software-Labs/identity-base"
+  }
+}

@@ -28,6 +28,7 @@ Refer to [docs/packages/identity-base/index.md](../packages/identity-base/index.
 ```bash
 dotnet add package Identity.Base
 dotnet add package Identity.Base.Email.MailJet # optional Mailjet sender (see docs/packages/identity-base-email-mailjet/index.md)
+dotnet add package Identity.Base.Email.SendGrid # optional SendGrid sender (see docs/packages/identity-base-email-sendgrid/index.md)
 ```
 
 ### 2.2 Configure `Program.cs`
@@ -54,8 +55,9 @@ var identity = builder.Services.AddIdentityBase(
     configureDbContext: configureDbContext);
 
 identity.UseTablePrefix("Contoso");   // optional: override the default Identity_ prefix
-// Optional: enable Mailjet email delivery if the add-on package is installed
+// Optional: enable email delivery if an add-on package is installed (choose one)
 identity.UseMailJetEmailSender();
+// identity.UseSendGridEmailSender();
 
 var app = builder.Build();
 
@@ -103,6 +105,17 @@ Add an `appsettings.json` (or edit the existing file) with at least the followin
       "MfaChallenge": 345678
     }
   },
+  "SendGrid": {
+    "Enabled": false,
+    "FromEmail": "noreply@example.com",
+    "FromName": "Identity Base",
+    "ApiKey": "your-sendgrid-key",
+    "Templates": {
+      "Confirmation": "d-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "PasswordReset": "d-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "MfaChallenge": "d-cccccccccccccccccccccccccccccccc"
+    }
+  },
   "Mfa": {
     "Issuer": "Identity Base",
     "Email": { "Enabled": true },
@@ -139,6 +152,18 @@ Add an `appsettings.json` (or edit the existing file) with at least the followin
         ],
         "Requirements": ["requirements:pkce"]
       }
+    ],
+    "Scopes": [
+      {
+        "Name": "identity.api",
+        "DisplayName": "Identity API",
+        "Resources": ["identity.api"]
+      },
+      {
+        "Name": "identity.admin",
+        "DisplayName": "Identity Admin",
+        "Resources": ["identity.api"]
+      }
     ]
   }
 }
@@ -147,9 +172,27 @@ Key sections:
 - `ConnectionStrings:Primary` – required for the internal `AppDbContext`.
 - `IdentitySeed` – optionally bootstrap an admin user.
 - `Registration` – confirmation and password reset URLs must include `{token}` **and** `{userId}` placeholders.
-- `MailJet` (optional) – configure only when the Mailjet package is referenced. Leave `Enabled` as `false` to skip sends.
+- `MailJet` / `SendGrid` (optional) – configure only when the corresponding package is referenced. Leave `Enabled` as `false` to skip sends.
 - `Mfa`, `ExternalProviders` – supply credentials/enabled flags as needed.
 - `OpenIddict` – register clients, scopes, and key management strategy.
+
+### 2.3.1 Default OAuth scopes (and how to add them)
+
+Identity Base uses a mix of:
+- **OAuth scopes** (e.g., `openid`, `profile`, `email`, `offline_access`, `identity.api`, `identity.admin`) requested by clients during authorization.
+- **Permission claims** (e.g., `users.read`, `admin.organizations.manage`) resolved from RBAC and emitted as `identity.permissions` for fine-grained authorization.
+
+The two commonly needed custom scopes are:
+- `identity.api` – a “default API scope” intended for your resource servers (microservices). Many samples and helpers assume this string.
+- `identity.admin` – required by admin endpoints by default (see `IdentityAdmin:RequiredScope` in `Identity.Base.Admin` and `Organizations:Authorization:AdminRequiredScope` in `Identity.Base.Organizations`).
+
+To enable a scope you must:
+1. Define it under `OpenIddict:Scopes` (and set `Resources` so the access token gets the correct `aud` claim).
+2. Grant it to a client by adding `scopes:<scopeName>` to that client’s `OpenIddict:Applications[].Permissions`.
+
+> Note: the built-in OpenIddict seeder currently adds all configured `OpenIddict:Scopes` to each seeded application descriptor. Keeping explicit `scopes:<name>` entries on the application is still recommended for clarity, and hosts can override the seeding strategy if they require strict per-client scope allowlists.
+
+> Tip: if you disable scope checks for admin endpoints by setting `IdentityAdmin:RequiredScope` to `null`, clients no longer need `identity.admin` for the admin APIs (permissions still apply).
 
 If you need the database objects to use a different prefix than `Identity_`, call `identity.UseTablePrefix("Contoso")` (and the corresponding `UseTablePrefix` helpers on RBAC/organization builders) before running migrations.
 
@@ -175,6 +218,14 @@ dotnet run
 Visit `https://localhost:5000/healthz` to confirm the service is up. If you enabled seeding, the bootstrap admin user is now available.
 
 At this stage you have the complete identity, registration, MFA, and OAuth surface without RBAC or admin APIs.
+
+### 2.6 Endpoint specs (OpenAPI)
+
+Identity Base registers ASP.NET Core OpenAPI and (by default) serves it **only in Development**.
+
+- OpenAPI JSON: `GET /openapi/v1.json`
+
+If you need endpoint specs outside Development (not recommended for public deployments), map it explicitly in your host instead of relying on `UseApiPipeline()`’s Development-only mapping.
 
 ---
 

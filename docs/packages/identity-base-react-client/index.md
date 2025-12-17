@@ -1,7 +1,7 @@
 # @identity-base/react-client
 
 ## Overview
-`@identity-base/react-client` is the official React SDK for authenticating against an Identity Base authority. It wraps the authorization-code PKCE flow, manages access/refresh tokens, exposes hooks for account lifecycle (register, login, MFA, profile), and provides an `IdentityAuthManager` for imperative use cases. The library targets React 19 and works with any bundler (Vite, Next.js, CRA).
+`@identity-base/react-client` is the official React SDK for authenticating against an Identity Base authority. It wraps the authorization-code PKCE flow, manages access/refresh tokens, exposes hooks for account lifecycle (register, login, MFA, profile), and provides an `IdentityAuthManager` for imperative use cases. The library targets React 19 and works with any bundler (Vite, Next.js, CRA). It builds on (and depends on) `@identity-base/client-core`.
 
 ## Installation & Setup
 

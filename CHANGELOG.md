@@ -8,9 +8,12 @@
 - Anonymous invitation lookup now returns a public preview DTO (no invitee email/role ids).
 - Added regex match timeouts for configurable profile field patterns and slug validation.
 - Replaced `Mailjet.Api` with a lightweight `HttpClient` Mailjet implementation; resolved vulnerable transitive packages.
+- Added `Identity.Base.Email.SendGrid`, a SendGrid-backed `ITemplatedEmailSender` package (options, health check, and DI wiring).
 - Removed legacy `Microsoft.AspNetCore.Routing.Abstractions` package references in favor of `Microsoft.AspNetCore.App`.
 - React/JS client defaults: token storage now defaults to `sessionStorage`, and `createError()` preserves `Error.message`.
 - Added missing projects to `Identity.sln` (host migration assemblies + `apps/sample-api`).
+- Added new npm packages: `@identity-base/client-core` (framework-agnostic), `@identity-base/angular-client` (Angular DI + interceptor), and `@identity-base/angular-organizations` (organization client for Angular).
+- React and Angular clients now depend on `@identity-base/client-core` (no separate install required) and the React client reuses core implementations instead of duplicating them.
 
 ## [0.7.7] - 2025-12-04
 - Updated EF Core models/configuration to be database-provider agnostic (removed provider-specific JSON column types/defaults) and added provider compatibility tests.
@@ -60,7 +63,7 @@
 ## [0.6.2] - 2025-11-07
 - Added the full `/users/me/organizations/{orgId}/...` management surface (details, patch, members, roles, invitations) guarded by the `user.organizations.*` permissions so organization owners can self-service memberships/roles using the same pagination/authorization model as the admin APIs.
 - Introduced shared pagination helpers (`PageRequest`, `PagedResult`, `SortExpression`) and moved the `/users/me/organizations` list to the new contract (paging, filtering, sorting, optional archived results).
-- Added paged queries to `IOrganizationService`, `IOrganizationRoleService`, and `OrganizationInvitationService` (plus the EF stores), refreshed the sample React clients (`identity-client`, `identity-react-organizations`, `org-sample-client`), and expanded the test suite to cover the new list semantics.
+- Added paged queries to `IOrganizationService`, `IOrganizationRoleService`, and `OrganizationInvitationService` (plus the EF stores), refreshed the sample React clients (`identity-react-client`, `identity-react-organizations`, `org-sample-client`), and expanded the test suite to cover the new list semantics.
 
 ## [0.6.1] - 2025-11-04
 - Renamed the legacy `organization.*` permissions to `admin.organizations.*` across APIs and samples, and seeded parallel `user.organizations.*` entries on default organization roles so org-scoped flows can evolve independently.
