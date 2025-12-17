@@ -2,6 +2,8 @@
 
 Headless React authentication client for Identity.Base. Provides all the heavy lifting for authentication flows while giving you complete control over your UI.
 
+Built on (and depends on) `@identity-base/client-core`.
+
 ## Features
 
 - 🔐 **Complete OAuth2/PKCE flow** - Authorization code with PKCE

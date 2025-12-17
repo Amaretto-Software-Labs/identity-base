@@ -156,7 +156,7 @@ The hooks exposed by the packages (`useLogin`, `useOrganizations`, `useOrganizat
 Install the Angular package (it uses `@identity-base/client-core` under the hood):
 
 ```bash
-npm install @identity-base/angular-client @identity-base/client-core
+npm install @identity-base/angular-client
 ```
 
 Register providers once (example `app.config.ts`):

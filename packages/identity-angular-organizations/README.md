@@ -1,11 +1,11 @@
 # @identity-base/angular-organizations
 
-Angular organizations client for Identity Base. Depends on `@identity-base/angular-client` and `@identity-base/client-core`.
+Angular organizations client for Identity Base. Depends on `@identity-base/angular-client` (which depends on `@identity-base/client-core`).
 
 ## Install
 
 ```bash
-npm install @identity-base/angular-organizations @identity-base/angular-client @identity-base/client-core
+npm install @identity-base/angular-organizations
 ```
 
 ## Setup
@@ -21,4 +21,3 @@ export const appConfig = {
   ],
 }
 ```
-

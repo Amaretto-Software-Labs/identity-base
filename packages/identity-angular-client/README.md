@@ -5,7 +5,7 @@ Angular DI wrapper for Identity Base, built on `@identity-base/client-core`.
 ## Install
 
 ```bash
-npm install @identity-base/angular-client @identity-base/client-core
+npm install @identity-base/angular-client
 ```
 
 ## Setup
@@ -26,4 +26,3 @@ export const appConfig = {
   ],
 }
 ```
-

@@ -122,12 +122,21 @@ jobs:
           const lockPath = 'package-lock.json';
           const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
           pkg.version = version;
+          if (pkg.dependencies && pkg.dependencies['@identity-base/client-core']) {
+            pkg.dependencies['@identity-base/client-core'] = version;
+          }
           fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
           if (fs.existsSync(lockPath)) {
             const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
             lock.version = version;
             if (lock.packages && lock.packages['']) {
               lock.packages[''].version = version;
+              if (lock.packages[''].dependencies && lock.packages[''].dependencies['@identity-base/client-core']) {
+                lock.packages[''].dependencies['@identity-base/client-core'] = version;
+              }
+            }
+            if (lock.packages && lock.packages['../identity-client-core']) {
+              lock.packages['../identity-client-core'].version = version;
             }
             fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n');
           }
@@ -208,8 +217,8 @@ jobs:
           const lockPath = 'package-lock.json';
           const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
           pkg.version = version;
-          if (pkg.peerDependencies && pkg.peerDependencies['@identity-base/client-core']) {
-            pkg.peerDependencies['@identity-base/client-core'] = version;
+          if (pkg.dependencies && pkg.dependencies['@identity-base/client-core']) {
+            pkg.dependencies['@identity-base/client-core'] = version;
           }
           fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
           if (fs.existsSync(lockPath)) {
@@ -217,8 +226,8 @@ jobs:
             lock.version = version;
             if (lock.packages && lock.packages['']) {
               lock.packages[''].version = version;
-              if (lock.packages[''].peerDependencies && lock.packages[''].peerDependencies['@identity-base/client-core']) {
-                lock.packages[''].peerDependencies['@identity-base/client-core'] = version;
+              if (lock.packages[''].dependencies && lock.packages[''].dependencies['@identity-base/client-core']) {
+                lock.packages[''].dependencies['@identity-base/client-core'] = version;
               }
             }
             if (lock.packages && lock.packages['../identity-client-core']) {
@@ -242,9 +251,9 @@ jobs:
           const lockPath = 'package-lock.json';
           const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
           pkg.version = version;
-          if (pkg.peerDependencies) {
-            if (pkg.peerDependencies['@identity-base/client-core']) pkg.peerDependencies['@identity-base/client-core'] = version;
-            if (pkg.peerDependencies['@identity-base/angular-client']) pkg.peerDependencies['@identity-base/angular-client'] = version;
+          if (pkg.dependencies) {
+            if (pkg.dependencies['@identity-base/client-core']) pkg.dependencies['@identity-base/client-core'] = version;
+            if (pkg.dependencies['@identity-base/angular-client']) pkg.dependencies['@identity-base/angular-client'] = version;
           }
           fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
           if (fs.existsSync(lockPath)) {
@@ -252,9 +261,9 @@ jobs:
             lock.version = version;
             if (lock.packages && lock.packages['']) {
               lock.packages[''].version = version;
-              if (lock.packages[''].peerDependencies) {
-                if (lock.packages[''].peerDependencies['@identity-base/client-core']) lock.packages[''].peerDependencies['@identity-base/client-core'] = version;
-                if (lock.packages[''].peerDependencies['@identity-base/angular-client']) lock.packages[''].peerDependencies['@identity-base/angular-client'] = version;
+              if (lock.packages[''].dependencies) {
+                if (lock.packages[''].dependencies['@identity-base/client-core']) lock.packages[''].dependencies['@identity-base/client-core'] = version;
+                if (lock.packages[''].dependencies['@identity-base/angular-client']) lock.packages[''].dependencies['@identity-base/angular-client'] = version;
               }
             }
             if (lock.packages && lock.packages['../identity-client-core']) {
@@ -458,12 +467,21 @@ jobs:
           const lockPath = 'package-lock.json';
           const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
           pkg.version = version;
+          if (pkg.dependencies && pkg.dependencies['@identity-base/client-core']) {
+            pkg.dependencies['@identity-base/client-core'] = version;
+          }
           fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
           if (fs.existsSync(lockPath)) {
             const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
             lock.version = version;
             if (lock.packages && lock.packages['']) {
               lock.packages[''].version = version;
+              if (lock.packages[''].dependencies && lock.packages[''].dependencies['@identity-base/client-core']) {
+                lock.packages[''].dependencies['@identity-base/client-core'] = version;
+              }
+            }
+            if (lock.packages && lock.packages['../identity-client-core']) {
+              lock.packages['../identity-client-core'].version = version;
             }
             fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n');
           }
@@ -541,8 +559,8 @@ jobs:
           const lockPath = 'package-lock.json';
           const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
           pkg.version = version;
-          if (pkg.peerDependencies && pkg.peerDependencies['@identity-base/client-core']) {
-            pkg.peerDependencies['@identity-base/client-core'] = version;
+          if (pkg.dependencies && pkg.dependencies['@identity-base/client-core']) {
+            pkg.dependencies['@identity-base/client-core'] = version;
           }
           fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
           if (fs.existsSync(lockPath)) {
@@ -550,8 +568,8 @@ jobs:
             lock.version = version;
             if (lock.packages && lock.packages['']) {
               lock.packages[''].version = version;
-              if (lock.packages[''].peerDependencies && lock.packages[''].peerDependencies['@identity-base/client-core']) {
-                lock.packages[''].peerDependencies['@identity-base/client-core'] = version;
+              if (lock.packages[''].dependencies && lock.packages[''].dependencies['@identity-base/client-core']) {
+                lock.packages[''].dependencies['@identity-base/client-core'] = version;
               }
             }
             if (lock.packages && lock.packages['../identity-client-core']) {
@@ -574,9 +592,9 @@ jobs:
           const lockPath = 'package-lock.json';
           const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
           pkg.version = version;
-          if (pkg.peerDependencies) {
-            if (pkg.peerDependencies['@identity-base/client-core']) pkg.peerDependencies['@identity-base/client-core'] = version;
-            if (pkg.peerDependencies['@identity-base/angular-client']) pkg.peerDependencies['@identity-base/angular-client'] = version;
+          if (pkg.dependencies) {
+            if (pkg.dependencies['@identity-base/client-core']) pkg.dependencies['@identity-base/client-core'] = version;
+            if (pkg.dependencies['@identity-base/angular-client']) pkg.dependencies['@identity-base/angular-client'] = version;
           }
           fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
           if (fs.existsSync(lockPath)) {
@@ -584,9 +602,9 @@ jobs:
             lock.version = version;
             if (lock.packages && lock.packages['']) {
               lock.packages[''].version = version;
-              if (lock.packages[''].peerDependencies) {
-                if (lock.packages[''].peerDependencies['@identity-base/client-core']) lock.packages[''].peerDependencies['@identity-base/client-core'] = version;
-                if (lock.packages[''].peerDependencies['@identity-base/angular-client']) lock.packages[''].peerDependencies['@identity-base/angular-client'] = version;
+              if (lock.packages[''].dependencies) {
+                if (lock.packages[''].dependencies['@identity-base/client-core']) lock.packages[''].dependencies['@identity-base/client-core'] = version;
+                if (lock.packages[''].dependencies['@identity-base/angular-client']) lock.packages[''].dependencies['@identity-base/angular-client'] = version;
               }
             }
             if (lock.packages && lock.packages['../identity-client-core']) {

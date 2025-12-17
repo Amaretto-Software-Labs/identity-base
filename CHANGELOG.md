@@ -12,6 +12,7 @@
 - React/JS client defaults: token storage now defaults to `sessionStorage`, and `createError()` preserves `Error.message`.
 - Added missing projects to `Identity.sln` (host migration assemblies + `apps/sample-api`).
 - Added new npm packages: `@identity-base/client-core` (framework-agnostic), `@identity-base/angular-client` (Angular DI + interceptor), and `@identity-base/angular-organizations` (organization client for Angular).
+- React and Angular clients now depend on `@identity-base/client-core` (no separate install required) and the React client reuses core implementations instead of duplicating them.
 
 ## [0.7.7] - 2025-12-04
 - Updated EF Core models/configuration to be database-provider agnostic (removed provider-specific JSON column types/defaults) and added provider compatibility tests.

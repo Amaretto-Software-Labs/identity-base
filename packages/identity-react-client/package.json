@@ -16,8 +16,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --clean --external react --external react-dom",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch --external react --external react-dom",
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean --external react --external react-dom --external @identity-base/client-core",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch --external react --external react-dom --external @identity-base/client-core",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build && npm run typecheck"
   },
@@ -31,6 +31,9 @@
   ],
   "author": "Identity Base",
   "license": "MIT",
+  "dependencies": {
+    "@identity-base/client-core": "file:../identity-client-core"
+  },
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0"

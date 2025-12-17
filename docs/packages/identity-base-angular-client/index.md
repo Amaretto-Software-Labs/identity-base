@@ -6,7 +6,7 @@
 ## Installation
 
 ```bash
-npm install @identity-base/angular-client @identity-base/client-core
+npm install @identity-base/angular-client
 ```
 
 ## Setup
@@ -41,4 +41,3 @@ export const appConfig = {
 
 ## Change Log
 - See `CHANGELOG.md`.
-
