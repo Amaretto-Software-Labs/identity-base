@@ -22,7 +22,10 @@ namespace Identity.Base.Organizations.Services;
 
 public sealed class OrganizationService : IOrganizationService
 {
-    private static readonly Regex SlugRegex = new("^[a-z0-9][a-z0-9-_.]*$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex SlugRegex = new(
+        "^[a-z0-9][a-z0-9-_.]*$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant,
+        TimeSpan.FromMilliseconds(250));
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly OrganizationDbContext _dbContext;

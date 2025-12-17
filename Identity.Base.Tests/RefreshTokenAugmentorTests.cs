@@ -4,7 +4,6 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Identity.Base.Identity;
@@ -18,6 +17,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using OpenIddict.Abstractions;
 using Shouldly;
 using Xunit;
 using Identity.Base.Tests.Organizations;
@@ -49,9 +49,8 @@ public class RefreshTokenAugmentorTests : IClassFixture<OrganizationApiFactory>
         });
         client.BaseAddress ??= new Uri("https://localhost");
 
-        var token = await PasswordTokenAsync(client, email, password, scope: "openid profile email offline_access");
-        token.AccessToken.ShouldNotBeNull();
-        token.RefreshToken.ShouldNotBeNull();
+        var token = await _factory.CreateTokensAsync(email, password, scope: "openid profile email offline_access");
+        token.RefreshToken.ShouldNotBeNullOrWhiteSpace();
 
         // Act: create organization membership AFTER token issuance
         Guid userId;
@@ -123,8 +122,7 @@ public class RefreshTokenAugmentorTests : IClassFixture<OrganizationApiFactory>
         });
         client.BaseAddress ??= new Uri("https://localhost");
 
-        var token = await PasswordTokenAsync(client, email, password, scope: "openid profile email offline_access");
-        token.AccessToken.ShouldNotBeNull();
+        var token = await _factory.CreateTokensAsync(email, password, scope: "openid profile email offline_access");
 
         Guid createdOrgId = Guid.Empty;
         await using (var scope = _factory.Services.CreateAsyncScope())
@@ -175,29 +173,6 @@ public class RefreshTokenAugmentorTests : IClassFixture<OrganizationApiFactory>
     }
 
 
-    private static async Task<(string? AccessToken, string? RefreshToken)> PasswordTokenAsync(HttpClient client, string email, string password, string scope)
-    {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/connect/token")
-        {
-            Content = new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["grant_type"] = "password",
-                ["username"] = email,
-                ["password"] = password,
-                ["scope"] = scope
-            })
-        };
-        request.Headers.Authorization = CreateBasicAuth("test-client", "test-secret");
-
-        using var response = await client.SendAsync(request);
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var json = await response.Content.ReadFromJsonAsync<JsonDocument>();
-        json.ShouldNotBeNull();
-        var access = json!.RootElement.GetProperty("access_token").GetString();
-        var refresh = json!.RootElement.GetProperty("refresh_token").GetString();
-        return (access, refresh);
-    }
-
     private static async Task<(string? AccessToken, string? RefreshToken)> RefreshTokenAsync(HttpClient client, string refreshToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, "/connect/token")
@@ -205,18 +180,18 @@ public class RefreshTokenAugmentorTests : IClassFixture<OrganizationApiFactory>
             Content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
                 ["grant_type"] = "refresh_token",
-                ["refresh_token"] = refreshToken
+                ["refresh_token"] = refreshToken,
+                [OpenIddictConstants.Parameters.ClientId] = "spa-client"
             })
         };
-        // Refresh with the same confidential client used for password grant
-        request.Headers.Authorization = CreateBasicAuth("test-client", "test-secret");
 
         using var response = await client.SendAsync(request);
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var json = await response.Content.ReadFromJsonAsync<JsonDocument>();
+        var payload = await response.Content.ReadAsStringAsync();
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, payload);
+        using var json = JsonDocument.Parse(payload);
         json.ShouldNotBeNull();
-        var access = json!.RootElement.GetProperty("access_token").GetString();
-        var refresh = json!.RootElement.TryGetProperty("refresh_token", out var r) ? r.GetString() : null;
+        var access = json.RootElement.GetProperty("access_token").GetString();
+        var refresh = json.RootElement.TryGetProperty("refresh_token", out var r) ? r.GetString() : null;
         return (access, refresh);
     }
 
@@ -245,11 +220,6 @@ public class RefreshTokenAugmentorTests : IClassFixture<OrganizationApiFactory>
         }
     }
 
-    private static AuthenticationHeaderValue CreateBasicAuth(string clientId, string clientSecret)
-    {
-        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
-        return new AuthenticationHeaderValue("Basic", credentials);
-    }
 
     // No JWT parsing needed for behavior test
 }

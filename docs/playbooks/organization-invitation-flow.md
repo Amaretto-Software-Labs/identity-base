@@ -29,9 +29,49 @@ Create an organization invitation, retrieve it, claim it as the invited user, an
 # Command Steps
 Command: Obtain admin token (seeded user)
 ```bash
-ADMIN_TOKEN=$(curl -s -X POST http://localhost:8080/connect/token \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d 'grant_type=password&username=admin@example.com&password=P@ssword12345!&client_id=spa-client&scope=openid profile email offline_access identity.api identity.admin' | jq -r .access_token); test -n "$ADMIN_TOKEN" && echo OK || echo FAIL
+get_access_token() {
+  local email="$1"
+  local password="$2"
+  local scope="$3"
+  local base_url="${BASE_URL:-http://localhost:8080}"
+  local redirect_uri="${REDIRECT_URI:-http://localhost:5173/auth/callback}"
+
+  local cookie_jar verifier challenge state location code token
+  cookie_jar=$(mktemp)
+
+  verifier=$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=' | tr -d '\n')
+  challenge=$(printf '%s' "$verifier" | openssl dgst -binary -sha256 | openssl base64 -A | tr '+/' '-_' | tr -d '=')
+  state=$(openssl rand -hex 16)
+
+  jq -n --arg email "$email" --arg password "$password" --arg clientId "spa-client" \
+    '{email:$email,password:$password,clientId:$clientId}' \
+    | curl -fsS -c "$cookie_jar" -X POST "$base_url/auth/login" -H "Content-Type: application/json" -d @- >/dev/null
+
+  location=$(curl -fsS -i -o /dev/null -b "$cookie_jar" -G "$base_url/connect/authorize" \
+    --data-urlencode "response_type=code" \
+    --data-urlencode "client_id=spa-client" \
+    --data-urlencode "redirect_uri=$redirect_uri" \
+    --data-urlencode "scope=$scope" \
+    --data-urlencode "code_challenge=$challenge" \
+    --data-urlencode "code_challenge_method=S256" \
+    --data-urlencode "state=$state" \
+    | awk 'BEGIN{IGNORECASE=1} /^location:/{print $2}' | tr -d '\r')
+
+  code=$(printf '%s' "$location" | sed -n 's/.*[?&]code=\\([^&]*\\).*/\\1/p')
+
+  token=$(curl -fsS -X POST "$base_url/connect/token" -H "Content-Type: application/x-www-form-urlencoded" \
+    --data-urlencode "grant_type=authorization_code" \
+    --data-urlencode "code=$code" \
+    --data-urlencode "redirect_uri=$redirect_uri" \
+    --data-urlencode "client_id=spa-client" \
+    --data-urlencode "code_verifier=$verifier" \
+    | jq -r .access_token)
+
+  rm -f "$cookie_jar"
+  printf '%s' "$token"
+}
+
+ADMIN_TOKEN=$(get_access_token "admin@example.com" "P@ssword12345!" "openid profile email offline_access identity.api identity.admin"); test -n "$ADMIN_TOKEN" && echo OK || echo FAIL
 ```
 
 Command: Capture an existing organization id (first item)
@@ -63,14 +103,12 @@ INV_CODE=$(curl -s -X POST http://localhost:8080/admin/organizations/$ORG_ID/inv
 
 Command: Retrieve public invitation metadata
 ```bash
-curl -s http://localhost:8080/invitations/$INV_CODE | jq '{code, organizationId, organizationSlug, organizationName}'
+curl -s http://localhost:8080/invitations/$INV_CODE | jq '{code, organizationSlug, organizationName, expiresAtUtc}'
 ```
 
 Command: Obtain invitee token
 ```bash
-INV_TOKEN=$(curl -s -X POST http://localhost:8080/connect/token \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=password&username=$INVITEE_EMAIL&password=P@ssword12345!&client_id=spa-client&scope=openid profile email offline_access identity.api" | jq -r .access_token); test -n "$INV_TOKEN" && echo OK || echo FAIL
+INV_TOKEN=$(get_access_token "$INVITEE_EMAIL" "P@ssword12345!" "openid profile email offline_access identity.api"); test -n "$INV_TOKEN" && echo OK || echo FAIL
 ```
 
 Command: Claim the invitation as the invitee
@@ -100,11 +138,11 @@ sequenceDiagram
   participant Admin
   participant Host as Identity Host
   participant Invitee
-  Admin->>Host: POST /connect/token (admin)
+  Admin->>Host: Authorization code + PKCE (admin)
   Admin->>Host: GET /admin/organizations
   Admin->>Host: POST /admin/organizations/{id}/invitations
   Host-->>Admin: 201 Created { code }
-  Invitee->>Host: POST /connect/token (invitee)
+  Invitee->>Host: Authorization code + PKCE (invitee)
   Invitee->>Host: POST /invitations/claim { code }
   Host-->>Invitee: 200 OK { requiresTokenRefresh: true }
   Invitee->>Host: GET /users/me/organizations

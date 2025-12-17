@@ -282,28 +282,10 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
             await roleAssignment.AssignRolesAsync(existing.Id, new[] { "IdentityAdmin" });
         }
 
-        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            BaseAddress = new Uri("https://localhost"),
-            HandleCookies = false
-        });
+        var accessToken = await _factory.CreateAccessTokenAsync(email, password, scope: "openid profile email identity.api identity.admin");
+        accessToken.ShouldNotBeNullOrWhiteSpace();
 
-        using var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            [OpenIddictConstants.Parameters.GrantType] = OpenIddictConstants.GrantTypes.Password,
-            [OpenIddictConstants.Parameters.Username] = email,
-            [OpenIddictConstants.Parameters.Password] = password,
-            [OpenIddictConstants.Parameters.ClientId] = "test-client",
-            [OpenIddictConstants.Parameters.ClientSecret] = "test-secret",
-            [OpenIddictConstants.Parameters.Scope] = "openid profile email identity.api identity.admin"
-        });
-        using var tokenResponse = await client.PostAsync("/connect/token", tokenRequest);
-
-        var payloadJson = await tokenResponse.Content.ReadAsStringAsync();
-        tokenResponse.StatusCode.ShouldBe(HttpStatusCode.OK, payloadJson);
-        var tokenPayload = JsonDocument.Parse(payloadJson);
-        var accessToken = tokenPayload.RootElement.GetProperty("access_token").GetString();
-        return (existing!.Id, accessToken!);
+        return (existing!.Id, accessToken);
     }
 
     private HttpClient CreateAuthorizedClient(string token)

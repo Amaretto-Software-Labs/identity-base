@@ -36,7 +36,7 @@ public class OpenIddictSeedingTests : IClassFixture<IdentityApiFactory>
     }
 
     [Fact]
-    public async Task OpenIddictSeeder_AddsPasswordGrantOnlyForAllowedClients()
+    public async Task OpenIddictSeeder_DoesNotSeedPasswordGrantPermissions()
     {
         using var scope = _factory.Services.CreateScope();
         var applicationManager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
@@ -44,7 +44,7 @@ public class OpenIddictSeedingTests : IClassFixture<IdentityApiFactory>
         var allowed = await applicationManager.FindByClientIdAsync("test-client");
         allowed.ShouldNotBeNull();
         var allowedPermissions = await applicationManager.GetPermissionsAsync(allowed!);
-        allowedPermissions.ShouldContain(OpenIddictConstants.Permissions.GrantTypes.Password);
+        allowedPermissions.ShouldNotContain(OpenIddictConstants.Permissions.GrantTypes.Password);
 
         var disallowed = await applicationManager.FindByClientIdAsync("spa-client");
         disallowed.ShouldNotBeNull();

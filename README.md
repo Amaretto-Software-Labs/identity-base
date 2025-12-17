@@ -15,12 +15,12 @@ The project is open source under the MIT License.
 ---
 
 ## Features at a Glance
-- **Identity & OpenIddict orchestration** – password + authorization-code PKCE flow, refresh tokens, configured scopes, client seeding.
+- **Identity & OpenIddict orchestration** – authorization-code PKCE flow, refresh tokens, configured scopes, client seeding.
 - **Multi-factor authentication** – authenticator apps, SMS, email challenges, and recovery code support.
 - **External providers** – Google, Microsoft, Apple, plus fluent extension points for additional providers.
 - **Mailjet email integration** – available via the optional `Identity.Base.Email.MailJet` package for confirmation, password reset, and MFA challenges.
 - **Extensible DI surface** – option validators, templated email sender, MFA challenge senders, audit logging, return URL validation.
-- **Secure defaults** – password grant gating, return URL normalization, request logging with redaction, dedicated health checks.
+- **Secure defaults** – return URL normalization, request logging with redaction, dedicated health checks.
 
 ---
 

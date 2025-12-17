@@ -118,7 +118,7 @@ export class MemoryTokenStorage implements TokenStorage {
   }
 }
 
-export function createTokenStorage(type: 'localStorage' | 'sessionStorage' | 'memory' = 'localStorage'): TokenStorage {
+export function createTokenStorage(type: 'localStorage' | 'sessionStorage' | 'memory' = 'sessionStorage'): TokenStorage {
   switch (type) {
     case 'localStorage':
       return new LocalStorageTokenStorage()
@@ -127,6 +127,6 @@ export function createTokenStorage(type: 'localStorage' | 'sessionStorage' | 'me
     case 'memory':
       return new MemoryTokenStorage()
     default:
-      return new LocalStorageTokenStorage()
+      return new SessionStorageTokenStorage()
   }
 }

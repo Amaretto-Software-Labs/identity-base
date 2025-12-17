@@ -5,6 +5,7 @@ using Identity.Base.Roles.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using OpenIddict.Abstractions;
 
 namespace Identity.Base.Roles.Endpoints;
 
@@ -14,7 +15,8 @@ public static class UserPermissionEndpoints
     {
         endpoints.MapGet("/users/me/permissions", async (ClaimsPrincipal principal, IPermissionResolver resolver, CancellationToken cancellationToken) =>
         {
-            var userIdClaim = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userIdClaim = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? principal.FindFirstValue(OpenIddictConstants.Claims.Subject);
             if (string.IsNullOrWhiteSpace(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
             {
                 return Results.Unauthorized();

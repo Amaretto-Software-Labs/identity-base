@@ -27,7 +27,7 @@ public class PasswordGrantFlowTests : IClassFixture<IdentityApiFactory>
     }
 
     [Fact]
-    public async Task PasswordGrant_Succeeds_ForAllowedClient()
+    public async Task PasswordGrant_IsRejected_AsUnsupportedGrantType()
     {
         const string email = "password-flow@example.com";
         const string password = "StrongPass!2345";
@@ -55,14 +55,14 @@ public class PasswordGrantFlowTests : IClassFixture<IdentityApiFactory>
 
         using var response = await client.SendAsync(request);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var json = await response.Content.ReadFromJsonAsync<JsonDocument>();
         json.ShouldNotBeNull();
-        json!.RootElement.GetProperty("access_token").GetString().ShouldNotBeNull();
+        json!.RootElement.GetProperty("error").GetString().ShouldBe(OpenIddictConstants.Errors.UnsupportedGrantType);
     }
 
     [Fact]
-    public async Task PasswordGrant_Fails_ForDisallowedClient()
+    public async Task PasswordGrant_IsRejected_ForPublicClient_Too()
     {
         using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
         {
@@ -87,7 +87,7 @@ public class PasswordGrantFlowTests : IClassFixture<IdentityApiFactory>
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var json = await response.Content.ReadFromJsonAsync<JsonDocument>();
         json.ShouldNotBeNull();
-        json!.RootElement.GetProperty("error").GetString().ShouldBe("unauthorized_client");
+        json!.RootElement.GetProperty("error").GetString().ShouldBe(OpenIddictConstants.Errors.UnsupportedGrantType);
     }
 
     [Fact]

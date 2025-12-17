@@ -298,33 +298,6 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
         await assignmentService.AssignRolesAsync(user!.Id, new[] { roleName });
     }
 
-    private async Task<string> CreateAccessTokenAsync(string email, string password, WebApplicationFactory<Program>? factory = null, string scope = "identity.api identity.admin openid profile")
-    {
-        var targetFactory = factory ?? _factory;
-        using var client = targetFactory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            AllowAutoRedirect = false,
-            HandleCookies = false
-        });
-
-        using var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string?>
-        {
-            [OpenIddictConstants.Parameters.GrantType] = OpenIddictConstants.GrantTypes.Password,
-            [OpenIddictConstants.Parameters.Username] = email,
-            [OpenIddictConstants.Parameters.Password] = password,
-            [OpenIddictConstants.Parameters.ClientId] = "test-client",
-            [OpenIddictConstants.Parameters.ClientSecret] = "test-secret",
-            [OpenIddictConstants.Parameters.Scope] = scope
-        });
-
-        using var response = await client.PostAsync("/connect/token", tokenRequest);
-        var payload = await response.Content.ReadAsStringAsync();
-        response.IsSuccessStatusCode.ShouldBeTrue(payload);
-
-        using var document = JsonDocument.Parse(payload);
-        return document.RootElement.GetProperty("access_token").GetString()!;
-    }
-
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string email, string password, WebApplicationFactory<Program>? factory = null)
     {
         var targetFactory = factory ?? _factory;
@@ -357,7 +330,7 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
         await SeedUserAsync(email, password, confirmEmail: true);
         await AssignRoleAsync(email, "IdentityAdmin");
 
-        var token = await CreateAccessTokenAsync(email, password);
+        var token = await _factory.CreateAccessTokenAsync(email, password);
         using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false,
@@ -387,7 +360,7 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
         var organizationId = await CreateOrganizationAsync($"perm-org-{Guid.NewGuid():N}", "Permission Org", organizationFactory);
         await AddMembershipAsync(organizationId, email, organizationFactory);
 
-        var token = await CreateAccessTokenAsync(email, password, organizationFactory);
+        var token = await _factory.CreateAccessTokenAsync(email, password, organizationFactory);
         using var client = organizationFactory.CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false,

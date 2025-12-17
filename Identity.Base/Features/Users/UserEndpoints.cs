@@ -265,7 +265,7 @@ internal sealed class UpdateProfileRequestValidator : AbstractValidator<UpdatePr
                             context.AddFailure($"metadata.{field.Name}", $"Field exceeds maximum length of {field.MaxLength} characters.");
                         }
 
-                        if (!string.IsNullOrWhiteSpace(field.Pattern) && !Regex.IsMatch(value, field.Pattern))
+                        if (!string.IsNullOrWhiteSpace(field.Pattern) && !Regex.IsMatch(value, field.Pattern, RegexOptions.None, TimeSpan.FromMilliseconds(250)))
                         {
                             context.AddFailure($"metadata.{field.Name}", "Field does not match the required pattern.");
                         }

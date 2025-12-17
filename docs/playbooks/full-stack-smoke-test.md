@@ -56,11 +56,51 @@ curl -s http://localhost:8080/healthz | jq '[.checks[] | {name, status}]'
 ```
 Expect: Includes `{ name: "database", status: "Healthy" }`. If Mailjet enabled, `{ name: "mailjet", status: "Healthy" }`.
 
-Command: Obtain access token via password grant (seed admin)
+Command: Obtain access token via authorization code + PKCE (seed admin)
 ```bash
-ACCESS_TOKEN=$(curl -s -X POST http://localhost:8080/connect/token \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d 'grant_type=password&username=admin@example.com&password=P@ssword12345!&client_id=spa-client&scope=openid profile email offline_access identity.api identity.admin' | jq -r .access_token); test -n "$ACCESS_TOKEN" && echo OK || echo FAIL
+get_access_token() {
+  local email="$1"
+  local password="$2"
+  local scope="$3"
+  local base_url="${BASE_URL:-http://localhost:8080}"
+  local redirect_uri="${REDIRECT_URI:-http://localhost:5173/auth/callback}"
+
+  local cookie_jar verifier challenge state location code token
+  cookie_jar=$(mktemp)
+
+  verifier=$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=' | tr -d '\n')
+  challenge=$(printf '%s' "$verifier" | openssl dgst -binary -sha256 | openssl base64 -A | tr '+/' '-_' | tr -d '=')
+  state=$(openssl rand -hex 16)
+
+  jq -n --arg email "$email" --arg password "$password" --arg clientId "spa-client" \
+    '{email:$email,password:$password,clientId:$clientId}' \
+    | curl -fsS -c "$cookie_jar" -X POST "$base_url/auth/login" -H "Content-Type: application/json" -d @- >/dev/null
+
+  location=$(curl -fsS -i -o /dev/null -b "$cookie_jar" -G "$base_url/connect/authorize" \
+    --data-urlencode "response_type=code" \
+    --data-urlencode "client_id=spa-client" \
+    --data-urlencode "redirect_uri=$redirect_uri" \
+    --data-urlencode "scope=$scope" \
+    --data-urlencode "code_challenge=$challenge" \
+    --data-urlencode "code_challenge_method=S256" \
+    --data-urlencode "state=$state" \
+    | awk 'BEGIN{IGNORECASE=1} /^location:/{print $2}' | tr -d '\r')
+
+  code=$(printf '%s' "$location" | sed -n 's/.*[?&]code=\\([^&]*\\).*/\\1/p')
+
+  token=$(curl -fsS -X POST "$base_url/connect/token" -H "Content-Type: application/x-www-form-urlencoded" \
+    --data-urlencode "grant_type=authorization_code" \
+    --data-urlencode "code=$code" \
+    --data-urlencode "redirect_uri=$redirect_uri" \
+    --data-urlencode "client_id=spa-client" \
+    --data-urlencode "code_verifier=$verifier" \
+    | jq -r .access_token)
+
+  rm -f "$cookie_jar"
+  printf '%s' "$token"
+}
+
+ACCESS_TOKEN=$(get_access_token "admin@example.com" "P@ssword12345!" "openid profile email offline_access identity.api identity.admin"); test -n "$ACCESS_TOKEN" && echo OK || echo FAIL
 ```
 Expect: OK (non-empty access token captured in ACCESS_TOKEN)
 
@@ -87,7 +127,7 @@ sequenceDiagram
   CLI->>Host: GET /healthz
   Host->>DB: DB check
   Host-->>CLI: { status: Healthy }
-  CLI->>Host: POST /connect/token (password)
+  CLI->>Host: Authorization code + PKCE
   Host->>DB: Validate user
   Host-->>CLI: 200 OK + access_token
   CLI->>Host: GET /users/me/permissions (Bearer)

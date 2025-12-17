@@ -4,7 +4,7 @@
 `Identity.Base` turns an ASP.NET Core 9 web application into a fully-fledged identity authority. It wires ASP.NET Identity, EF Core, and OpenIddict together, exposes Minimal APIs for account lifecycle (registration, login, logout, MFA, profile management), and offers a fluent builder (`IdentityBaseBuilder`) for composing optional integrations such as external providers or custom email senders. All other Identity Base packages rely on this foundation.
 
 Key capabilities:
-- **OpenIddict hosting** – authorization-code PKCE, refresh tokens, optional password grant, and configurable signing/encryption keys.
+- **OpenIddict hosting** – authorization-code PKCE, refresh tokens, and configurable signing/encryption keys.
 - **Identity workflows** – registration, login, logout, email confirmation, password reset, profile updates, MFA enrollment/challenge, recovery codes.
 - **Operational readiness** – `/healthz` JSON health checks, opinionated middleware pipeline via `UseApiPipeline`, and seed callbacks for post-migration provisioning.
 
@@ -118,7 +118,7 @@ identity.AfterIdentitySeed(async (sp, ct) =>
 | External providers | `/auth/external/{provider}/challenge`, `/auth/external/{provider}/callback`, `/auth/external/link` | Supported providers: Google, Microsoft, Apple. `IExternalReturnUrlValidator` guards against open redirects; override for custom whitelists. |
 | User profile | `/users/me`, `/users/me/profile`, `/users/me/change-password` | Requires the application cookie (issued automatically after the initial SPA login). Profile updates validate the `concurrencyStamp` and use `IAuditLogger` to record changes. |
 | Health | `/healthz` | Returns `{ "status": "Healthy", "checks": [{ "name": "database", "status": "Healthy", ... }] }`. Additional checks from add-ons appear in the `checks` array. |
-| OpenIddict | `/connect/authorize`, `/connect/token`, `/connect/logout`, `/connect/userinfo` | Standard OpenIddict endpoints used by the SPA PKCE flow and the optional password grant. |
+| OpenIddict | `/connect/authorize`, `/connect/token`, `/connect/logout`, `/connect/userinfo` | Standard OpenIddict endpoints used by the SPA PKCE flow. |
 
 ### Builders, Services, and Types
 - `IdentityBaseBuilder` fluent helpers: `ConfigureAppDbContextModel`, `ConfigureIdentityRolesModel`, `UseTemplatedEmailSender`, `AfterRoleSeeding`, `AfterIdentitySeed`, `AddConfiguredExternalProviders`, individual provider helpers (`AddGoogleAuth`, `AddMicrosoftAuth`, `AddAppleAuth`).

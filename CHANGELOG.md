@@ -1,5 +1,31 @@
 # Changelog
 
+## [Unreleased]
+- Removed OAuth2 password grant (ROPC) support end-to-end (server config, seeding, tests, and docs) in favor of authorization-code + PKCE.
+- No-op email sender now logs only in Development and emits a Production warning when invoked.
+- OpenIddict development signing/encryption keys are now blocked outside Development.
+- Admin user listing role filter no longer relies on cross-DbContext LINQ.
+- Anonymous invitation lookup now returns a public preview DTO (no invitee email/role ids).
+- Added regex match timeouts for configurable profile field patterns and slug validation.
+- Replaced `Mailjet.Api` with a lightweight `HttpClient` Mailjet implementation; resolved vulnerable transitive packages.
+- Removed legacy `Microsoft.AspNetCore.Routing.Abstractions` package references in favor of `Microsoft.AspNetCore.App`.
+- React/JS client defaults: token storage now defaults to `sessionStorage`, and `createError()` preserves `Error.message`.
+- Added missing projects to `Identity.sln` (host migration assemblies + `apps/sample-api`).
+
+## [0.7.7] - 2025-12-04
+- Updated EF Core models/configuration to be database-provider agnostic (removed provider-specific JSON column types/defaults) and added provider compatibility tests.
+- `TenantId` is now non-nullable across organization entities; host migrations update existing NULL values to `Guid.Empty`.
+- Sample host gained initial SQL Server migrations plus dynamic provider/migrations assembly selection via configuration.
+
+## [0.7.6] - 2025-11-26
+- Added OpenIddict client credentials flow support (validator, grant handler, per-client config + seeding) with integration tests.
+- CI now uses `dotnet tool update` for `nbgv` (Nerdbank.GitVersioning), falling back to install when needed.
+- Added a guide for adding permissions to organization roles.
+
+## [0.7.5] - 2025-11-14
+- MailJet template ID resolution now supports numeric template keys and logs warnings for invalid/unconfigured keys.
+- Removed default email subjects from the built-in account confirmation, password reset, and email MFA notification contexts.
+
 ## [0.7.4] - 2025-11-13
 - Consolidated lifecycle handling:
   - Introduced `IUserLifecycleListener` + `IUserLifecycleHookDispatcher` with before/after hooks for every user event (self/admin registration, email confirmation, password reset/change, MFA enable/disable/recovery, resend confirmation, forgot password, lock/unlock, role updates, delete/restore). Minimal APIs now build `UserLifecycleContext` instances and run through the dispatcher; `AccountEmailService`, MFA endpoints, and admin endpoints all emit lifecycle events. Legacy `IUser*Listener` implementations continue to work through the shim.

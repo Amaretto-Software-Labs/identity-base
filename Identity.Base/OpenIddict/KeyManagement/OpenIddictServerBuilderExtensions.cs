@@ -60,6 +60,13 @@ public static class OpenIddictServerBuilderExtensions
 
     private static void ConfigureDevelopmentKeys(OpenIddictServerBuilder builder, OpenIddictServerKeyOptions options, IHostEnvironment environment)
     {
+        if (!environment.IsDevelopment())
+        {
+            throw new InvalidOperationException(
+                "OpenIddict server key provider 'Development' can only be used when ASPNETCORE_ENVIRONMENT=Development. " +
+                "Configure a persisted key provider such as 'FileSystem' or 'AzureKeyVault' instead.");
+        }
+
         builder.AddDevelopmentSigningCertificate();
         builder.AddDevelopmentEncryptionCertificate();
     }
