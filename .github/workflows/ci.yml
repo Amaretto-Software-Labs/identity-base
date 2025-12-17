@@ -286,7 +286,7 @@ jobs:
       - name: Test client core package
         if: ${{ hashFiles('packages/identity-client-core/package.json') != '' }}
         working-directory: packages/identity-client-core
-        run: npm test
+        run: npm run coverage
 
       - name: Build React client package
         working-directory: packages/identity-react-client
@@ -294,7 +294,7 @@ jobs:
 
       - name: Test React client package
         working-directory: packages/identity-react-client
-        run: npm test
+        run: npm run coverage
 
       - name: Build React organizations package
         working-directory: packages/identity-react-organizations
@@ -302,7 +302,7 @@ jobs:
 
       - name: Test React organizations package
         working-directory: packages/identity-react-organizations
-        run: npm test
+        run: npm run coverage
 
       - name: Build Angular client package
         working-directory: packages/identity-angular-client
@@ -310,7 +310,7 @@ jobs:
 
       - name: Test Angular client package
         working-directory: packages/identity-angular-client
-        run: npm test
+        run: npm run coverage
 
       - name: Build Angular organizations package
         working-directory: packages/identity-angular-organizations
@@ -318,7 +318,7 @@ jobs:
 
       - name: Test Angular organizations package
         working-directory: packages/identity-angular-organizations
-        run: npm test
+        run: npm run coverage
 
       - name: Upload React package artifacts
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -639,7 +639,7 @@ jobs:
       - name: Test client core package
         if: ${{ hashFiles('packages/identity-client-core/package.json') != '' }}
         working-directory: packages/identity-client-core
-        run: npm test
+        run: npm run coverage
 
       - name: Build React client package
         working-directory: packages/identity-react-client
@@ -647,7 +647,7 @@ jobs:
 
       - name: Test React client package
         working-directory: packages/identity-react-client
-        run: npm test
+        run: npm run coverage
 
       - name: Build React organizations package
         working-directory: packages/identity-react-organizations
@@ -655,7 +655,7 @@ jobs:
 
       - name: Test React organizations package
         working-directory: packages/identity-react-organizations
-        run: npm test
+        run: npm run coverage
 
       - name: Build Angular client package
         working-directory: packages/identity-angular-client
@@ -663,7 +663,7 @@ jobs:
 
       - name: Test Angular client package
         working-directory: packages/identity-angular-client
-        run: npm test
+        run: npm run coverage
 
       - name: Build Angular organizations package
         working-directory: packages/identity-angular-organizations
@@ -671,7 +671,7 @@ jobs:
 
       - name: Test Angular organizations package
         working-directory: packages/identity-angular-organizations
-        run: npm test
+        run: npm run coverage
 
       - name: Upload React package artifacts
         uses: actions/upload-artifact@v4

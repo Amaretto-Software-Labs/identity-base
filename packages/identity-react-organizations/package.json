@@ -17,7 +17,8 @@
   ],
   "scripts": {
     "build": "tsup src/index.tsx --format cjs,esm --dts --clean --external react --external react-dom",
-    "test": "npm --prefix ../identity-react-client run build && npm run build && node --test --loader ./test/loader.mjs test/*.test.mjs"
+    "test": "npm --prefix ../identity-react-client run build && npm run build && node --test --loader ./test/loader.mjs test/*.test.mjs",
+    "coverage": "npm --prefix ../identity-react-client run build && npm run build && c8 --check-coverage --lines 30 --functions 20 --branches 40 --reporter=text --reporter=lcov node --test --loader ./test/loader.mjs test/*.test.mjs"
   },
   "peerDependencies": {
     "@identity-base/react-client": "0.4.0",
@@ -26,10 +27,11 @@
   },
   "devDependencies": {
     "@identity-base/react-client": "file:../identity-react-client",
+    "@types/react": "^19.1.13",
+    "c8": "^10.1.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-test-renderer": "^19.1.1",
-    "@types/react": "^19.1.13",
     "tsup": "^8.5.0",
     "typescript": "~5.8.3"
   }
