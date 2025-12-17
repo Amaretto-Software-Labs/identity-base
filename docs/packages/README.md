@@ -24,6 +24,7 @@ Use the links below to jump directly to the package you are integrating.
 | `@identity-base/react-client` | npm | [React Auth Client](identity-base-react-client/index.md) |
 | `@identity-base/react-organizations` | npm | [React Organizations Add-on](identity-base-react-organizations/index.md) |
 | `@identity-base/angular-client` | npm | [Angular Auth Client](identity-base-angular-client/index.md) |
+| `@identity-base/angular-organizations` | npm | [Angular Organizations Add-on](identity-base-angular-organizations/index.md) |
 
 > **Maintenance note:** when a package’s public surface area changes (new endpoints, options, or extension points), update the corresponding package page as part of the pull request.
 

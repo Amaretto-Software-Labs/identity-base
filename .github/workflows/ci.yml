@@ -87,7 +87,7 @@ jobs:
           path: artifacts/*
 
       - name: Install npm dependencies
-        working-directory: packages/identity-client
+        working-directory: packages/identity-react-client
         run: npm ci
 
       - name: Install npm dependencies (organizations)
@@ -102,11 +102,15 @@ jobs:
         working-directory: packages/identity-angular-client
         run: npm ci
 
+      - name: Install npm dependencies (angular organizations)
+        working-directory: packages/identity-angular-organizations
+        run: npm ci
+
       - name: Align npm package version
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
-        working-directory: packages/identity-client
+        working-directory: packages/identity-react-client
         run: |
           node - <<'NODE'
           const fs = require('fs');
@@ -158,8 +162,8 @@ jobs:
                 lock.packages[''].peerDependencies['@identity-base/react-client'] = version;
               }
             }
-            if (lock.packages && lock.packages['../identity-client']) {
-              lock.packages['../identity-client'].version = version;
+            if (lock.packages && lock.packages['../identity-react-client']) {
+              lock.packages['../identity-react-client'].version = version;
             }
             fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n');
           }
@@ -224,8 +228,47 @@ jobs:
           }
           NODE
 
+      - name: Align npm package version (angular organizations)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
+        working-directory: packages/identity-angular-organizations
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const version = process.env.PACKAGE_VERSION;
+          if (!version) throw new Error('PACKAGE_VERSION environment variable is not set.');
+          const pkgPath = 'package.json';
+          const lockPath = 'package-lock.json';
+          const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+          pkg.version = version;
+          if (pkg.peerDependencies) {
+            if (pkg.peerDependencies['@identity-base/client-core']) pkg.peerDependencies['@identity-base/client-core'] = version;
+            if (pkg.peerDependencies['@identity-base/angular-client']) pkg.peerDependencies['@identity-base/angular-client'] = version;
+          }
+          fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+          if (fs.existsSync(lockPath)) {
+            const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+            lock.version = version;
+            if (lock.packages && lock.packages['']) {
+              lock.packages[''].version = version;
+              if (lock.packages[''].peerDependencies) {
+                if (lock.packages[''].peerDependencies['@identity-base/client-core']) lock.packages[''].peerDependencies['@identity-base/client-core'] = version;
+                if (lock.packages[''].peerDependencies['@identity-base/angular-client']) lock.packages[''].peerDependencies['@identity-base/angular-client'] = version;
+              }
+            }
+            if (lock.packages && lock.packages['../identity-client-core']) {
+              lock.packages['../identity-client-core'].version = version;
+            }
+            if (lock.packages && lock.packages['../identity-angular-client']) {
+              lock.packages['../identity-angular-client'].version = version;
+            }
+            fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n');
+          }
+          NODE
+
       - name: Build React client package
-        working-directory: packages/identity-client
+        working-directory: packages/identity-react-client
         run: npm run build
 
       - name: Build React organizations package
@@ -248,12 +291,20 @@ jobs:
         working-directory: packages/identity-angular-client
         run: npm test
 
+      - name: Build Angular organizations package
+        working-directory: packages/identity-angular-organizations
+        run: npm run build
+
+      - name: Test Angular organizations package
+        working-directory: packages/identity-angular-organizations
+        run: npm test
+
       - name: Upload React package artifacts
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: identity-react-client-${{ steps.version.outputs.package-version }}
-          path: packages/identity-client/dist/**
+          path: packages/identity-react-client/dist/**
 
       - name: Upload organizations React package artifacts
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -275,6 +326,13 @@ jobs:
         with:
           name: identity-angular-client-${{ steps.version.outputs.package-version }}
           path: packages/identity-angular-client/dist/**
+
+      - name: Upload Angular organizations package artifacts
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: identity-angular-organizations-${{ steps.version.outputs.package-version }}
+          path: packages/identity-angular-organizations/dist/**
 
   release:
     if: github.event_name == 'workflow_dispatch'
@@ -366,7 +424,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install npm dependencies
-        working-directory: packages/identity-client
+        working-directory: packages/identity-react-client
         run: npm ci
 
       - name: Install npm dependencies (organizations)
@@ -381,10 +439,14 @@ jobs:
         working-directory: packages/identity-angular-client
         run: npm ci
 
+      - name: Install npm dependencies (angular organizations)
+        working-directory: packages/identity-angular-organizations
+        run: npm ci
+
       - name: Align npm package version
         env:
           PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
-        working-directory: packages/identity-client
+        working-directory: packages/identity-react-client
         run: |
           node - <<'NODE'
           const fs = require('fs');
@@ -435,8 +497,8 @@ jobs:
                 lock.packages[''].peerDependencies['@identity-base/react-client'] = version;
               }
             }
-            if (lock.packages && lock.packages['../identity-client']) {
-              lock.packages['../identity-client'].version = version;
+            if (lock.packages && lock.packages['../identity-react-client']) {
+              lock.packages['../identity-react-client'].version = version;
             }
             fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n');
           }
@@ -499,8 +561,46 @@ jobs:
           }
           NODE
 
+      - name: Align npm package version (angular organizations)
+        env:
+          PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
+        working-directory: packages/identity-angular-organizations
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const version = process.env.PACKAGE_VERSION;
+          if (!version) throw new Error('PACKAGE_VERSION environment variable is not set.');
+          const pkgPath = 'package.json';
+          const lockPath = 'package-lock.json';
+          const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+          pkg.version = version;
+          if (pkg.peerDependencies) {
+            if (pkg.peerDependencies['@identity-base/client-core']) pkg.peerDependencies['@identity-base/client-core'] = version;
+            if (pkg.peerDependencies['@identity-base/angular-client']) pkg.peerDependencies['@identity-base/angular-client'] = version;
+          }
+          fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+          if (fs.existsSync(lockPath)) {
+            const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+            lock.version = version;
+            if (lock.packages && lock.packages['']) {
+              lock.packages[''].version = version;
+              if (lock.packages[''].peerDependencies) {
+                if (lock.packages[''].peerDependencies['@identity-base/client-core']) lock.packages[''].peerDependencies['@identity-base/client-core'] = version;
+                if (lock.packages[''].peerDependencies['@identity-base/angular-client']) lock.packages[''].peerDependencies['@identity-base/angular-client'] = version;
+              }
+            }
+            if (lock.packages && lock.packages['../identity-client-core']) {
+              lock.packages['../identity-client-core'].version = version;
+            }
+            if (lock.packages && lock.packages['../identity-angular-client']) {
+              lock.packages['../identity-angular-client'].version = version;
+            }
+            fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n');
+          }
+          NODE
+
       - name: Build React client package
-        working-directory: packages/identity-client
+        working-directory: packages/identity-react-client
         run: npm run build
 
       - name: Build React organizations package
@@ -523,11 +623,19 @@ jobs:
         working-directory: packages/identity-angular-client
         run: npm test
 
+      - name: Build Angular organizations package
+        working-directory: packages/identity-angular-organizations
+        run: npm run build
+
+      - name: Test Angular organizations package
+        working-directory: packages/identity-angular-organizations
+        run: npm test
+
       - name: Upload React package artifacts
         uses: actions/upload-artifact@v4
         with:
           name: identity-react-client-${{ steps.release-version.outputs.package-version }}
-          path: packages/identity-client/dist/**
+          path: packages/identity-react-client/dist/**
 
       - name: Upload organizations React package artifacts
         uses: actions/upload-artifact@v4
@@ -547,6 +655,12 @@ jobs:
           name: identity-angular-client-${{ steps.release-version.outputs.package-version }}
           path: packages/identity-angular-client/dist/**
 
+      - name: Upload Angular organizations package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: identity-angular-organizations-${{ steps.release-version.outputs.package-version }}
+          path: packages/identity-angular-organizations/dist/**
+
       - name: Publish React packages to npm
         if: github.event.inputs.publish-to-npm == 'true'
         env:
@@ -562,7 +676,10 @@ jobs:
           pushd packages/identity-angular-client >/dev/null
           npm publish --access public
           popd >/dev/null
-          pushd packages/identity-client >/dev/null
+          pushd packages/identity-angular-organizations >/dev/null
+          npm publish --access public
+          popd >/dev/null
+          pushd packages/identity-react-client >/dev/null
           npm publish --access public
           popd >/dev/null
           pushd packages/identity-react-organizations >/dev/null

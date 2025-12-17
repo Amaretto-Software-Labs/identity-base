@@ -17,7 +17,7 @@ This repository uses [Nerdbank.GitVersioning (NBGV)](https://github.com/dotnet/N
    - Builds the npm packages in:
      - `packages/identity-client-core/dist`
      - `packages/identity-angular-client/dist`
-     - `packages/identity-client/dist`
+     - `packages/identity-react-client/dist`
      - `packages/identity-react-organizations/dist`.
    - Uploads each artefact set with versioned names for inspection.
 

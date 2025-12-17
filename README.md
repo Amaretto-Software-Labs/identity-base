@@ -48,7 +48,7 @@ See `Identity.Base.Host` and `apps/org-sample-api` for reference helper extensio
 | `Identity.Base.Host/` | Opinionated ASP.NET Core host wired for local development and integration tests. Owns its migrations/prefixes and applies them before seeding on startup. |
 | `apps/` | Sample APIs that demonstrate bearer auth and organization scenarios. |
 | `docs/` | Architecture, engineering principles, sprint plans, onboarding, full-stack integration guides. |
-| `packages/` | Client packages (`@identity-base/client-core`, `@identity-base/angular-client`, `@identity-base/react-client`, `@identity-base/react-organizations`). |
+| `packages/` | Client packages (`@identity-base/client-core`, `@identity-base/angular-client`, `@identity-base/angular-organizations`, `@identity-base/react-client`, `@identity-base/react-organizations`). |
 
 Provider selection in the sample host is config-driven: set `Database:Provider` to `PostgreSql`, `SqlServer`, or `InMemory`, and optionally point `Database:Migrations:{ContextName}` (or `Database:Migrations:Default`) at provider-specific migration assemblies.
 
@@ -173,6 +173,22 @@ export const appConfig = {
       tokenStorage: 'sessionStorage',
       autoRefresh: true,
     }),
+  ],
+};
+```
+
+To call organization endpoints, also install and register `@identity-base/angular-organizations`:
+
+```bash
+npm install @identity-base/angular-organizations
+```
+
+```ts
+import { provideIdentityOrganizations } from '@identity-base/angular-organizations';
+
+export const appConfig = {
+  providers: [
+    ...provideIdentityOrganizations({ apiBase: 'https://identity.example.com' }),
   ],
 };
 ```
