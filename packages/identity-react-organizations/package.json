@@ -16,7 +16,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.tsx --format cjs,esm --dts --clean --external react --external react-dom"
+    "build": "tsup src/index.tsx --format cjs,esm --dts --clean --external react --external react-dom",
+    "test": "npm --prefix ../identity-react-client run build && npm run build && node --test --loader ./test/loader.mjs test/*.test.mjs"
   },
   "peerDependencies": {
     "@identity-base/react-client": "0.4.0",
@@ -25,6 +26,9 @@
   },
   "devDependencies": {
     "@identity-base/react-client": "file:../identity-react-client",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-test-renderer": "^19.1.1",
     "@types/react": "^19.1.13",
     "tsup": "^8.5.0",
     "typescript": "~5.8.3"

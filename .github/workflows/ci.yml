@@ -280,9 +280,17 @@ jobs:
         working-directory: packages/identity-react-client
         run: npm run build
 
+      - name: Test React client package
+        working-directory: packages/identity-react-client
+        run: npm test
+
       - name: Build React organizations package
         working-directory: packages/identity-react-organizations
         run: npm run build
+
+      - name: Test React organizations package
+        working-directory: packages/identity-react-organizations
+        run: npm test
 
       - name: Build client core package
         working-directory: packages/identity-client-core
@@ -621,9 +629,17 @@ jobs:
         working-directory: packages/identity-react-client
         run: npm run build
 
+      - name: Test React client package
+        working-directory: packages/identity-react-client
+        run: npm test
+
       - name: Build React organizations package
         working-directory: packages/identity-react-organizations
         run: npm run build
+
+      - name: Test React organizations package
+        working-directory: packages/identity-react-organizations
+        run: npm test
 
       - name: Build client core package
         working-directory: packages/identity-client-core
