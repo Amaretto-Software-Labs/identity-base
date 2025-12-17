@@ -64,17 +64,8 @@ internal sealed class OpenIddictSeeder
                 descriptor.Permissions.Add(OpenIddictConstants.Permissions.GrantTypes.ClientCredentials);
             }
 
-            foreach (var scope in options.Scopes)
-            {
-                if (!string.IsNullOrWhiteSpace(scope.Name))
-                {
-                    descriptor.Permissions.Add(OpenIddictConstants.Permissions.Prefixes.Scope + scope.Name);
-                }
-            }
-
             descriptor.Permissions.Add(OpenIddictConstants.Permissions.Endpoints.Authorization);
             descriptor.Permissions.Add(OpenIddictConstants.Permissions.Endpoints.Token);
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.Endpoints.Introspection);
             descriptor.Permissions.Add(OpenIddictConstants.Permissions.GrantTypes.AuthorizationCode);
             descriptor.Permissions.Add(OpenIddictConstants.Permissions.GrantTypes.RefreshToken);
             descriptor.Permissions.Add(OpenIddictConstants.Permissions.ResponseTypes.Code);

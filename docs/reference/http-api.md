@@ -61,7 +61,7 @@ Scopes are **not** the same thing as RBAC permissions. Scopes gate access at the
 
 If you want admin endpoints to *not* require an OAuth scope, set `IdentityAdmin:RequiredScope` to `null` (permissions still apply).
 
-> Note: the built-in OpenIddict seeder currently grants all configured `OpenIddict:Scopes` to every seeded application descriptor. If you require strict per-client scope allowlists, treat the seeder as a host-level customization point.
+> Note: clients only receive the scopes you explicitly grant via `OpenIddict:Applications[].Permissions` (e.g. `scopes:identity.api`, `scopes:identity.admin`). The built-in OpenIddict seeder no longer blanket-grants every configured scope to every client.
 
 ## Endpoint specs (OpenAPI)
 

@@ -4,6 +4,7 @@ using Identity.Base.Features.Authentication.EmailManagement;
 using Identity.Base.Features.Authentication.Logout;
 using Identity.Base.Features.Authentication.Mfa;
 using Identity.Base.Features.Authentication.Register;
+using Identity.Base.Features.Security;
 using Identity.Base.Options;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -17,7 +18,9 @@ public static class AuthenticationEndpoints
 {
     public static RouteGroupBuilder MapAuthenticationEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/auth");
+        var group = endpoints
+            .MapGroup("/auth")
+            .AddEndpointFilter<BrowserOriginGuardEndpointFilter>();
 
         group.MapRegisterUserEndpoint();
         group.MapLoginEndpoint();

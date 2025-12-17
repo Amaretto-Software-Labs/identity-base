@@ -515,7 +515,7 @@ public sealed class IdentityBaseBuilder
         {
             options.Cookie.HttpOnly = true;
             options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-            options.Cookie.SameSite = SameSiteMode.None;
+            options.Cookie.SameSite = SameSiteMode.Lax;
             options.SlidingExpiration = false;
 
             options.Events = new CookieAuthenticationEvents
@@ -550,7 +550,7 @@ public sealed class IdentityBaseBuilder
         {
             options.Cookie.HttpOnly = true;
             options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-            options.Cookie.SameSite = SameSiteMode.None;
+            options.Cookie.SameSite = SameSiteMode.Lax;
             options.ExpireTimeSpan = TimeSpan.FromMinutes(10);
         });
 

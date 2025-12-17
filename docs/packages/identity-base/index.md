@@ -54,7 +54,7 @@ curl -X POST https://localhost:5000/auth/register \
   -H "Content-Type: application/json" \
   -d '{
         "email": "alice@example.com",
-        "password": "Passw0rd!",
+        "password": "Passw0rd!Passw0rd!",
         "metadata": { "displayName": "Alice" }
       }'
 
@@ -63,7 +63,7 @@ curl -X POST https://localhost:5000/auth/login \
   -H "Content-Type: application/json" \
   -d '{
         "email": "alice@example.com",
-        "password": "Passw0rd!",
+        "password": "Passw0rd!Passw0rd!",
         "clientId": "spa-client"
       }'
 
@@ -85,7 +85,7 @@ Options are bound automatically from `IConfiguration`. The sections below are th
 | `Mfa` (`MfaOptions`) | `Issuer`, `Email.Enabled`, `Sms.Enabled`, `Sms.AccountSid`, `Sms.AuthToken`, `Sms.FromPhoneNumber` | Email enabled, SMS disabled | SMS validation requires Twilio credentials. Tokens are issued with the configured `Issuer`. |
 | `ExternalProviders` (`ExternalProviderOptions`) | Provider `Enabled` flag, `ClientId`, `ClientSecret`, `CallbackPath`, `Scopes` | Providers disabled | `identity.AddConfiguredExternalProviders()` registers any providers marked as enabled here (Google, Microsoft, Apple). |
 | `OpenIddict` (`OpenIddictOptions`) | `Applications`, `Scopes`, token lifetimes | SPA (`spa-client`) and confidential (`test-client`) seeded | Configure additional client ids/redirect URIs or adjust lifetimes. |
-| `OpenIddict:Server:Keys` (`OpenIddictServerKeyOptions`) | Signing/encryption key descriptors | Runtime-generated | Override to use persisted keys or external key stores. |
+| `OpenIddict:ServerKeys` (`OpenIddictServerKeyOptions`) | Signing/encryption key descriptors | Runtime-generated | Override to use persisted keys or external key stores. |
 | `Cors` (`CorsSettings`) | `AllowedOrigins`, `AllowCredentials` | Empty | `UseApiPipeline` consumes this to create the default CORS policy for Minimal APIs. |
 
 Use `identity.UseTablePrefix("Contoso")` if you want every EF Core table created by Identity Base (and add-on packages) to use a different prefix than the default `Identity_`.
@@ -146,7 +146,7 @@ identity.AfterIdentitySeed(async (sp, ct) =>
 - **Email not confirmed** – `/auth/login` returns `400` with `Email must be confirmed...` until `/auth/confirm-email` succeeds. Use `/auth/resend-confirmation` to resend the token.
 - **MFA challenge blocked** – `/auth/mfa/challenge` returns `400` with `SMS MFA challenge is disabled.` if `Mfa:Sms:Enabled` is false or credentials are missing.
 - **Unknown client id** – `/auth/login` fails with `Unknown client_id.` unless the client exists under `OpenIddict:Applications` (or is the seeded SPA/confidential client).
-- **CORS issues** – ensure every SPA origin is listed under `Cors:AllowedOrigins`. The pipeline uses the default policy for all Minimal APIs.
+- **CORS / Origin blocked** – ensure every SPA origin is listed under `Cors:AllowedOrigins`. Browser-based POSTs to `/auth/*` are protected against CSRF-style cross-origin requests by validating `Origin` against `Cors:AllowedOrigins` (curl/servers typically omit `Origin` and are unaffected).
 - **Applying migrations** – generate and apply migrations from your host project (`dotnet ef migrations add InitialIdentityBase --context AppDbContext`) before running the app; Identity Base no longer applies migrations automatically.
 
 ## Examples & Guides

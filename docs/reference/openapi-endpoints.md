@@ -552,6 +552,9 @@ Generated from the Development OpenAPI document served by `apps/org-sample-api` 
 
 - OperationId: `Login`
 - Summary: Authenticates a user and establishes an Identity cookie for subsequent authorization flows.
+
+Notes:
+- Browser-based requests may receive `403` if the `Origin` header is present and not allowed by `Cors:AllowedOrigins` (CSRF protection for cookie-based endpoints).
 **Request Body**
 
 - Content types: `application/json`
@@ -568,6 +571,9 @@ Generated from the Development OpenAPI document served by `apps/org-sample-api` 
 
 - OperationId: `Logout`
 - Summary: Signs the current user out of the Identity cookie session.
+
+Notes:
+- Browser-based requests may receive `403` if the `Origin` header is present and not allowed by `Cors:AllowedOrigins` (CSRF protection for cookie-based endpoints).
 **Responses**
 
 | Status | Content types | Schema |
