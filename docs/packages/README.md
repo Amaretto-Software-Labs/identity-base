@@ -28,6 +28,8 @@ Use the links below to jump directly to the package you are integrating.
 
 > **Maintenance note:** when a package’s public surface area changes (new endpoints, options, or extension points), update the corresponding package page as part of the pull request.
 
+For HTTP-level integration (scopes, OpenAPI endpoint discovery), start with: `docs/reference/http-api.md`.
+
 ---
 
 ## Task Playbooks

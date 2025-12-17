@@ -57,6 +57,7 @@ Key documents:
 - [Project Plan](docs/plans/identity-oidc-project-plan.md)
 - [Engineering Principles](docs/reference/Engineering_Principles.md)
 - [Database Design Guidelines](docs/reference/Database_Design_Guidelines.md)
+- [HTTP API Reference (Scopes + OpenAPI)](docs/reference/http-api.md)
 - [Identity.Base Public API](docs/reference/identity-base-public-api.md)
 - [Release Checklist](docs/release/release-checklist.md)
 - [React Integration Guide](docs/guides/react-integration-guide.md)
