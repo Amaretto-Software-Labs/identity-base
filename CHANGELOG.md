@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.7.9] - 2025-12-17
 - Removed OAuth2 password grant (ROPC) support end-to-end (server config, seeding, tests, and docs) in favor of authorization-code + PKCE.
 - No-op email sender now logs only in Development and emits a Production warning when invoked.
 - OpenIddict development signing/encryption keys are now blocked outside Development.
