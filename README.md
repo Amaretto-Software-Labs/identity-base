@@ -48,7 +48,7 @@ See `Identity.Base.Host` and `apps/org-sample-api` for reference helper extensio
 | `Identity.Base.Host/` | Opinionated ASP.NET Core host wired for local development and integration tests. Owns its migrations/prefixes and applies them before seeding on startup. |
 | `apps/` | Sample APIs that demonstrate bearer auth and organization scenarios. |
 | `docs/` | Architecture, engineering principles, sprint plans, onboarding, full-stack integration guides. |
-| `packages/` | React client packages (`@identity-base/react-client`, `@identity-base/react-organizations`). |
+| `packages/` | Client packages (`@identity-base/client-core`, `@identity-base/angular-client`, `@identity-base/react-client`, `@identity-base/react-organizations`). |
 
 Provider selection in the sample host is config-driven: set `Database:Provider` to `PostgreSql`, `SqlServer`, or `InMemory`, and optionally point `Database:Migrations:{ContextName}` (or `Database:Migrations:Default`) at provider-specific migration assemblies.
 
@@ -149,6 +149,33 @@ import { OrganizationsProvider } from '@identity-base/react-organizations';
 ```
 
 The hooks exposed by the packages (`useLogin`, `useOrganizations`, `useOrganizationMembers`, etc.) orchestrate the full identity and organization flows. The [Full Stack Integration Guide](docs/guides/full-stack-integration-guide.md) walks through setting up the Identity Host, microservices, and the SPA end-to-end.
+
+### 4. Angular SPA
+
+Install the Angular package (it uses `@identity-base/client-core` under the hood):
+
+```bash
+npm install @identity-base/angular-client @identity-base/client-core
+```
+
+Register providers once (example `app.config.ts`):
+
+```ts
+import { provideIdentityClient } from '@identity-base/angular-client';
+
+export const appConfig = {
+  providers: [
+    ...provideIdentityClient({
+      apiBase: 'https://identity.example.com',
+      clientId: 'spa-client',
+      redirectUri: 'https://app.example.com/auth/callback',
+      scope: 'openid profile email identity.api',
+      tokenStorage: 'sessionStorage',
+      autoRefresh: true,
+    }),
+  ],
+};
+```
 
 ---
 

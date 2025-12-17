@@ -14,7 +14,11 @@ This repository uses [Nerdbank.GitVersioning (NBGV)](https://github.com/dotnet/N
 2. When running on `main`, the job also:
    - Computes the current SemVer using `nbgv`.
    - Packs the NuGet projects (`Identity.Base`, `Identity.Base.Roles`, `Identity.Base.Admin`, `Identity.Base.AspNet`, `Identity.Base.Organizations`) with `ContinuousIntegrationBuild=true`.
-   - Builds the React packages in `packages/identity-client/dist` and `packages/identity-react-organizations/dist`.
+   - Builds the npm packages in:
+     - `packages/identity-client-core/dist`
+     - `packages/identity-angular-client/dist`
+     - `packages/identity-client/dist`
+     - `packages/identity-react-organizations/dist`.
    - Uploads each artefact set with versioned names for inspection.
 
 No packages are published automatically during validation runs.
@@ -26,8 +30,8 @@ No packages are published automatically during validation runs.
 3. Optional inputs:
    - `package-version` – override the computed SemVer (normally omit if you tagged the commit).
    - `publish-to-nuget` – set to `true` to push `.nupkg`/`.snupkg` files to NuGet (requires `NUGET_API_KEY` secret).
-   - `publish-to-npm` – set to `true` to publish the React client to npm (requires `NPM_TOKEN` secret; the workflow exports it as `NODE_AUTH_TOKEN`).
-4. The workflow reuses the validation steps, aligns both npm package versions via a Node script, and pushes the NuGet packages plus both React packages to the selected registries.
+   - `publish-to-npm` – set to `true` to publish the npm packages to npm (requires `NPM_TOKEN` secret; the workflow exports it as `NODE_AUTH_TOKEN`).
+4. The workflow reuses the validation steps, aligns npm package versions via Node scripts, and pushes the NuGet packages plus all npm packages to the selected registries.
 
 > Tip: use `nbgv tag` locally to stamp a `vX.Y.Z` tag before triggering the release so that subsequent builds continue with the next prerelease number.
 
