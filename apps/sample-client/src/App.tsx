@@ -10,6 +10,7 @@ import MfaPage from './pages/MfaPage'
 import MfaSetupPage from './pages/MfaSetupPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import ConfirmEmailPage from './pages/ConfirmEmailPage'
 import ProfilePage from './pages/ProfilePage'
 import AuthorizePage from './pages/AuthorizePage'
 import AuthorizeCallbackPage from './pages/AuthorizeCallbackPage'
@@ -59,6 +60,7 @@ export default function App() {
           <Route path="external-result" element={<ExternalResultPage />} />
         </Route>
         <Route path="auth/callback" element={<AuthorizeCallbackPage />} />
+        <Route path="auth/confirm" element={<ConfirmEmailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </IdentityProvider>

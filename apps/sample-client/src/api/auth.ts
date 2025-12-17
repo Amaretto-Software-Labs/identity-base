@@ -14,6 +14,13 @@ export function getProfileSchema() {
   return apiFetch<ProfileSchemaResponse>(API_ROUTES.profileSchema, { method: 'GET' })
 }
 
+export function confirmEmail(payload: { userId: string; token: string }) {
+  return apiFetch<void>(API_ROUTES.confirmEmail, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
 export function registerUser(payload: RegisterRequest) {
   return apiFetch<{ correlationId: string }>(API_ROUTES.register, {
     method: 'POST',

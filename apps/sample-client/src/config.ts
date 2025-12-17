@@ -1,7 +1,9 @@
-const DEFAULT_API_BASE = 'https://localhost:5001'
+const DEFAULT_API_BASE = 'https://localhost:5000'
+const DEFAULT_SAMPLE_API_BASE = 'https://localhost:8199'
 
 export const CONFIG = {
   apiBase: (import.meta.env.VITE_API_BASE as string | undefined) ?? DEFAULT_API_BASE,
+  sampleApiBase: (import.meta.env.VITE_SAMPLE_API_BASE as string | undefined) ?? DEFAULT_SAMPLE_API_BASE,
   clientId: (import.meta.env.VITE_CLIENT_ID as string | undefined) ?? 'spa-client',
   authorizeRedirectUri:
     (import.meta.env.VITE_AUTHORIZE_REDIRECT as string | undefined) ?? `${window.location.origin}/auth/callback`,
@@ -16,6 +18,7 @@ export const CONFIG = {
 
 export const API_ROUTES = {
   register: '/auth/register',
+  confirmEmail: '/auth/confirm-email',
   login: '/auth/login',
   logout: '/auth/logout',
   profileSchema: '/auth/profile-schema',

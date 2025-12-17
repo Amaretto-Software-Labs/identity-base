@@ -16,10 +16,10 @@ npm install
 npm run dev
 ```
 
-The dev server listens on `http://localhost:5173` by default. Configure the base URL and OpenIddict client via Vite env variables (`.env.local`):
+The dev server listens on `http://localhost:5173` by default (override with `PORT`). Configure the base URL and OpenIddict client via Vite env variables (`.env.local`):
 
 ```bash
-VITE_API_BASE=https://localhost:5001
+VITE_API_BASE=https://localhost:8182
 VITE_CLIENT_ID=org-sample-client
 VITE_AUTHORIZE_REDIRECT=http://localhost:5173/auth/callback
 VITE_AUTHORIZE_SCOPE=openid profile email offline_access identity.api

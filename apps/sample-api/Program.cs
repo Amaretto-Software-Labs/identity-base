@@ -29,7 +29,8 @@ builder.Services.AddCors(options =>
 });
 
 // Configure JWT Bearer authentication using Identity.Base.AspNet
-builder.Services.AddIdentityBaseAuthentication("https://localhost:5000");
+var authority = builder.Configuration["IdentityBase:Authority"] ?? "https://localhost:5000";
+builder.Services.AddIdentityBaseAuthentication(authority);
 
 var app = builder.Build();
 
