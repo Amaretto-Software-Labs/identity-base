@@ -96,6 +96,7 @@ jobs:
         run: npm ci
 
       - name: Install npm dependencies (client core)
+        if: ${{ hashFiles('packages/identity-client-core/package.json') != '' }}
         working-directory: packages/identity-client-core
         run: npm ci
 
@@ -294,10 +295,12 @@ jobs:
         run: npm test
 
       - name: Build client core package
+        if: ${{ hashFiles('packages/identity-client-core/package.json') != '' }}
         working-directory: packages/identity-client-core
         run: npm run build
 
       - name: Test client core package
+        if: ${{ hashFiles('packages/identity-client-core/package.json') != '' }}
         working-directory: packages/identity-client-core
         run: npm test
 
@@ -451,6 +454,7 @@ jobs:
         run: npm ci
 
       - name: Install npm dependencies (client core)
+        if: ${{ hashFiles('packages/identity-client-core/package.json') != '' }}
         working-directory: packages/identity-client-core
         run: npm ci
 
@@ -644,10 +648,12 @@ jobs:
         run: npm test
 
       - name: Build client core package
+        if: ${{ hashFiles('packages/identity-client-core/package.json') != '' }}
         working-directory: packages/identity-client-core
         run: npm run build
 
       - name: Test client core package
+        if: ${{ hashFiles('packages/identity-client-core/package.json') != '' }}
         working-directory: packages/identity-client-core
         run: npm test
 
@@ -680,6 +686,7 @@ jobs:
           path: packages/identity-react-organizations/dist/**
 
       - name: Upload client core package artifacts
+        if: ${{ hashFiles('packages/identity-client-core/package.json') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: identity-client-core-${{ steps.release-version.outputs.package-version }}
@@ -706,9 +713,11 @@ jobs:
           //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}
           always-auth=true
           EOF
-          pushd packages/identity-client-core >/dev/null
-          npm publish --access public
-          popd >/dev/null
+          if [ -d packages/identity-client-core ]; then
+            pushd packages/identity-client-core >/dev/null
+            npm publish --access public
+            popd >/dev/null
+          fi
           pushd packages/identity-angular-client >/dev/null
           npm publish --access public
           popd >/dev/null
