@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.12] - 2025-12-30
+- Angular client packages now ship ng-packagr/Ivy partial compilation output for AOT compliance, plus a new `IdentityRequireAuthGuard` and improved auth loading/error handling.
+- `/auth/*` endpoints now enforce browser Origin checks against `Cors:AllowedOrigins` to prevent cross-origin cookie abuse.
+- Authentication cookies now use `SameSite=Lax` to scope session cookies to the Identity host (SPAs should rely on access tokens).
+- Added comprehensive test coverage for admin permissions and MailJet/SendGrid email sender behavior, plus new login/origin blocking tests.
+- Sample apps and docs updated for new local ports and origin configuration.
+- CI now produces and uploads coverage reports.
+
 ## [0.7.9] - 2025-12-17
 - Removed OAuth2 password grant (ROPC) support end-to-end (server config, seeding, tests, and docs) in favor of authorization-code + PKCE.
 - No-op email sender now logs only in Development and emits a Production warning when invoked.
