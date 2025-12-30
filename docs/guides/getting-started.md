@@ -84,8 +84,8 @@ Add an `appsettings.json` (or edit the existing file) with at least the followin
     "Roles": ["IdentityAdmin"]
   },
   "Registration": {
-    "ConfirmationUrlTemplate": "https://localhost:5001/account/confirm?token={token}&userId={userId}",
-    "PasswordResetUrlTemplate": "https://localhost:5001/reset-password?token={token}&userId={userId}",
+    "ConfirmationUrlTemplate": "http://localhost:5173/auth/confirm?token={token}&userId={userId}",
+    "PasswordResetUrlTemplate": "http://localhost:5173/reset-password?token={token}&userId={userId}",
     "ProfileFields": [
       { "Name": "displayName", "DisplayName": "Display Name", "Required": true, "MaxLength": 128 }
     ]
@@ -168,6 +168,8 @@ Add an `appsettings.json` (or edit the existing file) with at least the followin
   }
 }
 ```
+
+Session cookies are SameSite=Lax and only keep the session on the Identity host. SPAs should use access tokens for API calls and must be listed in `Cors:AllowedOrigins` to access `/auth/*` endpoints.
 Key sections:
 - `ConnectionStrings:Primary` – required for the internal `AppDbContext`.
 - `IdentitySeed` – optionally bootstrap an admin user.
@@ -190,7 +192,7 @@ To enable a scope you must:
 1. Define it under `OpenIddict:Scopes` (and set `Resources` so the access token gets the correct `aud` claim).
 2. Grant it to a client by adding `scopes:<scopeName>` to that client’s `OpenIddict:Applications[].Permissions`.
 
-> Note: the built-in OpenIddict seeder currently adds all configured `OpenIddict:Scopes` to each seeded application descriptor. Keeping explicit `scopes:<name>` entries on the application is still recommended for clarity, and hosts can override the seeding strategy if they require strict per-client scope allowlists.
+> Note: clients only receive the scopes you explicitly grant via `OpenIddict:Applications[].Permissions` (e.g. `scopes:identity.api`, `scopes:identity.admin`). The built-in OpenIddict seeder no longer blanket-grants every configured scope to every client.
 
 > Tip: if you disable scope checks for admin endpoints by setting `IdentityAdmin:RequiredScope` to `null`, clients no longer need `identity.admin` for the admin APIs (permissions still apply).
 

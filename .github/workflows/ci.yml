@@ -55,8 +55,33 @@ jobs:
       - name: Build
         run: dotnet build Identity.sln --configuration Release --no-restore
 
-      - name: Test
-        run: dotnet test Identity.sln --configuration Release --no-build --verbosity normal
+      - name: Test (with coverage)
+        run: dotnet test Identity.sln --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./TestResults --settings ./coverlet.runsettings
+
+      - name: Install ReportGenerator
+        if: always()
+        run: |
+          dotnet tool update --global dotnet-reportgenerator-globaltool || dotnet tool install --global dotnet-reportgenerator-globaltool
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Generate .NET coverage report
+        if: always()
+        run: |
+          if compgen -G "TestResults/**/coverage.cobertura.xml" > /dev/null; then
+            reportgenerator -reports:"TestResults/**/coverage.cobertura.xml" -targetdir:"TestResults/coverage" -reporttypes:"HtmlInline;MarkdownSummaryGithub;TextSummary"
+            if [ -f TestResults/coverage/SummaryGithub.md ]; then
+              cat TestResults/coverage/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+            fi
+          else
+            echo "No coverage.cobertura.xml files found under TestResults/; skipping report generation."
+          fi
+
+      - name: Upload .NET coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-coverage-${{ github.sha }}
+          path: TestResults/**
 
       - name: Determine package version
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -401,8 +426,33 @@ jobs:
       - name: Build
         run: dotnet build Identity.sln --configuration Release --no-restore
 
-      - name: Test
-        run: dotnet test Identity.sln --configuration Release --no-build --verbosity normal
+      - name: Test (with coverage)
+        run: dotnet test Identity.sln --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./TestResults --settings ./coverlet.runsettings
+
+      - name: Install ReportGenerator
+        if: always()
+        run: |
+          dotnet tool update --global dotnet-reportgenerator-globaltool || dotnet tool install --global dotnet-reportgenerator-globaltool
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Generate .NET coverage report
+        if: always()
+        run: |
+          if compgen -G "TestResults/**/coverage.cobertura.xml" > /dev/null; then
+            reportgenerator -reports:"TestResults/**/coverage.cobertura.xml" -targetdir:"TestResults/coverage" -reporttypes:"HtmlInline;MarkdownSummaryGithub;TextSummary"
+            if [ -f TestResults/coverage/SummaryGithub.md ]; then
+              cat TestResults/coverage/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+            fi
+          else
+            echo "No coverage.cobertura.xml files found under TestResults/; skipping report generation."
+          fi
+
+      - name: Upload .NET coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-coverage-${{ steps.release-version.outputs.package-version }}
+          path: TestResults/**
 
       - name: Pack Identity.Base libraries
         env:

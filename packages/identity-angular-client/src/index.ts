@@ -6,4 +6,4 @@ export { provideIdentityClient } from './providers'
 export { IdentityAuthService } from './services/IdentityAuthService'
 export { IdentityAdminService } from './services/IdentityAdminService'
 export { IdentityAuthInterceptor } from './http/IdentityAuthInterceptor'
-
+export { IdentityRequireAuthGuard } from './guards/IdentityRequireAuthGuard'

@@ -27,7 +27,7 @@ public static class MailJetServiceCollectionExtensions
             .Bind(configuration.GetSection(MailJetOptions.SectionName))
             .ValidateDataAnnotations();
 
-        services.TryAddSingleton<IValidateOptions<MailJetOptions>, MailJetOptionsValidator>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<MailJetOptions>, MailJetOptionsValidator>());
         services.AddHttpClient(MailJetEmailSender.HttpClientName, client => client.BaseAddress = new Uri("https://api.mailjet.com/"));
         services.Replace(ServiceDescriptor.Scoped<ITemplatedEmailSender, MailJetEmailSender>());
         services.AddHealthChecks().AddCheck<MailJetOptionsHealthCheck>("mailjet");
@@ -48,7 +48,7 @@ public static class MailJetServiceCollectionExtensions
             .Bind(builder.Configuration.GetSection(MailJetOptions.SectionName))
             .ValidateDataAnnotations();
 
-        builder.Services.TryAddSingleton<IValidateOptions<MailJetOptions>, MailJetOptionsValidator>();
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<MailJetOptions>, MailJetOptionsValidator>());
         builder.Services.AddHttpClient(MailJetEmailSender.HttpClientName, client => client.BaseAddress = new Uri("https://api.mailjet.com/"));
         builder.Services.Replace(ServiceDescriptor.Scoped<ITemplatedEmailSender, MailJetEmailSender>());
         builder.Services.AddHealthChecks().AddCheck<MailJetOptionsHealthCheck>("mailjet");

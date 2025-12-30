@@ -7,5 +7,6 @@ export interface IdentityAngularClientConfig extends IdentityConfig {
     include?: IdentityTokenAttachmentRule[]
     exclude?: IdentityTokenAttachmentRule[]
   }
+  loginPath?: string
+  onUnauthenticated?: (returnUrl: string) => void
 }
-

@@ -252,6 +252,20 @@ public class AuthorizeEndpointTests : IClassFixture<IdentityApiFactory>
         unauthorizedResponse.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
+    [Fact]
+    public async Task Logout_BlocksCrossOriginRequests_WhenOriginNotAllowed()
+    {
+        const string email = "logout-origin-block@example.com";
+        const string password = "StrongPass!2345";
+        await SeedUserAsync(email, password, confirmEmail: true);
+
+        using var client = await CreateAuthenticatedClientAsync(email, password);
+        client.DefaultRequestHeaders.Add("Origin", "https://evil.example.com");
+
+        using var logoutResponse = await client.PostAsync("/auth/logout", new StringContent(string.Empty));
+        logoutResponse.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
     private async Task SeedUserAsync(string email, string password, bool confirmEmail, WebApplicationFactory<Program>? factory = null)
     {
         var targetFactory = factory ?? _factory;

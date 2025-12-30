@@ -170,6 +170,49 @@ public class LoginEndpointTests : IClassFixture<IdentityApiFactory>
             .ShouldBe("Invalid credentials.");
     }
 
+    [Fact]
+    public async Task Login_BlocksCrossOriginRequests_WhenOriginNotAllowed()
+    {
+        const string email = "login-origin-block@example.com";
+        const string password = "StrongPass!2345";
+
+        await SeedUserAsync(email, password, confirmEmail: true);
+
+        using var client = CreateClientWithCookies();
+        client.DefaultRequestHeaders.Add("Origin", "https://evil.example.com");
+
+        var response = await client.PostAsJsonAsync("/auth/login", new
+        {
+            email,
+            password,
+            clientId = "spa-client"
+        });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task Login_AllowsCrossOriginRequests_WhenOriginAllowedByCors()
+    {
+        const string email = "login-origin-allow@example.com";
+        const string password = "StrongPass!2345";
+
+        await SeedUserAsync(email, password, confirmEmail: true);
+
+        using var client = CreateClientWithCookies();
+        // IdentityApiFactory config sets Cors:AllowedOrigins to https://tests.example.com
+        client.DefaultRequestHeaders.Add("Origin", "https://tests.example.com");
+
+        var response = await client.PostAsJsonAsync("/auth/login", new
+        {
+            email,
+            password,
+            clientId = "spa-client"
+        });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
     private HttpClient CreateClientWithCookies()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions

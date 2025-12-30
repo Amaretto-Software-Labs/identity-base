@@ -9,6 +9,7 @@ function normalizeConfig(config: IdentityAngularClientConfig): IdentityAngularCl
   return {
     autoRefresh: true,
     tokenStorage: 'sessionStorage',
+    loginPath: '/login',
     ...config,
   }
 }
@@ -26,4 +27,3 @@ export function provideIdentityClient(config: IdentityAngularClientConfig): Prov
     IdentityAdminService,
   ]
 }
-

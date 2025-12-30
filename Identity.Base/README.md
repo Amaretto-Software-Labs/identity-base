@@ -36,6 +36,8 @@ app.MapApiEndpoints();
 app.Run();
 ```
 
+Note: browser-based calls to `/auth/*` endpoints are protected against CSRF-style cross-origin requests. If your SPA is hosted on a different origin, ensure `Cors:AllowedOrigins` includes that SPA origin. Session cookies are SameSite=Lax and intended only for the Identity host; SPAs should use access tokens for API calls.
+
 Identity.Base no longer ships EF Core migrations. Hosts are responsible for generating and applying migrations (typically from their web/API project) for whichever database provider they choose. Call `dotnet ef migrations add InitialIdentityBase` from your host, run the migrations, then start the application. Call `UseTablePrefix` if you need the tables to be emitted with a prefix other than the default `Identity_`. Enable Mailjet delivery by referencing `Identity.Base.Email.MailJet` and calling `UseMailJetEmailSender()`.
 
 See the repository README for the full architecture, configuration schemas, and microservice/React integration guides.

@@ -29,9 +29,10 @@ Update `.env` with values that match your API deployment:
 
 | Variable | Description |
 | --- | --- |
-| `VITE_API_BASE` | Optional base URL for all API requests (defaults to relative `/`). |
+| `VITE_API_BASE` | Base URL for the Identity Base host (defaults to `https://localhost:5000`). |
+| `VITE_SAMPLE_API_BASE` | Base URL for the companion `apps/sample-api` (defaults to `https://localhost:8199`). |
 | `VITE_CLIENT_ID` | Client ID used for login and PKCE (defaults to `spa-client`). |
-| `VITE_AUTHORIZE_REDIRECT` | Redirect URI registered with Identity Base (`http://localhost:5173/auth/callback` by default). |
+| `VITE_AUTHORIZE_REDIRECT` | Redirect URI registered with Identity Base (`http://localhost:5174/auth/callback` by default). |
 | `VITE_AUTHORIZE_SCOPE` | Space-delimited scopes requested during authorization (default includes `identity.api`). |
 | `VITE_EXTERNAL_*` | Set to `true` to enable the corresponding external provider buttons. |
 
@@ -42,7 +43,11 @@ npm install
 npm run dev
 ```
 
-Vite serves the app at `http://localhost:5173`. The dev server proxies `/auth`, `/users`, `/connect`, and `/healthz` to the API running on port 8080 (see `vite.config.ts`). Adjust the proxy targets if your API listens elsewhere.
+Vite serves the app at `http://localhost:5174` by default (override with `PORT`). The SPA calls the Identity Base host directly using `VITE_API_BASE`, so ensure:
+- the host has CORS enabled for your SPA origin, and
+- your OpenIddict client uses the same redirect URI as `VITE_AUTHORIZE_REDIRECT`.
+
+If you run the API stack via Docker Compose, set `VITE_API_BASE=http://localhost:8080` (and keep `VITE_AUTHORIZE_REDIRECT=http://localhost:5174/auth/callback`).
 
 ## 5. Supported Journeys
 - **Registration:** loads the dynamic schema from `/auth/profile-schema`, validates inputs client-side, and posts to `/auth/register`.
@@ -57,7 +62,7 @@ Each workflow reads and displays server responses (success messages, validation 
 After completing consent, the callback page stores the authorization code and lets you exchange it for tokens by calling `/connect/token`. The raw token response is rendered for inspection—useful when validating scopes and expiry.
 
 ## 7. Tips & Troubleshooting
-- Ensure the browser accepts cookies from `localhost:8080`; the Identity cookie powers MFA and profile endpoints.
+- Ensure your SPA origin is listed in `Cors:AllowedOrigins`. Browser calls to `/auth/*` are rejected with `403` if the `Origin` is not allowed. Session cookies are SameSite=Lax and only keep the session on the Identity host; SPAs should use access tokens for API calls.
 - When testing external providers, configure the same redirect URL in the provider console and set the `VITE_EXTERNAL_*` flag to `true`.
 - Use MailHog (`http://localhost:8025`) to verify confirmation and MFA emails if real MailJet/SendGrid credentials are not configured.
 - Clear PKCE values via the “Clear stored PKCE verifier” button if you restart flows mid-way.

@@ -28,7 +28,7 @@ This guide walks operators through enabling and using the Identity Base admin su
 
 ## 3. Starting the Admin Console
 1. Run the host: `dotnet run --project Identity.Base.Host` (listens on `https://localhost:5000` by default).
-2. Launch the sample client: `cd apps/sample-client && npm install && npm run dev` (hosts at `http://localhost:5173`).
+2. Launch the sample client: `cd apps/sample-client && npm install && npm run dev` (hosts at `http://localhost:5174` by default; override with `PORT`).
 3. Sign in with an administrator account. Once authenticated, the navigation bar exposes an **Admin** link.
 4. The admin route is protected by a permission guard that calls `/users/me/permissions`. The link and pages load only if the current user holds at least `users.read` and `roles.read`.
 

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth, useIdentityContext } from '@identity-base/react-client'
+import { CONFIG } from '../config'
 
 interface ApiResponse {
   status: string
@@ -43,7 +44,7 @@ export default function ApiDemoPage() {
         }
       }
 
-      const response = await fetch(`https://localhost:5001${endpoint}`, {
+      const response = await fetch(`${CONFIG.sampleApiBase}${endpoint}`, {
         method: 'GET',
         headers,
       })
@@ -103,7 +104,7 @@ export default function ApiDemoPage() {
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold text-slate-900">API Integration Demo</h1>
         <p className="text-sm text-slate-600">
-          Test integration with the Sample API running on https://localhost:5001
+          Test integration with the Sample API running on {CONFIG.sampleApiBase}
         </p>
 
         {user && (

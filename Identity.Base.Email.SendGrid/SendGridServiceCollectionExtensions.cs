@@ -27,7 +27,7 @@ public static class SendGridServiceCollectionExtensions
             .Bind(configuration.GetSection(SendGridOptions.SectionName))
             .ValidateDataAnnotations();
 
-        services.TryAddSingleton<IValidateOptions<SendGridOptions>, SendGridOptionsValidator>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<SendGridOptions>, SendGridOptionsValidator>());
         services.AddHttpClient(SendGridEmailSender.HttpClientName, client => client.BaseAddress = new Uri("https://api.sendgrid.com/"));
         services.Replace(ServiceDescriptor.Scoped<ITemplatedEmailSender, SendGridEmailSender>());
         services.AddHealthChecks().AddCheck<SendGridOptionsHealthCheck>("sendgrid");
@@ -48,7 +48,7 @@ public static class SendGridServiceCollectionExtensions
             .Bind(builder.Configuration.GetSection(SendGridOptions.SectionName))
             .ValidateDataAnnotations();
 
-        builder.Services.TryAddSingleton<IValidateOptions<SendGridOptions>, SendGridOptionsValidator>();
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<SendGridOptions>, SendGridOptionsValidator>());
         builder.Services.AddHttpClient(SendGridEmailSender.HttpClientName, client => client.BaseAddress = new Uri("https://api.sendgrid.com/"));
         builder.Services.Replace(ServiceDescriptor.Scoped<ITemplatedEmailSender, SendGridEmailSender>());
         builder.Services.AddHealthChecks().AddCheck<SendGridOptionsHealthCheck>("sendgrid");
@@ -56,4 +56,3 @@ public static class SendGridServiceCollectionExtensions
         return builder;
     }
 }
-

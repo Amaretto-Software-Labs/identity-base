@@ -1,3 +1,5 @@
+import '@angular/compiler'
+
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
@@ -9,7 +11,7 @@ import {
   OrganizationContextInterceptor,
   OrganizationsService,
   provideIdentityOrganizations,
-} from '../dist/index.mjs'
+} from '../dist/fesm2022/identity-base-angular-organizations.mjs'
 
 function makeResponse({ status = 200, json = null, text = null } = {}) {
   const ok = status >= 200 && status < 300
