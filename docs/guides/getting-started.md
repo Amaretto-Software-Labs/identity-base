@@ -168,6 +168,8 @@ Add an `appsettings.json` (or edit the existing file) with at least the followin
   }
 }
 ```
+
+Session cookies are SameSite=Lax and only keep the session on the Identity host. SPAs should use access tokens for API calls and must be listed in `Cors:AllowedOrigins` to access `/auth/*` endpoints.
 Key sections:
 - `ConnectionStrings:Primary` – required for the internal `AppDbContext`.
 - `IdentitySeed` – optionally bootstrap an admin user.

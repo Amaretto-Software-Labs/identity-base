@@ -62,7 +62,7 @@ Each workflow reads and displays server responses (success messages, validation 
 After completing consent, the callback page stores the authorization code and lets you exchange it for tokens by calling `/connect/token`. The raw token response is rendered for inspection—useful when validating scopes and expiry.
 
 ## 7. Tips & Troubleshooting
-- Ensure your SPA origin is listed in `Cors:AllowedOrigins`. Browser calls to `/auth/*` are rejected with `403` if the `Origin` is not allowed.
+- Ensure your SPA origin is listed in `Cors:AllowedOrigins`. Browser calls to `/auth/*` are rejected with `403` if the `Origin` is not allowed. Session cookies are SameSite=Lax and only keep the session on the Identity host; SPAs should use access tokens for API calls.
 - When testing external providers, configure the same redirect URL in the provider console and set the `VITE_EXTERNAL_*` flag to `true`.
 - Use MailHog (`http://localhost:8025`) to verify confirmation and MFA emails if real MailJet/SendGrid credentials are not configured.
 - Clear PKCE values via the “Clear stored PKCE verifier” button if you restart flows mid-way.
