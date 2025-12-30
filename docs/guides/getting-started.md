@@ -84,8 +84,8 @@ Add an `appsettings.json` (or edit the existing file) with at least the followin
     "Roles": ["IdentityAdmin"]
   },
   "Registration": {
-    "ConfirmationUrlTemplate": "https://localhost:5001/account/confirm?token={token}&userId={userId}",
-    "PasswordResetUrlTemplate": "https://localhost:5001/reset-password?token={token}&userId={userId}",
+    "ConfirmationUrlTemplate": "http://localhost:5173/auth/confirm?token={token}&userId={userId}",
+    "PasswordResetUrlTemplate": "http://localhost:5173/reset-password?token={token}&userId={userId}",
     "ProfileFields": [
       { "Name": "displayName", "DisplayName": "Display Name", "Required": true, "MaxLength": 128 }
     ]

@@ -146,8 +146,8 @@ Populate the generated `appsettings.json` with the minimal sections shown below.
     "Roles": ["IdentityAdmin"]
   },
   "Registration": {
-    "ConfirmationUrlTemplate": "https://localhost:5001/account/confirm?token={token}&userId={userId}",
-    "PasswordResetUrlTemplate": "https://localhost:5001/reset-password?token={token}&userId={userId}",
+    "ConfirmationUrlTemplate": "http://localhost:5173/auth/confirm?token={token}&userId={userId}",
+    "PasswordResetUrlTemplate": "http://localhost:5173/reset-password?token={token}&userId={userId}",
     "ProfileFields": [
       { "Name": "displayName", "DisplayName": "Display Name", "Required": true, "MaxLength": 128 }
     ]
@@ -286,7 +286,7 @@ Replace `IdentityHost` with your actual host project (the sample repo uses `Iden
 dotnet run
 ```
 
-- `https://localhost:5001/healthz` should report healthy checks.
+- `https://localhost:5000/healthz` should report healthy checks.
 - `POST /auth/register`, `POST /auth/login`, `/admin/users`, and `/admin/organizations/...` are now available.
 - Sign in with the seeded admin account to exercise the admin and organization surfaces.
 > See also: Task Playbook — docs/playbooks/full-stack-smoke-test.md for copy-ready commands and explicit success criteria.
@@ -311,7 +311,7 @@ using Identity.Base.AspNet;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddIdentityBaseAuthentication("https://localhost:5001", audience: "identity.api");
+builder.Services.AddIdentityBaseAuthentication("https://localhost:5000", audience: "identity.api");
 
 var app = builder.Build();
 
@@ -352,7 +352,7 @@ Both packages declare React 18/19 peer dependencies, so your Vite app must use R
 Create `.env.local`:
 
 ```env
-VITE_IDENTITY_API_BASE=https://localhost:5001
+VITE_IDENTITY_API_BASE=https://localhost:5000
 VITE_IDENTITY_CLIENT_ID=spa-client
 VITE_IDENTITY_REDIRECT_URI=http://localhost:5173/auth/callback
 VITE_IDENTITY_SCOPE="openid profile email offline_access identity.api identity.admin admin.organizations.manage"
@@ -365,7 +365,7 @@ VITE_IDENTITY_LOG_LEVEL=debug
 
 ```ts
 export const identityConfig = {
-  apiBase: import.meta.env.VITE_IDENTITY_API_BASE ?? 'https://localhost:5001',
+  apiBase: import.meta.env.VITE_IDENTITY_API_BASE ?? 'https://localhost:5000',
   clientId: import.meta.env.VITE_IDENTITY_CLIENT_ID ?? 'spa-client',
   redirectUri: import.meta.env.VITE_IDENTITY_REDIRECT_URI ?? 'http://localhost:5173/auth/callback',
   scope: import.meta.env.VITE_IDENTITY_SCOPE ?? 'openid profile identity.api',
