@@ -52,12 +52,33 @@ export class IdentityAuthService {
   }
 
   async refreshUser(): Promise<UserProfile | null> {
-    this.isLoadingSubject.next(true)
-    this.errorSubject.next(null)
+    return await this.refreshUserInternal(true)
+  }
+
+  private async refreshUserInternal(updateLoading: boolean): Promise<UserProfile | null> {
+    if (updateLoading) {
+      this.isLoadingSubject.next(true)
+      this.errorSubject.next(null)
+    }
     try {
       const user = await this.authManager.getCurrentUser()
       this.userSubject.next(user)
       return user
+    } catch (error) {
+      this.errorSubject.next(error)
+      throw error
+    } finally {
+      if (updateLoading) {
+        this.isLoadingSubject.next(false)
+      }
+    }
+  }
+
+  private async runWithLoading<T>(action: () => Promise<T>): Promise<T> {
+    this.isLoadingSubject.next(true)
+    this.errorSubject.next(null)
+    try {
+      return await action()
     } catch (error) {
       this.errorSubject.next(error)
       throw error
@@ -74,30 +95,41 @@ export class IdentityAuthService {
     if (!this.isBrowser) {
       throw new Error('startAuthorization() requires a browser environment.')
     }
-    await this.authManager.startAuthorization()
+    await this.runWithLoading(async () => {
+      await this.authManager.startAuthorization()
+    })
   }
 
   async handleAuthorizationCallback(code: string, state: string): Promise<UserProfile> {
     if (!this.isBrowser) {
       throw new Error('handleAuthorizationCallback() requires a browser environment.')
     }
-    const user = await this.authManager.handleAuthorizationCallback(code, state)
-    this.userSubject.next(user)
-    return user
+    return await this.runWithLoading(async () => {
+      const user = await this.authManager.handleAuthorizationCallback(code, state)
+      this.userSubject.next(user)
+      return user
+    })
   }
 
   async login(request: LoginRequest): Promise<LoginResponse> {
-    const response = await this.authManager.login(request)
-    await this.refreshUser()
-    return response
+    return await this.runWithLoading(async () => {
+      const response = await this.authManager.login(request)
+      if (response.message && !response.requiresTwoFactor) {
+        await this.refreshUserInternal(false)
+      }
+      return response
+    })
   }
 
   async logout(): Promise<void> {
-    await this.authManager.logout()
-    this.userSubject.next(null)
+    await this.runWithLoading(async () => {
+      await this.authManager.logout()
+      this.userSubject.next(null)
+      this.errorSubject.next(null)
+    })
   }
 
   async register(request: RegisterRequest): Promise<{ correlationId: string }> {
-    return await this.authManager.register(request)
+    return await this.runWithLoading(async () => await this.authManager.register(request))
   }
 }

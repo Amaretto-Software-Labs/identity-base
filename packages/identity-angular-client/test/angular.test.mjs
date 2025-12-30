@@ -1,3 +1,5 @@
+import '@angular/compiler'
+
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
@@ -10,7 +12,7 @@ import {
   IdentityAdminService,
   IdentityAuthService,
   provideIdentityClient,
-} from '../dist/index.mjs'
+} from '../dist/fesm2022/identity-base-angular-client.mjs'
 
 test('provideIdentityClient applies defaults', () => {
   const providers = provideIdentityClient({

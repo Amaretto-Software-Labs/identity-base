@@ -22,7 +22,22 @@ export const appConfig = {
       scope: 'openid profile email identity.api',
       tokenStorage: 'sessionStorage',
       autoRefresh: true,
+      loginPath: '/login',
     }),
   ],
 }
+```
+
+## Route Guard
+
+```ts
+import { IdentityRequireAuthGuard } from '@identity-base/angular-client'
+
+export const routes: Routes = [
+  {
+    path: 'account',
+    canActivate: [IdentityRequireAuthGuard],
+    loadComponent: () => import('./account.component').then(m => m.AccountComponent),
+  },
+]
 ```

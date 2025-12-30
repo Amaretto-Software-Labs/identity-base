@@ -25,6 +25,7 @@ export const appConfig = {
       scope: 'openid profile email identity.api',
       tokenStorage: 'sessionStorage',
       autoRefresh: true,
+      loginPath: '/login',
     }),
   ],
 }
@@ -34,6 +35,7 @@ export const appConfig = {
 
 - `IdentityAuthService` – wraps the core `IdentityAuthManager`, exposes `user$`, and provides `startAuthorization()` / `handleAuthorizationCallback()`.
 - `IdentityAdminService` – exposes `users`, `roles`, and `permissions` admin namespaces.
+- `IdentityRequireAuthGuard` – protects routes and redirects to `loginPath` with a `returnUrl` query string (or calls `onUnauthenticated`).
 
 ## HTTP Interceptor
 
