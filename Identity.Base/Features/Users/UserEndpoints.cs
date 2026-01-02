@@ -7,6 +7,9 @@ using Identity.Base.Lifecycle;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
+using OpenIddict.Abstractions;
+using OpenIddict.Validation.AspNetCore;
+using System.Security.Claims;
 using System.Text.RegularExpressions;
 
 namespace Identity.Base.Features.Users;
@@ -17,7 +20,10 @@ public static class UserEndpoints
     {
         var group = endpoints
             .MapGroup("/users")
-            .RequireAuthorization(new AuthorizeAttribute { AuthenticationSchemes = IdentityConstants.ApplicationScheme });
+            .RequireAuthorization(new AuthorizeAttribute
+            {
+                AuthenticationSchemes = $"{IdentityConstants.ApplicationScheme},{OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme}"
+            });
 
         group.MapGet("/me", GetCurrentUserAsync)
             .WithName("GetCurrentUser")
@@ -53,7 +59,7 @@ public static class UserEndpoints
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var user = await userManager.GetUserAsync(context.User);
+        var user = await ResolveCurrentUserAsync(context.User, userManager);
         if (user is null)
         {
             return Results.Unauthorized();
@@ -88,7 +94,7 @@ public static class UserEndpoints
             return Results.ValidationProblem(validation.ToDictionary());
         }
 
-        var user = await userManager.GetUserAsync(context.User);
+        var user = await ResolveCurrentUserAsync(context.User, userManager);
         if (user is null)
         {
             return Results.Unauthorized();
@@ -169,7 +175,7 @@ public static class UserEndpoints
             return Results.ValidationProblem(validation.ToDictionary());
         }
 
-        var user = await userManager.GetUserAsync(context.User).ConfigureAwait(false);
+        var user = await ResolveCurrentUserAsync(context.User, userManager).ConfigureAwait(false);
         if (user is null)
         {
             return Results.Unauthorized();
@@ -202,6 +208,27 @@ public static class UserEndpoints
         await lifecycleDispatcher.NotifyUserPasswordChangedAsync(lifecycleContext, cancellationToken).ConfigureAwait(false);
 
         return Results.NoContent();
+    }
+
+    private static async Task<ApplicationUser?> ResolveCurrentUserAsync(
+        ClaimsPrincipal principal,
+        UserManager<ApplicationUser> userManager)
+    {
+        var id = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? principal.FindFirstValue(OpenIddictConstants.Claims.Subject);
+
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return null;
+        }
+
+        // Identity users are stored with Guid IDs; avoid throwing if the principal contains a non-Guid identifier.
+        if (!Guid.TryParse(id, out _))
+        {
+            return null;
+        }
+
+        return await userManager.FindByIdAsync(id).ConfigureAwait(false);
     }
 }
 

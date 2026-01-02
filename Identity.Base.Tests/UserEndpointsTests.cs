@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -153,6 +154,77 @@ public class UserEndpointsTests : IClassFixture<IdentityApiFactory>
         var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
         problem.ShouldNotBeNull();
         problem!.Errors.ShouldContainKey("ConfirmNewPassword");
+    }
+
+    [Fact]
+    public async Task GetCurrentUser_ReturnsProfile_WhenAuthenticatedWithBearerToken()
+    {
+        const string email = "users-me-bearer@example.com";
+        const string password = "StrongPass!2345";
+
+        await SeedUserAsync(email, password, confirmEmail: true);
+
+        var accessToken = await _factory.CreateAccessTokenAsync(email, password, scope: "openid profile email identity.api");
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            HandleCookies = false,
+            AllowAutoRedirect = false
+        });
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var response = await client.GetAsync("/users/me");
+        var payload = await response.Content.ReadAsStringAsync();
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, payload);
+
+        using var document = JsonDocument.Parse(payload);
+        document.RootElement.GetProperty("email").GetString().ShouldBe(email);
+        document.RootElement.GetProperty("concurrencyStamp").GetString().ShouldNotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public async Task UpdateProfile_UpdatesMetadata_WhenAuthenticatedWithBearerToken()
+    {
+        const string email = "users-me-profile-bearer@example.com";
+        const string password = "StrongPass!2345";
+        const string updatedDisplayName = "Updated Bearer User";
+        const string updatedCompany = "Acme Bearer Co";
+
+        await SeedUserAsync(email, password, confirmEmail: true);
+
+        var accessToken = await _factory.CreateAccessTokenAsync(email, password, scope: "openid profile email identity.api");
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            HandleCookies = false,
+            AllowAutoRedirect = false
+        });
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var meResponse = await client.GetAsync("/users/me");
+        var mePayload = await meResponse.Content.ReadAsStringAsync();
+        meResponse.StatusCode.ShouldBe(HttpStatusCode.OK, mePayload);
+
+        using var meDocument = JsonDocument.Parse(mePayload);
+        var concurrencyStamp = meDocument.RootElement.GetProperty("concurrencyStamp").GetString();
+        concurrencyStamp.ShouldNotBeNullOrWhiteSpace();
+
+        var response = await client.PutAsJsonAsync("/users/me/profile", new
+        {
+            concurrencyStamp,
+            metadata = new
+            {
+                displayName = updatedDisplayName,
+                company = updatedCompany
+            }
+        }, JsonOptions);
+
+        var payload = await response.Content.ReadAsStringAsync();
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, payload);
+
+        using var document = JsonDocument.Parse(payload);
+        document.RootElement.GetProperty("displayName").GetString().ShouldBe(updatedDisplayName);
+        document.RootElement.GetProperty("metadata").GetProperty("company").GetString().ShouldBe(updatedCompany);
     }
 
     private async Task SeedUserAsync(string email, string password, bool confirmEmail)
