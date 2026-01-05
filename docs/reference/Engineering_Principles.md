@@ -12,6 +12,7 @@
 
 ## 2. Backend (.NET 9 Minimal APIs)
 - **Architecture:** use minimal APIs with clearly defined endpoint groups; keep controllers out of scope.
+- **Language version:** use C# 13 and prefer modern features (primary constructors, collection expressions, etc.) when they improve clarity.
 - **Composition:** keep `Program.cs` light by delegating service registration, middleware, and endpoint mapping to dedicated extension methods/modules; wire new features through feature folders instead of piling logic into startup files.
 - **Unit of Work:** access data via the Unit of Work abstraction and repositories; avoid scattering `DbContext` across services.
 - **Authorization:** rely on named policies and requirement handlers (backed by `ICurrentUserService`) instead of manual claim parsing or inline role checks; enforce access at the middleware/policy layer.
