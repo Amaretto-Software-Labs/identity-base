@@ -1,10 +1,5 @@
-using System;
-using System.Linq;
 using System.Security.Claims;
-using System.Threading;
-using System.Threading.Tasks;
 using Identity.Base.Roles.Claims;
-using Identity.Base.Organizations.Authorization;
 using Identity.Base.Organizations.Services;
 using Identity.Base.Organizations.Claims;
 using Identity.Base.Organizations.Options;
@@ -30,19 +25,13 @@ public sealed class OrganizationPermissionRequirement : IAuthorizationRequiremen
     public string Permission { get; }
 }
 
-public sealed class OrganizationPermissionAuthorizationHandler : AuthorizationHandler<OrganizationPermissionRequirement>
+public sealed class OrganizationPermissionAuthorizationHandler(
+    IOrganizationPermissionResolver permissionResolver,
+    IOptions<OrganizationAuthorizationOptions> authorizationOptions) : AuthorizationHandler<OrganizationPermissionRequirement>
 {
-    private readonly IOrganizationPermissionResolver _permissionResolver;
-    private readonly OrganizationAuthorizationOptions _authorizationOptions;
+    private readonly IOrganizationPermissionResolver _permissionResolver = permissionResolver ?? throw new ArgumentNullException(nameof(permissionResolver));
+    private readonly OrganizationAuthorizationOptions _authorizationOptions = authorizationOptions?.Value ?? throw new ArgumentNullException(nameof(authorizationOptions));
     private const string ScopeClaimType = "scope";
-
-    public OrganizationPermissionAuthorizationHandler(
-        IOrganizationPermissionResolver permissionResolver,
-        IOptions<OrganizationAuthorizationOptions> authorizationOptions)
-    {
-        _permissionResolver = permissionResolver ?? throw new ArgumentNullException(nameof(permissionResolver));
-        _authorizationOptions = authorizationOptions?.Value ?? throw new ArgumentNullException(nameof(authorizationOptions));
-    }
 
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, OrganizationPermissionRequirement requirement)
     {
@@ -56,11 +45,7 @@ public sealed class OrganizationPermissionAuthorizationHandler : AuthorizationHa
             return;
         }
 
-        var permissionValues = context.User
-            .FindAll(RoleClaimTypes.Permissions)
-            .SelectMany(claim => claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
-
-        if (permissionValues.Contains(requirement.Permission, StringComparer.OrdinalIgnoreCase))
+        if (context.User.HasPermission(requirement.Permission))
         {
             context.Succeed(requirement);
             return;

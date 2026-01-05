@@ -7,6 +7,7 @@ Role-based access control primitives for Identity Base. Includes:
 - EF Core entities and configuration for roles, permissions, role-permission associations, user-role links, and audit entries.
 - Configuration binding for role/permission definitions and default role assignments.
 - Services for role assignment and permission resolution.
+- `ClaimsPrincipal` helpers for parsing and checking `identity.permissions` claims.
 - Optional DbContext (`IdentityRolesDbContext`) with convenience registration helpers.
 
 ## Usage

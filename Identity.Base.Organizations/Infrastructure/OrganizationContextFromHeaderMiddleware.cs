@@ -1,28 +1,18 @@
-using System;
-using System.Linq;
 using System.Security.Claims;
-using System.Threading.Tasks;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Authorization;
 using Identity.Base.Organizations.Claims;
 using Identity.Base.Organizations.Data;
-using Identity.Base.Organizations.Domain;
 using Identity.Base.Roles.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 namespace Identity.Base.Organizations.Infrastructure;
 
-public sealed class OrganizationContextFromHeaderMiddleware
+public sealed class OrganizationContextFromHeaderMiddleware(RequestDelegate next, string headerName)
 {
-    private readonly RequestDelegate _next;
-    private readonly string _headerName;
-
-    public OrganizationContextFromHeaderMiddleware(RequestDelegate next, string headerName)
-    {
-        _next = next ?? throw new ArgumentNullException(nameof(next));
-        _headerName = string.IsNullOrWhiteSpace(headerName) ? OrganizationContextHeaderNames.OrganizationId : headerName;
-    }
+    private readonly RequestDelegate _next = next ?? throw new ArgumentNullException(nameof(next));
+    private readonly string _headerName = string.IsNullOrWhiteSpace(headerName) ? OrganizationContextHeaderNames.OrganizationId : headerName;
 
     public async Task InvokeAsync(
         HttpContext httpContext,
@@ -109,28 +99,15 @@ public sealed class OrganizationContextFromHeaderMiddleware
 
     private static bool HasAdminPermissions(ClaimsPrincipal principal)
     {
-        var permissions = principal
-            .FindAll(RoleClaimTypes.Permissions)
-            .SelectMany(claim => claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
-
-        return permissions.Any(permission =>
-            string.Equals(permission, AdminOrganizationPermissions.OrganizationsManage, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(permission, AdminOrganizationPermissions.OrganizationsRead, StringComparison.OrdinalIgnoreCase));
+        return principal.HasAnyPermission(new[]
+        {
+            AdminOrganizationPermissions.OrganizationsManage,
+            AdminOrganizationPermissions.OrganizationsRead
+        });
     }
 
     private static bool UserHasMembershipClaim(ClaimsPrincipal principal, Guid organizationId)
     {
-        var memberships = principal
-            .FindFirst(OrganizationClaimTypes.OrganizationMemberships)
-            ?.Value;
-
-        if (string.IsNullOrWhiteSpace(memberships))
-        {
-            return false;
-        }
-
-        return memberships
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Contains(organizationId.ToString("D"), StringComparer.OrdinalIgnoreCase);
+        return principal.HasOrganizationMembership(organizationId);
     }
 }

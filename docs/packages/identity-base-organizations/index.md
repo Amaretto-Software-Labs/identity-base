@@ -99,6 +99,7 @@ All paged endpoints honor the shared query parameters: `page` (default 1), `page
 - `IOrganizationMembershipService` – membership queries, add/update/remove members.
 - `IOrganizationRoleService` – organization role management.
 - `OrganizationInvitationService` – invitation lifecycle (create/list/revoke/accept).
+- `OrganizationClaimsPrincipalExtensions` – helpers for reading org claim context and membership (`org:id`, `org:memberships`).
 - `IOrganizationContextAccessor` / `OrganizationContextFromHeaderMiddleware` – current organization context.
 - Active organization selection is client-driven; there is no `POST /users/me/organizations/active` endpoint. Send the header to scope non-admin routes.
 - Claims augmentors and additional permission sources that enrich identity tokens with org membership data.

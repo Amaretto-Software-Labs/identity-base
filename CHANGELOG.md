@@ -1,5 +1,8 @@
 # Changelog
 
+## [Unreleased]
+- Added permission claim utilities in `Identity.Base.Roles` plus org claim helpers in `Identity.Base.Organizations` for consistent server-side permission checks.
+
 ## [0.7.12] - 2025-12-30
 - Angular client packages now ship ng-packagr/Ivy partial compilation output for AOT compliance, plus a new `IdentityRequireAuthGuard` and improved auth loading/error handling.
 - `/auth/*` endpoints now enforce browser Origin checks against `Cors:AllowedOrigins` to prevent cross-origin cookie abuse.

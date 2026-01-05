@@ -1,22 +1,16 @@
 using System.Security.Claims;
 using Identity.Base.Admin.Options;
+using Identity.Base.Roles.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Admin.Authorization;
 
-public sealed class PermissionAuthorizationHandler : AuthorizationHandler<PermissionRequirement>
+public sealed class PermissionAuthorizationHandler(
+    IOptions<AdminApiOptions> options,
+    IPermissionScopeResolver scopeResolver) : AuthorizationHandler<PermissionRequirement>
 {
-    private readonly AdminApiOptions _options;
-    private readonly IPermissionScopeResolver _scopeResolver;
-
-    public PermissionAuthorizationHandler(
-        IOptions<AdminApiOptions> options,
-        IPermissionScopeResolver scopeResolver)
-    {
-        _options = options.Value;
-        _scopeResolver = scopeResolver;
-    }
+    private readonly AdminApiOptions _options = options.Value;
 
     protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
     {
@@ -30,12 +24,12 @@ public sealed class PermissionAuthorizationHandler : AuthorizationHandler<Permis
             return Task.CompletedTask;
         }
 
-        if (!_scopeResolver.IsInScope(context.User, requirement.Permission))
+        if (!scopeResolver.IsInScope(context.User, requirement.Permission))
         {
             return Task.CompletedTask;
         }
 
-        if (HasPermission(context.User, requirement.Permission))
+        if (context.User.HasPermission(requirement.Permission))
         {
             context.Succeed(requirement);
         }
@@ -56,10 +50,4 @@ public sealed class PermissionAuthorizationHandler : AuthorizationHandler<Permis
         return scopes.Contains(_options.RequiredScope, StringComparer.Ordinal);
     }
 
-    private static bool HasPermission(ClaimsPrincipal user, string permission)
-    {
-        return user.FindAll(AdminClaimTypes.Permissions)
-            .SelectMany(claim => claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-            .Contains(permission, StringComparer.OrdinalIgnoreCase);
-    }
 }
