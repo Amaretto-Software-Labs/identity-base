@@ -63,6 +63,39 @@ public class PermissionClaimsPrincipalExtensionsTests
     }
 
     [Fact]
+    public void HasAnyPermission_ReturnsFalseWhenEmpty()
+    {
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim(RoleClaimTypes.Permissions, "users.read"),
+        ]));
+
+        principal.HasAnyPermission(Array.Empty<string>()).ShouldBeFalse();
+        principal.HasAnyPermission([" ", ""]).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void HasAllPermissions_ReturnsFalseWhenEmpty()
+    {
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim(RoleClaimTypes.Permissions, "users.read"),
+        ]));
+
+        principal.HasAllPermissions(Array.Empty<string>()).ShouldBeFalse();
+        principal.HasAllPermissions([" ", ""]).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void GetPermissions_ReturnsEmptyWhenNoClaims()
+    {
+        var principal = new ClaimsPrincipal(new ClaimsIdentity());
+
+        principal.GetPermissions().ShouldBeEmpty();
+        principal.HasPermission("users.read").ShouldBeFalse();
+    }
+
+    [Fact]
     public void HasPermission_ReturnsFalseForEmptyInput()
     {
         var principal = new ClaimsPrincipal(new ClaimsIdentity(

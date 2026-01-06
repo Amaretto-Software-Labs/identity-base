@@ -30,16 +30,14 @@ public static class OrganizationClaimsPrincipalExtensions
             return Array.Empty<Guid>();
         }
 
-        var memberships = new HashSet<Guid>();
-        foreach (var value in SplitValues(claimValue))
-        {
-            if (Guid.TryParse(value, out var membership))
-            {
-                memberships.Add(membership);
-            }
-        }
+        var memberships = SplitValues(claimValue)
+            .Select(value => Guid.TryParse(value, out var membership) ? membership : (Guid?)null)
+            .Where(value => value.HasValue)
+            .Select(value => value!.Value)
+            .Distinct()
+            .ToArray();
 
-        return memberships.Count == 0 ? Array.Empty<Guid>() : memberships.ToArray();
+        return memberships.Length == 0 ? Array.Empty<Guid>() : memberships;
     }
 
     public static bool HasOrganizationMembership(this ClaimsPrincipal principal, Guid organizationId)
@@ -61,15 +59,8 @@ public static class OrganizationClaimsPrincipalExtensions
         }
 
         var target = organizationId.ToString("D");
-        foreach (var value in SplitValues(claimValue))
-        {
-            if (string.Equals(value, target, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return SplitValues(claimValue)
+            .Any(value => string.Equals(value, target, StringComparison.OrdinalIgnoreCase));
     }
 
     private static IEnumerable<string> SplitValues(string value)

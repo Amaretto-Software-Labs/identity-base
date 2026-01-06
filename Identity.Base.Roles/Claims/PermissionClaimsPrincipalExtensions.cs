@@ -13,12 +13,7 @@ public static class PermissionClaimsPrincipalExtensions
             throw new ArgumentNullException(nameof(principal));
         }
 
-        var permissions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var value in EnumeratePermissions(principal))
-        {
-            permissions.Add(value);
-        }
-
+        var permissions = EnumeratePermissions(principal).ToHashSet(StringComparer.OrdinalIgnoreCase);
         return permissions.Count == 0 ? Array.Empty<string>() : permissions.ToArray();
     }
 
@@ -35,15 +30,8 @@ public static class PermissionClaimsPrincipalExtensions
         }
 
         var target = permission.Trim();
-        foreach (var value in EnumeratePermissions(principal))
-        {
-            if (string.Equals(value, target, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return EnumeratePermissions(principal)
+            .Any(value => string.Equals(value, target, StringComparison.OrdinalIgnoreCase));
     }
 
     public static bool HasAnyPermission(this ClaimsPrincipal principal, IEnumerable<string> permissions)
@@ -64,15 +52,7 @@ public static class PermissionClaimsPrincipalExtensions
             return false;
         }
 
-        foreach (var value in EnumeratePermissions(principal))
-        {
-            if (requested.Contains(value))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return EnumeratePermissions(principal).Any(requested.Contains);
     }
 
     public static bool HasAllPermissions(this ClaimsPrincipal principal, IEnumerable<string> permissions)
@@ -93,46 +73,32 @@ public static class PermissionClaimsPrincipalExtensions
             return false;
         }
 
-        foreach (var value in EnumeratePermissions(principal))
-        {
-            requested.Remove(value);
-            if (requested.Count == 0)
-            {
-                return true;
-            }
-        }
-
-        return false;
+        requested.ExceptWith(EnumeratePermissions(principal));
+        return requested.Count == 0;
     }
 
     private static HashSet<string> NormalizePermissions(IEnumerable<string> permissions)
     {
-        var normalized = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var permission in permissions)
-        {
-            if (!string.IsNullOrWhiteSpace(permission))
-            {
-                normalized.Add(permission.Trim());
-            }
-        }
-
-        return normalized;
+        return permissions
+            .Where(permission => !string.IsNullOrWhiteSpace(permission))
+            .Select(permission => permission.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
     private static IEnumerable<string> EnumeratePermissions(ClaimsPrincipal principal)
     {
-        foreach (var claim in principal.FindAll(RoleClaimTypes.Permissions))
-        {
-            if (string.IsNullOrWhiteSpace(claim.Value))
-            {
-                continue;
-            }
+        return principal
+            .FindAll(RoleClaimTypes.Permissions)
+            .SelectMany(claim => SplitValues(claim.Value));
+    }
 
-            var values = claim.Value.Split(Separator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            foreach (var value in values)
-            {
-                yield return value;
-            }
+    private static IEnumerable<string> SplitValues(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return Array.Empty<string>();
         }
+
+        return value.Split(Separator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 }

@@ -24,6 +24,7 @@
   - Open/Closed by leaning on interfaces and composition rather than conditionals.
   - Interface segregation: provide narrow contracts (e.g., read-only repositories) when possible.
   - Dependency inversion: depend on abstractions; inject via DI.
+- **LINQ over loops:** prefer LINQ for collection transformations/filters over explicit loops when it keeps intent clear.
 - **Method/Class Size:** target methods under ~40 lines and classes under ~200 lines; refactor when boundaries blur.
 - **File & Type Placement:** colocate request/response contracts and feature-specific types next to the endpoints/services that own them; shared cross-cutting concerns belong in their own namespaces (e.g., `Extensions`, `Infrastructure`, `Auditing`). Avoid leaving orphaned records or services in `Program.cs` or unrelated folders.
 - **Testing:** pair every feature with unit tests + integration/service tests; mock only true boundaries (email, storage, queues).
