@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.7.15] - 2026-01-06
 - Added permission claim utilities in `Identity.Base.Roles` plus org claim helpers in `Identity.Base.Organizations` for consistent server-side permission checks.
 
 ## [0.7.12] - 2025-12-30
