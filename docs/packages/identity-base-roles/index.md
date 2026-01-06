@@ -56,6 +56,7 @@ Call `await app.Services.SeedIdentityRolesAsync()` during startup to synchronise
 | `IRoleAssignmentService` | Helper for assigning/unassigning roles to users (`AssignRolesAsync`, `RemoveRolesAsync`, etc.). |
 | `IPermissionResolver` | Core service used by Identity Base to build the effective permission claim. Combines database roles with any registered `IAdditionalPermissionSource`. |
 | `IPermissionClaimFormatter` | Serialises resolved permissions into token claims (default format is space-delimited `identity.permissions`). |
+| `PermissionClaimsPrincipalExtensions` | Helpers for parsing and checking `identity.permissions` claims (`GetPermissions`, `HasPermission`, `HasAnyPermission`, `HasAllPermissions`). |
 | `MapIdentityRolesUserEndpoints()` | Registers `GET /users/me/permissions` – a debugging endpoint that returns `{ permissions: [...] }` for the current user. |
 
 ### Database schema

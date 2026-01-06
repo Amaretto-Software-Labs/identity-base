@@ -27,6 +27,7 @@ No additional guides are scheduled right now. Check the sprint backlog for futur
 - Source code lives in project-named folders (primary service: `Identity.Base/` beneath the repo root alongside `Identity.sln`).
 - Tests and infrastructure scripts are colocated with their projects following the engineering principles.
 - All configuration-driven features (OpenIddict, registration metadata, MailJet) are defined in `appsettings` sections and validated via options.
+- Prefer LINQ over explicit loops when it keeps the intent clear.
 
 ## Non-Negotiable Rules
 - **NEVER DELETE FILES YOU DID NOT CREATE OR MODIFY IN THIS SESSION.** If you find an unexpected file or change, stop and ask for guidance instead of removing it.
