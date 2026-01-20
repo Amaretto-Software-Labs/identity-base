@@ -9,7 +9,6 @@ internal sealed class RegisterUserRequest
     public string Email { get; init; } = string.Empty;
 
     [Required]
-    [MinLength(12)]
     public string Password { get; init; } = string.Empty;
 
     public IDictionary<string, string?> Metadata { get; init; } = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
