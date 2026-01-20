@@ -1,21 +1,25 @@
 using FluentValidation;
 using Identity.Base.Options;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Identity;
 
 namespace Identity.Base.Features.Authentication.Register;
 
 internal sealed class RegisterUserRequestValidator : AbstractValidator<RegisterUserRequest>
 {
-    public RegisterUserRequestValidator(IOptions<RegistrationOptions> options)
+    public RegisterUserRequestValidator(
+        IOptions<RegistrationOptions> options,
+        IOptions<IdentityOptions> identityOptions)
     {
         var registration = options.Value;
+        var minPasswordLength = identityOptions.Value.Password.RequiredLength;
         RuleFor(x => x.Email)
             .NotEmpty()
             .EmailAddress();
 
         RuleFor(x => x.Password)
             .NotEmpty()
-            .MinimumLength(12);
+            .MinimumLength(minPasswordLength);
 
         RuleFor(x => x.Metadata)
             .Must(metadata => metadata is not null)

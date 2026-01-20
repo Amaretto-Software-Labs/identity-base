@@ -76,6 +76,7 @@ curl -X POST https://localhost:5000/connect/token \
 ## Configuration
 
 Options are bound automatically from `IConfiguration`. The sections below are the most relevant:
+- Password, lockout, sign-in, and user policies are configured via standard ASP.NET Core Identity options (e.g. `services.PostConfigure<IdentityOptions>(...)` in your host).
 
 | Section | Key fields | Default | Notes |
 | --- | --- | --- | --- |

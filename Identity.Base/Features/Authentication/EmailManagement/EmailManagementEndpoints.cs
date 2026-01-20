@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Identity.Base.Lifecycle;
 
 namespace Identity.Base.Features.Authentication.EmailManagement;
@@ -288,8 +289,9 @@ internal sealed class ForgotPasswordRequestValidator : AbstractValidator<ForgotP
 
 internal sealed class ResetPasswordRequestValidator : AbstractValidator<ResetPasswordRequest>
 {
-    public ResetPasswordRequestValidator()
+    public ResetPasswordRequestValidator(IOptions<IdentityOptions> identityOptions)
     {
+        var minPasswordLength = identityOptions.Value.Password.RequiredLength;
         RuleFor(x => x.UserId)
             .NotEmpty();
         RuleFor(x => x.UserId)
@@ -301,6 +303,6 @@ internal sealed class ResetPasswordRequestValidator : AbstractValidator<ResetPas
 
         RuleFor(x => x.Password)
             .NotEmpty()
-            .MinimumLength(12);
+            .MinimumLength(minPasswordLength);
     }
 }
