@@ -143,6 +143,7 @@ Add an `appsettings.json` (or edit the existing file) with at least the followin
           "endpoints:token",
           "endpoints:userinfo",
           "grant_types:authorization_code",
+          "grant_types:refresh_token",
           "response_types:code",
           "scopes:openid",
           "scopes:profile",
@@ -168,6 +169,13 @@ Add an `appsettings.json` (or edit the existing file) with at least the followin
   }
 }
 ```
+
+OpenIddict seeding is strict: only the permissions and requirements you list for a client are applied. For a typical PKCE SPA, explicitly include:
+- `endpoints:authorization`, `endpoints:token`, and `endpoints:userinfo` (if you call `/connect/userinfo`).
+- `grant_types:authorization_code` and `response_types:code`.
+- `scopes:openid`, `scopes:profile`, `scopes:email`, plus your API scopes (for example, `scopes:identity.api`).
+- `scopes:offline_access` and `grant_types:refresh_token` if you expect refresh tokens.
+- `requirements:pkce` for public clients.
 
 Session cookies are SameSite=Lax and only keep the session on the Identity host. SPAs should use access tokens for API calls and must be listed in `Cors:AllowedOrigins` to access `/auth/*` endpoints.
 Key sections:

@@ -44,6 +44,8 @@ internal sealed class OpenIddictSeeder
                 ClientType = application.ClientType
             };
 
+            var permissions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             foreach (var uri in application.RedirectUris)
             {
                 descriptor.RedirectUris.Add(new Uri(uri));
@@ -56,30 +58,27 @@ internal sealed class OpenIddictSeeder
 
             foreach (var permission in application.Permissions)
             {
-                descriptor.Permissions.Add(permission);
+                var normalized = NormalizePermission(permission);
+                if (!string.IsNullOrWhiteSpace(normalized))
+                {
+                    permissions.Add(normalized);
+                }
             }
 
             if (application.AllowClientCredentialsFlow)
             {
-                descriptor.Permissions.Add(OpenIddictConstants.Permissions.GrantTypes.ClientCredentials);
+                permissions.Add(OpenIddictConstants.Permissions.GrantTypes.ClientCredentials);
             }
 
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.Endpoints.Authorization);
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.Endpoints.Token);
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.GrantTypes.AuthorizationCode);
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.GrantTypes.RefreshToken);
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.ResponseTypes.Code);
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.OpenId);
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Profile);
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Email);
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.OfflineAccess);
+            foreach (var permission in permissions)
+            {
+                descriptor.Permissions.Add(permission);
+            }
 
             foreach (var requirement in application.Requirements)
             {
                 descriptor.Requirements.Add(requirement);
             }
-
-            descriptor.Requirements.Add(OpenIddictConstants.Requirements.Features.ProofKeyForCodeExchange);
 
             var existing = await _applicationManager.FindByClientIdAsync(application.ClientId, cancellationToken);
             if (existing is null)
@@ -105,6 +104,32 @@ internal sealed class OpenIddictSeeder
                 _logger.LogInformation("Updated OpenIddict application {ClientId}", application.ClientId);
             }
         }
+    }
+
+    private static string NormalizePermission(string permission)
+    {
+        if (string.IsNullOrWhiteSpace(permission))
+        {
+            return permission;
+        }
+
+        var trimmed = permission.Trim();
+        if (trimmed.StartsWith(OpenIddictConstants.Permissions.Prefixes.Scope, StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmed;
+        }
+
+        if (trimmed.StartsWith("scopes:", StringComparison.OrdinalIgnoreCase))
+        {
+            return OpenIddictConstants.Permissions.Prefixes.Scope + trimmed["scopes:".Length..];
+        }
+
+        if (trimmed.StartsWith("scope:", StringComparison.OrdinalIgnoreCase))
+        {
+            return OpenIddictConstants.Permissions.Prefixes.Scope + trimmed["scope:".Length..];
+        }
+
+        return trimmed;
     }
 
     private async Task SeedScopesAsync(CancellationToken cancellationToken)

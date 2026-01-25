@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+- OpenIddict seeding is now strictly configuration-driven (no implicit permissions or requirements). Scope permissions accept `scope:` and `scopes:` prefixes and are normalized to `scp:`.
+
+## [0.7.16] - 2026-01-20
+- Password validation now follows ASP.NET Core Identity options (removing the separate, conflicting password settings).
+
 ## [0.7.15] - 2026-01-06
 - Added permission claim utilities in `Identity.Base.Roles` plus org claim helpers in `Identity.Base.Organizations` for consistent server-side permission checks.
 

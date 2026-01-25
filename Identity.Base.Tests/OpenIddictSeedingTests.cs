@@ -68,4 +68,35 @@ public class OpenIddictSeedingTests : IClassFixture<IdentityApiFactory>
         var disallowedPermissions = await applicationManager.GetPermissionsAsync(disallowed!);
         disallowedPermissions.ShouldNotContain(OpenIddictConstants.Permissions.GrantTypes.ClientCredentials);
     }
+
+    [Fact]
+    public async Task OpenIddictSeeder_NormalizesScopePermissions()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var applicationManager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
+
+        var application = await applicationManager.FindByClientIdAsync("scope-prefix-client");
+        application.ShouldNotBeNull();
+
+        var permissions = await applicationManager.GetPermissionsAsync(application!);
+        permissions.ShouldContain(OpenIddictConstants.Permissions.Prefixes.Scope + "aurora.api");
+        permissions.ShouldContain(OpenIddictConstants.Permissions.Prefixes.Scope + "legacy.api");
+        permissions.ShouldNotContain("scope:aurora.api");
+        permissions.ShouldNotContain("scopes:legacy.api");
+        permissions.ShouldNotContain(OpenIddictConstants.Permissions.Endpoints.Authorization);
+        permissions.ShouldNotContain(OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.OpenId);
+    }
+
+    [Fact]
+    public async Task OpenIddictSeeder_DoesNotAddImplicitRequirements()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var applicationManager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
+
+        var application = await applicationManager.FindByClientIdAsync("scope-prefix-client");
+        application.ShouldNotBeNull();
+
+        var requirements = await applicationManager.GetRequirementsAsync(application!);
+        requirements.ShouldNotContain(OpenIddictConstants.Requirements.Features.ProofKeyForCodeExchange);
+    }
 }
