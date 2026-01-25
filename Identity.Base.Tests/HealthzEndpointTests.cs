@@ -220,7 +220,7 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                     Permissions =
                     {
                         "scope:aurora.api",
-                        "scopes:legacy.api"
+                        "scopes: legacy.api"
                     }
                 });
 

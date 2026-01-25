@@ -6,7 +6,7 @@ using OpenIddict.Abstractions;
 namespace Identity.Base.Seeders;
 
 internal sealed class OpenIddictSeeder(
-    IOptions<OpenIddictOptions> options,
+    IOptions<OpenIddictOptions> openIddictOptions,
     IOpenIddictApplicationManager applicationManager,
     IOpenIddictScopeManager scopeManager,
     ILogger<OpenIddictSeeder> logger)
@@ -19,9 +19,9 @@ internal sealed class OpenIddictSeeder(
 
     private async Task SeedApplicationsAsync(CancellationToken cancellationToken)
     {
-        var options1 = options.Value;
+        var configuredOptions = openIddictOptions.Value;
 
-        foreach (var application in options1.Applications)
+        foreach (var application in configuredOptions.Applications)
         {
             var descriptor = new OpenIddictApplicationDescriptor
             {
@@ -42,14 +42,9 @@ internal sealed class OpenIddictSeeder(
                 descriptor.PostLogoutRedirectUris.Add(new Uri(uri));
             }
 
-            foreach (var permission in application.Permissions)
-            {
-                var normalized = NormalizePermission(permission);
-                if (!string.IsNullOrWhiteSpace(normalized))
-                {
-                    permissions.Add(normalized);
-                }
-            }
+            permissions.UnionWith(application.Permissions
+                .Select(NormalizePermission)
+                .Where(static permission => !string.IsNullOrWhiteSpace(permission)));
 
             if (application.AllowClientCredentialsFlow)
             {
@@ -74,13 +69,18 @@ internal sealed class OpenIddictSeeder(
                     await applicationManager.CreateAsync(descriptor, cancellationToken);
                     logger.LogInformation("Created OpenIddict application {ClientId}", application.ClientId);
                 }
-                catch (OpenIddictExceptions.ValidationException)
+                catch (OpenIddictExceptions.ValidationException ex)
                 {
                     existing = await applicationManager.FindByClientIdAsync(application.ClientId, cancellationToken);
                     if (existing is not null)
                     {
                         await applicationManager.UpdateAsync(existing, descriptor, cancellationToken);
                         logger.LogInformation("Updated OpenIddict application {ClientId} after duplicate detection", application.ClientId);
+                    }
+                    else
+                    {
+                        logger.LogError(ex, "Failed to create OpenIddict application {ClientId} due to validation errors.", application.ClientId);
+                        throw;
                     }
                 }
             }
@@ -107,12 +107,18 @@ internal sealed class OpenIddictSeeder(
 
         if (trimmed.StartsWith("scopes:", StringComparison.OrdinalIgnoreCase))
         {
-            return OpenIddictConstants.Permissions.Prefixes.Scope + trimmed["scopes:".Length..];
+            var remainder = trimmed["scopes:".Length..].Trim();
+            return string.IsNullOrWhiteSpace(remainder)
+                ? string.Empty
+                : OpenIddictConstants.Permissions.Prefixes.Scope + remainder;
         }
 
         if (trimmed.StartsWith("scope:", StringComparison.OrdinalIgnoreCase))
         {
-            return OpenIddictConstants.Permissions.Prefixes.Scope + trimmed["scope:".Length..];
+            var remainder = trimmed["scope:".Length..].Trim();
+            return string.IsNullOrWhiteSpace(remainder)
+                ? string.Empty
+                : OpenIddictConstants.Permissions.Prefixes.Scope + remainder;
         }
 
         return trimmed;
@@ -120,9 +126,9 @@ internal sealed class OpenIddictSeeder(
 
     private async Task SeedScopesAsync(CancellationToken cancellationToken)
     {
-        var options1 = options.Value;
+        var configuredOptions = openIddictOptions.Value;
 
-        foreach (var scope in options1.Scopes)
+        foreach (var scope in configuredOptions.Scopes)
         {
             var descriptor = new OpenIddictScopeDescriptor
             {
@@ -143,13 +149,18 @@ internal sealed class OpenIddictSeeder(
                     await scopeManager.CreateAsync(descriptor, cancellationToken);
                     logger.LogInformation("Created OpenIddict scope {Scope}", scope.Name);
                 }
-                catch (OpenIddictExceptions.ValidationException)
+                catch (OpenIddictExceptions.ValidationException ex)
                 {
                     existing = await scopeManager.FindByNameAsync(scope.Name, cancellationToken);
                     if (existing is not null)
                     {
                         await scopeManager.UpdateAsync(existing, descriptor, cancellationToken);
                         logger.LogInformation("Updated OpenIddict scope {Scope} after duplicate detection", scope.Name);
+                    }
+                    else
+                    {
+                        logger.LogError(ex, "Failed to create OpenIddict scope {Scope} due to validation errors.", scope.Name);
+                        throw;
                     }
                 }
             }
