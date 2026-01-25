@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.7.18] - 2026-01-25
 - OpenIddict seeding is now strictly configuration-driven (no implicit permissions or requirements). Scope permissions accept `scope:` and `scopes:` prefixes and are normalized to `scp:`.
 
 ## [0.7.16] - 2026-01-20
