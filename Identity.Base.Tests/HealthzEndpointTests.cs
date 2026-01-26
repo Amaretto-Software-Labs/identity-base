@@ -197,6 +197,7 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                         OpenIddictConstants.Permissions.Endpoints.Token,
                         OpenIddictConstants.Permissions.Prefixes.Endpoint + "userinfo",
                         OpenIddictConstants.Permissions.GrantTypes.AuthorizationCode,
+                        OpenIddictConstants.Permissions.GrantTypes.RefreshToken,
                         OpenIddictConstants.Permissions.ResponseTypes.Code,
                         OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.OpenId,
                         OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Profile,
@@ -208,6 +209,18 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                     Requirements =
                     {
                         OpenIddictConstants.Requirements.Features.ProofKeyForCodeExchange
+                    }
+                });
+
+                options.Applications.Add(new OpenIddictApplicationOptions
+                {
+                    ClientId = "scope-prefix-client",
+                    ClientType = OpenIddictConstants.ClientTypes.Public,
+                    RedirectUris = { "https://localhost:3000/auth/callback" },
+                    Permissions =
+                    {
+                        "scope:aurora.api",
+                        "scopes: legacy.api"
                     }
                 });
 
@@ -223,6 +236,18 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                     Name = "identity.admin",
                     DisplayName = "Identity Admin API",
                     Resources = { "identity.api", "identity.admin" }
+                });
+                options.Scopes.Add(new OpenIddictScopeOptions
+                {
+                    Name = "aurora.api",
+                    DisplayName = "Aurora API",
+                    Resources = { "aurora.api" }
+                });
+                options.Scopes.Add(new OpenIddictScopeOptions
+                {
+                    Name = "legacy.api",
+                    DisplayName = "Legacy API",
+                    Resources = { "legacy.api" }
                 });
             });
 

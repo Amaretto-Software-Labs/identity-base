@@ -89,6 +89,13 @@ Options are bound automatically from `IConfiguration`. The sections below are th
 | `OpenIddict:ServerKeys` (`OpenIddictServerKeyOptions`) | Signing/encryption key descriptors | Runtime-generated | Override to use persisted keys or external key stores. |
 | `Cors` (`CorsSettings`) | `AllowedOrigins`, `AllowCredentials` | Empty | `UseApiPipeline` consumes this to create the default CORS policy for Minimal APIs. |
 
+OpenIddict seeding is strict: only the permissions and requirements you list for a client are applied. For a typical PKCE SPA, explicitly include:
+- `endpoints:authorization`, `endpoints:token`, and `endpoints:userinfo` (if you call `/connect/userinfo`).
+- `grant_types:authorization_code` and `response_types:code`.
+- `scopes:openid`, `scopes:profile`, `scopes:email`, plus your API scopes.
+- `scopes:offline_access` and `grant_types:refresh_token` if you expect refresh tokens.
+- `requirements:pkce` for public clients.
+
 Use `identity.UseTablePrefix("Contoso")` if you want every EF Core table created by Identity Base (and add-on packages) to use a different prefix than the default `Identity_`.
 Customisation examples:
 

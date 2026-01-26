@@ -44,6 +44,7 @@ Scopes are **not** the same thing as RBAC permissions. Scopes gate access at the
           "endpoints:token",
           "endpoints:userinfo",
           "grant_types:authorization_code",
+          "grant_types:refresh_token",
           "response_types:code",
           "scopes:openid",
           "scopes:profile",
@@ -58,6 +59,13 @@ Scopes are **not** the same thing as RBAC permissions. Scopes gate access at the
   }
 }
 ```
+
+OpenIddict seeding is strict: only the permissions and requirements you list for a client are applied. For a typical PKCE SPA, explicitly include:
+- `endpoints:authorization`, `endpoints:token`, and `endpoints:userinfo` (if you call `/connect/userinfo`).
+- `grant_types:authorization_code` and `response_types:code`.
+- `scopes:openid`, `scopes:profile`, `scopes:email`, plus your API scopes.
+- `scopes:offline_access` and `grant_types:refresh_token` if you expect refresh tokens.
+- `requirements:pkce` for public clients.
 
 If you want admin endpoints to *not* require an OAuth scope, set `IdentityAdmin:RequiredScope` to `null` (permissions still apply).
 

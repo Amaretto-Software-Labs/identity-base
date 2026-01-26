@@ -1,4 +1,3 @@
-using System.Linq;
 using Identity.Base.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -6,25 +5,12 @@ using OpenIddict.Abstractions;
 
 namespace Identity.Base.Seeders;
 
-internal sealed class OpenIddictSeeder
+internal sealed class OpenIddictSeeder(
+    IOptions<OpenIddictOptions> openIddictOptions,
+    IOpenIddictApplicationManager applicationManager,
+    IOpenIddictScopeManager scopeManager,
+    ILogger<OpenIddictSeeder> logger)
 {
-    private readonly IOptions<OpenIddictOptions> _options;
-    private readonly IOpenIddictApplicationManager _applicationManager;
-    private readonly IOpenIddictScopeManager _scopeManager;
-    private readonly ILogger<OpenIddictSeeder> _logger;
-
-    public OpenIddictSeeder(
-        IOptions<OpenIddictOptions> options,
-        IOpenIddictApplicationManager applicationManager,
-        IOpenIddictScopeManager scopeManager,
-        ILogger<OpenIddictSeeder> logger)
-    {
-        _options = options;
-        _applicationManager = applicationManager;
-        _scopeManager = scopeManager;
-        _logger = logger;
-    }
-
     public async Task SeedAsync(CancellationToken cancellationToken)
     {
         await SeedApplicationsAsync(cancellationToken);
@@ -33,9 +19,9 @@ internal sealed class OpenIddictSeeder
 
     private async Task SeedApplicationsAsync(CancellationToken cancellationToken)
     {
-        var options = _options.Value;
+        var configuredOptions = openIddictOptions.Value;
 
-        foreach (var application in options.Applications)
+        foreach (var application in configuredOptions.Applications)
         {
             var descriptor = new OpenIddictApplicationDescriptor
             {
@@ -43,6 +29,8 @@ internal sealed class OpenIddictSeeder
                 ClientSecret = string.IsNullOrWhiteSpace(application.ClientSecret) ? null : application.ClientSecret,
                 ClientType = application.ClientType
             };
+
+            var permissions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var uri in application.RedirectUris)
             {
@@ -54,64 +42,93 @@ internal sealed class OpenIddictSeeder
                 descriptor.PostLogoutRedirectUris.Add(new Uri(uri));
             }
 
-            foreach (var permission in application.Permissions)
-            {
-                descriptor.Permissions.Add(permission);
-            }
+            permissions.UnionWith(application.Permissions
+                .Select(NormalizePermission)
+                .Where(static permission => !string.IsNullOrWhiteSpace(permission)));
 
             if (application.AllowClientCredentialsFlow)
             {
-                descriptor.Permissions.Add(OpenIddictConstants.Permissions.GrantTypes.ClientCredentials);
+                permissions.Add(OpenIddictConstants.Permissions.GrantTypes.ClientCredentials);
             }
 
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.Endpoints.Authorization);
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.Endpoints.Token);
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.GrantTypes.AuthorizationCode);
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.GrantTypes.RefreshToken);
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.ResponseTypes.Code);
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.OpenId);
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Profile);
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Email);
-            descriptor.Permissions.Add(OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.OfflineAccess);
+            foreach (var permission in permissions)
+            {
+                descriptor.Permissions.Add(permission);
+            }
 
             foreach (var requirement in application.Requirements)
             {
                 descriptor.Requirements.Add(requirement);
             }
 
-            descriptor.Requirements.Add(OpenIddictConstants.Requirements.Features.ProofKeyForCodeExchange);
-
-            var existing = await _applicationManager.FindByClientIdAsync(application.ClientId, cancellationToken);
+            var existing = await applicationManager.FindByClientIdAsync(application.ClientId, cancellationToken);
             if (existing is null)
             {
                 try
                 {
-                    await _applicationManager.CreateAsync(descriptor, cancellationToken);
-                    _logger.LogInformation("Created OpenIddict application {ClientId}", application.ClientId);
+                    await applicationManager.CreateAsync(descriptor, cancellationToken);
+                    logger.LogInformation("Created OpenIddict application {ClientId}", application.ClientId);
                 }
-                catch (OpenIddictExceptions.ValidationException)
+                catch (OpenIddictExceptions.ValidationException ex)
                 {
-                    existing = await _applicationManager.FindByClientIdAsync(application.ClientId, cancellationToken);
+                    existing = await applicationManager.FindByClientIdAsync(application.ClientId, cancellationToken);
                     if (existing is not null)
                     {
-                        await _applicationManager.UpdateAsync(existing, descriptor, cancellationToken);
-                        _logger.LogInformation("Updated OpenIddict application {ClientId} after duplicate detection", application.ClientId);
+                        await applicationManager.UpdateAsync(existing, descriptor, cancellationToken);
+                        logger.LogInformation("Updated OpenIddict application {ClientId} after duplicate detection", application.ClientId);
+                    }
+                    else
+                    {
+                        logger.LogError(ex, "Failed to create OpenIddict application {ClientId} due to validation errors.", application.ClientId);
+                        throw;
                     }
                 }
             }
             else
             {
-                await _applicationManager.UpdateAsync(existing, descriptor, cancellationToken);
-                _logger.LogInformation("Updated OpenIddict application {ClientId}", application.ClientId);
+                await applicationManager.UpdateAsync(existing, descriptor, cancellationToken);
+                logger.LogInformation("Updated OpenIddict application {ClientId}", application.ClientId);
             }
         }
     }
 
+    private static string NormalizePermission(string permission)
+    {
+        if (string.IsNullOrWhiteSpace(permission))
+        {
+            return permission;
+        }
+
+        var trimmed = permission.Trim();
+        if (trimmed.StartsWith(OpenIddictConstants.Permissions.Prefixes.Scope, StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmed;
+        }
+
+        if (trimmed.StartsWith("scopes:", StringComparison.OrdinalIgnoreCase))
+        {
+            var remainder = trimmed["scopes:".Length..].Trim();
+            return string.IsNullOrWhiteSpace(remainder)
+                ? string.Empty
+                : OpenIddictConstants.Permissions.Prefixes.Scope + remainder;
+        }
+
+        if (trimmed.StartsWith("scope:", StringComparison.OrdinalIgnoreCase))
+        {
+            var remainder = trimmed["scope:".Length..].Trim();
+            return string.IsNullOrWhiteSpace(remainder)
+                ? string.Empty
+                : OpenIddictConstants.Permissions.Prefixes.Scope + remainder;
+        }
+
+        return trimmed;
+    }
+
     private async Task SeedScopesAsync(CancellationToken cancellationToken)
     {
-        var options = _options.Value;
+        var configuredOptions = openIddictOptions.Value;
 
-        foreach (var scope in options.Scopes)
+        foreach (var scope in configuredOptions.Scopes)
         {
             var descriptor = new OpenIddictScopeDescriptor
             {
@@ -124,28 +141,33 @@ internal sealed class OpenIddictSeeder
                 descriptor.Resources.Add(resource);
             }
 
-            var existing = await _scopeManager.FindByNameAsync(scope.Name, cancellationToken);
+            var existing = await scopeManager.FindByNameAsync(scope.Name, cancellationToken);
             if (existing is null)
             {
                 try
                 {
-                    await _scopeManager.CreateAsync(descriptor, cancellationToken);
-                    _logger.LogInformation("Created OpenIddict scope {Scope}", scope.Name);
+                    await scopeManager.CreateAsync(descriptor, cancellationToken);
+                    logger.LogInformation("Created OpenIddict scope {Scope}", scope.Name);
                 }
-                catch (OpenIddictExceptions.ValidationException)
+                catch (OpenIddictExceptions.ValidationException ex)
                 {
-                    existing = await _scopeManager.FindByNameAsync(scope.Name, cancellationToken);
+                    existing = await scopeManager.FindByNameAsync(scope.Name, cancellationToken);
                     if (existing is not null)
                     {
-                        await _scopeManager.UpdateAsync(existing, descriptor, cancellationToken);
-                        _logger.LogInformation("Updated OpenIddict scope {Scope} after duplicate detection", scope.Name);
+                        await scopeManager.UpdateAsync(existing, descriptor, cancellationToken);
+                        logger.LogInformation("Updated OpenIddict scope {Scope} after duplicate detection", scope.Name);
+                    }
+                    else
+                    {
+                        logger.LogError(ex, "Failed to create OpenIddict scope {Scope} due to validation errors.", scope.Name);
+                        throw;
                     }
                 }
             }
             else
             {
-                await _scopeManager.UpdateAsync(existing, descriptor, cancellationToken);
-                _logger.LogInformation("Updated OpenIddict scope {Scope}", scope.Name);
+                await scopeManager.UpdateAsync(existing, descriptor, cancellationToken);
+                logger.LogInformation("Updated OpenIddict scope {Scope}", scope.Name);
             }
         }
     }
