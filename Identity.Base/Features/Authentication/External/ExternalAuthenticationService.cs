@@ -1,14 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
 using Identity.Base.Identity;
 using Identity.Base.Logging;
+using Identity.Base.Options;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OpenIddict.Abstractions;
 
 namespace Identity.Base.Features.Authentication.External;
@@ -23,6 +21,7 @@ internal sealed class ExternalAuthenticationService
     private readonly IAuditLogger _auditLogger;
     private readonly IExternalReturnUrlValidator _returnUrlValidator;
     private readonly IExternalCallbackUriFactory _callbackUriFactory;
+    private readonly ExternalAuthenticationOptions _externalAuthenticationOptions;
 
     public ExternalAuthenticationService(
         IAuthenticationSchemeProvider authenticationSchemeProvider,
@@ -32,7 +31,8 @@ internal sealed class ExternalAuthenticationService
         ILogger<ExternalAuthenticationService> logger,
         IAuditLogger auditLogger,
         IExternalReturnUrlValidator returnUrlValidator,
-        IExternalCallbackUriFactory callbackUriFactory)
+        IExternalCallbackUriFactory callbackUriFactory,
+        IOptions<ExternalAuthenticationOptions> externalAuthenticationOptions)
     {
         _authenticationSchemeProvider = authenticationSchemeProvider;
         _providerRegistry = providerRegistry;
@@ -42,6 +42,7 @@ internal sealed class ExternalAuthenticationService
         _auditLogger = auditLogger;
         _returnUrlValidator = returnUrlValidator;
         _callbackUriFactory = callbackUriFactory;
+        _externalAuthenticationOptions = externalAuthenticationOptions.Value;
     }
 
     public async Task<IResult> StartAsync(HttpContext httpContext, string provider, string? returnUrl, string mode, CancellationToken cancellationToken)
@@ -189,6 +190,14 @@ internal sealed class ExternalAuthenticationService
             return Results.Problem($"External provider '{provider}' is not linked to this account.", statusCode: StatusCodes.Status400BadRequest);
         }
 
+        var hasPassword = await _userManager.HasPasswordAsync(user);
+        if (!hasPassword && logins.Count <= 1)
+        {
+            return Results.Problem(
+                "Cannot unlink the last sign-in method. Set a password or link another external provider first.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var result = await _userManager.RemoveLoginAsync(user, login.LoginProvider, login.ProviderKey);
         if (!result.Succeeded)
         {
@@ -285,8 +294,39 @@ internal sealed class ExternalAuthenticationService
             return CreateLoginResponse(returnUrl, "locked", "User account is locked out.", requiresTwoFactor: false, methods: null);
         }
 
+        var externalEmail = info.Principal.FindFirstValue(ClaimTypes.Email);
+        ApplicationUser? existingByEmail = null;
+        if (!string.IsNullOrWhiteSpace(externalEmail))
+        {
+            existingByEmail = await _userManager.FindByEmailAsync(externalEmail);
+        }
+
+        if (existingByEmail is not null && !_externalAuthenticationOptions.AutoLinkByEmailOnLogin)
+        {
+            await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+            return CreateLoginResponse(
+                returnUrl,
+                "error",
+                "External provider is not linked to this account. Sign in and link it first.",
+                requiresTwoFactor: false,
+                methods: null);
+        }
+
+        if (existingByEmail is not null
+            && _externalAuthenticationOptions.RequireVerifiedEmailForAutoLinkByEmail
+            && !IsExternalEmailVerified(info.Principal))
+        {
+            await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+            return CreateLoginResponse(
+                returnUrl,
+                "error",
+                "External account email is not verified by the provider.",
+                requiresTwoFactor: false,
+                methods: null);
+        }
+
         // Attempt to link or create a user based on external login information.
-        var user = await FindOrCreateUserFromExternalLoginAsync(info, cancellationToken);
+        var user = await FindOrCreateUserFromExternalLoginAsync(info, existingByEmail, cancellationToken);
         if (user is null)
         {
             await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
@@ -309,17 +349,17 @@ internal sealed class ExternalAuthenticationService
         return CreateLoginResponse(returnUrl, "success", null, requiresTwoFactor: false, methods: null);
     }
 
-    private async Task<ApplicationUser?> FindOrCreateUserFromExternalLoginAsync(ExternalLoginInfo info, CancellationToken cancellationToken)
+    private async Task<ApplicationUser?> FindOrCreateUserFromExternalLoginAsync(
+        ExternalLoginInfo info,
+        ApplicationUser? existingByEmail,
+        CancellationToken cancellationToken)
     {
-        var email = info.Principal.FindFirstValue(ClaimTypes.Email);
-        if (!string.IsNullOrWhiteSpace(email))
+        if (existingByEmail is not null)
         {
-            var existingByEmail = await _userManager.FindByEmailAsync(email);
-            if (existingByEmail is not null)
-            {
-                return existingByEmail;
-            }
+            return existingByEmail;
         }
+
+        var email = info.Principal.FindFirstValue(ClaimTypes.Email);
 
         var userName = email ?? $"{info.LoginProvider}_{info.ProviderKey}";
         var displayName = info.Principal.FindFirstValue(ClaimTypes.Name) ?? userName;
@@ -347,6 +387,24 @@ internal sealed class ExternalAuthenticationService
         }
 
         return user;
+    }
+
+    private static bool IsExternalEmailVerified(ClaimsPrincipal principal)
+    {
+        var value = principal.FindFirstValue("email_verified")
+            ?? principal.FindFirstValue("verified_email");
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        if (bool.TryParse(value, out var parsed))
+        {
+            return parsed;
+        }
+
+        return string.Equals(value, "1", StringComparison.Ordinal);
     }
 
     private static string? MapTwoFactorProvider(string provider)

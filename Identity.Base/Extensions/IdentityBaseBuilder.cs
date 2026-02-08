@@ -510,6 +510,10 @@ public sealed class IdentityBaseBuilder
                 .BindConfiguration(CorsSettings.SectionName)
                 .ValidateDataAnnotations();
 
+            services
+                .AddOptions<ExternalAuthenticationOptions>()
+                .BindConfiguration(ExternalAuthenticationOptions.SectionName);
+
             services.AddSingleton<IValidateOptions<RegistrationOptions>, RegistrationOptionsValidator>();
             services.AddSingleton<IValidateOptions<MfaOptions>, MfaOptionsValidator>();
             services.AddSingleton<IValidateOptions<OpenIddictOptions>, OpenIddictOptionsValidator>();

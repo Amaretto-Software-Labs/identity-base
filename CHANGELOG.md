@@ -9,6 +9,10 @@
 - Fixed organization-role seeding on relational databases by creating a system anchor organization for `OrganizationId = Guid.Empty` before default global roles are inserted (prevents FK violations in hosts such as `apps/org-sample-api`).
 - `Identity.Base.Host` now supports optional Google external auth registration via `Authentication:Google` configuration (`Enabled`, provider key, scheme, callback path, client credentials).
 - OpenIddict seeding now normalizes legacy permission/requirement prefixes (`endpoints:*`, `grant_types:*`, `response_types:*`, `scope(s):*`, `requirements:*`) to OpenIddict canonical values (`ept:*`, `gt:*`, `rst:*`, `scp:*`, `ft:*`) to avoid unauthorized-client regressions.
+- External unlink now rejects removal of the last available sign-in method (external-only users must set a password or link another provider first).
+- Added `Authentication:External` options for external-login association policy:
+  - `AutoLinkByEmailOnLogin` (default `true`) controls whether callbacks may auto-associate to existing users by matching email.
+  - `RequireVerifiedEmailForAutoLinkByEmail` (default `false`) requires an explicit verified-email claim before email-based auto-linking.
 
 ## [0.7.18] - 2026-01-25
 - OpenIddict seeding is now strictly configuration-driven (no implicit permissions or requirements). Scope permissions accept `scope:` and `scopes:` prefixes and are normalized to `scp:`.

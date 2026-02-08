@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http.Headers;
@@ -9,6 +10,7 @@ using Identity.Base.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -89,6 +91,137 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
         var logins = await userManager.GetLoginsAsync(user!);
         logins.ShouldContain(login => string.Equals(login.LoginProvider, "GitHub", StringComparison.OrdinalIgnoreCase));
         logins.Count(login => string.Equals(login.LoginProvider, "GitHub", StringComparison.OrdinalIgnoreCase)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ExternalLogin_DoesNotAutoLinkByEmail_WhenDisabled()
+    {
+        const string email = "strict-linking@example.com";
+        const string password = "StrongPass!2345";
+
+        using var strictFactory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureAppConfiguration((_, configurationBuilder) =>
+            {
+                var overrides = new Dictionary<string, string?>
+                {
+                    ["Authentication:External:AutoLinkByEmailOnLogin"] = "false"
+                };
+                configurationBuilder.AddInMemoryCollection(overrides);
+            });
+        });
+
+        using (var scope = strictFactory.Services.CreateScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var existing = await userManager.FindByEmailAsync(email);
+            if (existing is null)
+            {
+                var created = await userManager.CreateAsync(new ApplicationUser
+                {
+                    Email = email,
+                    UserName = email,
+                    EmailConfirmed = true,
+                    DisplayName = "Strict Linking User"
+                }, password);
+                created.Succeeded.ShouldBeTrue();
+            }
+        }
+
+        using var client = strictFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        client.BaseAddress = new Uri("https://localhost");
+
+        var startResponse = await client.GetAsync($"/auth/external/google/start?returnUrl=/client/callback&email={Uri.EscapeDataString(email)}&name=Strict%20Linking");
+        startResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        var callbackLocation = startResponse.Headers.Location;
+        callbackLocation.ShouldNotBeNull();
+
+        var callbackResponse = await client.GetAsync(callbackLocation);
+        callbackResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        var finalLocation = callbackResponse.Headers.Location;
+        finalLocation.ShouldNotBeNull();
+
+        var uri = new Uri(client.BaseAddress!, finalLocation!);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+        query["status"].ToString().ShouldBe("error");
+        query["message"].ToString().ShouldContain("not linked");
+
+        using var verifyScope = strictFactory.Services.CreateScope();
+        var verifyUserManager = verifyScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await verifyUserManager.FindByEmailAsync(email);
+        user.ShouldNotBeNull();
+        var logins = await verifyUserManager.GetLoginsAsync(user!);
+        logins.ShouldNotContain(login => login.LoginProvider == IdentityApiFactory.FakeGoogleScheme);
+    }
+
+    [Fact]
+    public async Task ExternalLogin_RequiresVerifiedEmail_ForAutoLink_WhenEnabled()
+    {
+        const string email = "verified-required@example.com";
+        const string password = "StrongPass!2345";
+
+        using var strictFactory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureAppConfiguration((_, configurationBuilder) =>
+            {
+                var overrides = new Dictionary<string, string?>
+                {
+                    ["Authentication:External:AutoLinkByEmailOnLogin"] = "true",
+                    ["Authentication:External:RequireVerifiedEmailForAutoLinkByEmail"] = "true"
+                };
+                configurationBuilder.AddInMemoryCollection(overrides);
+            });
+        });
+
+        using (var scope = strictFactory.Services.CreateScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var existing = await userManager.FindByEmailAsync(email);
+            if (existing is null)
+            {
+                var created = await userManager.CreateAsync(new ApplicationUser
+                {
+                    Email = email,
+                    UserName = email,
+                    EmailConfirmed = true,
+                    DisplayName = "Verified Required User"
+                }, password);
+                created.Succeeded.ShouldBeTrue();
+            }
+        }
+
+        using var client = strictFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        client.BaseAddress = new Uri("https://localhost");
+
+        var startResponse = await client.GetAsync($"/auth/external/google/start?returnUrl=/client/callback&email={Uri.EscapeDataString(email)}&name=Verified%20Required&emailVerified=false");
+        startResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        var callbackLocation = startResponse.Headers.Location;
+        callbackLocation.ShouldNotBeNull();
+
+        var callbackResponse = await client.GetAsync(callbackLocation);
+        callbackResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        var finalLocation = callbackResponse.Headers.Location;
+        finalLocation.ShouldNotBeNull();
+
+        var uri = new Uri(client.BaseAddress!, finalLocation!);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+        query["status"].ToString().ShouldBe("error");
+        query["message"].ToString().ShouldContain("not verified");
+
+        using var verifyScope = strictFactory.Services.CreateScope();
+        var verifyUserManager = verifyScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await verifyUserManager.FindByEmailAsync(email);
+        user.ShouldNotBeNull();
+        var logins = await verifyUserManager.GetLoginsAsync(user!);
+        logins.ShouldNotContain(login => login.LoginProvider == IdentityApiFactory.FakeGoogleScheme);
     }
 
     [Fact]
@@ -250,6 +383,40 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
             var logins = await userManager.GetLoginsAsync(user!);
             logins.ShouldBeEmpty();
         }
+    }
+
+    [Fact]
+    public async Task ExternalUnlink_RejectsLastSignInMethod_ForExternalOnlyAccount()
+    {
+        const string email = "external-only@example.com";
+
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        client.BaseAddress = new Uri("https://localhost");
+
+        var startResponse = await client.GetAsync($"/auth/external/google/start?returnUrl=/client/callback&email={Uri.EscapeDataString(email)}&name=External%20Only");
+        startResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        var callbackLocation = startResponse.Headers.Location;
+        callbackLocation.ShouldNotBeNull();
+
+        var callbackResponse = await client.GetAsync(callbackLocation);
+        callbackResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+
+        var unlinkResponse = await client.DeleteAsync("/auth/external/google");
+        unlinkResponse.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var body = await unlinkResponse.Content.ReadAsStringAsync();
+        body.ShouldContain("Cannot unlink the last sign-in method");
+
+        using var scope = _factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await userManager.FindByEmailAsync(email);
+        user.ShouldNotBeNull();
+        var logins = await userManager.GetLoginsAsync(user!);
+        logins.Count(login => login.LoginProvider == IdentityApiFactory.FakeGoogleScheme).ShouldBe(1);
+        (await userManager.HasPasswordAsync(user!)).ShouldBeFalse();
     }
 
     private async Task SeedUserAsync(string email, string password)
