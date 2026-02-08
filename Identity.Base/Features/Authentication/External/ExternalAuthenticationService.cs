@@ -4,21 +4,18 @@ using System.Linq;
 using System.Security.Claims;
 using Identity.Base.Identity;
 using Identity.Base.Logging;
-using Identity.Base.Options;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Google;
-using Microsoft.AspNetCore.Authentication.MicrosoftAccount;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Features.Authentication.External;
 
 internal sealed class ExternalAuthenticationService
 {
-    private readonly IOptions<ExternalProviderOptions> _providerOptions;
+    private readonly IAuthenticationSchemeProvider _authenticationSchemeProvider;
+    private readonly IExternalAuthenticationProviderRegistry _providerRegistry;
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ILogger<ExternalAuthenticationService> _logger;
@@ -27,7 +24,8 @@ internal sealed class ExternalAuthenticationService
     private readonly IExternalCallbackUriFactory _callbackUriFactory;
 
     public ExternalAuthenticationService(
-        IOptions<ExternalProviderOptions> providerOptions,
+        IAuthenticationSchemeProvider authenticationSchemeProvider,
+        IExternalAuthenticationProviderRegistry providerRegistry,
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
         ILogger<ExternalAuthenticationService> logger,
@@ -35,7 +33,8 @@ internal sealed class ExternalAuthenticationService
         IExternalReturnUrlValidator returnUrlValidator,
         IExternalCallbackUriFactory callbackUriFactory)
     {
-        _providerOptions = providerOptions;
+        _authenticationSchemeProvider = authenticationSchemeProvider;
+        _providerRegistry = providerRegistry;
         _signInManager = signInManager;
         _userManager = userManager;
         _logger = logger;
@@ -48,15 +47,10 @@ internal sealed class ExternalAuthenticationService
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (scheme, settings) = ResolveProvider(provider);
-        if (scheme is null || settings is null)
+        var scheme = await ResolveSchemeAsync(provider, cancellationToken);
+        if (scheme is null)
         {
             return Results.Problem($"Unknown external provider '{provider}'.", statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        if (!settings.Enabled)
-        {
-            return Results.Problem($"External provider '{provider}' is disabled.", statusCode: StatusCodes.Status400BadRequest);
         }
 
         if (!_returnUrlValidator.TryNormalize(returnUrl, out var sanitizedReturnUrl))
@@ -110,17 +104,11 @@ internal sealed class ExternalAuthenticationService
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (scheme, settings) = ResolveProvider(provider);
-        if (scheme is null || settings is null)
+        var scheme = await ResolveSchemeAsync(provider, cancellationToken);
+        if (scheme is null)
         {
             await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
             return Results.Problem($"Unknown external provider '{provider}'.", statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        if (!settings.Enabled)
-        {
-            await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
-            return Results.Problem($"External provider '{provider}' is disabled.", statusCode: StatusCodes.Status400BadRequest);
         }
 
         ApplicationUser? currentUser = null;
@@ -181,8 +169,8 @@ internal sealed class ExternalAuthenticationService
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (_, settings) = ResolveProvider(provider);
-        if (settings is null)
+        var scheme = await ResolveSchemeAsync(provider, cancellationToken);
+        if (scheme is null)
         {
             return Results.Problem($"Unknown external provider '{provider}'.", statusCode: StatusCodes.Status400BadRequest);
         }
@@ -194,7 +182,7 @@ internal sealed class ExternalAuthenticationService
         }
 
         var logins = await _userManager.GetLoginsAsync(user);
-        var login = logins.FirstOrDefault(login => string.Equals(login.LoginProvider, settings.ProviderName, StringComparison.OrdinalIgnoreCase));
+        var login = logins.FirstOrDefault(login => string.Equals(login.LoginProvider, scheme, StringComparison.OrdinalIgnoreCase));
         if (login is null)
         {
             return Results.Problem($"External provider '{provider}' is not linked to this account.", statusCode: StatusCodes.Status400BadRequest);
@@ -361,17 +349,36 @@ internal sealed class ExternalAuthenticationService
         return null;
     }
 
-    private (string? Scheme, ProviderDescriptor? Settings) ResolveProvider(string provider)
+    private async Task<string?> ResolveSchemeAsync(string provider, CancellationToken cancellationToken)
     {
-        var options = _providerOptions.Value;
-        var normalized = provider?.Trim().ToLowerInvariant();
-        return normalized switch
+        if (string.IsNullOrWhiteSpace(provider))
         {
-            "google" => (GoogleDefaults.AuthenticationScheme, new ProviderDescriptor("Google", options.Google)),
-            "microsoft" => (MicrosoftAccountDefaults.AuthenticationScheme, new ProviderDescriptor("Microsoft", options.Microsoft)),
-            "apple" => (ExternalAuthenticationConstants.AppleScheme, new ProviderDescriptor("Apple", options.Apple)),
-            _ => (null, null)
-        };
+            return null;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var normalized = provider.Trim();
+        if (!_providerRegistry.TryResolve(normalized, out var registration))
+        {
+            return null;
+        }
+
+        var schemeHint = registration.Scheme;
+
+        var resolved = await _authenticationSchemeProvider.GetSchemeAsync(schemeHint);
+        if (resolved is null)
+        {
+            var schemes = await _authenticationSchemeProvider.GetAllSchemesAsync();
+            resolved = schemes.FirstOrDefault(candidate =>
+                string.Equals(candidate.Name, schemeHint, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (resolved is not null)
+        {
+            return resolved.Name;
+        }
+
+        return null;
     }
 
     private IResult CreateLinkResponse(string? returnUrl, string status, string? message)
@@ -418,8 +425,4 @@ internal sealed class ExternalAuthenticationService
         });
     }
 
-    private sealed record ProviderDescriptor(string ProviderName, OAuthProviderOptions Options)
-    {
-        public bool Enabled => Options.Enabled;
-    }
 }

@@ -25,9 +25,6 @@ using Identity.Base.Options;
 using Identity.Base.Seeders;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.Google;
-using Microsoft.AspNetCore.Authentication.MicrosoftAccount;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -36,7 +33,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
-using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
 using OpenIddict.Validation.AspNetCore;
@@ -50,6 +46,7 @@ public sealed class IdentityBaseBuilder
     private readonly Action<IServiceProvider, DbContextOptionsBuilder>? _configureAppDbContext;
     private readonly IdentityBaseModelCustomizationOptions _modelCustomizationOptions = new();
     private readonly IdentityBaseSeedCallbacks _seedCallbacks = new();
+    private readonly ExternalAuthenticationProviderRegistry _externalProviderRegistry = new();
 
     internal IdentityBaseBuilder(
         IServiceCollection services,
@@ -77,19 +74,17 @@ public sealed class IdentityBaseBuilder
 
     internal AuthenticationBuilder AuthenticationBuilder { get; private set; } = null!;
 
-    internal ExternalProviderFlags ProviderFlags { get; private set; }
-        = ExternalProviderFlags.None;
-
     internal IdentityBaseBuilder Initialize()
     {
         Services.AddOpenApi();
         Services.AddOptions<IdentityDbNamingOptions>();
         Services.AddControllers();
+        Services.TryAddSingleton<IExternalAuthenticationProviderRegistry>(_externalProviderRegistry);
         Services.TryAddSingleton(_ => _modelCustomizationOptions);
         Services.TryAddSingleton(_ => _seedCallbacks);
         RegisterTenantContextAccessor();
 
-        ProviderFlags = ConfigureOptions();
+        ApplyConfigurationOverrides();
         ConfigureDatabase();
         ConfigureIdentity();
         RegisterHostedServices();
@@ -202,172 +197,24 @@ public sealed class IdentityBaseBuilder
         Services.TryAddScoped<ITenantContext>(static sp => sp.GetRequiredService<ITenantContextAccessor>().Current);
     }
 
-    public IdentityBaseBuilder AddConfiguredExternalProviders()
-    {
-        if (ProviderFlags.GoogleEnabled)
-        {
-            AddGoogleAuth();
-        }
-
-        if (ProviderFlags.MicrosoftEnabled)
-        {
-            AddMicrosoftAuth();
-        }
-
-        if (ProviderFlags.AppleEnabled)
-        {
-            AddAppleAuth();
-        }
-
-        return this;
-    }
-
-    public IdentityBaseBuilder AddGoogleAuth(
-        string scheme = GoogleDefaults.AuthenticationScheme,
-        Action<GoogleOptions>? configure = null)
-    {
-        if (!ProviderFlags.GoogleEnabled)
-        {
-            return this;
-        }
-
-        Services.AddOptions<GoogleOptions>().Configure<IOptions<ExternalProviderOptions>>((options, providerOptions) =>
-        {
-            var google = providerOptions.Value.Google;
-            options.ClientId = google.ClientId;
-            options.ClientSecret = google.ClientSecret;
-            if (!string.IsNullOrWhiteSpace(google.CallbackPath))
-            {
-                options.CallbackPath = google.CallbackPath;
-            }
-
-            options.Scope.Clear();
-            if (google.Scopes.Count > 0)
-            {
-                foreach (var scope in google.Scopes)
-                {
-                    if (!string.IsNullOrWhiteSpace(scope))
-                    {
-                        options.Scope.Add(scope);
-                    }
-                }
-            }
-        });
-
-        AuthenticationBuilder.AddGoogle(scheme, options =>
-        {
-            options.SignInScheme = IdentityConstants.ExternalScheme;
-            options.SaveTokens = true;
-            configure?.Invoke(options);
-        });
-
-        return this;
-    }
-
-    public IdentityBaseBuilder AddMicrosoftAuth(
-        string scheme = MicrosoftAccountDefaults.AuthenticationScheme,
-        Action<MicrosoftAccountOptions>? configure = null)
-    {
-        if (!ProviderFlags.MicrosoftEnabled)
-        {
-            return this;
-        }
-
-        Services.AddOptions<MicrosoftAccountOptions>().Configure<IOptions<ExternalProviderOptions>>((options, providerOptions) =>
-        {
-            var microsoft = providerOptions.Value.Microsoft;
-            options.ClientId = microsoft.ClientId;
-            options.ClientSecret = microsoft.ClientSecret;
-            if (!string.IsNullOrWhiteSpace(microsoft.CallbackPath))
-            {
-                options.CallbackPath = microsoft.CallbackPath;
-            }
-
-            options.Scope.Clear();
-            if (microsoft.Scopes.Count > 0)
-            {
-                foreach (var scope in microsoft.Scopes)
-                {
-                    if (!string.IsNullOrWhiteSpace(scope))
-                    {
-                        options.Scope.Add(scope);
-                    }
-                }
-            }
-        });
-
-        AuthenticationBuilder.AddMicrosoftAccount(scheme, options =>
-        {
-            options.SignInScheme = IdentityConstants.ExternalScheme;
-            options.SaveTokens = true;
-            configure?.Invoke(options);
-        });
-
-        return this;
-    }
-
-    public IdentityBaseBuilder AddAppleAuth(
-        string scheme = ExternalAuthenticationConstants.AppleScheme,
-        Action<OpenIdConnectOptions>? configure = null)
-    {
-        if (!ProviderFlags.AppleEnabled)
-        {
-            return this;
-        }
-
-        Services.AddOptions<OpenIdConnectOptions>(scheme)
-            .Configure<IOptions<ExternalProviderOptions>>((options, providerOptions) =>
-            {
-                var apple = providerOptions.Value.Apple;
-                options.ClientId = apple.ClientId;
-                if (!string.IsNullOrWhiteSpace(apple.ClientSecret))
-                {
-                    options.ClientSecret = apple.ClientSecret;
-                }
-
-                if (!string.IsNullOrWhiteSpace(apple.CallbackPath))
-                {
-                    options.CallbackPath = apple.CallbackPath;
-                }
-
-                options.Scope.Clear();
-                if (apple.Scopes.Count > 0)
-                {
-                    foreach (var scope in apple.Scopes)
-                    {
-                        if (!string.IsNullOrWhiteSpace(scope))
-                        {
-                            options.Scope.Add(scope);
-                        }
-                    }
-                }
-            });
-
-        AuthenticationBuilder.AddOpenIdConnect(scheme, options =>
-        {
-            options.SignInScheme = IdentityConstants.ExternalScheme;
-            options.SaveTokens = true;
-            options.UsePkce = true;
-            options.Authority = "https://appleid.apple.com";
-            options.ResponseType = OpenIdConnectResponseType.Code;
-            options.ResponseMode = OpenIdConnectResponseMode.FormPost;
-            options.CallbackPath = "/signin-apple";
-            options.Scope.Clear();
-            configure?.Invoke(options);
-        });
-
-        return this;
-    }
+    public IdentityBaseBuilder AddExternalAuthProvider(
+        string provider,
+        Func<AuthenticationBuilder, AuthenticationBuilder> addScheme,
+        Action<IServiceCollection>? configureServices = null)
+        => AddExternalAuthProvider(provider, provider, addScheme, configureServices);
 
     public IdentityBaseBuilder AddExternalAuthProvider(
+        string provider,
         string scheme,
         Func<AuthenticationBuilder, AuthenticationBuilder> addScheme,
         Action<IServiceCollection>? configureServices = null)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(provider);
         ArgumentException.ThrowIfNullOrWhiteSpace(scheme);
         ArgumentNullException.ThrowIfNull(addScheme);
 
         configureServices?.Invoke(Services);
+        _externalProviderRegistry.Register(provider, scheme);
         AuthenticationBuilder = addScheme(AuthenticationBuilder);
         return this;
     }
@@ -383,19 +230,6 @@ public sealed class IdentityBaseBuilder
         {
             action(Services, Configuration);
         }
-    }
-
-
-    private ExternalProviderFlags ConfigureOptions()
-    {
-        ApplyConfigurationOverrides();
-
-        var externalProvidersSection = Configuration.GetSection(ExternalProviderOptions.SectionName);
-        var googleEnabled = externalProvidersSection.GetSection(nameof(ExternalProviderOptions.Google)).GetValue<bool?>(nameof(OAuthProviderOptions.Enabled)) ?? false;
-        var microsoftEnabled = externalProvidersSection.GetSection(nameof(ExternalProviderOptions.Microsoft)).GetValue<bool?>(nameof(OAuthProviderOptions.Enabled)) ?? false;
-        var appleEnabled = externalProvidersSection.GetSection(nameof(ExternalProviderOptions.Apple)).GetValue<bool?>(nameof(OAuthProviderOptions.Enabled)) ?? false;
-
-        return new ExternalProviderFlags(googleEnabled, microsoftEnabled, appleEnabled);
     }
 
     private void ConfigureDatabase()
@@ -615,8 +449,7 @@ public sealed class IdentityBaseBuilder
     {
         Services
             .AddHealthChecks()
-            .AddDbContextCheck<AppDbContext>("database")
-            .AddCheck<ExternalProvidersHealthCheck>("externalProviders");
+            .AddDbContextCheck<AppDbContext>("database");
     }
 
     private void AttachModelCustomization(DbContextOptionsBuilder options)
@@ -638,11 +471,6 @@ public sealed class IdentityBaseBuilder
                 $"No DbContext registration found for {typeof(TContext).Name}. " +
                 $"Register it before calling {registrationSource} or pass a configureDbContext delegate.");
         }
-    }
-
-    internal readonly record struct ExternalProviderFlags(bool GoogleEnabled, bool MicrosoftEnabled, bool AppleEnabled)
-    {
-        public static readonly ExternalProviderFlags None = new(false, false, false);
     }
 
     private static class DefaultOptionsConfigurator
@@ -668,12 +496,6 @@ public sealed class IdentityBaseBuilder
                 .ValidateOnStart();
 
             services
-                .AddOptions<ExternalProviderOptions>()
-                .BindConfiguration(ExternalProviderOptions.SectionName)
-                .ValidateDataAnnotations()
-                .ValidateOnStart();
-
-            services
                 .AddOptions<OpenIddictOptions>()
                 .BindConfiguration(OpenIddictOptions.SectionName)
                 .ValidateDataAnnotations();
@@ -690,7 +512,6 @@ public sealed class IdentityBaseBuilder
 
             services.AddSingleton<IValidateOptions<RegistrationOptions>, RegistrationOptionsValidator>();
             services.AddSingleton<IValidateOptions<MfaOptions>, MfaOptionsValidator>();
-            services.AddSingleton<IValidateOptions<ExternalProviderOptions>, ExternalProviderOptionsValidator>();
             services.AddSingleton<IValidateOptions<OpenIddictOptions>, OpenIddictOptionsValidator>();
             services.AddSingleton<IValidateOptions<OpenIddictServerKeyOptions>, OpenIddictServerKeyOptionsValidator>();
             services.AddSingleton<IValidateOptions<CorsSettings>, CorsSettingsValidator>();

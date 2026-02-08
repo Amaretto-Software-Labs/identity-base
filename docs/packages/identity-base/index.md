@@ -35,7 +35,8 @@ var identity = builder.Services.AddIdentityBase(
 
 identity
     .UseTablePrefix("Contoso") // optional: set table prefix (defaults to Identity_)
-    .AddConfiguredExternalProviders() // auto-configure providers enabled in config
+    .AddExternalAuthProvider("github", "GitHub", auth =>
+        auth.AddOAuth("GitHub", options => { /* ... */ }))
     .UseTemplatedEmailSender<CustomEmailSender>(); // optional overrides
 
 var app = builder.Build();
@@ -84,7 +85,6 @@ Options are bound automatically from `IConfiguration`. The sections below are th
 | `IdentitySeed` (`IdentitySeedOptions`) | `Enabled`, `Email`, `Password`, `Roles` | Disabled | When enabled, creates/updates a bootstrap admin user during startup and assigns the listed roles. |
 | `Registration` (`RegistrationOptions`) | `ConfirmationUrlTemplate`, `PasswordResetUrlTemplate`, `ProfileFields` | Empty | Controls email templates and which metadata fields are collected and validated during registration. |
 | `Mfa` (`MfaOptions`) | `Issuer`, `Email.Enabled`, `Sms.Enabled`, `Sms.AccountSid`, `Sms.AuthToken`, `Sms.FromPhoneNumber` | Email enabled, SMS disabled | SMS validation requires Twilio credentials. Tokens are issued with the configured `Issuer`. |
-| `ExternalProviders` (`ExternalProviderOptions`) | Provider `Enabled` flag, `ClientId`, `ClientSecret`, `CallbackPath`, `Scopes` | Providers disabled | `identity.AddConfiguredExternalProviders()` registers any providers marked as enabled here (Google, Microsoft, Apple). |
 | `OpenIddict` (`OpenIddictOptions`) | `Applications`, `Scopes`, token lifetimes | SPA (`spa-client`) and confidential (`test-client`) seeded | Configure additional client ids/redirect URIs or adjust lifetimes. |
 | `OpenIddict:ServerKeys` (`OpenIddictServerKeyOptions`) | Signing/encryption key descriptors | Runtime-generated | Override to use persisted keys or external key stores. |
 | `Cors` (`CorsSettings`) | `AllowedOrigins`, `AllowCredentials` | Empty | `UseApiPipeline` consumes this to create the default CORS policy for Minimal APIs. |
@@ -123,13 +123,13 @@ identity.AfterIdentitySeed(async (sp, ct) =>
 | Authentication | `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/profile-schema` | `/auth/register` → `202 Accepted` with `{ correlationId }` once the confirmation email is queued. `/auth/login` → `200 OK` with `{ message, clientId }`, or `{ requiresTwoFactor: true, methods: [...] }` when MFA is required. `/auth/logout` clears the Identity cookie. `/auth/profile-schema` returns the configured registration fields. |
 | MFA | `/auth/mfa/enroll`, `/auth/mfa/verify`, `/auth/mfa/challenge`, `/auth/mfa/disable`, `/auth/mfa/recovery-codes` | Enrollment returns the shared key + otpauth URI. Verify accepts authenticator/email/SMS/recovery codes, subject to `MfaOptions`. Challenge dispatches an email/SMS challenge when that channel is enabled. Recovery codes returns a fresh array of codes. |
 | Email workflows | `/auth/confirm-email`, `/auth/resend-confirmation`, `/auth/forgot-password`, `/auth/reset-password` | Tokens (`token`, `userId`) are Base64URL encoded. Resend confirmation is idempotent and returns `202 Accepted` even for unknown email addresses. Forgot password returns `202 Accepted`; reset returns `200 OK` on success. |
-| External providers | `/auth/external/{provider}/challenge`, `/auth/external/{provider}/callback`, `/auth/external/link` | Supported providers: Google, Microsoft, Apple. `IExternalReturnUrlValidator` guards against open redirects; override for custom whitelists. |
+| External providers | `/auth/external/{provider}/start`, `/auth/external/{provider}/callback`, `DELETE /auth/external/{provider}` | Provider-agnostic. Hosts register any OAuth/OIDC scheme(s) and map route keys via `AddExternalAuthProvider(...)`. `IExternalReturnUrlValidator` guards against open redirects; override for custom whitelists. |
 | User profile | `/users/me`, `/users/me/profile`, `/users/me/change-password` | Supports **cookie or Bearer** authentication. Same-origin apps can rely on the application cookie; cross-origin SPAs should use the PKCE flow (`/connect/authorize` + `/connect/token`) and call these endpoints with `Authorization: Bearer <access_token>`. Profile updates validate the `concurrencyStamp` and use `IAuditLogger` to record changes. |
 | Health | `/healthz` | Returns `{ "status": "Healthy", "checks": [{ "name": "database", "status": "Healthy", ... }] }`. Additional checks from add-ons appear in the `checks` array. |
 | OpenIddict | `/connect/authorize`, `/connect/token`, `/connect/logout`, `/connect/userinfo` | Standard OpenIddict endpoints used by the SPA PKCE flow. |
 
 ### Builders, Services, and Types
-- `IdentityBaseBuilder` fluent helpers: `ConfigureAppDbContextModel`, `ConfigureIdentityRolesModel`, `UseTemplatedEmailSender`, `AfterRoleSeeding`, `AfterIdentitySeed`, `AddConfiguredExternalProviders`, individual provider helpers (`AddGoogleAuth`, `AddMicrosoftAuth`, `AddAppleAuth`).
+- `IdentityBaseBuilder` fluent helpers: `ConfigureAppDbContextModel`, `ConfigureIdentityRolesModel`, `UseTemplatedEmailSender`, `AfterRoleSeeding`, `AfterIdentitySeed`, `AddExternalAuthProvider`.
 - EF Core artefacts: `AppDbContext`, `ApplicationUser`, and fluent configuration hooks to extend the model.
 - Core services: `IAccountEmailService` (confirmation/reset emails), `IMfaChallengeSender`, `IAuditLogger`, `ILogSanitizer`, `IExternalReturnUrlValidator`, `IExternalCallbackUriFactory`.
 - Extension methods: `services.AddIdentityBase`, `app.UseApiPipeline`, `endpoints.MapApiEndpoints`.
@@ -139,7 +139,7 @@ identity.AfterIdentitySeed(async (sp, ct) =>
 - **Email delivery** – swap `ITemplatedEmailSender` (e.g., install `Identity.Base.Email.MailJet`, `Identity.Base.Email.SendGrid`, or implement your own).
 - **MFA channels** – register custom `IMfaChallengeSender` implementations; the default supports authenticator apps plus email/SMS (when enabled in configuration).
 - **Audit logging & sanitisation** – override `IAuditLogger` and `ILogSanitizer` to integrate with your logging stack or redact additional fields.
-- **External provider plumbing** – enable providers via configuration and call `identity.AddConfiguredExternalProviders()` or customise each via `AddGoogleAuth`/`AddMicrosoftAuth`/`AddAppleAuth`.
+- **External provider plumbing** – register provider schemes in the host and map route keys with `AddExternalAuthProvider`.
 - **Seeding callbacks** – use `AfterRoleSeeding` and `AfterIdentitySeed` to run arbitrary provisioning steps once the core seeds finish.
 - **EF Core model customisation** – `ConfigureAppDbContextModel` and `ConfigureIdentityRolesModel` let you add indexes/shadow properties without forking the package.
 - **User & organization lifecycle hooks** – implement `IUserLifecycleListener` / `IOrganizationLifecycleListener` (or add them via `IdentityBaseBuilder.AddUserLifecycleListener<T>()` / `IdentityBaseOrganizationsBuilder.AddOrganizationLifecycleListener<T>()`) to observe/veto registration, confirmation, password resets, MFA enable/disable, admin actions, org creation/update/archive, invitation acceptance, membership changes, etc. Legacy listeners (`IUserCreationListener`, `IOrganizationCreationListener`, etc.) still function through compatibility shims.

@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+- Breaking: removed built-in external provider registration helpers from `Identity.Base` (`AddConfiguredExternalProviders()`, `AddGoogleAuth(...)`, `AddMicrosoftAuth(...)`, `AddAppleAuth(...)`).
+- External authentication is now host-driven and provider-agnostic: hosts must register schemes and map route keys with `AddExternalAuthProvider(provider, scheme, ...)`.
+- External provider resolution now enforces explicit allowlisting via registered provider mappings; unregistered `/auth/external/{provider}` keys return `400 Unknown external provider`.
+- Removed the core `externalProviders` health check registration and removed `ExternalProviders` appsettings binding from the default `AddIdentityBase` option wiring.
+- Updated host/sample wiring and docs to reflect the new model, and added migration guidance in `docs/guides/migration-external-provider-registration.md`.
+
 ## [0.7.18] - 2026-01-25
 - OpenIddict seeding is now strictly configuration-driven (no implicit permissions or requirements). Scope permissions accept `scope:` and `scopes:` prefixes and are normalized to `scp:`.
 

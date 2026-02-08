@@ -58,6 +58,8 @@ identity.UseTablePrefix("Contoso");   // optional: override the default Identity
 // Optional: enable email delivery if an add-on package is installed (choose one)
 identity.UseMailJetEmailSender();
 // identity.UseSendGridEmailSender();
+// Optional: register external providers in the host (example)
+// identity.AddExternalAuthProvider("github", "GitHub", auth => auth.AddOAuth("GitHub", options => { ... }));
 
 var app = builder.Build();
 
@@ -126,11 +128,6 @@ Add an `appsettings.json` (or edit the existing file) with at least the followin
       "AuthToken": "twilio-auth-token"
     }
   },
-  "ExternalProviders": {
-    "Google": { "Enabled": false },
-    "Microsoft": { "Enabled": false },
-    "Apple": { "Enabled": false }
-  },
   "OpenIddict": {
     "ServerKeys": { "Provider": "Development" },
     "Applications": [
@@ -183,7 +180,8 @@ Key sections:
 - `IdentitySeed` – optionally bootstrap an admin user.
 - `Registration` – confirmation and password reset URLs must include `{token}` **and** `{userId}` placeholders.
 - `MailJet` / `SendGrid` (optional) – configure only when the corresponding package is referenced. Leave `Enabled` as `false` to skip sends.
-- `Mfa`, `ExternalProviders` – supply credentials/enabled flags as needed.
+- `Mfa` – configure additional factors as needed.
+- External providers are host-registered (for example `AddExternalAuthProvider("github", "GitHub", ...)`) rather than bound from `appsettings`.
 - `OpenIddict` – register clients, scopes, and key management strategy.
 
 ### 2.3.1 Default OAuth scopes (and how to add them)

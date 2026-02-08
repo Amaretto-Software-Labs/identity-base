@@ -279,12 +279,8 @@ export default function ProfilePage() {
   )
 }
 
-type ExternalProviderKey = 'google' | 'microsoft' | 'apple'
-
-function providersList(): ExternalProviderKey[] {
-  return (['google', 'microsoft', 'apple'] as const).filter(
-    (provider): provider is ExternalProviderKey => CONFIG.externalProviders[provider],
-  )
+function providersList(): string[] {
+  return CONFIG.externalProviders
 }
 
 function renderError(error: unknown) {

@@ -6,6 +6,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Shouldly;
 using Identity.Base.Data;
+using Identity.Base.Features.Authentication.External;
 using Identity.Base.Features.Authentication.Mfa;
 using Identity.Base.Features.Email;
 using Identity.Base.Email.MailJet;
@@ -57,7 +58,6 @@ public class HealthzEndpointTests : IClassFixture<IdentityApiFactory>
 
         var checks = payload.RootElement.GetProperty("checks").EnumerateArray().Select(element => element.GetProperty("name").GetString()).ToList();
         checks.ShouldContain("database");
-        checks.ShouldContain("externalProviders");
     }
 }
 
@@ -141,20 +141,18 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                 options.Sms.FromPhoneNumber = "+15005550006";
             });
 
-            services.PostConfigure<ExternalProviderOptions>(options =>
-            {
-                options.Google.Enabled = true;
-                options.Google.ClientId = "test";
-                options.Google.ClientSecret = "secret";
-                options.Google.CallbackPath = "/signin-google";
-                options.Google.Scopes.Clear();
-                options.Google.Scopes.Add("openid");
-                options.Google.Scopes.Add("profile");
-                options.Google.Scopes.Add("email");
-            });
-
             services.AddAuthentication()
-                .AddScheme<AuthenticationSchemeOptions, FakeExternalAuthenticationHandler>(GoogleDefaults.AuthenticationScheme, _ => { });
+                .AddScheme<AuthenticationSchemeOptions, FakeExternalAuthenticationHandler>(GoogleDefaults.AuthenticationScheme, _ => { })
+                .AddScheme<AuthenticationSchemeOptions, FakeExternalAuthenticationHandler>("GitHub", _ => { });
+
+            services.RemoveAll<IExternalAuthenticationProviderRegistry>();
+            services.AddSingleton<IExternalAuthenticationProviderRegistry>(_ =>
+            {
+                var registry = new ExternalAuthenticationProviderRegistry();
+                registry.Register("google", GoogleDefaults.AuthenticationScheme);
+                registry.Register("github", "GitHub");
+                return registry;
+            });
 
             services.PostConfigure<CorsSettings>(options =>
             {

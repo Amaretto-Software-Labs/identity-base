@@ -13,7 +13,6 @@ The NuGet package exposes a small set of entry points intended for host composit
 These remain `public` so consumers can author custom `IConfigureOptions<>` implementations or validate configuration:
 - `RegistrationOptions` / `RegistrationProfileFieldOptions`
 - `MfaOptions` / `EmailChallengeOptions` / `SmsChallengeOptions`
-- `ExternalProviderOptions` / provider-specific option records
 - `OpenIddictOptions`, `OpenIddictApplicationOptions`, `OpenIddictScopeOptions`
 - `OpenIddictServerKeyOptions` plus nested descriptors
 - `CorsSettings`
@@ -44,6 +43,7 @@ The library keeps concrete implementations (`TwilioMfaChallengeSender`, `AuditLo
 - `IdentityBaseBuilder.Services` and `.Configuration` (introduced to support optional add-ons such as Mailjet).
 
 ### Builder helpers
+- `IdentityBaseBuilder.AddExternalAuthProvider(...)`
 - `IdentityBaseBuilder.AddUserLifecycleListener<TListener>()`
 - `IdentityBaseBuilder.AddNotificationContextAugmentor<TContext, TAugmentor>()`
 - `IdentityBaseOrganizationsBuilder.AddOrganizationLifecycleListener<TListener>()`

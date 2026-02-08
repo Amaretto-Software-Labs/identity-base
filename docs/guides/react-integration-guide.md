@@ -80,10 +80,10 @@ Repeat for any additional contexts you enabled (e.g., `IdentityRolesDbContext`, 
    VITE_CLIENT_ID=spa-client
    VITE_AUTHORIZE_REDIRECT=http://localhost:5173/auth/callback
    VITE_AUTHORIZE_SCOPE="openid profile email offline_access identity.api"
-   VITE_EXTERNAL_GOOGLE_ENABLED=false
-   VITE_EXTERNAL_MICROSOFT_ENABLED=false
-   VITE_EXTERNAL_APPLE_ENABLED=false
+   VITE_EXTERNAL_PROVIDERS=
    ```
+
+   `VITE_EXTERNAL_PROVIDERS` is a comma-separated list of `/auth/external/{provider}` route keys exposed by your identity host (for example `github,google`).
 
 Adjust the base URL and client ID to match your Identity Base host configuration.
 

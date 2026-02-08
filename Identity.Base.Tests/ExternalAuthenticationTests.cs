@@ -58,6 +58,40 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
     }
 
     [Fact]
+    public async Task ExternalLogin_CreatesUser_ForCustomRegisteredProvider()
+    {
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        client.BaseAddress = new Uri("https://localhost");
+
+        var startResponse = await client.GetAsync("/auth/external/github/start?returnUrl=/client/callback&email=github-new@example.com&name=Github%20User");
+        startResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        var callbackLocation = startResponse.Headers.Location;
+        callbackLocation.ShouldNotBeNull();
+
+        var callbackResponse = await client.GetAsync(callbackLocation);
+        callbackResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        var finalLocation = callbackResponse.Headers.Location;
+        finalLocation.ShouldNotBeNull();
+
+        var uri = new Uri(client.BaseAddress!, finalLocation!);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+        query["status"].ToString().ShouldBe("success");
+        query["requiresTwoFactor"].ToString().ShouldBe("false");
+
+        using var scope = _factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await userManager.FindByEmailAsync("github-new@example.com");
+        user.ShouldNotBeNull();
+        var logins = await userManager.GetLoginsAsync(user!);
+        logins.ShouldContain(login => string.Equals(login.LoginProvider, "GitHub", StringComparison.OrdinalIgnoreCase));
+        logins.Count(login => string.Equals(login.LoginProvider, "GitHub", StringComparison.OrdinalIgnoreCase)).ShouldBe(1);
+    }
+
+    [Fact]
     public async Task ExternalLogin_StartAllowsConfiguredAbsoluteReturnUrl()
     {
         using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -95,6 +129,20 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
         location.ShouldNotBeNull();
         location!.Host.ShouldBe("localhost");
         location.Scheme.ShouldBe("https");
+    }
+
+    [Fact]
+    public async Task ExternalLogin_StartRejectsUnregisteredProvider()
+    {
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        client.BaseAddress = new Uri("https://localhost");
+
+        var response = await client.GetAsync("/auth/external/Identity.External/start?returnUrl=/client/callback");
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Theory]

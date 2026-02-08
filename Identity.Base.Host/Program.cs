@@ -70,9 +70,6 @@ var identityBuilder = builder.Services.AddIdentityBase(
 // Table prefix is configured globally via ConfigureHostTablePrefix() above
 
 identityBuilder
-    .AddGoogleAuth()
-    .AddMicrosoftAuth()
-    .AddAppleAuth()
     .UseMailJetEmailSender();
 
 builder.Services.AddIdentityAdmin(builder.Configuration, configureRolesDbContext);
