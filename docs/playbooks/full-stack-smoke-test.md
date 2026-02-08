@@ -50,7 +50,7 @@ curl -s http://localhost:8080/healthz | jq -r '.status'
 ```
 Expect: Healthy
 
-Command: Health check details (database, externalProviders, mailjet if enabled)
+Command: Health check details (database, mailjet if enabled)
 ```bash
 curl -s http://localhost:8080/healthz | jq '[.checks[] | {name, status}]'
 ```

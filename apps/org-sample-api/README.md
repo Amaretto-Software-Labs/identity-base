@@ -15,7 +15,7 @@ dotnet restore
 dotnet run --project apps/org-sample-api/OrgSampleApi.csproj
 ```
 
-The sample expects PostgreSQL. Every subsystem (core identity, roles, organizations, invitations) shares the `ConnectionStrings:Primary` database. On startup the app calls `EnsureCreated` for the invitation schema; run the Identity Base migrations separately if the target database is fresh.
+The sample expects PostgreSQL. Every subsystem (core identity, roles, organizations, invitations) shares the `ConnectionStrings:Primary` database. On startup the app applies the host-owned EF Core migrations for all contexts before seeding roles.
 
 ### Registration Payload
 Use the existing Identity Base endpoint:

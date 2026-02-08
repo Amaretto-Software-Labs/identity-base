@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Identity.Base.Identity;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Domain;
@@ -16,6 +11,10 @@ namespace Identity.Base.Organizations.Services;
 
 public sealed class OrganizationRoleSeeder
 {
+    private static readonly Guid GlobalRoleAnchorTenantId = new("11111111-1111-1111-1111-111111111111");
+    private const string GlobalRoleAnchorSlug = "__identity-base-global-role-anchor__";
+    private const string GlobalRoleAnchorDisplayName = "Identity Base Global Role Anchor";
+
     private readonly OrganizationDbContext _dbContext;
     private readonly IRoleDbContext? _roleDbContext;
     private readonly OrganizationRoleOptions _options;
@@ -50,10 +49,16 @@ public sealed class OrganizationRoleSeeder
             .ToList();
 
         var now = DateTimeOffset.UtcNow;
+        var anchorCreated = false;
         var createdCount = 0;
         var updatedCount = 0;
         var permissionsAdded = 0;
         var permissionsRemoved = 0;
+
+        if (definitions.Count > 0)
+        {
+            anchorCreated = await EnsureGlobalRoleAnchorOrganizationAsync(now, cancellationToken).ConfigureAwait(false);
+        }
 
         foreach (var definition in definitions)
         {
@@ -66,11 +71,12 @@ public sealed class OrganizationRoleSeeder
             permissionsRemoved += permissionResult.Removed;
         }
 
-        if (createdCount > 0 || updatedCount > 0 || permissionsAdded > 0 || permissionsRemoved > 0)
+        if (anchorCreated || createdCount > 0 || updatedCount > 0 || permissionsAdded > 0 || permissionsRemoved > 0)
         {
             await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             _logger?.LogInformation(
-                "Seeded organization roles. Created: {Created}, Updated: {Updated}, Permissions Added: {Added}, Permissions Removed: {Removed}",
+                "Seeded organization roles. Anchor Created: {AnchorCreated}, Created: {Created}, Updated: {Updated}, Permissions Added: {Added}, Permissions Removed: {Removed}",
+                anchorCreated,
                 createdCount,
                 updatedCount,
                 permissionsAdded,
@@ -105,6 +111,31 @@ public sealed class OrganizationRoleSeeder
         return normalized;
     }
 
+    private async Task<bool> EnsureGlobalRoleAnchorOrganizationAsync(DateTimeOffset timestamp, CancellationToken cancellationToken)
+    {
+        var anchorExists = await _dbContext.Organizations
+            .AnyAsync(organization => organization.Id == Guid.Empty, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (anchorExists)
+        {
+            return false;
+        }
+
+        _dbContext.Organizations.Add(new Organization
+        {
+            Id = Guid.Empty,
+            TenantId = GlobalRoleAnchorTenantId,
+            Slug = GlobalRoleAnchorSlug,
+            DisplayName = GlobalRoleAnchorDisplayName,
+            Status = OrganizationStatus.Archived,
+            Metadata = OrganizationMetadata.Empty,
+            CreatedAtUtc = timestamp
+        });
+
+        return true;
+    }
+
     private async Task<RoleSeedResult> EnsureRoleAsync(
         OrganizationRoleDefinitionOptions definition,
         DateTimeOffset timestamp,
@@ -132,6 +163,8 @@ public sealed class OrganizationRoleSeeder
             role = new OrganizationRole
             {
                 Id = Guid.NewGuid(),
+                OrganizationId = Guid.Empty,
+                TenantId = Guid.Empty,
                 Name = definition.Name,
                 Description = definition.Description,
                 IsSystemRole = definition.IsSystemRole,

@@ -6,7 +6,7 @@ This guide describes how to exercise Identity Base end-to-end using the sample R
 - Identity Base API running locally (for example via `docker-compose.local.yml`).
 - Node.js 20+ and npm 10+.
 - MailJet or SendGrid credentials (or placeholder values for local testing).
-- Optional: configured social provider credentials (Google, Microsoft, Apple).
+- Optional: configured external provider credentials for any OAuth/OIDC scheme you register in the host.
 
 ## 2. Start the API Stack
 Follow the [Docker guide](./docker.md) to bring up PostgreSQL, MailHog, and the API:
@@ -15,7 +15,7 @@ Follow the [Docker guide](./docker.md) to bring up PostgreSQL, MailHog, and the 
 docker compose -f docker-compose.local.yml --env-file .env up --build
 ```
 
-Verify the API is reachable at `http://localhost:8080` and that `/healthz` reports `Healthy` for the `database`, `mailjet`, and `externalProviders` checks.
+Verify the API is reachable at `http://localhost:8080` and that `/healthz` reports `Healthy` for required checks such as `database` and `mailjet`.
 
 ## 3. Configure the Harness
 From the repository root:
@@ -34,7 +34,7 @@ Update `.env` with values that match your API deployment:
 | `VITE_CLIENT_ID` | Client ID used for login and PKCE (defaults to `spa-client`). |
 | `VITE_AUTHORIZE_REDIRECT` | Redirect URI registered with Identity Base (`http://localhost:5174/auth/callback` by default). |
 | `VITE_AUTHORIZE_SCOPE` | Space-delimited scopes requested during authorization (default includes `identity.api`). |
-| `VITE_EXTERNAL_*` | Set to `true` to enable the corresponding external provider buttons. |
+| `VITE_EXTERNAL_PROVIDERS` | Comma-separated `/auth/external/{provider}` route keys exposed by your host (for example `github,google`). |
 
 ## 4. Install Dependencies & Run Dev Server
 
@@ -63,7 +63,7 @@ After completing consent, the callback page stores the authorization code and le
 
 ## 7. Tips & Troubleshooting
 - Ensure your SPA origin is listed in `Cors:AllowedOrigins`. Browser calls to `/auth/*` are rejected with `403` if the `Origin` is not allowed. Session cookies are SameSite=Lax and only keep the session on the Identity host; SPAs should use access tokens for API calls.
-- When testing external providers, configure the same redirect URL in the provider console and set the `VITE_EXTERNAL_*` flag to `true`.
+- When testing external providers, register each scheme in the host with `AddExternalAuthProvider(provider, scheme, ...)` and set matching keys in `VITE_EXTERNAL_PROVIDERS`.
 - Use MailHog (`http://localhost:8025`) to verify confirmation and MFA emails if real MailJet/SendGrid credentials are not configured.
 - Clear PKCE values via the “Clear stored PKCE verifier” button if you restart flows mid-way.
 

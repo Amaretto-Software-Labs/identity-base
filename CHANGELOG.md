@@ -6,6 +6,7 @@
 - External provider resolution now enforces explicit allowlisting via registered provider mappings; unregistered `/auth/external/{provider}` keys return `400 Unknown external provider`.
 - Removed the core `externalProviders` health check registration and removed `ExternalProviders` appsettings binding from the default `AddIdentityBase` option wiring.
 - Updated host/sample wiring and docs to reflect the new model, and added migration guidance in `docs/guides/migration-external-provider-registration.md`.
+- Fixed organization-role seeding on relational databases by creating a system anchor organization for `OrganizationId = Guid.Empty` before default global roles are inserted (prevents FK violations in hosts such as `apps/org-sample-api`).
 
 ## [0.7.18] - 2026-01-25
 - OpenIddict seeding is now strictly configuration-driven (no implicit permissions or requirements). Scope permissions accept `scope:` and `scopes:` prefixes and are normalized to `scp:`.
