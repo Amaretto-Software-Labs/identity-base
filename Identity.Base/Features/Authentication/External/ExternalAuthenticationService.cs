@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
+using OpenIddict.Abstractions;
 
 namespace Identity.Base.Features.Authentication.External;
 
@@ -175,7 +176,7 @@ internal sealed class ExternalAuthenticationService
             return Results.Problem($"Unknown external provider '{provider}'.", statusCode: StatusCodes.Status400BadRequest);
         }
 
-        var user = await _userManager.GetUserAsync(httpContext.User);
+        var user = await ResolveCurrentUserAsync(httpContext.User);
         if (user is null)
         {
             return Results.Unauthorized();
@@ -197,6 +198,25 @@ internal sealed class ExternalAuthenticationService
         await _signInManager.RefreshSignInAsync(user);
         await _auditLogger.LogAsync(AuditEventTypes.ExternalUnlinked, user.Id, new { Provider = login.LoginProvider }, cancellationToken);
         return Results.Ok(new { message = $"Provider '{provider}' unlinked." });
+    }
+
+    private async Task<ApplicationUser?> ResolveCurrentUserAsync(ClaimsPrincipal principal)
+    {
+        var user = await _userManager.GetUserAsync(principal);
+        if (user is not null)
+        {
+            return user;
+        }
+
+        var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? principal.FindFirstValue(OpenIddictConstants.Claims.Subject);
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return null;
+        }
+
+        return await _userManager.FindByIdAsync(userId);
     }
 
     private async Task<IResult> HandleLinkAsync(HttpContext httpContext, ApplicationUser? currentUser, ExternalLoginInfo info, string? returnUrl, CancellationToken cancellationToken)

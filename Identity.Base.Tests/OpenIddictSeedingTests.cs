@@ -99,4 +99,43 @@ public class OpenIddictSeedingTests : IClassFixture<IdentityApiFactory>
         var requirements = await applicationManager.GetRequirementsAsync(application!);
         requirements.ShouldNotContain(OpenIddictConstants.Requirements.Features.ProofKeyForCodeExchange);
     }
+
+    [Fact]
+    public async Task OpenIddictSeeder_NormalizesLegacyPermissionAndRequirementPrefixes()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var applicationManager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
+
+        var application = await applicationManager.FindByClientIdAsync("legacy-prefix-client");
+        application.ShouldNotBeNull();
+
+        var permissions = await applicationManager.GetPermissionsAsync(application!);
+        permissions.ShouldContain(OpenIddictConstants.Permissions.Endpoints.Authorization);
+        permissions.ShouldContain(OpenIddictConstants.Permissions.Endpoints.Token);
+        permissions.ShouldContain(OpenIddictConstants.Permissions.Prefixes.Endpoint + "userinfo");
+        permissions.ShouldContain(OpenIddictConstants.Permissions.GrantTypes.AuthorizationCode);
+        permissions.ShouldContain(OpenIddictConstants.Permissions.GrantTypes.RefreshToken);
+        permissions.ShouldContain(OpenIddictConstants.Permissions.ResponseTypes.Code);
+        permissions.ShouldContain(OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.OpenId);
+        permissions.ShouldContain(OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Profile);
+        permissions.ShouldContain(OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.Email);
+        permissions.ShouldContain(OpenIddictConstants.Permissions.Prefixes.Scope + OpenIddictConstants.Scopes.OfflineAccess);
+        permissions.ShouldContain(OpenIddictConstants.Permissions.Prefixes.Scope + "identity.api");
+
+        permissions.ShouldNotContain("endpoints:authorization");
+        permissions.ShouldNotContain("endpoints:token");
+        permissions.ShouldNotContain("endpoints:userinfo");
+        permissions.ShouldNotContain("grant_types:authorization_code");
+        permissions.ShouldNotContain("grant_types:refresh_token");
+        permissions.ShouldNotContain("response_types:code");
+        permissions.ShouldNotContain("scopes:openid");
+        permissions.ShouldNotContain("scopes:profile");
+        permissions.ShouldNotContain("scopes:email");
+        permissions.ShouldNotContain("scopes:offline_access");
+        permissions.ShouldNotContain("scopes:identity.api");
+
+        var requirements = await applicationManager.GetRequirementsAsync(application!);
+        requirements.ShouldContain(OpenIddictConstants.Requirements.Features.ProofKeyForCodeExchange);
+        requirements.ShouldNotContain("requirements:pkce");
+    }
 }

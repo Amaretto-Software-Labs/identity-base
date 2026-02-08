@@ -58,7 +58,11 @@ internal sealed class OpenIddictSeeder(
 
             foreach (var requirement in application.Requirements)
             {
-                descriptor.Requirements.Add(requirement);
+                var normalized = NormalizeRequirement(requirement);
+                if (!string.IsNullOrWhiteSpace(normalized))
+                {
+                    descriptor.Requirements.Add(normalized);
+                }
             }
 
             var existing = await applicationManager.FindByClientIdAsync(application.ClientId, cancellationToken);
@@ -105,6 +109,111 @@ internal sealed class OpenIddictSeeder(
             return trimmed;
         }
 
+        if (trimmed.StartsWith(OpenIddictConstants.Permissions.Prefixes.Endpoint, StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmed;
+        }
+
+        if (trimmed.StartsWith(OpenIddictConstants.Permissions.Prefixes.GrantType, StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmed;
+        }
+
+        if (trimmed.StartsWith(OpenIddictConstants.Permissions.Prefixes.ResponseType, StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmed;
+        }
+
+        if (trimmed.StartsWith(OpenIddictConstants.Permissions.Prefixes.Resource, StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmed;
+        }
+
+        if (trimmed.StartsWith(OpenIddictConstants.Permissions.Prefixes.Audience, StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmed;
+        }
+
+        if (trimmed.StartsWith("endpoints:", StringComparison.OrdinalIgnoreCase))
+        {
+            var remainder = trimmed["endpoints:".Length..].Trim();
+            return string.IsNullOrWhiteSpace(remainder)
+                ? string.Empty
+                : OpenIddictConstants.Permissions.Prefixes.Endpoint + remainder;
+        }
+
+        if (trimmed.StartsWith("endpoint:", StringComparison.OrdinalIgnoreCase))
+        {
+            var remainder = trimmed["endpoint:".Length..].Trim();
+            return string.IsNullOrWhiteSpace(remainder)
+                ? string.Empty
+                : OpenIddictConstants.Permissions.Prefixes.Endpoint + remainder;
+        }
+
+        if (trimmed.StartsWith("grant_types:", StringComparison.OrdinalIgnoreCase))
+        {
+            var remainder = trimmed["grant_types:".Length..].Trim();
+            return string.IsNullOrWhiteSpace(remainder)
+                ? string.Empty
+                : OpenIddictConstants.Permissions.Prefixes.GrantType + remainder;
+        }
+
+        if (trimmed.StartsWith("grant_type:", StringComparison.OrdinalIgnoreCase))
+        {
+            var remainder = trimmed["grant_type:".Length..].Trim();
+            return string.IsNullOrWhiteSpace(remainder)
+                ? string.Empty
+                : OpenIddictConstants.Permissions.Prefixes.GrantType + remainder;
+        }
+
+        if (trimmed.StartsWith("response_types:", StringComparison.OrdinalIgnoreCase))
+        {
+            var remainder = trimmed["response_types:".Length..].Trim();
+            return string.IsNullOrWhiteSpace(remainder)
+                ? string.Empty
+                : OpenIddictConstants.Permissions.Prefixes.ResponseType + remainder;
+        }
+
+        if (trimmed.StartsWith("response_type:", StringComparison.OrdinalIgnoreCase))
+        {
+            var remainder = trimmed["response_type:".Length..].Trim();
+            return string.IsNullOrWhiteSpace(remainder)
+                ? string.Empty
+                : OpenIddictConstants.Permissions.Prefixes.ResponseType + remainder;
+        }
+
+        if (trimmed.StartsWith("resources:", StringComparison.OrdinalIgnoreCase))
+        {
+            var remainder = trimmed["resources:".Length..].Trim();
+            return string.IsNullOrWhiteSpace(remainder)
+                ? string.Empty
+                : OpenIddictConstants.Permissions.Prefixes.Resource + remainder;
+        }
+
+        if (trimmed.StartsWith("resource:", StringComparison.OrdinalIgnoreCase))
+        {
+            var remainder = trimmed["resource:".Length..].Trim();
+            return string.IsNullOrWhiteSpace(remainder)
+                ? string.Empty
+                : OpenIddictConstants.Permissions.Prefixes.Resource + remainder;
+        }
+
+        if (trimmed.StartsWith("audiences:", StringComparison.OrdinalIgnoreCase))
+        {
+            var remainder = trimmed["audiences:".Length..].Trim();
+            return string.IsNullOrWhiteSpace(remainder)
+                ? string.Empty
+                : OpenIddictConstants.Permissions.Prefixes.Audience + remainder;
+        }
+
+        if (trimmed.StartsWith("audience:", StringComparison.OrdinalIgnoreCase))
+        {
+            var remainder = trimmed["audience:".Length..].Trim();
+            return string.IsNullOrWhiteSpace(remainder)
+                ? string.Empty
+                : OpenIddictConstants.Permissions.Prefixes.Audience + remainder;
+        }
+
         if (trimmed.StartsWith("scopes:", StringComparison.OrdinalIgnoreCase))
         {
             var remainder = trimmed["scopes:".Length..].Trim();
@@ -119,6 +228,38 @@ internal sealed class OpenIddictSeeder(
             return string.IsNullOrWhiteSpace(remainder)
                 ? string.Empty
                 : OpenIddictConstants.Permissions.Prefixes.Scope + remainder;
+        }
+
+        return trimmed;
+    }
+
+    private static string NormalizeRequirement(string requirement)
+    {
+        if (string.IsNullOrWhiteSpace(requirement))
+        {
+            return requirement;
+        }
+
+        var trimmed = requirement.Trim();
+        if (trimmed.StartsWith(OpenIddictConstants.Requirements.Prefixes.Feature, StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmed;
+        }
+
+        if (trimmed.StartsWith("requirements:", StringComparison.OrdinalIgnoreCase))
+        {
+            var remainder = trimmed["requirements:".Length..].Trim();
+            return string.IsNullOrWhiteSpace(remainder)
+                ? string.Empty
+                : OpenIddictConstants.Requirements.Prefixes.Feature + remainder;
+        }
+
+        if (trimmed.StartsWith("requirement:", StringComparison.OrdinalIgnoreCase))
+        {
+            var remainder = trimmed["requirement:".Length..].Trim();
+            return string.IsNullOrWhiteSpace(remainder)
+                ? string.Empty
+                : OpenIddictConstants.Requirements.Prefixes.Feature + remainder;
         }
 
         return trimmed;

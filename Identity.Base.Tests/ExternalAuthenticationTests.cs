@@ -1,11 +1,11 @@
 using System;
 using System.Linq;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Shouldly;
 using Identity.Base.Identity;
-using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.WebUtilities;
@@ -53,8 +53,8 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
         var user = await userManager.FindByEmailAsync("login-new@example.com");
         user.ShouldNotBeNull();
         var logins = await userManager.GetLoginsAsync(user!);
-        logins.ShouldContain(login => login.LoginProvider == GoogleDefaults.AuthenticationScheme);
-        logins.Count(login => login.LoginProvider == GoogleDefaults.AuthenticationScheme).ShouldBe(1);
+        logins.ShouldContain(login => login.LoginProvider == IdentityApiFactory.FakeGoogleScheme);
+        logins.Count(login => login.LoginProvider == IdentityApiFactory.FakeGoogleScheme).ShouldBe(1);
     }
 
     [Fact]
@@ -192,9 +192,52 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
             var user = await userManager.FindByEmailAsync(email);
             user.ShouldNotBeNull();
             var logins = await userManager.GetLoginsAsync(user!);
-            logins.ShouldContain(login => login.LoginProvider == GoogleDefaults.AuthenticationScheme);
-            logins.Count(login => login.LoginProvider == GoogleDefaults.AuthenticationScheme).ShouldBe(1);
+            logins.ShouldContain(login => login.LoginProvider == IdentityApiFactory.FakeGoogleScheme);
+            logins.Count(login => login.LoginProvider == IdentityApiFactory.FakeGoogleScheme).ShouldBe(1);
         }
+
+        var unlinkResponse = await client.DeleteAsync("/auth/external/google");
+        unlinkResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await userManager.FindByEmailAsync(email);
+            user.ShouldNotBeNull();
+            var logins = await userManager.GetLoginsAsync(user!);
+            logins.ShouldBeEmpty();
+        }
+    }
+
+    [Fact]
+    public async Task ExternalUnlink_AllowsBearerAuthentication()
+    {
+        const string email = "unlink-bearer@example.com";
+        const string password = "StrongPass!2345";
+
+        await SeedUserAsync(email, password);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await userManager.FindByEmailAsync(email);
+            user.ShouldNotBeNull();
+
+            var addLoginResult = await userManager.AddLoginAsync(
+                user!,
+                new UserLoginInfo(IdentityApiFactory.FakeGoogleScheme, "unlink-bearer-key", "Google"));
+            addLoginResult.Succeeded.ShouldBeTrue();
+        }
+
+        var accessToken = await _factory.CreateAccessTokenAsync(email, password, _factory, "openid profile email offline_access identity.api");
+
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = false
+        });
+        client.BaseAddress = new Uri("https://localhost");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
         var unlinkResponse = await client.DeleteAsync("/auth/external/google");
         unlinkResponse.StatusCode.ShouldBe(HttpStatusCode.OK);

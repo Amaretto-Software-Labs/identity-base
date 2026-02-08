@@ -4,12 +4,10 @@ using Identity.Base.Data;
 using Identity.Base.Email.MailJet;
 using Identity.Base.Extensions;
 using Identity.Base.Host.Extensions;
-using Identity.Base.Organizations.Data;
 using Identity.Base.Roles;
-using Identity.Base.Roles.Configuration;
 using Identity.Base.Roles.Endpoints;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -69,6 +67,35 @@ var identityBuilder = builder.Services.AddIdentityBase(
 
 // Table prefix is configured globally via ConfigureHostTablePrefix() above
 
+var googleSection = builder.Configuration.GetSection("Authentication:Google");
+var googleEnabled = googleSection.GetValue("Enabled", false);
+if (googleEnabled)
+{
+    var provider = googleSection["Provider"] ?? "google";
+    var scheme = googleSection["Scheme"] ?? "Google";
+    var clientId = googleSection["ClientId"];
+    var clientSecret = googleSection["ClientSecret"];
+    var callbackPath = googleSection["CallbackPath"] ?? "/signin-google";
+
+    if (string.IsNullOrWhiteSpace(clientId))
+    {
+        throw new InvalidOperationException("Authentication:Google:ClientId is required when Authentication:Google:Enabled is true.");
+    }
+
+    if (string.IsNullOrWhiteSpace(clientSecret))
+    {
+        throw new InvalidOperationException("Authentication:Google:ClientSecret is required when Authentication:Google:Enabled is true.");
+    }
+
+    identityBuilder.AddExternalAuthProvider(provider, scheme, auth => auth.AddGoogle(scheme, options =>
+    {
+        options.SignInScheme = IdentityConstants.ExternalScheme;
+        options.ClientId = clientId;
+        options.ClientSecret = clientSecret;
+        options.CallbackPath = callbackPath;
+    }));
+}
+
 identityBuilder
     .UseMailJetEmailSender();
 
@@ -88,34 +115,3 @@ await HostMigrationRunner.ApplyMigrationsAsync(app.Services);
 await app.RunAsync();
 
 public partial class Program;
-
-internal static class HostMigrationRunner
-{
-    public static async Task ApplyMigrationsAsync(IServiceProvider services)
-    {
-        await using var scope = services.CreateAsyncScope();
-        var provider = scope.ServiceProvider;
-
-        await MigrateAsync<AppDbContext>(provider);
-        await MigrateAsync<IdentityRolesDbContext>(provider);
-        await MigrateAsync<OrganizationDbContext>(provider);
-
-        await provider.SeedIdentityRolesAsync();
-    }
-
-    private static async Task MigrateAsync<TContext>(IServiceProvider provider) where TContext : DbContext
-    {
-        var context = provider.GetService<TContext>();
-        if (context is null)
-        {
-            return;
-        }
-
-        if (!context.Database.IsRelational())
-        {
-            return;
-        }
-
-        await context.Database.MigrateAsync();
-    }
-}

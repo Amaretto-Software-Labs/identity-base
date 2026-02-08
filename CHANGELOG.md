@@ -7,6 +7,8 @@
 - Removed the core `externalProviders` health check registration and removed `ExternalProviders` appsettings binding from the default `AddIdentityBase` option wiring.
 - Updated host/sample wiring and docs to reflect the new model, and added migration guidance in `docs/guides/migration-external-provider-registration.md`.
 - Fixed organization-role seeding on relational databases by creating a system anchor organization for `OrganizationId = Guid.Empty` before default global roles are inserted (prevents FK violations in hosts such as `apps/org-sample-api`).
+- `Identity.Base.Host` now supports optional Google external auth registration via `Authentication:Google` configuration (`Enabled`, provider key, scheme, callback path, client credentials).
+- OpenIddict seeding now normalizes legacy permission/requirement prefixes (`endpoints:*`, `grant_types:*`, `response_types:*`, `scope(s):*`, `requirements:*`) to OpenIddict canonical values (`ept:*`, `gt:*`, `rst:*`, `scp:*`, `ft:*`) to avoid unauthorized-client regressions.
 
 ## [0.7.18] - 2026-01-25
 - OpenIddict seeding is now strictly configuration-driven (no implicit permissions or requirements). Scope permissions accept `scope:` and `scopes:` prefixes and are normalized to `scp:`.

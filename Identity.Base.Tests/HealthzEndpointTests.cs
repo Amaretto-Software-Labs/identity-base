@@ -20,7 +20,6 @@ using OpenIddict.Abstractions;
 using OpenIddict.Server;
 using OpenIddict.Server.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -63,6 +62,8 @@ public class HealthzEndpointTests : IClassFixture<IdentityApiFactory>
 
 public class IdentityApiFactory : WebApplicationFactory<Program>
 {
+    public const string FakeGoogleScheme = "GoogleTests";
+
     public FakeEmailSender EmailSender { get; } = new();
     public FakeMfaChallengeSender SmsChallengeSender { get; } = new();
 
@@ -78,7 +79,8 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
         {
             var overrides = new Dictionary<string, string?>
             {
-                ["ConnectionStrings:Primary"] = "InMemory:IdentityBaseTests"
+                ["ConnectionStrings:Primary"] = "InMemory:IdentityBaseTests",
+                ["Authentication:Google:Enabled"] = "false"
             };
 
             configurationBuilder.AddInMemoryCollection(overrides!);
@@ -142,14 +144,14 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
             });
 
             services.AddAuthentication()
-                .AddScheme<AuthenticationSchemeOptions, FakeExternalAuthenticationHandler>(GoogleDefaults.AuthenticationScheme, _ => { })
+                .AddScheme<AuthenticationSchemeOptions, FakeExternalAuthenticationHandler>(FakeGoogleScheme, _ => { })
                 .AddScheme<AuthenticationSchemeOptions, FakeExternalAuthenticationHandler>("GitHub", _ => { });
 
             services.RemoveAll<IExternalAuthenticationProviderRegistry>();
             services.AddSingleton<IExternalAuthenticationProviderRegistry>(_ =>
             {
                 var registry = new ExternalAuthenticationProviderRegistry();
-                registry.Register("google", GoogleDefaults.AuthenticationScheme);
+                registry.Register("google", FakeGoogleScheme);
                 registry.Register("github", "GitHub");
                 return registry;
             });
@@ -219,6 +221,31 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                     {
                         "scope:aurora.api",
                         "scopes: legacy.api"
+                    }
+                });
+
+                options.Applications.Add(new OpenIddictApplicationOptions
+                {
+                    ClientId = "legacy-prefix-client",
+                    ClientType = OpenIddictConstants.ClientTypes.Public,
+                    RedirectUris = { "https://localhost:3000/auth/callback" },
+                    Permissions =
+                    {
+                        "endpoints:authorization",
+                        "endpoints:token",
+                        "endpoints:userinfo",
+                        "grant_types:authorization_code",
+                        "grant_types:refresh_token",
+                        "response_types:code",
+                        "scopes:openid",
+                        "scopes:profile",
+                        "scopes:email",
+                        "scopes:offline_access",
+                        "scopes:identity.api"
+                    },
+                    Requirements =
+                    {
+                        "requirements:pkce"
                     }
                 });
 
