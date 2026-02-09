@@ -34,5 +34,9 @@
     "react-test-renderer": "^19.1.1",
     "tsup": "^8.5.0",
     "typescript": "~5.8.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Amaretto-Software-Labs/identity-base"
   }
 }

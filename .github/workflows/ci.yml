@@ -768,22 +768,28 @@ jobs:
       - name: Publish React packages to npm
         if: github.event.inputs.publish-to-npm == 'true'
         run: |
+          echo "Node: $(node --version)"
+          echo "npm:  $(npm --version)"
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] || [ -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]; then
+            echo "OIDC token request environment is missing. Check job permissions (id-token: write)." >&2
+            exit 1
+          fi
           if [ -d packages/identity-client-core ]; then
             pushd packages/identity-client-core >/dev/null
-            npm publish --access public
+            npm publish --provenance --access public
             popd >/dev/null
           fi
           pushd packages/identity-angular-client >/dev/null
-          npm publish --access public
+          npm publish --provenance --access public
           popd >/dev/null
           pushd packages/identity-angular-organizations >/dev/null
-          npm publish --access public
+          npm publish --provenance --access public
           popd >/dev/null
           pushd packages/identity-react-client >/dev/null
-          npm publish --access public
+          npm publish --provenance --access public
           popd >/dev/null
           pushd packages/identity-react-organizations >/dev/null
-          npm publish --access public
+          npm publish --provenance --access public
           popd >/dev/null
 
       - name: Publish packages to NuGet
