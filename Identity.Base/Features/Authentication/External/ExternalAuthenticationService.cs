@@ -1,62 +1,58 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
 using Identity.Base.Identity;
 using Identity.Base.Logging;
 using Identity.Base.Options;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Google;
-using Microsoft.AspNetCore.Authentication.MicrosoftAccount;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using OpenIddict.Abstractions;
 
 namespace Identity.Base.Features.Authentication.External;
 
 internal sealed class ExternalAuthenticationService
 {
-    private readonly IOptions<ExternalProviderOptions> _providerOptions;
+    private readonly IAuthenticationSchemeProvider _authenticationSchemeProvider;
+    private readonly IExternalAuthenticationProviderRegistry _providerRegistry;
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ILogger<ExternalAuthenticationService> _logger;
     private readonly IAuditLogger _auditLogger;
     private readonly IExternalReturnUrlValidator _returnUrlValidator;
     private readonly IExternalCallbackUriFactory _callbackUriFactory;
+    private readonly ExternalAuthenticationOptions _externalAuthenticationOptions;
 
     public ExternalAuthenticationService(
-        IOptions<ExternalProviderOptions> providerOptions,
+        IAuthenticationSchemeProvider authenticationSchemeProvider,
+        IExternalAuthenticationProviderRegistry providerRegistry,
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
         ILogger<ExternalAuthenticationService> logger,
         IAuditLogger auditLogger,
         IExternalReturnUrlValidator returnUrlValidator,
-        IExternalCallbackUriFactory callbackUriFactory)
+        IExternalCallbackUriFactory callbackUriFactory,
+        IOptions<ExternalAuthenticationOptions> externalAuthenticationOptions)
     {
-        _providerOptions = providerOptions;
+        _authenticationSchemeProvider = authenticationSchemeProvider;
+        _providerRegistry = providerRegistry;
         _signInManager = signInManager;
         _userManager = userManager;
         _logger = logger;
         _auditLogger = auditLogger;
         _returnUrlValidator = returnUrlValidator;
         _callbackUriFactory = callbackUriFactory;
+        _externalAuthenticationOptions = externalAuthenticationOptions.Value;
     }
 
     public async Task<IResult> StartAsync(HttpContext httpContext, string provider, string? returnUrl, string mode, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (scheme, settings) = ResolveProvider(provider);
-        if (scheme is null || settings is null)
+        var scheme = await ResolveSchemeAsync(provider, cancellationToken);
+        if (scheme is null)
         {
             return Results.Problem($"Unknown external provider '{provider}'.", statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        if (!settings.Enabled)
-        {
-            return Results.Problem($"External provider '{provider}' is disabled.", statusCode: StatusCodes.Status400BadRequest);
         }
 
         if (!_returnUrlValidator.TryNormalize(returnUrl, out var sanitizedReturnUrl))
@@ -110,17 +106,11 @@ internal sealed class ExternalAuthenticationService
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (scheme, settings) = ResolveProvider(provider);
-        if (scheme is null || settings is null)
+        var scheme = await ResolveSchemeAsync(provider, cancellationToken);
+        if (scheme is null)
         {
             await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
             return Results.Problem($"Unknown external provider '{provider}'.", statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        if (!settings.Enabled)
-        {
-            await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
-            return Results.Problem($"External provider '{provider}' is disabled.", statusCode: StatusCodes.Status400BadRequest);
         }
 
         ApplicationUser? currentUser = null;
@@ -181,23 +171,31 @@ internal sealed class ExternalAuthenticationService
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (_, settings) = ResolveProvider(provider);
-        if (settings is null)
+        var scheme = await ResolveSchemeAsync(provider, cancellationToken);
+        if (scheme is null)
         {
             return Results.Problem($"Unknown external provider '{provider}'.", statusCode: StatusCodes.Status400BadRequest);
         }
 
-        var user = await _userManager.GetUserAsync(httpContext.User);
+        var user = await ResolveCurrentUserAsync(httpContext.User);
         if (user is null)
         {
             return Results.Unauthorized();
         }
 
         var logins = await _userManager.GetLoginsAsync(user);
-        var login = logins.FirstOrDefault(login => string.Equals(login.LoginProvider, settings.ProviderName, StringComparison.OrdinalIgnoreCase));
+        var login = logins.FirstOrDefault(login => string.Equals(login.LoginProvider, scheme, StringComparison.OrdinalIgnoreCase));
         if (login is null)
         {
             return Results.Problem($"External provider '{provider}' is not linked to this account.", statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var hasPassword = await _userManager.HasPasswordAsync(user);
+        if (!hasPassword && logins.Count <= 1)
+        {
+            return Results.Problem(
+                "Cannot unlink the last sign-in method. Set a password or link another external provider first.",
+                statusCode: StatusCodes.Status400BadRequest);
         }
 
         var result = await _userManager.RemoveLoginAsync(user, login.LoginProvider, login.ProviderKey);
@@ -209,6 +207,25 @@ internal sealed class ExternalAuthenticationService
         await _signInManager.RefreshSignInAsync(user);
         await _auditLogger.LogAsync(AuditEventTypes.ExternalUnlinked, user.Id, new { Provider = login.LoginProvider }, cancellationToken);
         return Results.Ok(new { message = $"Provider '{provider}' unlinked." });
+    }
+
+    private async Task<ApplicationUser?> ResolveCurrentUserAsync(ClaimsPrincipal principal)
+    {
+        var user = await _userManager.GetUserAsync(principal);
+        if (user is not null)
+        {
+            return user;
+        }
+
+        var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? principal.FindFirstValue(OpenIddictConstants.Claims.Subject);
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return null;
+        }
+
+        return await _userManager.FindByIdAsync(userId);
     }
 
     private async Task<IResult> HandleLinkAsync(HttpContext httpContext, ApplicationUser? currentUser, ExternalLoginInfo info, string? returnUrl, CancellationToken cancellationToken)
@@ -277,8 +294,39 @@ internal sealed class ExternalAuthenticationService
             return CreateLoginResponse(returnUrl, "locked", "User account is locked out.", requiresTwoFactor: false, methods: null);
         }
 
+        var externalEmail = info.Principal.FindFirstValue(ClaimTypes.Email);
+        ApplicationUser? existingByEmail = null;
+        if (!string.IsNullOrWhiteSpace(externalEmail))
+        {
+            existingByEmail = await _userManager.FindByEmailAsync(externalEmail);
+        }
+
+        if (existingByEmail is not null && !_externalAuthenticationOptions.AutoLinkByEmailOnLogin)
+        {
+            await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+            return CreateLoginResponse(
+                returnUrl,
+                "error",
+                "External provider is not linked to this account. Sign in and link it first.",
+                requiresTwoFactor: false,
+                methods: null);
+        }
+
+        if (existingByEmail is not null
+            && _externalAuthenticationOptions.RequireVerifiedEmailForAutoLinkByEmail
+            && !IsExternalEmailVerified(info.Principal))
+        {
+            await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+            return CreateLoginResponse(
+                returnUrl,
+                "error",
+                "External account email is not verified by the provider.",
+                requiresTwoFactor: false,
+                methods: null);
+        }
+
         // Attempt to link or create a user based on external login information.
-        var user = await FindOrCreateUserFromExternalLoginAsync(info, cancellationToken);
+        var user = await FindOrCreateUserFromExternalLoginAsync(info, existingByEmail, cancellationToken);
         if (user is null)
         {
             await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
@@ -301,17 +349,17 @@ internal sealed class ExternalAuthenticationService
         return CreateLoginResponse(returnUrl, "success", null, requiresTwoFactor: false, methods: null);
     }
 
-    private async Task<ApplicationUser?> FindOrCreateUserFromExternalLoginAsync(ExternalLoginInfo info, CancellationToken cancellationToken)
+    private async Task<ApplicationUser?> FindOrCreateUserFromExternalLoginAsync(
+        ExternalLoginInfo info,
+        ApplicationUser? existingByEmail,
+        CancellationToken cancellationToken)
     {
-        var email = info.Principal.FindFirstValue(ClaimTypes.Email);
-        if (!string.IsNullOrWhiteSpace(email))
+        if (existingByEmail is not null)
         {
-            var existingByEmail = await _userManager.FindByEmailAsync(email);
-            if (existingByEmail is not null)
-            {
-                return existingByEmail;
-            }
+            return existingByEmail;
         }
+
+        var email = info.Principal.FindFirstValue(ClaimTypes.Email);
 
         var userName = email ?? $"{info.LoginProvider}_{info.ProviderKey}";
         var displayName = info.Principal.FindFirstValue(ClaimTypes.Name) ?? userName;
@@ -341,6 +389,24 @@ internal sealed class ExternalAuthenticationService
         return user;
     }
 
+    private static bool IsExternalEmailVerified(ClaimsPrincipal principal)
+    {
+        var value = principal.FindFirstValue("email_verified")
+            ?? principal.FindFirstValue("verified_email");
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        if (bool.TryParse(value, out var parsed))
+        {
+            return parsed;
+        }
+
+        return string.Equals(value, "1", StringComparison.Ordinal);
+    }
+
     private static string? MapTwoFactorProvider(string provider)
     {
         if (string.Equals(provider, TokenOptions.DefaultAuthenticatorProvider, StringComparison.OrdinalIgnoreCase))
@@ -361,17 +427,36 @@ internal sealed class ExternalAuthenticationService
         return null;
     }
 
-    private (string? Scheme, ProviderDescriptor? Settings) ResolveProvider(string provider)
+    private async Task<string?> ResolveSchemeAsync(string provider, CancellationToken cancellationToken)
     {
-        var options = _providerOptions.Value;
-        var normalized = provider?.Trim().ToLowerInvariant();
-        return normalized switch
+        if (string.IsNullOrWhiteSpace(provider))
         {
-            "google" => (GoogleDefaults.AuthenticationScheme, new ProviderDescriptor("Google", options.Google)),
-            "microsoft" => (MicrosoftAccountDefaults.AuthenticationScheme, new ProviderDescriptor("Microsoft", options.Microsoft)),
-            "apple" => (ExternalAuthenticationConstants.AppleScheme, new ProviderDescriptor("Apple", options.Apple)),
-            _ => (null, null)
-        };
+            return null;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var normalized = provider.Trim();
+        if (!_providerRegistry.TryResolve(normalized, out var registration))
+        {
+            return null;
+        }
+
+        var schemeHint = registration.Scheme;
+
+        var resolved = await _authenticationSchemeProvider.GetSchemeAsync(schemeHint);
+        if (resolved is null)
+        {
+            var schemes = await _authenticationSchemeProvider.GetAllSchemesAsync();
+            resolved = schemes.FirstOrDefault(candidate =>
+                string.Equals(candidate.Name, schemeHint, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (resolved is not null)
+        {
+            return resolved.Name;
+        }
+
+        return null;
     }
 
     private IResult CreateLinkResponse(string? returnUrl, string status, string? message)
@@ -418,8 +503,4 @@ internal sealed class ExternalAuthenticationService
         });
     }
 
-    private sealed record ProviderDescriptor(string ProviderName, OAuthProviderOptions Options)
-    {
-        public bool Enabled => Options.Enabled;
-    }
 }

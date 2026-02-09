@@ -62,6 +62,10 @@ public class OrganizationRoleSeederTests
 
         await seeder.SeedAsync();
 
+        var anchorOrganization = await organizationContext.Organizations.SingleAsync();
+        anchorOrganization.Id.ShouldBe(Guid.Empty);
+        anchorOrganization.Status.ShouldBe(Domain.OrganizationStatus.Archived);
+
         var roles = await organizationContext.OrganizationRoles.ToListAsync();
         roles.Count.ShouldBe(3);
 

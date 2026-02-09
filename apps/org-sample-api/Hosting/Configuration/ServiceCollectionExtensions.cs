@@ -108,8 +108,7 @@ internal static class ServiceCollectionExtensions
 
         var identityBuilder = services.AddIdentityBase(configuration, environment, configureDbContext: configureAppDbContext);
         identityBuilder
-            .UseTablePrefix(TablePrefix)
-            .AddConfiguredExternalProviders();
+            .UseTablePrefix(TablePrefix);
 
         services.AddIdentityAdmin(configuration, configureRolesDbContext)
             .UseTablePrefix(TablePrefix);

@@ -88,12 +88,6 @@ export function buildExternalStartUrl(
   return buildUrl(`/auth/external/${provider}/start`, params)
 }
 
-export function unlinkExternalProvider(provider: string) {
-  return apiFetch<{ message: string }>(`/auth/external/${provider}`, {
-    method: 'DELETE',
-  })
-}
-
 export function buildAuthorizationUrl({
   codeChallenge,
   state,

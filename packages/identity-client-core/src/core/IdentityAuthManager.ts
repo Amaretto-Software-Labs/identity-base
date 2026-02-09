@@ -489,15 +489,14 @@ export class IdentityAuthManager {
 
   async unlinkExternalProvider(provider: string): Promise<{ message: string }> {
     const token = await this.tokenManager.ensureValidToken()
-    if (!token) {
-      throw createError('Authentication required')
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
     }
 
     return await this.apiClient.fetch<{ message: string }>(`/auth/external/${provider}`, {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
     })
   }
 }
@@ -515,4 +514,3 @@ function appendSortParam(params: URLSearchParams, sort?: string | string[]): voi
     }
   }
 }
-

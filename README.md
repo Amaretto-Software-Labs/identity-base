@@ -8,7 +8,7 @@
 
 # Identity Base
 
-Identity Base is a modular Identity + OpenID Connect platform for .NET 9. It packages ASP.NET Core Identity, provider-agnostic EF Core contexts, OpenIddict server setup, MFA, external providers (Google, Microsoft, Apple), optional email delivery providers (Mailjet, SendGrid), and deployment-ready defaults. The recommended architecture is a dedicated Identity Host that runs all identity surfaces, a fleet of JWT-protected microservices, and a React 19 SPA consuming the APIs. Hosts are responsible for configuring the DbContexts, generating migrations for their chosen provider (PostgreSQL, SQL Server, etc.), and applying them before Identity Base runs its seeders.
+Identity Base is a modular Identity + OpenID Connect platform for .NET 9. It packages ASP.NET Core Identity, provider-agnostic EF Core contexts, OpenIddict server setup, MFA, external provider orchestration for host-registered OAuth/OIDC schemes, optional email delivery providers (Mailjet, SendGrid), and deployment-ready defaults. The recommended architecture is a dedicated Identity Host that runs all identity surfaces, a fleet of JWT-protected microservices, and a React 19 SPA consuming the APIs. Hosts are responsible for configuring the DbContexts, generating migrations for their chosen provider (PostgreSQL, SQL Server, etc.), and applying them before Identity Base runs its seeders.
 
 The project is open source under the MIT License.
 
@@ -17,7 +17,7 @@ The project is open source under the MIT License.
 ## Features at a Glance
 - **Identity & OpenIddict orchestration** – authorization-code PKCE flow, refresh tokens, configured scopes, client seeding.
 - **Multi-factor authentication** – authenticator apps, SMS, email challenges, and recovery code support.
-- **External providers** – Google, Microsoft, Apple, plus fluent extension points for additional providers.
+- **External providers** – provider-agnostic endpoints with host-registered OAuth/OIDC schemes.
 - **Email delivery integrations** – optional packages for Mailjet (`Identity.Base.Email.MailJet`) or SendGrid (`Identity.Base.Email.SendGrid`) to send confirmation, password reset, and MFA challenge emails.
 - **Extensible DI surface** – option validators, templated email sender, MFA challenge senders, audit logging, return URL validation.
 - **Secure defaults** – return URL normalization, request logging with redaction, dedicated health checks.
@@ -213,7 +213,7 @@ export const appConfig = {
 - `Registration` – profile fields, confirmation/reset URL templates (embed `{token}` + `{userId}`).
 - `MailJet` / `SendGrid` – API keys, sender info, template IDs (confirmation/reset/MFA). Only required when the corresponding package is enabled.
 - `Mfa` – issuer name, email/SMS toggles, Twilio credentials (if SMS is enabled).
-- `ExternalProviders` – Google/Microsoft/Apple client IDs, secrets, scopes, callback paths.
+- External providers – register OAuth/OIDC schemes in your host and map route keys using `AddExternalAuthProvider(...)`.
 - `OpenIddict` – client applications, scopes, server key provider (development, file-system, Azure Key Vault).
 - `Cors` – allowed origins for browser clients.
 

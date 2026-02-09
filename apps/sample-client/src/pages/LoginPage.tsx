@@ -30,11 +30,9 @@ export default function LoginPage() {
   }
 
   const renderExternalSection = () => {
-    const hasExternalProviders = CONFIG.externalProviders.google ||
-                                 CONFIG.externalProviders.microsoft ||
-                                 CONFIG.externalProviders.apple
+    const providers = CONFIG.externalProviders
 
-    if (!hasExternalProviders) {
+    if (providers.length === 0) {
       return (
         <p className="text-center text-sm text-slate-500">
           No external providers are configured.
@@ -48,42 +46,19 @@ export default function LoginPage() {
           <span className="bg-slate-50 px-2 text-sm text-slate-500">or continue with</span>
         </div>
         <div className="flex flex-col gap-2">
-          {CONFIG.externalProviders.google && (
+          {providers.map((provider) => (
             <button
+              key={provider}
               type="button"
               onClick={() => {
-                const url = authManager.buildExternalStartUrl('google', 'login', window.location.origin)
+                const url = authManager.buildExternalStartUrl(provider, 'login', window.location.origin)
                 window.location.href = url
               }}
               className="flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              Google
+              {formatProviderLabel(provider)}
             </button>
-          )}
-          {CONFIG.externalProviders.microsoft && (
-            <button
-              type="button"
-              onClick={() => {
-                const url = authManager.buildExternalStartUrl('microsoft', 'login', window.location.origin)
-                window.location.href = url
-              }}
-              className="flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              Microsoft
-            </button>
-          )}
-          {CONFIG.externalProviders.apple && (
-            <button
-              type="button"
-              onClick={() => {
-                const url = authManager.buildExternalStartUrl('apple', 'login', window.location.origin)
-                window.location.href = url
-              }}
-              className="flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              Apple
-            </button>
-          )}
+          ))}
         </div>
       </div>
     )
@@ -152,4 +127,12 @@ export default function LoginPage() {
       </div>
     </div>
   )
+}
+
+function formatProviderLabel(provider: string): string {
+  return provider
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map(segment => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(' ')
 }

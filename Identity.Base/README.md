@@ -1,6 +1,6 @@
 # Identity.Base
 
-Identity.Base is a reusable Identity + OpenIddict service library for .NET 9.0. It bundles ASP.NET Core Identity, OpenIddict server configuration, MFA, external providers, and optional email integrations into ergonomic extension methods that can be hosted by any ASP.NET Core application.
+Identity.Base is a reusable Identity + OpenIddict service library for .NET 9.0. It bundles ASP.NET Core Identity, OpenIddict server configuration, MFA, provider-agnostic external auth orchestration, and optional email integrations into ergonomic extension methods that can be hosted by any ASP.NET Core application.
 
 ## Getting Started
 
@@ -21,8 +21,7 @@ var identity = builder.Services.AddIdentityBase(
     });
 identity
     .UseTablePrefix("Contoso")          // optional: overrides default "Identity_" prefix
-    .AddConfiguredExternalProviders() // Google / Microsoft / Apple based on configuration
-    .AddExternalAuthProvider("github", auth =>
+    .AddExternalAuthProvider("github", "GitHub", auth =>
     {
         // register custom external providers here
         return auth.AddOAuth("GitHub", options => { /* ... */ });

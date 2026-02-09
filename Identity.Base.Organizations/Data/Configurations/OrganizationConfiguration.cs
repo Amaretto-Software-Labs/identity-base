@@ -15,6 +15,8 @@ public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organiz
     public void Configure(EntityTypeBuilder<Organization> builder)
     {
         builder.HasKey(organization => organization.Id);
+        builder.Property(organization => organization.Id)
+            .ValueGeneratedNever();
 
         builder.Property(organization => organization.TenantId)
             .HasDefaultValue(Guid.Empty);

@@ -80,6 +80,8 @@ var configureDbContext = new Action<IServiceProvider, DbContextOptionsBuilder>((
 // Core identity surface (Identity, OpenIddict, MFA, external providers)
 var identityBuilder = builder.Services.AddIdentityBase(builder.Configuration, builder.Environment, configureDbContext: configureDbContext);
 identityBuilder.UseTablePrefix("Contoso");
+// Optional: register any OAuth/OIDC provider your host needs.
+// identityBuilder.AddExternalAuthProvider("github", "GitHub", auth => auth.AddOAuth("GitHub", options => { ... }));
 identityBuilder.UseMailJetEmailSender(); // optional Mailjet integration
 
 // Admin API (includes Identity.Base.Roles registration)
@@ -174,11 +176,6 @@ Populate the generated `appsettings.json` with the minimal sections shown below.
       "https://localhost:5173",
       "http://localhost:5173"
     ]
-  },
-  "ExternalProviders": {
-    "Google": { "Enabled": false },
-    "Microsoft": { "Enabled": false },
-    "Apple": { "Enabled": false }
   },
   "OpenIddict": {
     "ServerKeys": { "Provider": "Development" },

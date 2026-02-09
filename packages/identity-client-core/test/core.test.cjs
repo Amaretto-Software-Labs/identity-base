@@ -665,6 +665,11 @@ test('IdentityAuthManager supports auth code flow and authorized calls', async (
     assert.ok(listCall.search.includes('search=alice'))
     assert.ok(listCall.search.includes('sort=createdAt%3Adesc'))
     assert.ok(listCall.search.includes('sort=email%3Aasc'))
+
+    const unlinkCall = calls.find(c => c.pathname === '/auth/external/google' && c.method === 'DELETE')
+    assert.ok(unlinkCall)
+    assert.ok(typeof unlinkCall.headers.Authorization === 'string')
+    assert.ok(unlinkCall.headers.Authorization.startsWith('Bearer '))
   } finally {
     globalThis.fetch = originalFetch
     globalThis.window = originalWindow
@@ -692,6 +697,12 @@ test('IdentityAuthManager login uses cookie flow when no token is present', asyn
       return makeResponse({ status: 200, json: { id: 'u1', email: 'alice@example.com', displayName: 'Alice', emailConfirmed: true, metadata: {}, concurrencyStamp: 'cs', createdAt: '', updatedAt: '' } })
     }
 
+    if (pathname === '/auth/external/google' && (init.method || 'GET').toUpperCase() === 'DELETE') {
+      const headers = init.headers || {}
+      assert.equal(headers.Authorization, undefined)
+      return makeResponse({ status: 200, json: { message: 'ok' } })
+    }
+
     return makeResponse({ status: 404, json: { title: 'Not found' } })
   }
 
@@ -711,6 +722,8 @@ test('IdentityAuthManager login uses cookie flow when no token is present', asyn
     assert.equal(response.message, 'ok')
     assert.ok(events.includes('login'))
     assert.ok(calls.some(c => c.pathname === '/users/me'))
+    await auth.unlinkExternalProvider('google')
+    assert.ok(calls.some(c => c.pathname === '/auth/external/google' && c.method === 'DELETE'))
   } finally {
     globalThis.fetch = originalFetch
   }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using OpenIddict.Validation.AspNetCore;
 
 namespace Identity.Base.Features.Authentication.External;
 
@@ -28,7 +29,10 @@ public static class ExternalAuthenticationEndpoints
             .WithTags("Authentication");
 
         external.MapDelete("/{provider}", UnlinkAsync)
-            .RequireAuthorization(new AuthorizeAttribute { AuthenticationSchemes = IdentityConstants.ApplicationScheme })
+            .RequireAuthorization(new AuthorizeAttribute
+            {
+                AuthenticationSchemes = $"{IdentityConstants.ApplicationScheme},{OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme}"
+            })
             .WithName("UnlinkExternalAuthentication")
             .WithSummary("Removes a linked external authentication provider from the current user.")
             .Produces(StatusCodes.Status200OK)

@@ -6,6 +6,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Shouldly;
 using Identity.Base.Data;
+using Identity.Base.Features.Authentication.External;
 using Identity.Base.Features.Authentication.Mfa;
 using Identity.Base.Features.Email;
 using Identity.Base.Email.MailJet;
@@ -19,7 +20,6 @@ using OpenIddict.Abstractions;
 using OpenIddict.Server;
 using OpenIddict.Server.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -57,12 +57,13 @@ public class HealthzEndpointTests : IClassFixture<IdentityApiFactory>
 
         var checks = payload.RootElement.GetProperty("checks").EnumerateArray().Select(element => element.GetProperty("name").GetString()).ToList();
         checks.ShouldContain("database");
-        checks.ShouldContain("externalProviders");
     }
 }
 
 public class IdentityApiFactory : WebApplicationFactory<Program>
 {
+    public const string FakeGoogleScheme = "GoogleTests";
+
     public FakeEmailSender EmailSender { get; } = new();
     public FakeMfaChallengeSender SmsChallengeSender { get; } = new();
 
@@ -78,7 +79,8 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
         {
             var overrides = new Dictionary<string, string?>
             {
-                ["ConnectionStrings:Primary"] = "InMemory:IdentityBaseTests"
+                ["ConnectionStrings:Primary"] = "InMemory:IdentityBaseTests",
+                ["Authentication:Google:Enabled"] = "false"
             };
 
             configurationBuilder.AddInMemoryCollection(overrides!);
@@ -141,20 +143,18 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                 options.Sms.FromPhoneNumber = "+15005550006";
             });
 
-            services.PostConfigure<ExternalProviderOptions>(options =>
-            {
-                options.Google.Enabled = true;
-                options.Google.ClientId = "test";
-                options.Google.ClientSecret = "secret";
-                options.Google.CallbackPath = "/signin-google";
-                options.Google.Scopes.Clear();
-                options.Google.Scopes.Add("openid");
-                options.Google.Scopes.Add("profile");
-                options.Google.Scopes.Add("email");
-            });
-
             services.AddAuthentication()
-                .AddScheme<AuthenticationSchemeOptions, FakeExternalAuthenticationHandler>(GoogleDefaults.AuthenticationScheme, _ => { });
+                .AddScheme<AuthenticationSchemeOptions, FakeExternalAuthenticationHandler>(FakeGoogleScheme, _ => { })
+                .AddScheme<AuthenticationSchemeOptions, FakeExternalAuthenticationHandler>("GitHub", _ => { });
+
+            services.RemoveAll<IExternalAuthenticationProviderRegistry>();
+            services.AddSingleton<IExternalAuthenticationProviderRegistry>(_ =>
+            {
+                var registry = new ExternalAuthenticationProviderRegistry();
+                registry.Register("google", FakeGoogleScheme);
+                registry.Register("github", "GitHub");
+                return registry;
+            });
 
             services.PostConfigure<CorsSettings>(options =>
             {
@@ -221,6 +221,31 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                     {
                         "scope:aurora.api",
                         "scopes: legacy.api"
+                    }
+                });
+
+                options.Applications.Add(new OpenIddictApplicationOptions
+                {
+                    ClientId = "legacy-prefix-client",
+                    ClientType = OpenIddictConstants.ClientTypes.Public,
+                    RedirectUris = { "https://localhost:3000/auth/callback" },
+                    Permissions =
+                    {
+                        "endpoints:authorization",
+                        "endpoints:token",
+                        "endpoints:userinfo",
+                        "grant_types:authorization_code",
+                        "grant_types:refresh_token",
+                        "response_types:code",
+                        "scopes:openid",
+                        "scopes:profile",
+                        "scopes:email",
+                        "scopes:offline_access",
+                        "scopes:identity.api"
+                    },
+                    Requirements =
+                    {
+                        "requirements:pkce"
                     }
                 });
 

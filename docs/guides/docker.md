@@ -18,7 +18,7 @@ Required settings:
 - `CONNECTIONSTRINGS__PRIMARY` – points to the Postgres instance (`Host=postgres;Port=5432;Database=identity;Username=identity;Password=identity` works for the compose stack).
 - `MAILJET__*` – Mailjet API credentials and template IDs. Supply real values for production or leave the defaults to satisfy option validation (email sends will fail if the keys are invalid).
 - `MFA__ISSUER` – label displayed in authenticator apps.
-- `EXTERNALPROVIDERS__*` – toggle and configure social login providers when available.
+- Optional: provider-specific OAuth/OIDC credentials consumed by your host registration code (for example `AUTHENTICATION__GITHUB__CLIENTID` and `AUTHENTICATION__GITHUB__CLIENTSECRET` when wiring GitHub with `AddExternalAuthProvider`).
 
 ## 2. Build the Container Image
 
@@ -62,7 +62,7 @@ Once the containers are running, confirm the health endpoint returns `Healthy`:
 curl http://localhost:8080/healthz | jq
 ```
 
-You should see checks for `database`, `mailjet`, and `externalProviders`.
+You should see checks for `database` and `mailjet` (when Mailjet is enabled).
 
 ## 5. Troubleshooting
 
@@ -71,7 +71,7 @@ You should see checks for `database`, `mailjet`, and `externalProviders`.
 | API exits immediately with Mailjet validation errors | Ensure `.env` contains non-empty `MAILJET__*` values. For local testing you can set any numeric template IDs and placeholder keys; email sends will fail but the service will start. |
 | Cannot connect to Postgres | Confirm `CONNECTIONSTRINGS__PRIMARY` uses the `postgres` hostname and that the container is healthy (`docker compose ps`). |
 | Need HTTPS locally | Terminate TLS with a reverse proxy (e.g., Traefik, Caddy) and forward plain HTTP to the container’s `8080` port, or override `ASPNETCORE_URLS` to use `https://` with mounted certificates. |
-| Social login callbacks fail | Set the respective provider environment variables and ensure the redirect URIs registered with the provider match your compose hostname (e.g., `http://localhost:8080`). |
+| Social login callbacks fail | Ensure the provider is registered in host startup via `AddExternalAuthProvider(...)`, configure matching provider credentials, and verify callback URLs match your compose hostname (for example `http://localhost:8080/signin-github`). |
 
 ## 6. Next Steps
 

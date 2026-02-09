@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useAuth, useProfile, useMfa } from '@identity-base/react-client'
-import { buildExternalStartUrl, unlinkExternalProvider } from '../api/auth'
+import { useAuth, useProfile, useMfa, useIdentityContext } from '@identity-base/react-client'
+import { buildExternalStartUrl } from '../api/auth'
 import { CONFIG } from '../config'
 
 export default function ProfilePage() {
   const navigate = useNavigate()
   const { user, isAuthenticated, isLoading: authLoading, refreshUser } = useAuth()
+  const { authManager } = useIdentityContext()
   const { schema, isLoadingSchema, updateProfile, isUpdating, error: profileError } = useProfile()
   const [formState, setFormState] = useState<Record<string, string>>({})
   const [status, setStatus] = useState<string | null>(null)
@@ -182,7 +183,7 @@ export default function ProfilePage() {
                   onClick={async () => {
                     setUnlinking(provider)
                     try {
-                      await unlinkExternalProvider(provider)
+                      await authManager.unlinkExternalProvider(provider)
                       await refreshUser()
                       setStatus(`Unlinked ${provider}.`)
                     } catch (err) {
@@ -279,12 +280,8 @@ export default function ProfilePage() {
   )
 }
 
-type ExternalProviderKey = 'google' | 'microsoft' | 'apple'
-
-function providersList(): ExternalProviderKey[] {
-  return (['google', 'microsoft', 'apple'] as const).filter(
-    (provider): provider is ExternalProviderKey => CONFIG.externalProviders[provider],
-  )
+function providersList(): string[] {
+  return CONFIG.externalProviders
 }
 
 function renderError(error: unknown) {
