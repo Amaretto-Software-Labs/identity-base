@@ -22,6 +22,10 @@ on:
         default: false
         type: boolean
 
+permissions:
+  id-token: write  # Required for OIDC
+  contents: read
+  
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
   DOTNET_NOLOGO: 1
