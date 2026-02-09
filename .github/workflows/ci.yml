@@ -17,7 +17,7 @@ on:
         default: false
         type: boolean
       publish-to-npm:
-        description: 'Publish the React client to npm (requires secrets.NPM_TOKEN)'
+        description: 'Publish npm packages using npm trusted publishing (OIDC)'
         required: false
         default: false
         type: boolean
@@ -389,6 +389,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -404,6 +405,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Upgrade npm for trusted publishing
+        run: |
+          npm install -g npm@^11.5.1
+          npm --version
 
       - name: Configure git user
         run: |
@@ -760,13 +767,7 @@ jobs:
 
       - name: Publish React packages to npm
         if: github.event.inputs.publish-to-npm == 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          cat <<EOF > ~/.npmrc
-          //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}
-          always-auth=true
-          EOF
           if [ -d packages/identity-client-core ]; then
             pushd packages/identity-client-core >/dev/null
             npm publish --access public
