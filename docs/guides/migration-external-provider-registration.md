@@ -40,7 +40,6 @@ identityBuilder.AddExternalAuthProvider(
         options.AuthorizationEndpoint = "https://github.com/login/oauth/authorize";
         options.TokenEndpoint = "https://github.com/login/oauth/access_token";
         options.UserInformationEndpoint = "https://api.github.com/user";
-        return;
     }));
 ```
 

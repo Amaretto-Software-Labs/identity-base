@@ -3,6 +3,7 @@ using Identity.Base.Admin.Endpoints;
 using Identity.Base.Data;
 using Identity.Base.Email.MailJet;
 using Identity.Base.Extensions;
+using Identity.Base.Host;
 using Identity.Base.Host.Extensions;
 using Identity.Base.Roles;
 using Identity.Base.Roles.Endpoints;

@@ -15,7 +15,6 @@
   - `AutoLinkByEmailOnLogin` (default `true`) controls whether callbacks may auto-associate to existing users by matching email.
   - `RequireVerifiedEmailForAutoLinkByEmail` (default `false`) requires an explicit verified-email claim before email-based auto-linking.
 - Updated client unlink flows to use the auth-manager path and removed the legacy sample cookie-only unlink helper; client-core unlink now sends bearer when available and falls back to cookie auth when no access token is present.
-- Added blog documentation under `docs/blog/` for 0.7.18 and related auth/security migration guidance.
 
 ## [0.7.17] - 2026-01-25
 - OpenIddict seeding is now strictly configuration-driven (no implicit permissions or requirements). Scope permissions accept `scope:` and `scopes:` prefixes and are normalized to `scp:`.
