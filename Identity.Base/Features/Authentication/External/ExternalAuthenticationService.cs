@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenIddict.Abstractions;
+using OpenIddict.Validation.AspNetCore;
 
 namespace Identity.Base.Features.Authentication.External;
 
@@ -70,12 +71,17 @@ internal sealed class ExternalAuthenticationService
             var authenticateResult = await httpContext.AuthenticateAsync(IdentityConstants.ApplicationScheme);
             if (!authenticateResult.Succeeded || authenticateResult.Principal is null)
             {
+                authenticateResult = await httpContext.AuthenticateAsync(OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme);
+            }
+
+            if (!authenticateResult.Succeeded || authenticateResult.Principal is null)
+            {
                 return Results.Unauthorized();
             }
 
             httpContext.User = authenticateResult.Principal;
 
-            var user = await _userManager.GetUserAsync(authenticateResult.Principal);
+            var user = await ResolveCurrentUserAsync(authenticateResult.Principal);
             if (user is null)
             {
                 return Results.Unauthorized();
@@ -148,7 +154,10 @@ internal sealed class ExternalAuthenticationService
 
             if (currentUser is null && !string.IsNullOrWhiteSpace(linkUserId))
             {
-                currentUser = await _userManager.FindByIdAsync(linkUserId);
+                if (Guid.TryParse(linkUserId, out _))
+                {
+                    currentUser = await _userManager.FindByIdAsync(linkUserId);
+                }
             }
 
             if (currentUser is null)
@@ -221,6 +230,11 @@ internal sealed class ExternalAuthenticationService
             ?? principal.FindFirstValue(OpenIddictConstants.Claims.Subject);
 
         if (string.IsNullOrWhiteSpace(userId))
+        {
+            return null;
+        }
+
+        if (!Guid.TryParse(userId, out _))
         {
             return null;
         }

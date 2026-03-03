@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Shouldly;
 using Identity.Base.Identity;
@@ -12,6 +13,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using OpenIddict.Abstractions;
 using Xunit;
 
 namespace Identity.Base.Tests;
@@ -343,6 +345,89 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
     }
 
     [Fact]
+    public async Task ExternalLink_And_Unlink_AllowsBearerAuthentication()
+    {
+        const string email = "link-bearer@example.com";
+        const string password = "StrongPass!2345";
+
+        await SeedUserAsync(email, password);
+
+        var accessToken = await _factory.CreateAccessTokenAsync(email, password, _factory, "openid profile email offline_access identity.api");
+
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        client.BaseAddress = new Uri("https://localhost");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var linkStart = await client.GetAsync("/auth/external/google/start?mode=link&returnUrl=/link/result&email=link-bearer%40example.com&name=Bearer%20Linked");
+        linkStart.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        var callback = linkStart.Headers.Location;
+        callback.ShouldNotBeNull();
+
+        var callbackResponse = await client.GetAsync(callback);
+        callbackResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        var finalLocation = callbackResponse.Headers.Location;
+        var finalUri = new Uri(client.BaseAddress!, finalLocation!);
+        var query = QueryHelpers.ParseQuery(finalUri.Query);
+        query["status"].ToString().ShouldBe("linked");
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await userManager.FindByEmailAsync(email);
+            user.ShouldNotBeNull();
+            var logins = await userManager.GetLoginsAsync(user!);
+            logins.ShouldContain(login => login.LoginProvider == IdentityApiFactory.FakeGoogleScheme);
+            logins.Count(login => login.LoginProvider == IdentityApiFactory.FakeGoogleScheme).ShouldBe(1);
+        }
+
+        var unlinkResponse = await client.DeleteAsync("/auth/external/google");
+        unlinkResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task ExternalLink_StartRejectsClientCredentialsBearerToken()
+    {
+        using var tokenClient = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = false
+        });
+        tokenClient.BaseAddress = new Uri("https://localhost");
+
+        using var tokenRequest = new HttpRequestMessage(HttpMethod.Post, "/connect/token")
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = OpenIddictConstants.GrantTypes.ClientCredentials,
+                ["scope"] = "identity.api"
+            })
+        };
+        tokenRequest.Headers.Authorization = CreateBasicAuth("test-client", "test-secret");
+
+        using var tokenResponse = await tokenClient.SendAsync(tokenRequest);
+        tokenResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var tokenPayload = await tokenResponse.Content.ReadFromJsonAsync<JsonDocument>();
+        tokenPayload.ShouldNotBeNull();
+        var accessToken = tokenPayload!.RootElement.GetProperty("access_token").GetString();
+        accessToken.ShouldNotBeNull();
+
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = false
+        });
+        client.BaseAddress = new Uri("https://localhost");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var startResponse = await client.GetAsync("/auth/external/google/start?mode=link&returnUrl=/link/result");
+        startResponse.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
     public async Task ExternalUnlink_AllowsBearerAuthentication()
     {
         const string email = "unlink-bearer@example.com";
@@ -463,5 +548,11 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
         var body = await loginResponse.Content.ReadAsStringAsync();
         loginResponse.IsSuccessStatusCode.ShouldBeTrue(body);
         return client;
+    }
+
+    private static AuthenticationHeaderValue CreateBasicAuth(string clientId, string clientSecret)
+    {
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
+        return new AuthenticationHeaderValue("Basic", credentials);
     }
 }
