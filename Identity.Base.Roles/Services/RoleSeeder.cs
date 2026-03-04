@@ -68,17 +68,6 @@ public sealed class RoleSeeder : IRoleSeeder
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var existingPermissionNames = new HashSet<string>(permissionEntities.Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
-        var existingRoleNames = new HashSet<string>(roleEntities.Select(r => r.Name), StringComparer.OrdinalIgnoreCase);
-
-        var hasAllPermissions = _permissionOptions.Definitions.All(def => existingPermissionNames.Contains(def.Name));
-        var hasAllRoles = _roleOptions.Definitions.All(def => existingRoleNames.Contains(def.Name));
-
-        if (hasAllPermissions && hasAllRoles)
-        {
-            return;
-        }
-
         var existingPermissions = new Dictionary<string, Permission>(StringComparer.OrdinalIgnoreCase);
         var permissionsById = new Dictionary<Guid, Permission>();
 
