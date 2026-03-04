@@ -68,17 +68,6 @@ public sealed class RoleSeeder : IRoleSeeder
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var existingPermissionNames = new HashSet<string>(permissionEntities.Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
-        var existingRoleNames = new HashSet<string>(roleEntities.Select(r => r.Name), StringComparer.OrdinalIgnoreCase);
-
-        var hasAllPermissions = _permissionOptions.Definitions.All(def => existingPermissionNames.Contains(def.Name));
-        var hasAllRoles = _roleOptions.Definitions.All(def => existingRoleNames.Contains(def.Name));
-
-        if (hasAllPermissions && hasAllRoles)
-        {
-            return;
-        }
-
         var existingPermissions = new Dictionary<string, Permission>(StringComparer.OrdinalIgnoreCase);
         var permissionsById = new Dictionary<Guid, Permission>();
 
@@ -118,13 +107,33 @@ public sealed class RoleSeeder : IRoleSeeder
             permissionsById[permission.Id] = permission;
         }
 
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
         var existingRoles = new Dictionary<string, Role>(StringComparer.OrdinalIgnoreCase);
         foreach (var roleEntity in roleEntities)
         {
             existingRoles.TryAdd(roleEntity.Name, roleEntity);
         }
+
+        var configuredRoleNames = _roleOptions.Definitions
+            .Select(roleDefinition => roleDefinition.Name)
+            .Where(static name => !string.IsNullOrWhiteSpace(name))
+            .Cast<string>()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var existingRoleIds = roleEntities
+            .Where(role => configuredRoleNames.Contains(role.Name))
+            .Select(role => role.Id)
+            .ToHashSet();
+
+        var existingRolePermissions = existingRoleIds.Count == 0
+            ? new List<RolePermission>()
+            : await _dbContext.RolePermissions
+                .Where(rolePermission => existingRoleIds.Contains(rolePermission.RoleId))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+        var existingRolePermissionsByRoleId = existingRolePermissions
+            .GroupBy(rolePermission => rolePermission.RoleId)
+            .ToDictionary(group => group.Key, group => group.ToList());
 
         foreach (var roleDefinition in _roleOptions.Definitions)
         {
@@ -146,14 +155,15 @@ public sealed class RoleSeeder : IRoleSeeder
                 role.IsSystemRole = roleDefinition.IsSystemRole;
             }
 
-            var existingRolePermissions = await _dbContext.RolePermissions
-                .Where(rp => rp.RoleId == role.Id)
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
+            if (!existingRolePermissionsByRoleId.TryGetValue(role.Id, out var rolePermissions))
+            {
+                rolePermissions = new List<RolePermission>();
+                existingRolePermissionsByRoleId[role.Id] = rolePermissions;
+            }
 
             var desiredPermissions = new HashSet<string>(roleDefinition.Permissions, StringComparer.OrdinalIgnoreCase);
 
-            foreach (var rolePermission in existingRolePermissions)
+            foreach (var rolePermission in rolePermissions.ToList())
             {
                 if (!permissionsById.TryGetValue(rolePermission.PermissionId, out var permission))
                 {
@@ -163,8 +173,13 @@ public sealed class RoleSeeder : IRoleSeeder
                 if (!desiredPermissions.Contains(permission.Name))
                 {
                     _dbContext.RolePermissions.Remove(rolePermission);
+                    rolePermissions.Remove(rolePermission);
                 }
             }
+
+            var assignedPermissionIds = rolePermissions
+                .Select(rolePermission => rolePermission.PermissionId)
+                .ToHashSet();
 
             foreach (var permissionName in desiredPermissions)
             {
@@ -174,20 +189,21 @@ public sealed class RoleSeeder : IRoleSeeder
                     continue;
                 }
 
-                var alreadyAssigned = existingRolePermissions.Any(rp => rp.PermissionId == permission.Id);
-
-                if (!alreadyAssigned)
+                if (assignedPermissionIds.Add(permission.Id))
                 {
-                    _dbContext.RolePermissions.Add(new RolePermission
+                    var rolePermission = new RolePermission
                     {
                         RoleId = role.Id,
                         PermissionId = permission.Id
-                    });
+                    };
+
+                    _dbContext.RolePermissions.Add(rolePermission);
+                    rolePermissions.Add(rolePermission);
                 }
             }
-
-            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
+
+        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task ExecuteCallbacksAsync(CancellationToken cancellationToken)

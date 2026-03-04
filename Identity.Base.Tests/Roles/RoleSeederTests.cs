@@ -162,4 +162,151 @@ public class RoleSeederTests
             .ToListAsync();
         adminPermissions.ShouldBe(new[] { "users.read", "users.create" }, ignoreOrder: true);
     }
+
+    [Fact]
+    public async Task SeedAsync_UpdatesStandardUserPermissions_WhenRoleAndPermissionsAlreadyExist()
+    {
+        var options = new DbContextOptionsBuilder<IdentityRolesDbContext>()
+            .UseInMemoryDatabase($"role-seeder-standarduser-update-{Guid.NewGuid():N}")
+            .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning))
+            .Options;
+
+        await using var context = new IdentityRolesDbContext(options);
+
+        var usersRead = new Permission { Id = Guid.NewGuid(), Name = "users.read", Description = "Read" };
+        var usersCreate = new Permission { Id = Guid.NewGuid(), Name = "users.create", Description = "Create" };
+        context.Permissions.AddRange(usersRead, usersCreate);
+
+        var standardUser = new Role
+        {
+            Id = Guid.NewGuid(),
+            Name = "StandardUser",
+            Description = "Existing Standard User",
+            IsSystemRole = false
+        };
+        context.Roles.Add(standardUser);
+        context.RolePermissions.Add(new RolePermission { RoleId = standardUser.Id, PermissionId = usersRead.Id });
+        await context.SaveChangesAsync();
+
+        var permissionOptions = OptionsFactory.Create(new PermissionCatalogOptions
+        {
+            Definitions =
+            {
+                new PermissionDefinition { Name = "users.read", Description = "Read" },
+                new PermissionDefinition { Name = "users.create", Description = "Create" }
+            }
+        });
+
+        var roleOptions = OptionsFactory.Create(new RoleConfigurationOptions
+        {
+            Definitions =
+            {
+                new RoleDefinition
+                {
+                    Name = "StandardUser",
+                    Description = "Updated Standard User",
+                    IsSystemRole = false,
+                    Permissions = new List<string> { "users.read", "users.create" }
+                }
+            }
+        });
+
+        var seeder = new RoleSeeder(
+            context,
+            roleOptions,
+            permissionOptions,
+            NullLogger<RoleSeeder>.Instance,
+            new IdentityBaseSeedCallbacks(),
+            new ServiceCollection().BuildServiceProvider());
+
+        await seeder.SeedAsync();
+
+        var dbRole = await context.Roles.SingleAsync(role => role.Name == "StandardUser");
+        dbRole.Description.ShouldBe("Updated Standard User");
+
+        var standardUserPermissions = await context.RolePermissions
+            .Where(rp => rp.RoleId == dbRole.Id)
+            .Join(context.Permissions, rp => rp.PermissionId, p => p.Id, (_, permission) => permission.Name)
+            .ToListAsync();
+
+        standardUserPermissions.ShouldBe(new[] { "users.read", "users.create" }, ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task SeedAsync_DoesNotDuplicatePermissions_ForWhitespacePaddedRoleNames()
+    {
+        var options = new DbContextOptionsBuilder<IdentityRolesDbContext>()
+            .UseInMemoryDatabase($"role-seeder-whitespace-role-{Guid.NewGuid():N}")
+            .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning))
+            .Options;
+
+        var roleName = " StandardUser ";
+
+        await using (var arrangeContext = new IdentityRolesDbContext(options))
+        {
+            var usersRead = new Permission { Id = Guid.NewGuid(), Name = "users.read", Description = "Read" };
+            var role = new Role
+            {
+                Id = Guid.NewGuid(),
+                Name = roleName,
+                Description = "Whitespace role",
+                IsSystemRole = false
+            };
+
+            arrangeContext.Permissions.Add(usersRead);
+            arrangeContext.Roles.Add(role);
+            arrangeContext.RolePermissions.Add(new RolePermission
+            {
+                RoleId = role.Id,
+                PermissionId = usersRead.Id
+            });
+            await arrangeContext.SaveChangesAsync();
+        }
+
+        await using (var seedingContext = new IdentityRolesDbContext(options))
+        {
+            var permissionOptions = OptionsFactory.Create(new PermissionCatalogOptions
+            {
+                Definitions =
+                {
+                    new PermissionDefinition { Name = "users.read", Description = "Read" }
+                }
+            });
+
+            var roleOptions = OptionsFactory.Create(new RoleConfigurationOptions
+            {
+                Definitions =
+                {
+                    new RoleDefinition
+                    {
+                        Name = roleName,
+                        Description = "Whitespace role",
+                        IsSystemRole = false,
+                        Permissions = new List<string> { "users.read" }
+                    }
+                }
+            });
+
+            var seeder = new RoleSeeder(
+                seedingContext,
+                roleOptions,
+                permissionOptions,
+                NullLogger<RoleSeeder>.Instance,
+                new IdentityBaseSeedCallbacks(),
+                new ServiceCollection().BuildServiceProvider());
+
+            await seeder.SeedAsync();
+        }
+
+        await using var assertContext = new IdentityRolesDbContext(options);
+        var roleId = await assertContext.Roles
+            .Where(role => role.Name == roleName)
+            .Select(role => role.Id)
+            .SingleAsync();
+
+        var rolePermissionCount = await assertContext.RolePermissions
+            .CountAsync(rolePermission => rolePermission.RoleId == roleId);
+
+        rolePermissionCount.ShouldBe(1);
+    }
 }
