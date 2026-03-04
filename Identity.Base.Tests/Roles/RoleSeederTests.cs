@@ -231,4 +231,82 @@ public class RoleSeederTests
 
         standardUserPermissions.ShouldBe(new[] { "users.read", "users.create" }, ignoreOrder: true);
     }
+
+    [Fact]
+    public async Task SeedAsync_DoesNotDuplicatePermissions_ForWhitespacePaddedRoleNames()
+    {
+        var options = new DbContextOptionsBuilder<IdentityRolesDbContext>()
+            .UseInMemoryDatabase($"role-seeder-whitespace-role-{Guid.NewGuid():N}")
+            .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning))
+            .Options;
+
+        var roleName = " StandardUser ";
+
+        await using (var arrangeContext = new IdentityRolesDbContext(options))
+        {
+            var usersRead = new Permission { Id = Guid.NewGuid(), Name = "users.read", Description = "Read" };
+            var role = new Role
+            {
+                Id = Guid.NewGuid(),
+                Name = roleName,
+                Description = "Whitespace role",
+                IsSystemRole = false
+            };
+
+            arrangeContext.Permissions.Add(usersRead);
+            arrangeContext.Roles.Add(role);
+            arrangeContext.RolePermissions.Add(new RolePermission
+            {
+                RoleId = role.Id,
+                PermissionId = usersRead.Id
+            });
+            await arrangeContext.SaveChangesAsync();
+        }
+
+        await using (var seedingContext = new IdentityRolesDbContext(options))
+        {
+            var permissionOptions = OptionsFactory.Create(new PermissionCatalogOptions
+            {
+                Definitions =
+                {
+                    new PermissionDefinition { Name = "users.read", Description = "Read" }
+                }
+            });
+
+            var roleOptions = OptionsFactory.Create(new RoleConfigurationOptions
+            {
+                Definitions =
+                {
+                    new RoleDefinition
+                    {
+                        Name = roleName,
+                        Description = "Whitespace role",
+                        IsSystemRole = false,
+                        Permissions = new List<string> { "users.read" }
+                    }
+                }
+            });
+
+            var seeder = new RoleSeeder(
+                seedingContext,
+                roleOptions,
+                permissionOptions,
+                NullLogger<RoleSeeder>.Instance,
+                new IdentityBaseSeedCallbacks(),
+                new ServiceCollection().BuildServiceProvider());
+
+            await seeder.SeedAsync();
+        }
+
+        await using var assertContext = new IdentityRolesDbContext(options);
+        var roleId = await assertContext.Roles
+            .Where(role => role.Name == roleName)
+            .Select(role => role.Id)
+            .SingleAsync();
+
+        var rolePermissionCount = await assertContext.RolePermissions
+            .CountAsync(rolePermission => rolePermission.RoleId == roleId);
+
+        rolePermissionCount.ShouldBe(1);
+    }
 }
