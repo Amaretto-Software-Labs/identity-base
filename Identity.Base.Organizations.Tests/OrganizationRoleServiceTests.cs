@@ -201,6 +201,35 @@ public class OrganizationRoleServiceTests
         }.OrderBy(x => x).ToArray());
     }
 
+    [Fact]
+    public async Task UpdatePermissionsAsync_AllowsLegacyCatalogPermissionNames()
+    {
+        await using var context = CreateContext(out var organization);
+        await using var roleContext = CreateRoleContext();
+
+        var legacyPermission = new Permission { Name = "Reports Read" };
+        roleContext.Permissions.Add(legacyPermission);
+        await roleContext.SaveChangesAsync();
+
+        var role = new OrganizationRole
+        {
+            Id = Guid.NewGuid(),
+            Name = "OrgOwner",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            IsSystemRole = true,
+        };
+
+        context.OrganizationRoles.Add(role);
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context, roleContext);
+
+        await service.UpdatePermissionsAsync(role.Id, organization.Id, new[] { "Reports Read" });
+
+        var permissions = await service.GetPermissionsAsync(role.Id, organization.Id);
+        permissions.Explicit.ShouldBe(new[] { "Reports Read" });
+    }
+
     private static OrganizationDbContext CreateContext(out Organization organization)
     {
         var options = new DbContextOptionsBuilder<OrganizationDbContext>()

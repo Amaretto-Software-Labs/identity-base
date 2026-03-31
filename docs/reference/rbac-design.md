@@ -50,7 +50,7 @@ This document captures the RBAC model that underpins the upcoming `Identity.Base
 | `roles.read` | View role catalog |
 | `roles.manage` | Create/update/delete roles & permissions |
 
-Add new permissions as features evolve. Permissions should be expressed as lowercase kebab-case strings to remain consistent. The self-service endpoints (`/users/me`, `/users/me/profile`) remain accessible without explicit permissions so StandardUser can operate with an empty permission list.
+Add new permissions as features evolve. Permissions should be expressed as lowercase machine identifiers using letters, digits, periods, hyphens, or underscores. Do not use spaces. The self-service endpoints (`/users/me`, `/users/me/profile`) remain accessible without explicit permissions so StandardUser can operate with an empty permission list.
 
 ---
 

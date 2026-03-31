@@ -197,7 +197,8 @@ internal static class AdminRoleEndpoints
         request ??= new AdminRoleCreateRequest();
 
         var validationErrors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-        ValidateRoleName(request.Name, validationErrors);
+        var normalizedRoleName = request.Name?.Trim();
+        ValidateRoleName(normalizedRoleName, validationErrors);
 
         var normalizedPermissions = NormalizePermissionNames(request.Permissions);
         if (validationErrors.Count > 0)
@@ -206,7 +207,7 @@ internal static class AdminRoleEndpoints
         }
 
         if (await roleDbContext.Roles
-            .AnyAsync(role => role.Name == request.Name, cancellationToken)
+            .AnyAsync(role => role.Name == normalizedRoleName, cancellationToken)
             .ConfigureAwait(false))
         {
             validationErrors[nameof(request.Name)] = new[] { "Role name already exists." };
@@ -221,7 +222,7 @@ internal static class AdminRoleEndpoints
 
         var role = new Role
         {
-            Name = request.Name.Trim(),
+            Name = normalizedRoleName!,
             Description = request.Description?.Trim(),
             IsSystemRole = request.IsSystemRole,
         };
@@ -275,12 +276,13 @@ internal static class AdminRoleEndpoints
         }
 
         var validationErrors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-        if (!string.IsNullOrWhiteSpace(request.Name) && !string.Equals(request.Name, role.Name, StringComparison.OrdinalIgnoreCase))
+        var normalizedRoleName = request.Name?.Trim();
+        if (!string.IsNullOrWhiteSpace(normalizedRoleName) && !string.Equals(normalizedRoleName, role.Name, StringComparison.OrdinalIgnoreCase))
         {
-            ValidateRoleName(request.Name, validationErrors);
+            ValidateRoleName(normalizedRoleName, validationErrors);
 
             if (await roleDbContext.Roles
-                .AnyAsync(r => r.Id != role.Id && r.Name == request.Name, cancellationToken)
+                .AnyAsync(r => r.Id != role.Id && r.Name == normalizedRoleName, cancellationToken)
                 .ConfigureAwait(false))
             {
                 validationErrors[nameof(request.Name)] = new[] { "Role name already exists." };
@@ -298,15 +300,20 @@ internal static class AdminRoleEndpoints
         }
 
         var normalizedPermissions = NormalizePermissionNames(request.Permissions);
+        if (validationErrors.Count > 0)
+        {
+            return Results.ValidationProblem(validationErrors);
+        }
+
         var permissions = await GetPermissionsAsync(roleDbContext, normalizedPermissions, validationErrors, cancellationToken);
         if (validationErrors.Count > 0)
         {
             return Results.ValidationProblem(validationErrors);
         }
 
-        if (!string.IsNullOrWhiteSpace(request.Name) && !string.Equals(request.Name, role.Name, StringComparison.OrdinalIgnoreCase) && !role.IsSystemRole)
+        if (!string.IsNullOrWhiteSpace(normalizedRoleName) && !string.Equals(normalizedRoleName, role.Name, StringComparison.OrdinalIgnoreCase) && !role.IsSystemRole)
         {
-            role.Name = request.Name.Trim();
+            role.Name = normalizedRoleName;
         }
 
         if (!string.IsNullOrWhiteSpace(request.Description))

@@ -6,6 +6,7 @@ using Identity.Base.Identity;
 using Identity.Base.Roles.Abstractions;
 using Identity.Base.Roles.Entities;
 using Identity.Base.Roles.Options;
+using Identity.Base.Roles.Validation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -69,6 +70,7 @@ public sealed class RoleSeeder : IRoleSeeder
             .ConfigureAwait(false);
 
         var existingPermissions = new Dictionary<string, Permission>(StringComparer.OrdinalIgnoreCase);
+        var existingPermissionsExact = new Dictionary<string, Permission>(StringComparer.Ordinal);
         var permissionsById = new Dictionary<Guid, Permission>();
 
         foreach (var permission in permissionEntities)
@@ -77,6 +79,8 @@ public sealed class RoleSeeder : IRoleSeeder
             {
                 permissionsById[permission.Id] = permission;
             }
+
+            existingPermissionsExact.TryAdd(permission.Name, permission);
         }
 
         foreach (var permissionDefinition in _permissionOptions.Definitions)
@@ -87,12 +91,35 @@ public sealed class RoleSeeder : IRoleSeeder
                 continue;
             }
 
+            if (!PermissionNameRules.IsValid(defName))
+            {
+                _logger.LogWarning(
+                    "Permission definition {Permission} uses a legacy or non-canonical identifier. {Message}",
+                    defName,
+                    PermissionNameRules.ValidationMessage);
+            }
+
+            if (existingPermissionsExact.TryGetValue(defName, out var exactPermission))
+            {
+                if (!string.Equals(exactPermission.Description, permissionDefinition.Description, StringComparison.Ordinal))
+                {
+                    exactPermission.Description = permissionDefinition.Description;
+                }
+
+                continue;
+            }
+
             if (existingPermissions.TryGetValue(defName, out var existingPermission))
             {
+                existingPermissionsExact.Remove(existingPermission.Name);
+                existingPermission.Name = defName;
+                existingPermissionsExact[existingPermission.Name] = existingPermission;
+
                 if (!string.Equals(existingPermission.Description, permissionDefinition.Description, StringComparison.Ordinal))
                 {
                     existingPermission.Description = permissionDefinition.Description;
                 }
+
                 continue;
             }
 
@@ -104,6 +131,7 @@ public sealed class RoleSeeder : IRoleSeeder
 
             _dbContext.Permissions.Add(permission);
             existingPermissions[permission.Name] = permission;
+            existingPermissionsExact[permission.Name] = permission;
             permissionsById[permission.Id] = permission;
         }
 
@@ -161,7 +189,10 @@ public sealed class RoleSeeder : IRoleSeeder
                 existingRolePermissionsByRoleId[role.Id] = rolePermissions;
             }
 
-            var desiredPermissions = new HashSet<string>(roleDefinition.Permissions, StringComparer.OrdinalIgnoreCase);
+            var desiredPermissions = roleDefinition.Permissions
+                .Where(permission => !string.IsNullOrWhiteSpace(permission))
+                .Select(permission => permission.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             foreach (var rolePermission in rolePermissions.ToList())
             {
@@ -183,6 +214,15 @@ public sealed class RoleSeeder : IRoleSeeder
 
             foreach (var permissionName in desiredPermissions)
             {
+                if (!PermissionNameRules.IsValid(permissionName))
+                {
+                    _logger.LogWarning(
+                        "Role {Role} references legacy or non-canonical permission {Permission}. {Message}",
+                        roleDefinition.Name,
+                        permissionName,
+                        PermissionNameRules.ValidationMessage);
+                }
+
                 if (!existingPermissions.TryGetValue(permissionName, out var permission))
                 {
                     _logger.LogWarning("Permission {Permission} referenced by role {Role} but not defined.", permissionName, roleDefinition.Name);

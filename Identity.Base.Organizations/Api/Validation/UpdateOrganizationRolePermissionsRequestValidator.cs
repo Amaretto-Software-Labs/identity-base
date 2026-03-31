@@ -11,6 +11,7 @@ public sealed class UpdateOrganizationRolePermissionsRequestValidator : Abstract
             .NotNull();
 
         RuleForEach(request => request.Permissions)
+            .Cascade(CascadeMode.Stop)
             .NotEmpty()
             .MaximumLength(128);
     }
