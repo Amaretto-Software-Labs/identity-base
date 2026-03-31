@@ -374,6 +374,57 @@ public class RoleSeederTests
     }
 
     [Fact]
+    public async Task SeedAsync_RemovesAssignmentsForDuplicateCasedPermissionRows()
+    {
+        var options = new DbContextOptionsBuilder<IdentityRolesDbContext>()
+            .UseInMemoryDatabase($"role-seeder-duplicate-permission-case-{Guid.NewGuid():N}")
+            .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning))
+            .Options;
+
+        await using var context = new IdentityRolesDbContext(options);
+
+        var canonicalPermission = new Permission { Id = Guid.NewGuid(), Name = "Reports.Read", Description = "Legacy" };
+        var duplicatePermission = new Permission { Id = Guid.NewGuid(), Name = "reports.read", Description = "Canonical" };
+        var role = new Role { Id = Guid.NewGuid(), Name = "IdentityAdmin", Description = "Admin", IsSystemRole = true };
+
+        context.Permissions.AddRange(canonicalPermission, duplicatePermission);
+        context.Roles.Add(role);
+        context.RolePermissions.Add(new RolePermission { RoleId = role.Id, PermissionId = duplicatePermission.Id });
+        await context.SaveChangesAsync();
+
+        var permissionOptions = OptionsFactory.Create(new PermissionCatalogOptions());
+        var roleOptions = OptionsFactory.Create(new RoleConfigurationOptions
+        {
+            Definitions =
+            {
+                new RoleDefinition
+                {
+                    Name = "IdentityAdmin",
+                    Description = "Admin",
+                    IsSystemRole = true,
+                    Permissions = new List<string>()
+                }
+            }
+        });
+
+        var seeder = new RoleSeeder(
+            context,
+            roleOptions,
+            permissionOptions,
+            NullLogger<RoleSeeder>.Instance,
+            new IdentityBaseSeedCallbacks(),
+            new ServiceCollection().BuildServiceProvider());
+
+        await seeder.SeedAsync();
+
+        var remainingAssignments = await context.RolePermissions
+            .Where(rolePermission => rolePermission.RoleId == role.Id)
+            .ToListAsync();
+
+        remainingAssignments.ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task SeedAsync_AllowsLegacyPermissionDefinitions()
     {
         var options = new DbContextOptionsBuilder<IdentityRolesDbContext>()

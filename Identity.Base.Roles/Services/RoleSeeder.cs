@@ -75,9 +75,10 @@ public sealed class RoleSeeder : IRoleSeeder
 
         foreach (var permission in permissionEntities)
         {
+            permissionsById[permission.Id] = permission;
+
             if (existingPermissions.TryAdd(permission.Name, permission))
             {
-                permissionsById[permission.Id] = permission;
             }
 
             existingPermissionsExact.TryAdd(permission.Name, permission);

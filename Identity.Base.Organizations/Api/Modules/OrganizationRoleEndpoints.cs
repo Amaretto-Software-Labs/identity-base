@@ -148,7 +148,8 @@ public static class OrganizationRoleEndpoints
             }
             catch (ArgumentException ex)
             {
-                return Results.ValidationProblem(new Dictionary<string, string[]> { ["permissions"] = new[] { ex.Message } });
+                var key = string.IsNullOrWhiteSpace(ex.ParamName) ? "permissions" : ex.ParamName;
+                return Results.ValidationProblem(new Dictionary<string, string[]> { [key] = new[] { ex.Message } });
             }
             catch (KeyNotFoundException ex)
             {
