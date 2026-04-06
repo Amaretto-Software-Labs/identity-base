@@ -256,6 +256,20 @@ Process details: [Release Checklist](docs/release/release-checklist.md). The Ide
 
 Identity Base is licensed under the [MIT License](LICENSE).
 
+---
+
+## Products Showcase
+
+| Product | Website | Company | Built with | Notes |
+| --- | --- | --- | --- | --- |
+| Aurora | [AuroraHQ.ai](https://aurorahq.ai) | Amaretto Software Labs | `Identity.Base`, `@identity-base/react-client` | Create high-fidelity product prototypes using AI. |
+| Borealis | [BorealisHQ.io](https://borealishq.io) | Amaretto Software Labs | `Identity.Base`, `@identity-base/react-client` | AI Sandboxes and infrastructure on demand. |
+| Dawn | [DawnHQ.ai](https://dawnhq.ai) | Amaretto Software Labs | `Identity.Base`, `@identity-base/react-client` | Team knowledge agent, get instant answers from your codebase, infrastructure, and connected systems — directly in Slack, Teams or Telegram. |
+| Enclave | [EnclaveHQ.io](https://enclavehq.io) | Amaretto Software Labs | `Identity.Base`, `@identity-base/react-client` | Run protected apps in a secure environment via remote browser isolation. |
+| FormFeeder | [FormFeeder.io](https://formfeeder.io) | Amaretto Software Labs | `Identity.Base`, `@identity-base/react-client` | Form handling for static websites with privacy and security by default. |
+
+---
+
 ## Sponsors & Contributors
 
 <p align="center">
