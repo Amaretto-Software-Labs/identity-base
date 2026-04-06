@@ -43,7 +43,7 @@ This guide walks operators through enabling and using the Identity Base admin su
 ### 4.2 Role Management (`/admin/roles`)
 - **CRUD:** create, edit, or delete roles (system roles cannot be deleted or renamed).
 - **List Options:** `GET /admin/roles` supports the same `page`/`pageSize` pattern plus `search`, `isSystemRole`, and `sort` (`name[:desc]`, `userCount[:asc|:desc]`).
-- **Permissions:** select from the catalog defined in configuration; custom permissions can be added directly in the UI. `GET /admin/permissions` mirrors the paging API (`page`, `pageSize`, `search`, `sort=name|roleCount`) for large catalogs.
+- **Permissions:** select from the catalog defined in configuration. The admin UI can paste an existing permission ID that is not visible in the current page, but it does not create new catalog entries. For new permission IDs, prefer lowercase letters, digits, periods, hyphens, or underscores, and avoid spaces. `GET /admin/permissions` mirrors the paging API (`page`, `pageSize`, `search`, `sort=name|roleCount`) for large catalogs.
 - **Usage Count:** each role entry shows how many users are assigned, preventing accidental removal of in-use roles.
 
 ## 5. API Reference Snapshot

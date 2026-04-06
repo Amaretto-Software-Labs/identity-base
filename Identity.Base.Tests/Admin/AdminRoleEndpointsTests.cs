@@ -113,6 +113,57 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
     }
 
     [Fact]
+    public async Task CreateRole_AcceptsSnakeCasePermissionIds()
+    {
+        var (_, token) = await CreateAdminUserAndTokenAsync("roles-snake-case-admin@example.com", "AdminPass!2345");
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var roleDb = scope.ServiceProvider.GetRequiredService<IRoleDbContext>();
+            if (!await roleDb.Permissions.AnyAsync(permission => permission.Name == "reports_read"))
+            {
+                roleDb.Permissions.Add(new Permission
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "reports_read",
+                    Description = "View reports"
+                });
+
+                await roleDb.SaveChangesAsync();
+            }
+        }
+
+        using var client = CreateAuthorizedClient(token);
+        var response = await client.PostAsJsonAsync("/admin/roles", new
+        {
+            Name = "ReportReaders",
+            Description = "Can read reports",
+            Permissions = new[] { "reports_read" }
+        }, JsonOptions);
+
+        var payload = await response.Content.ReadAsStringAsync();
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, payload);
+    }
+
+    [Fact]
+    public async Task CreateRole_ReturnsValidationProblem_ForUnknownPermissionIds()
+    {
+        var (_, token) = await CreateAdminUserAndTokenAsync("roles-invalid-permission-admin@example.com", "AdminPass!2345");
+        using var client = CreateAuthorizedClient(token);
+
+        var response = await client.PostAsJsonAsync("/admin/roles", new
+        {
+            Name = "InvalidPermissionRole",
+            Permissions = new[] { "Reports Read" }
+        }, JsonOptions);
+
+        var payload = await response.Content.ReadAsStringAsync();
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, payload);
+        payload.ShouldContain("Reports Read");
+        payload.ShouldContain("Unknown permissions:");
+    }
+
+    [Fact]
     public async Task UpdateRole_DetectsConcurrencyConflicts()
     {
         var (roleId, _, concurrencyStamp, token) = await CreateRoleAsync("roles-update-admin@example.com", "AdminPass!2345");
@@ -139,6 +190,62 @@ public class AdminRoleEndpointsTests : IClassFixture<IdentityApiFactory>
         var updated = await updateResponse.Content.ReadFromJsonAsync<AdminRoleDetailDto>(JsonOptions);
         updated.ShouldNotBeNull();
         updated!.Description.ShouldBe("Updated description");
+    }
+
+    [Fact]
+    public async Task UpdateRole_AcceptsLegacyCatalogPermissionIds()
+    {
+        var (_, token) = await CreateAdminUserAndTokenAsync("roles-legacy-permission-admin@example.com", "AdminPass!2345");
+        Guid roleId;
+        string concurrencyStamp;
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var roleDb = scope.ServiceProvider.GetRequiredService<IRoleDbContext>();
+            var legacyPermission = await roleDb.Permissions.FirstOrDefaultAsync(permission => permission.Name == "Reports Read");
+            if (legacyPermission is null)
+            {
+                legacyPermission = new Permission
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Reports Read",
+                    Description = "Legacy permission"
+                };
+                roleDb.Permissions.Add(legacyPermission);
+            }
+
+            var role = new Role
+            {
+                Id = Guid.NewGuid(),
+                Name = $"LegacyRole-{Guid.NewGuid():N}",
+                Description = "Legacy role",
+                IsSystemRole = false,
+                ConcurrencyStamp = Guid.NewGuid().ToString("N")
+            };
+
+            role.RolePermissions.Add(new RolePermission
+            {
+                RoleId = role.Id,
+                PermissionId = legacyPermission.Id
+            });
+
+            roleDb.Roles.Add(role);
+            await roleDb.SaveChangesAsync();
+
+            roleId = role.Id;
+            concurrencyStamp = role.ConcurrencyStamp;
+        }
+
+        using var client = CreateAuthorizedClient(token);
+        var response = await client.PutAsJsonAsync($"/admin/roles/{roleId:D}", new
+        {
+            ConcurrencyStamp = concurrencyStamp,
+            Description = "Legacy description updated",
+            Permissions = new[] { "Reports Read" }
+        }, JsonOptions);
+
+        var payload = await response.Content.ReadAsStringAsync();
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, payload);
     }
 
     [Fact]

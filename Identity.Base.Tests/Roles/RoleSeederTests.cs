@@ -164,6 +164,69 @@ public class RoleSeederTests
     }
 
     [Fact]
+    public async Task SeedAsync_NormalizesLegacyPermissionNames_WhenConfigurationChangesCasing()
+    {
+        var options = new DbContextOptionsBuilder<IdentityRolesDbContext>()
+            .UseInMemoryDatabase($"role-seeder-normalize-permission-case-{Guid.NewGuid():N}")
+            .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning))
+            .Options;
+
+        await using var context = new IdentityRolesDbContext(options);
+
+        var permission = new Permission { Id = Guid.NewGuid(), Name = "Reports.Read", Description = "Old" };
+        var role = new Role { Id = Guid.NewGuid(), Name = "IdentityAdmin", Description = "Admin", IsSystemRole = true };
+
+        context.Permissions.Add(permission);
+        context.Roles.Add(role);
+        context.RolePermissions.Add(new RolePermission { RoleId = role.Id, PermissionId = permission.Id });
+        await context.SaveChangesAsync();
+
+        var permissionOptions = OptionsFactory.Create(new PermissionCatalogOptions
+        {
+            Definitions =
+            {
+                new PermissionDefinition { Name = "reports.read", Description = "Updated" }
+            }
+        });
+
+        var roleOptions = OptionsFactory.Create(new RoleConfigurationOptions
+        {
+            Definitions =
+            {
+                new RoleDefinition
+                {
+                    Name = "IdentityAdmin",
+                    Description = "Admin",
+                    IsSystemRole = true,
+                    Permissions = new List<string> { "reports.read" }
+                }
+            }
+        });
+
+        var seeder = new RoleSeeder(
+            context,
+            roleOptions,
+            permissionOptions,
+            NullLogger<RoleSeeder>.Instance,
+            new IdentityBaseSeedCallbacks(),
+            new ServiceCollection().BuildServiceProvider());
+
+        await seeder.SeedAsync();
+
+        var normalizedPermission = await context.Permissions.SingleAsync();
+        normalizedPermission.Id.ShouldBe(permission.Id);
+        normalizedPermission.Name.ShouldBe("reports.read");
+        normalizedPermission.Description.ShouldBe("Updated");
+
+        var assignedPermissions = await context.RolePermissions
+            .Where(rp => rp.RoleId == role.Id)
+            .Join(context.Permissions, rp => rp.PermissionId, p => p.Id, (_, p) => p.Name)
+            .ToListAsync();
+
+        assignedPermissions.ShouldBe(new[] { "reports.read" });
+    }
+
+    [Fact]
     public async Task SeedAsync_UpdatesStandardUserPermissions_WhenRoleAndPermissionsAlreadyExist()
     {
         var options = new DbContextOptionsBuilder<IdentityRolesDbContext>()
@@ -308,5 +371,137 @@ public class RoleSeederTests
             .CountAsync(rolePermission => rolePermission.RoleId == roleId);
 
         rolePermissionCount.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task SeedAsync_RemovesAssignmentsForDuplicateCasedPermissionRows()
+    {
+        var options = new DbContextOptionsBuilder<IdentityRolesDbContext>()
+            .UseInMemoryDatabase($"role-seeder-duplicate-permission-case-{Guid.NewGuid():N}")
+            .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning))
+            .Options;
+
+        await using var context = new IdentityRolesDbContext(options);
+
+        var canonicalPermission = new Permission { Id = Guid.NewGuid(), Name = "Reports.Read", Description = "Legacy" };
+        var duplicatePermission = new Permission { Id = Guid.NewGuid(), Name = "reports.read", Description = "Canonical" };
+        var role = new Role { Id = Guid.NewGuid(), Name = "IdentityAdmin", Description = "Admin", IsSystemRole = true };
+
+        context.Permissions.AddRange(canonicalPermission, duplicatePermission);
+        context.Roles.Add(role);
+        context.RolePermissions.Add(new RolePermission { RoleId = role.Id, PermissionId = duplicatePermission.Id });
+        await context.SaveChangesAsync();
+
+        var permissionOptions = OptionsFactory.Create(new PermissionCatalogOptions());
+        var roleOptions = OptionsFactory.Create(new RoleConfigurationOptions
+        {
+            Definitions =
+            {
+                new RoleDefinition
+                {
+                    Name = "IdentityAdmin",
+                    Description = "Admin",
+                    IsSystemRole = true,
+                    Permissions = new List<string>()
+                }
+            }
+        });
+
+        var seeder = new RoleSeeder(
+            context,
+            roleOptions,
+            permissionOptions,
+            NullLogger<RoleSeeder>.Instance,
+            new IdentityBaseSeedCallbacks(),
+            new ServiceCollection().BuildServiceProvider());
+
+        await seeder.SeedAsync();
+
+        var remainingAssignments = await context.RolePermissions
+            .Where(rolePermission => rolePermission.RoleId == role.Id)
+            .ToListAsync();
+
+        remainingAssignments.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task SeedAsync_AllowsLegacyPermissionDefinitions()
+    {
+        var options = new DbContextOptionsBuilder<IdentityRolesDbContext>()
+            .UseInMemoryDatabase($"role-seeder-invalid-permission-{Guid.NewGuid():N}")
+            .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning))
+            .Options;
+
+        await using var context = new IdentityRolesDbContext(options);
+
+        var permissionOptions = OptionsFactory.Create(new PermissionCatalogOptions
+        {
+            Definitions =
+            {
+                new PermissionDefinition { Name = "Reports.Read", Description = "Legacy mixed-case permission" }
+            }
+        });
+
+        var roleOptions = OptionsFactory.Create(new RoleConfigurationOptions());
+
+        var seeder = new RoleSeeder(
+            context,
+            roleOptions,
+            permissionOptions,
+            NullLogger<RoleSeeder>.Instance,
+            new IdentityBaseSeedCallbacks(),
+            new ServiceCollection().BuildServiceProvider());
+
+        await seeder.SeedAsync();
+
+        var permission = await context.Permissions.SingleAsync();
+        permission.Name.ShouldBe("Reports.Read");
+    }
+
+    [Fact]
+    public async Task SeedAsync_AllowsLegacyRolePermissionReferences()
+    {
+        var options = new DbContextOptionsBuilder<IdentityRolesDbContext>()
+            .UseInMemoryDatabase($"role-seeder-invalid-role-reference-{Guid.NewGuid():N}")
+            .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning))
+            .Options;
+
+        await using var context = new IdentityRolesDbContext(options);
+
+        var permissionOptions = OptionsFactory.Create(new PermissionCatalogOptions
+        {
+            Definitions =
+            {
+                new PermissionDefinition { Name = "users.read", Description = "Read users" }
+            }
+        });
+
+        var roleOptions = OptionsFactory.Create(new RoleConfigurationOptions
+        {
+            Definitions =
+            {
+                new RoleDefinition
+                {
+                    Name = "IdentityAdmin",
+                    Permissions = new List<string> { "Users.Read" }
+                }
+            }
+        });
+
+        var seeder = new RoleSeeder(
+            context,
+            roleOptions,
+            permissionOptions,
+            NullLogger<RoleSeeder>.Instance,
+            new IdentityBaseSeedCallbacks(),
+            new ServiceCollection().BuildServiceProvider());
+
+        await seeder.SeedAsync();
+
+        var assignedPermissions = await context.RolePermissions
+            .Join(context.Permissions, rp => rp.PermissionId, p => p.Id, (_, permission) => permission.Name)
+            .ToListAsync();
+
+        assignedPermissions.ShouldBe(new[] { "users.read" });
     }
 }

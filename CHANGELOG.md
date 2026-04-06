@@ -1,5 +1,33 @@
 # Changelog
 
+## [Unreleased]
+- Relaxed the new permission-identifier guidance to preserve backward compatibility: legacy cataloged permission IDs continue to work in host configuration, admin role edits, and organization-role permission updates.
+- Role seeding now normalizes existing permission rows when configuration changes only the casing of an identifier, preserving existing role-permission links without requiring package-owned migrations.
+- Sample admin UI and docs now clarify that permission IDs must already exist in the catalog before assignment; lowercase IDs using letters, digits, periods, hyphens, or underscores are recommended for new permissions.
+- Added regression coverage for legacy permission IDs and the case-normalization upgrade path.
+
+## [0.8.6] - 2026-03-04
+- Refactored `RoleSeeder` so existing database roles and permissions are still reconciled against current configuration instead of short-circuiting when everything appears to exist already.
+- Prevented duplicate role-permission assignments for roles whose names contain surrounding whitespace.
+- Added regression coverage for the updated role-seeding behavior.
+
+## [0.8.5] - 2026-03-04
+- Fixed external link/unlink flows for bearer-authenticated users.
+- External link now supports bearer-authenticated users in addition to cookie-authenticated sessions.
+- External link mode now rejects client-credentials bearer tokens.
+- Added external-auth integration coverage for bearer link/unlink paths and the client-credentials rejection case.
+
+## [0.8.4] - 2026-02-09
+- Updated the npm publishing workflow to emit provenance for published packages and added extra release diagnostics around the OIDC/trusted-publishing path.
+- Added repository metadata to `@identity-base/react-organizations` package metadata.
+
+## [0.8.3] - 2026-02-09
+- Switched the release workflow toward npm trusted publishing / OIDC-based npm release configuration.
+- Updated the manual release workflow messaging to reflect OIDC-based npm publishing instead of token-based publishing.
+
+## [0.8.2] - 2026-02-09
+- Updated the CI workflow permissions to support GitHub Actions OIDC while restricting repository contents access to read-only.
+
 ## [0.8.1] - 2026-02-09
 - Breaking: removed built-in external provider registration helpers from `Identity.Base` (`AddConfiguredExternalProviders()`, `AddGoogleAuth(...)`, `AddMicrosoftAuth(...)`, `AddAppleAuth(...)`).
 - External authentication is now host-driven and provider-agnostic: hosts must register schemes and map route keys with `AddExternalAuthProvider(provider, scheme, ...)`.

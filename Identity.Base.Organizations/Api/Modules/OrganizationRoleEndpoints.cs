@@ -146,6 +146,11 @@ public static class OrganizationRoleEndpoints
                 await roleService.UpdatePermissionsAsync(roleId, organizationId, request.Permissions, cancellationToken).ConfigureAwait(false);
                 return Results.NoContent();
             }
+            catch (ArgumentException ex)
+            {
+                var key = string.IsNullOrWhiteSpace(ex.ParamName) ? "permissions" : ex.ParamName;
+                return Results.ValidationProblem(new Dictionary<string, string[]> { [key] = new[] { ex.Message } });
+            }
             catch (KeyNotFoundException ex)
             {
                 return Results.NotFound(new ProblemDetails { Title = "Resource not found", Detail = ex.Message, Status = StatusCodes.Status404NotFound });

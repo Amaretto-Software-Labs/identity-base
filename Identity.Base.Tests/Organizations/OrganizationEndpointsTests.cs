@@ -22,6 +22,7 @@ using Identity.Base.Roles.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -452,6 +453,31 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     }
 
     [Fact]
+    public async Task User_Role_Permission_Update_UsesRoleIdKey_ForEmptyRoleId()
+    {
+        var organizationId = await CreateOrganizationAsync($"org-user-role-empty-id-{Guid.NewGuid():N}", "User Role Empty Id Org");
+        var ownerEmail = "owner-empty-roleid@example.com";
+        const string ownerPassword = "UserPass!2345";
+        var (ownerId, _) = await CreateStandardUserAndTokenAsync(ownerEmail, ownerPassword);
+        await AddMembershipAsync(organizationId, ownerId, assignOwnerRole: true);
+
+        var ownerToken = await RefreshUserTokenAsync(ownerEmail, ownerPassword);
+        using var client = CreateAuthorizedClient(ownerToken);
+
+        var response = await client.PutAsJsonAsync($"/users/me/organizations/{organizationId:D}/roles/{Guid.Empty:D}/permissions", new
+        {
+            Permissions = new[] { "user.organizations.members.read" }
+        });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>(JsonOptions);
+        problem.ShouldNotBeNull();
+        problem!.Errors.ShouldContainKey("roleId");
+        problem.Errors["roleId"].ShouldHaveSingleItem();
+        problem.Errors["roleId"][0].ShouldContain("Role identifier is required.");
+    }
+
+    [Fact]
     public async Task User_Role_List_Supports_Paging_And_Search()
     {
         var organizationId = await CreateOrganizationAsync($"org-user-roles-paging-{Guid.NewGuid():N}", "User Roles Paging Org");
@@ -766,6 +792,35 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
             IsSystemRole = false
         });
         createRoleResponse.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task Admin_Role_Permission_Update_UsesRoleIdKey_ForEmptyRoleId()
+    {
+        var organizationId = await CreateOrganizationAsync($"org-admin-role-empty-id-{Guid.NewGuid():N}", "Admin Role Empty Id Org");
+
+        var roleName = await EnsureRoleWithPermissionsAsync(
+            $"OrgRoleManager-{Guid.NewGuid():N}",
+            AdminOrganizationPermissions.OrganizationsRead,
+            AdminOrganizationPermissions.OrganizationRolesRead,
+            AdminOrganizationPermissions.OrganizationRolesManage);
+
+        var (adminId, token) = await CreateAdminUserAndTokenAsync("admin-empty-roleid@example.com", "AdminPass!2345", includeAdminScope: true, roleNames: new[] { roleName });
+        await AddMembershipAsync(organizationId, adminId, assignOwnerRole: true);
+
+        using var client = CreateAuthorizedClient(token);
+
+        var response = await client.PutAsJsonAsync($"/admin/organizations/{organizationId:D}/roles/{Guid.Empty:D}/permissions", new
+        {
+            Permissions = new[] { AdminOrganizationPermissions.OrganizationRolesRead }
+        });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>(JsonOptions);
+        problem.ShouldNotBeNull();
+        problem!.Errors.ShouldContainKey("roleId");
+        problem.Errors["roleId"].ShouldHaveSingleItem();
+        problem.Errors["roleId"][0].ShouldContain("Role identifier is required.");
     }
 
     [Fact]

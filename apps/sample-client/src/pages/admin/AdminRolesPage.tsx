@@ -153,6 +153,7 @@ export default function AdminRolesPage() {
       setSelectedPermissions(current => [...current, trimmed])
     }
     setCustomPermission('')
+    setFormError(null)
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -558,7 +559,7 @@ export default function AdminRolesPage() {
                   type="text"
                   value={customPermission}
                   onChange={event => setCustomPermission(event.target.value)}
-                  placeholder="Add custom permission"
+                  placeholder="Add existing permission ID"
                   className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-600 focus:outline-none"
                 />
                 <button
@@ -569,6 +570,9 @@ export default function AdminRolesPage() {
                   Add
                 </button>
               </div>
+              <p className="text-xs text-slate-500">
+                Paste an existing permission ID when it is not visible in the current catalog page. New permissions must be defined in configuration before they can be assigned. For new catalog entries, prefer lowercase IDs that use letters, digits, periods, hyphens, or underscores.
+              </p>
 
               {selectedPermissions.length > 0 && (
                 <div className="flex flex-wrap gap-2">

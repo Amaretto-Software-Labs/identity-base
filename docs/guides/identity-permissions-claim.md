@@ -91,6 +91,8 @@ await app.Services.SeedIdentityRolesAsync();
 
 This creates the role definitions and default assignments so the permission resolver can build the user’s effective permission set.
 
+Because the default formatter emits a single space-delimited `identity.permissions` claim, new permission names should avoid spaces. Prefer lowercase identifiers that use only letters, digits, periods, hyphens, or underscores.
+
 > Organization roles (e.g., `OrgOwner`) now receive the user-scoped (`user.organizations.*`) permissions. Give `admin.organizations.*` to a dedicated admin role if you need platform-wide access.
 
 The organizations package also emits an `org:memberships` claim containing all organization IDs for the caller. Combine it with the middleware:
