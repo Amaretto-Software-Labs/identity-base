@@ -293,7 +293,7 @@ dotnet ef database update --project IdentityHost/IdentityHost.csproj --startup-p
 dotnet ef database update --project IdentityHost/IdentityHost.csproj --startup-project IdentityHost/IdentityHost.csproj --context Identity.Base.Organizations.Data.OrganizationDbContext
 ```
 
-Replace `IdentityHost` with your actual host project and remember to update the .MigrationsAssembly("IdentityHost") in Program.cs to the same project or a seperat assembly with the migrations (the sample repo uses `Identity.Base.Host`). The startup helper shown earlier still calls `Database.MigrateAsync()` so newly generated migrations run automatically at boot, but you should also run the CLI commands during CI/CD to keep environments consistent.
+Replace `IdentityHost` with your actual host project and remember to update the `.MigrationsAssembly("IdentityHost")` in `Program.cs` to the same project or a separate assembly with the migrations (the sample repo uses `Identity.Base.Host`). The startup helper shown earlier still calls `Database.MigrateAsync()` so newly generated migrations run automatically at boot, but you should also run the CLI commands during CI/CD to keep environments consistent.
 
 ### 3.5 Run the Host
 
