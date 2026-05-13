@@ -54,6 +54,9 @@ dotnet add package Microsoft.EntityFrameworkCore.Design
 dotnet add package Npgsql
 dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL
 dotnet add package Serilog.AspNetCore
+
+# And add the dotnet-ef tool this is used later in the guide
+dotnet tool install --global dotnet-ef
 ```
 
 - `Identity.Base` provides the core identity, OpenIddict, MFA, and email flows.
