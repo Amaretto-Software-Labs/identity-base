@@ -288,7 +288,7 @@ dotnet ef migrations add InitialOrganizations \
   --output-dir Data/Migrations/Organizations
 
 dotnet ef database update --project IdentityHost/IdentityHost.csproj --startup-project IdentityHost/IdentityHost.csproj --context Identity.Base.Data.AppDbContext
-dotnet ef database update --project IdentityHost/IdentityHost.csproj --startup-project IdentityHost/IdentityHost.csproj --context Identity.Base.Roles.Data.IdentityRolesDbContext
+dotnet ef database update --project IdentityHost/IdentityHost.csproj --startup-project IdentityHost/IdentityHost.csproj --context Identity.Base.Roles.IdentityRolesDbContext
 dotnet ef database update --project IdentityHost/IdentityHost.csproj --startup-project IdentityHost/IdentityHost.csproj --context Identity.Base.Organizations.Data.OrganizationDbContext
 ```
 
