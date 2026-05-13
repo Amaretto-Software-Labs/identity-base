@@ -49,7 +49,7 @@ dotnet add package Identity.Base.Admin
 dotnet add package Identity.Base.Organizations
 dotnet add package Identity.Base.Email.MailJet # optional Mailjet sender
 
-#other required packages
+# Other required packages
 dotnet add package Microsoft.EntityFrameworkCore.Design
 dotnet add package Npgsql
 dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL
