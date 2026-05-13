@@ -48,6 +48,12 @@ dotnet add package Identity.Base
 dotnet add package Identity.Base.Admin
 dotnet add package Identity.Base.Organizations
 dotnet add package Identity.Base.Email.MailJet # optional Mailjet sender
+
+#other required packages
+dotnet add package Microsoft.EntityFrameworkCore.Design
+dotnet add package Npgsql
+dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL
+dotnet add package Serilog.AspNetCore
 ```
 
 - `Identity.Base` provides the core identity, OpenIddict, MFA, and email flows.
@@ -74,7 +80,7 @@ var configureDbContext = new Action<IServiceProvider, DbContextOptionsBuilder>((
     var connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("Primary")
         ?? throw new InvalidOperationException("ConnectionStrings:Primary must be set.");
 
-    options.UseNpgsql(connectionString, sql => sql.EnableRetryOnFailure());
+    options.UseNpgsql(connectionString, sql => sql.EnableRetryOnFailure().MigrationsAssembly("IdentityHost"));
 });
 
 // Core identity surface (Identity, OpenIddict, MFA, external providers)
@@ -269,7 +275,7 @@ dotnet ef migrations add InitialIdentityBase \
 dotnet ef migrations add InitialIdentityRoles \
   --project IdentityHost/IdentityHost.csproj \
   --startup-project IdentityHost/IdentityHost.csproj \
-  --context Identity.Base.Roles.Data.IdentityRolesDbContext \
+  --context Identity.Base.Roles.IdentityRolesDbContext \
   --output-dir Data/Migrations/IdentityRoles
 
 dotnet ef migrations add InitialOrganizations \
