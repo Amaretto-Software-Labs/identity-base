@@ -48,6 +48,14 @@ dotnet add package Identity.Base
 dotnet add package Identity.Base.Admin
 dotnet add package Identity.Base.Organizations
 dotnet add package Identity.Base.Email.MailJet # optional Mailjet sender
+
+# Other required packages
+dotnet add package Microsoft.EntityFrameworkCore.Design
+dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL
+dotnet add package Serilog.AspNetCore
+
+# And add the dotnet-ef tool this is used later in the guide
+dotnet tool install --global dotnet-ef
 ```
 
 - `Identity.Base` provides the core identity, OpenIddict, MFA, and email flows.
@@ -74,7 +82,7 @@ var configureDbContext = new Action<IServiceProvider, DbContextOptionsBuilder>((
     var connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("Primary")
         ?? throw new InvalidOperationException("ConnectionStrings:Primary must be set.");
 
-    options.UseNpgsql(connectionString, sql => sql.EnableRetryOnFailure());
+    options.UseNpgsql(connectionString, sql => sql.EnableRetryOnFailure().MigrationsAssembly("IdentityHost"));
 });
 
 // Core identity surface (Identity, OpenIddict, MFA, external providers)
@@ -260,6 +268,7 @@ OpenIddict seeding is strict: only the permissions and requirements you list for
 Identity Base exposes DbContexts but **does not ship migrations**. From your host project (the API that references the packages), run:
 
 ```bash
+# From a terminal in the root folder 'identity-full-stack' run the commands below to add the migrations
 dotnet ef migrations add InitialIdentityBase \
   --project IdentityHost/IdentityHost.csproj \
   --startup-project IdentityHost/IdentityHost.csproj \
@@ -269,7 +278,7 @@ dotnet ef migrations add InitialIdentityBase \
 dotnet ef migrations add InitialIdentityRoles \
   --project IdentityHost/IdentityHost.csproj \
   --startup-project IdentityHost/IdentityHost.csproj \
-  --context Identity.Base.Roles.Data.IdentityRolesDbContext \
+  --context Identity.Base.Roles.IdentityRolesDbContext \
   --output-dir Data/Migrations/IdentityRoles
 
 dotnet ef migrations add InitialOrganizations \
@@ -278,12 +287,13 @@ dotnet ef migrations add InitialOrganizations \
   --context Identity.Base.Organizations.Data.OrganizationDbContext \
   --output-dir Data/Migrations/Organizations
 
+# After the migrations have been added they can be applied with the commands below
 dotnet ef database update --project IdentityHost/IdentityHost.csproj --startup-project IdentityHost/IdentityHost.csproj --context Identity.Base.Data.AppDbContext
-dotnet ef database update --project IdentityHost/IdentityHost.csproj --startup-project IdentityHost/IdentityHost.csproj --context Identity.Base.Roles.Data.IdentityRolesDbContext
+dotnet ef database update --project IdentityHost/IdentityHost.csproj --startup-project IdentityHost/IdentityHost.csproj --context Identity.Base.Roles.IdentityRolesDbContext
 dotnet ef database update --project IdentityHost/IdentityHost.csproj --startup-project IdentityHost/IdentityHost.csproj --context Identity.Base.Organizations.Data.OrganizationDbContext
 ```
 
-Replace `IdentityHost` with your actual host project (the sample repo uses `Identity.Base.Host`). The startup helper shown earlier still calls `Database.MigrateAsync()` so newly generated migrations run automatically at boot, but you should also run the CLI commands during CI/CD to keep environments consistent.
+Replace `IdentityHost` with your actual host project and remember to update the `.MigrationsAssembly("IdentityHost")` in `Program.cs` to the same project or a separate assembly with the migrations (the sample repo uses `Identity.Base.Host`). The startup helper shown earlier still calls `Database.MigrateAsync()` so newly generated migrations run automatically at boot, but you should also run the CLI commands during CI/CD to keep environments consistent.
 
 ### 3.5 Run the Host
 
