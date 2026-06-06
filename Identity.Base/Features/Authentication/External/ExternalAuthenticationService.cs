@@ -260,8 +260,8 @@ internal sealed class ExternalAuthenticationService
             return CreateLinkResponse(returnUrl, "error", description);
         }
 
-        await SyncConfiguredExternalClaimsAsync(currentUser, info.Principal, cancellationToken);
         await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+        await SyncConfiguredExternalClaimsAsync(currentUser, info.Principal, cancellationToken);
         await _signInManager.RefreshSignInAsync(currentUser);
         _logger.LogInformation("Linked provider {Provider} for user {UserId}", info.LoginProvider, currentUser.Id);
         await _auditLogger.LogAsync(AuditEventTypes.ExternalLinked, currentUser.Id, new { Provider = info.LoginProvider }, cancellationToken);
@@ -412,7 +412,7 @@ internal sealed class ExternalAuthenticationService
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var configuredClaimTypes = _externalAuthenticationOptions.PersistedClaimTypes
+        var configuredClaimTypes = (_externalAuthenticationOptions.PersistedClaimTypes ?? [])
             .Where(static claimType => !string.IsNullOrWhiteSpace(claimType))
             .Select(static claimType => claimType.Trim())
             .ToHashSet(StringComparer.Ordinal);
