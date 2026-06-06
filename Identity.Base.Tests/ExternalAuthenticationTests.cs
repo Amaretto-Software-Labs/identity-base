@@ -20,6 +20,8 @@ namespace Identity.Base.Tests;
 
 public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
 {
+    private const string ExternalWorkspaceClaimType = "urn:test:workspace";
+
     private readonly IdentityApiFactory _factory;
 
     public ExternalAuthenticationTests(IdentityApiFactory factory)
@@ -59,6 +61,67 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
         var logins = await userManager.GetLoginsAsync(user!);
         logins.ShouldContain(login => login.LoginProvider == IdentityApiFactory.FakeGoogleScheme);
         logins.Count(login => login.LoginProvider == IdentityApiFactory.FakeGoogleScheme).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ExternalLogin_PersistsConfiguredExternalClaims()
+    {
+        using var claimsFactory = CreateExternalClaimPersistingFactory();
+        const string email = "login-claims@example.com";
+        const string providerKey = "external-claims-key";
+
+        using var client = claimsFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        client.BaseAddress = new Uri("https://localhost");
+
+        var claimType = Uri.EscapeDataString(ExternalWorkspaceClaimType);
+        var initialClaimValue = Uri.EscapeDataString("Initial Workspace");
+        var startResponse = await client.GetAsync($"/auth/external/google/start?returnUrl=/client/callback&email={Uri.EscapeDataString(email)}&name=Login%20Claims&key={providerKey}&claimType={claimType}&claimValue={initialClaimValue}");
+        startResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        var callbackLocation = startResponse.Headers.Location;
+        callbackLocation.ShouldNotBeNull();
+
+        var callbackResponse = await client.GetAsync(callbackLocation);
+        callbackResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+
+        using (var scope = claimsFactory.Services.CreateScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await userManager.FindByEmailAsync(email);
+            user.ShouldNotBeNull();
+            var claims = await userManager.GetClaimsAsync(user!);
+            claims.ShouldContain(claim => claim.Type == ExternalWorkspaceClaimType && claim.Value == "Initial Workspace");
+        }
+
+        using var repeatClient = claimsFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        repeatClient.BaseAddress = new Uri("https://localhost");
+
+        var updatedClaimValue = Uri.EscapeDataString("Updated Workspace");
+        var repeatStartResponse = await repeatClient.GetAsync($"/auth/external/google/start?returnUrl=/client/callback&email={Uri.EscapeDataString(email)}&name=Login%20Claims&key={providerKey}&claimType={claimType}&claimValue={updatedClaimValue}");
+        repeatStartResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        var repeatCallbackLocation = repeatStartResponse.Headers.Location;
+        repeatCallbackLocation.ShouldNotBeNull();
+
+        var repeatCallbackResponse = await repeatClient.GetAsync(repeatCallbackLocation);
+        repeatCallbackResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+
+        using (var scope = claimsFactory.Services.CreateScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await userManager.FindByEmailAsync(email);
+            user.ShouldNotBeNull();
+            var claims = await userManager.GetClaimsAsync(user!);
+            var workspaceClaims = claims.Where(claim => claim.Type == ExternalWorkspaceClaimType).ToList();
+            workspaceClaims.Count.ShouldBe(1);
+            workspaceClaims[0].Value.ShouldBe("Updated Workspace");
+        }
     }
 
     [Fact]
@@ -345,6 +408,38 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
     }
 
     [Fact]
+    public async Task ExternalLink_PersistsConfiguredExternalClaims()
+    {
+        using var claimsFactory = CreateExternalClaimPersistingFactory();
+        const string email = "link-claims@example.com";
+        const string password = "StrongPass!2345";
+
+        await SeedUserAsync(email, password, claimsFactory);
+
+        using var client = await CreateAuthenticatedClientAsync(email, password, claimsFactory);
+        var claimType = Uri.EscapeDataString(ExternalWorkspaceClaimType);
+        var claimValue = Uri.EscapeDataString("Linked Workspace");
+        var linkStart = await client.GetAsync($"/auth/external/google/start?mode=link&returnUrl=/link/result&email=link-claims-provider@example.com&name=Linked%20Claims&claimType={claimType}&claimValue={claimValue}");
+        linkStart.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        var callback = linkStart.Headers.Location;
+        callback.ShouldNotBeNull();
+
+        var callbackResponse = await client.GetAsync(callback);
+        callbackResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        var finalLocation = callbackResponse.Headers.Location;
+        var finalUri = new Uri(client.BaseAddress!, finalLocation!);
+        var query = QueryHelpers.ParseQuery(finalUri.Query);
+        query["status"].ToString().ShouldBe("linked");
+
+        using var scope = claimsFactory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await userManager.FindByEmailAsync(email);
+        user.ShouldNotBeNull();
+        var claims = await userManager.GetClaimsAsync(user!);
+        claims.ShouldContain(claim => claim.Type == ExternalWorkspaceClaimType && claim.Value == "Linked Workspace");
+    }
+
+    [Fact]
     public async Task ExternalLink_And_Unlink_AllowsBearerAuthentication()
     {
         const string email = "link-bearer@example.com";
@@ -504,9 +599,22 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
         (await userManager.HasPasswordAsync(user!)).ShouldBeFalse();
     }
 
-    private async Task SeedUserAsync(string email, string password)
+    private WebApplicationFactory<Program> CreateExternalClaimPersistingFactory()
+        => _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureAppConfiguration((_, configurationBuilder) =>
+            {
+                var overrides = new Dictionary<string, string?>
+                {
+                    ["Authentication:External:PersistedClaimTypes:0"] = ExternalWorkspaceClaimType
+                };
+                configurationBuilder.AddInMemoryCollection(overrides);
+            });
+        });
+
+    private async Task SeedUserAsync(string email, string password, WebApplicationFactory<Program>? factory = null)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = (factory ?? _factory).Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var user = await userManager.FindByEmailAsync(email);
         if (user is null)
@@ -529,9 +637,9 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
         }
     }
 
-    private async Task<HttpClient> CreateAuthenticatedClientAsync(string email, string password)
+    private async Task<HttpClient> CreateAuthenticatedClientAsync(string email, string password, WebApplicationFactory<Program>? factory = null)
     {
-        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = (factory ?? _factory).CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false,
             HandleCookies = true

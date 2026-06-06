@@ -251,15 +251,17 @@ internal sealed class ExternalAuthenticationService
         }
 
         var addLoginResult = await _userManager.AddLoginAsync(currentUser, info);
-        await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
 
         if (!addLoginResult.Succeeded)
         {
+            await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
             var description = string.Join(", ", addLoginResult.Errors.Select(error => error.Description));
             _logger.LogWarning("Failed to link provider {Provider} for user {UserId}: {Errors}", info.LoginProvider, currentUser.Id, description);
             return CreateLinkResponse(returnUrl, "error", description);
         }
 
+        await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+        await SyncConfiguredExternalClaimsAsync(currentUser, info.Principal, cancellationToken);
         await _signInManager.RefreshSignInAsync(currentUser);
         _logger.LogInformation("Linked provider {Provider} for user {UserId}", info.LoginProvider, currentUser.Id);
         await _auditLogger.LogAsync(AuditEventTypes.ExternalLinked, currentUser.Id, new { Provider = info.LoginProvider }, cancellationToken);
@@ -276,6 +278,8 @@ internal sealed class ExternalAuthenticationService
             var existing = await _userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
             if (existing is not null)
             {
+                await SyncConfiguredExternalClaimsAsync(existing, info.Principal, cancellationToken);
+                await _signInManager.RefreshSignInAsync(existing);
                 await _auditLogger.LogAsync(AuditEventTypes.ExternalLogin, existing.Id, new { Provider = info.LoginProvider }, cancellationToken);
             }
             return CreateLoginResponse(returnUrl, "success", null, requiresTwoFactor: false, methods: null);
@@ -356,6 +360,7 @@ internal sealed class ExternalAuthenticationService
             return CreateLoginResponse(returnUrl, "error", "Unable to associate external login.", requiresTwoFactor: false, methods: null);
         }
 
+        await SyncConfiguredExternalClaimsAsync(user, info.Principal, cancellationToken);
         await _signInManager.SignInAsync(user, isPersistent: false);
         await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
         _logger.LogInformation("User {UserId} created via {Provider} external login", user.Id, info.LoginProvider);
@@ -402,6 +407,70 @@ internal sealed class ExternalAuthenticationService
 
         return user;
     }
+
+    private async Task SyncConfiguredExternalClaimsAsync(ApplicationUser user, ClaimsPrincipal externalPrincipal, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var configuredClaimTypes = (_externalAuthenticationOptions.PersistedClaimTypes ?? [])
+            .Where(static claimType => !string.IsNullOrWhiteSpace(claimType))
+            .Select(static claimType => claimType.Trim())
+            .ToHashSet(StringComparer.Ordinal);
+        if (configuredClaimTypes.Count == 0)
+        {
+            return;
+        }
+
+        var desiredClaims = externalPrincipal.Claims
+            .Where(claim =>
+                configuredClaimTypes.Contains(claim.Type)
+                && !string.IsNullOrWhiteSpace(claim.Value))
+            .Select(static claim => new Claim(claim.Type, claim.Value))
+            .DistinctBy(static claim => (claim.Type, claim.Value))
+            .ToList();
+
+        var existingClaims = await _userManager.GetClaimsAsync(user).ConfigureAwait(false);
+        var claimsToRemove = existingClaims
+            .Where(claim => configuredClaimTypes.Contains(claim.Type)
+                && !desiredClaims.Any(desired => ClaimsMatch(desired, claim)))
+            .ToList();
+        if (claimsToRemove.Count > 0)
+        {
+            var removeResult = await _userManager.RemoveClaimsAsync(user, claimsToRemove).ConfigureAwait(false);
+            if (!removeResult.Succeeded)
+            {
+                _logger.LogWarning(
+                    "Failed to remove stale external provider claims for user {UserId}: {Errors}",
+                    user.Id,
+                    string.Join(", ", removeResult.Errors.Select(error => error.Description)));
+                return;
+            }
+        }
+
+        var currentClaims = existingClaims
+            .Where(claim => !claimsToRemove.Any(removed => ClaimsMatch(removed, claim)))
+            .ToList();
+        var claimsToAdd = desiredClaims
+            .Where(desired => !currentClaims.Any(existing => ClaimsMatch(existing, desired)))
+            .ToList();
+        if (claimsToAdd.Count == 0)
+        {
+            return;
+        }
+
+        var addResult = await _userManager.AddClaimsAsync(user, claimsToAdd).ConfigureAwait(false);
+        if (!addResult.Succeeded)
+        {
+            _logger.LogWarning(
+                "Failed to persist external provider claims for user {UserId}: {Errors}",
+                user.Id,
+                string.Join(", ", addResult.Errors.Select(error => error.Description)));
+        }
+    }
+
+    private static bool ClaimsMatch(Claim left, Claim right)
+        => string.Equals(left.Type, right.Type, StringComparison.Ordinal)
+           && string.Equals(left.Value, right.Value, StringComparison.Ordinal);
 
     private static bool IsExternalEmailVerified(ClaimsPrincipal principal)
     {

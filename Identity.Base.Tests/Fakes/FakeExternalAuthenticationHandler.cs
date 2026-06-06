@@ -29,6 +29,8 @@ public sealed class FakeExternalAuthenticationHandler : AuthenticationHandler<Au
         var displayName = Context.Request.Query["name"].FirstOrDefault() ?? "External User";
         var providerKey = Context.Request.Query["key"].FirstOrDefault() ?? Guid.NewGuid().ToString("N");
         var emailVerified = Context.Request.Query["emailVerified"].FirstOrDefault();
+        var extraClaimType = Context.Request.Query["claimType"].FirstOrDefault();
+        var extraClaimValue = Context.Request.Query["claimValue"].FirstOrDefault();
 
         var claims = new List<Claim>
         {
@@ -40,6 +42,11 @@ public sealed class FakeExternalAuthenticationHandler : AuthenticationHandler<Au
         if (!string.IsNullOrWhiteSpace(emailVerified))
         {
             claims.Add(new Claim("email_verified", emailVerified));
+        }
+
+        if (!string.IsNullOrWhiteSpace(extraClaimType) && !string.IsNullOrWhiteSpace(extraClaimValue))
+        {
+            claims.Add(new Claim(extraClaimType, extraClaimValue));
         }
 
         var identity = new ClaimsIdentity(claims, Scheme.Name);
