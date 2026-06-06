@@ -72,8 +72,11 @@ using Identity.Base.Extensions;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Endpoints;
 using Identity.Base.Organizations.Extensions;
+using Identity.Base.Roles;
+using Identity.Base.Roles.Configuration;
 using Identity.Base.Roles.Endpoints;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
