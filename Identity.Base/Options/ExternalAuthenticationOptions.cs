@@ -15,4 +15,11 @@ public sealed class ExternalAuthenticationOptions
     /// from the external provider (for example: "email_verified": "true").
     /// </summary>
     public bool RequireVerifiedEmailForAutoLinkByEmail { get; set; }
+
+    /// <summary>
+    /// External provider claim types that should be copied to the local user claim store
+    /// after a successful external login or link. Leave empty to avoid persisting provider
+    /// metadata.
+    /// </summary>
+    public IList<string> PersistedClaimTypes { get; set; } = new List<string>();
 }
