@@ -9,6 +9,7 @@ using Identity.Base.ServicePrincipals.Options;
 using Identity.Base.ServicePrincipals.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -20,6 +21,24 @@ namespace Identity.Base.ServicePrincipals.Tests;
 
 public sealed class ServicePrincipalServiceTests
 {
+    [Fact]
+    public async Task Create_RollsBackOpenIddictApplication_WhenPrincipalSaveFails()
+    {
+        var saveException = new DbUpdateException("Service principal save failed.");
+        await using var fixture = new Fixture(new ThrowingSaveChangesInterceptor(saveException));
+        var application = new object();
+        fixture.ApplicationManager
+            .CreateAsync(Arg.Any<OpenIddictApplicationDescriptor>(), Arg.Any<CancellationToken>())
+            .Returns(ValueTask.FromResult(application));
+
+        var exception = await Should.ThrowAsync<DbUpdateException>(() =>
+            fixture.Service.CreateAsync("Automation", "automation", default));
+
+        exception.ShouldBeSameAs(saveException);
+        await fixture.ApplicationManager.Received(1).DeleteAsync(application, CancellationToken.None);
+        fixture.Principals.ChangeTracker.Entries<ServicePrincipal>().ShouldBeEmpty();
+    }
+
     [Fact]
     public async Task MultipleCredentials_AreHashed_AndCanBeSelectivelyRevoked()
     {
@@ -88,11 +107,16 @@ public sealed class ServicePrincipalServiceTests
 
     private sealed class Fixture : IAsyncDisposable
     {
-        public Fixture()
+        public Fixture(ISaveChangesInterceptor? saveChangesInterceptor = null)
         {
             var suffix = Guid.NewGuid().ToString("N");
-            Principals = new ServicePrincipalDbContext(
-                new DbContextOptionsBuilder<ServicePrincipalDbContext>().UseInMemoryDatabase($"sp-{suffix}").Options);
+            var principalOptions = new DbContextOptionsBuilder<ServicePrincipalDbContext>()
+                .UseInMemoryDatabase($"sp-{suffix}");
+            if (saveChangesInterceptor is not null)
+            {
+                principalOptions.AddInterceptors(saveChangesInterceptor);
+            }
+            Principals = new ServicePrincipalDbContext(principalOptions.Options);
             Roles = new IdentityRolesDbContext(
                 new DbContextOptionsBuilder<IdentityRolesDbContext>().UseInMemoryDatabase($"roles-{suffix}").Options);
             ApplicationManager = Substitute.For<IOpenIddictApplicationManager>();
@@ -134,5 +158,17 @@ public sealed class ServicePrincipalServiceTests
             await Task.CompletedTask;
             yield break;
         }
+    }
+
+    private sealed class ThrowingSaveChangesInterceptor(Exception exception) : SaveChangesInterceptor
+    {
+        public override InterceptionResult<int> SavingChanges(
+            DbContextEventData eventData,
+            InterceptionResult<int> result) => throw exception;
+
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default) => throw exception;
     }
 }

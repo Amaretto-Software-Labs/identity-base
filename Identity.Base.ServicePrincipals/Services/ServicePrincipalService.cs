@@ -52,9 +52,18 @@ public sealed class ServicePrincipalService(
         }
         descriptor.SetAccessTokenLifetime(options.Value.AccessTokenLifetime);
 
-        await applicationManager.CreateAsync(descriptor, cancellationToken);
-        dbContext.ServicePrincipals.Add(principal);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        var application = await applicationManager.CreateAsync(descriptor, cancellationToken);
+        try
+        {
+            dbContext.ServicePrincipals.Add(principal);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            dbContext.Entry(principal).State = EntityState.Detached;
+            await applicationManager.DeleteAsync(application, CancellationToken.None);
+            throw;
+        }
         return principal;
     }
 

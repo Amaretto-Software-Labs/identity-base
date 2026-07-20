@@ -120,7 +120,7 @@ internal static class ServicePrincipalEndpoints
             var principal = await service.FindRequiredAsync(id, cancellationToken);
             if (!string.Equals(principal.ConcurrencyStamp, request.ConcurrencyStamp, StringComparison.Ordinal))
             {
-                return Results.Conflict(new ProblemDetails { Detail = "Service principal was modified by another process." });
+                return ConcurrentModificationConflict();
             }
             if (string.IsNullOrWhiteSpace(request.DisplayName))
             {
@@ -138,7 +138,18 @@ internal static class ServicePrincipalEndpoints
         {
             return Results.NotFound();
         }
+        catch (DbUpdateConcurrencyException)
+        {
+            return ConcurrentModificationConflict();
+        }
     }
+
+    private static IResult ConcurrentModificationConflict() =>
+        Results.Conflict(new ProblemDetails
+        {
+            Detail = "Service principal was modified by another process.",
+            Status = StatusCodes.Status409Conflict
+        });
 
     private static async Task<IResult> DisableAsync(
         Guid id, RevokeServicePrincipalCredentialRequest? request, ServicePrincipalService service,
