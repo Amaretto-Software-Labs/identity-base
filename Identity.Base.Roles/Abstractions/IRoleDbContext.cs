@@ -11,6 +11,7 @@ public interface IRoleDbContext
     DbSet<Permission> Permissions { get; }
     DbSet<RolePermission> RolePermissions { get; }
     DbSet<UserRole> UserRoles { get; }
+    DbSet<ServicePrincipalRole> ServicePrincipalRoles { get; }
     DbSet<AuditEntry> AuditEntries { get; }
 
     DatabaseFacade Database { get; }

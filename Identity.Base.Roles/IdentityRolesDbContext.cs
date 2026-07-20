@@ -14,6 +14,7 @@ public class IdentityRolesDbContext(DbContextOptions<IdentityRolesDbContext> opt
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
+    public DbSet<ServicePrincipalRole> ServicePrincipalRoles => Set<ServicePrincipalRole>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -59,6 +60,13 @@ public class IdentityRolesDbContext(DbContextOptions<IdentityRolesDbContext> opt
             entity.ToTable(IdentityDbNamingHelper.Table(prefix, "UserRolesRbac"));
             entity.HasIndex(ur => ur.RoleId)
                 .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "UserRolesRbac_RoleId"));
+        });
+
+        modelBuilder.Entity<ServicePrincipalRole>(entity =>
+        {
+            entity.ToTable(IdentityDbNamingHelper.Table(prefix, "ServicePrincipalRoles"));
+            entity.HasIndex(assignment => assignment.RoleId)
+                .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "ServicePrincipalRoles_RoleId"));
         });
 
         modelBuilder.Entity<AuditEntry>(entity =>

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 - External email-based auto-linking now requires a verified provider email by default to prevent unverified or self-asserted email claims from attaching to existing accounts.
+- 0.9.x intent: added the opt-in `Identity.Base.ServicePrincipals` package with immutable Guid machine identities, multiple one-time-returned hashed credentials, parallel RBAC role assignments, managed `client_credentials` claims, 15-minute default access tokens, immediate token-entry revocation, admin endpoints, and client-core contracts.
+- Hosts adopting service principals must generate provider-specific migrations for `ServicePrincipalDbContext` and the new `IdentityRolesDbContext.ServicePrincipalRoles` set before enabling the endpoints.
 - Relaxed the new permission-identifier guidance to preserve backward compatibility: legacy cataloged permission IDs continue to work in host configuration, admin role edits, and organization-role permission updates.
 - Role seeding now normalizes existing permission rows when configuration changes only the casing of an identifier, preserving existing role-permission links without requiring package-owned migrations.
 - Sample admin UI and docs now clarify that permission IDs must already exist in the catalog before assignment; lowercase IDs using letters, digits, periods, hyphens, or underscores are recommended for new permissions.

@@ -12,6 +12,7 @@
     <ProjectReference Include="../Identity.Base.Admin/Identity.Base.Admin.csproj" />
     <ProjectReference Include="../Identity.Base.Roles/Identity.Base.Roles.csproj" />
     <ProjectReference Include="../Identity.Base.Organizations/Identity.Base.Organizations.csproj" />
+    <ProjectReference Include="../Identity.Base.ServicePrincipals/Identity.Base.ServicePrincipals.csproj" />
     <ProjectReference Include="..\Identity.Base.Email.MailJet\Identity.Base.Email.MailJet.csproj" />
     <ProjectReference Include="..\Identity.Base.Host.SqlServerMigrations\Identity.Base.Host.SqlServerMigrations.csproj" />
     <ProjectReference Include="..\Identity.Base.Host.PostgreSqlMigrations\Identity.Base.Host.PostgreSqlMigrations.csproj" />

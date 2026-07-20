@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PackageId>Identity.Base.ServicePrincipals</PackageId>
+    <Title>Identity Base Service Principals</Title>
+    <Description>Opt-in managed service principals, credentials, RBAC assignments, token integration, and admin APIs for Identity Base.</Description>
+    <Authors>Identity Base Maintainers</Authors>
+    <PackageTags>identity;oauth2;service-principals;machine-identity;rbac</PackageTags>
+    <PackageProjectUrl>https://github.com/amaretto-labs/identity-base</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/amaretto-labs/identity-base</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.10" />
+    <PackageReference Include="OpenIddict.Server" Version="7.1.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Identity.Base\Identity.Base.csproj" />
+    <ProjectReference Include="..\Identity.Base.Roles\Identity.Base.Roles.csproj" />
+    <ProjectReference Include="..\Identity.Base.Admin\Identity.Base.Admin.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+</Project>

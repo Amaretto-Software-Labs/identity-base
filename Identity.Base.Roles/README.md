@@ -4,7 +4,7 @@
 
 Role-based access control primitives for Identity Base. Includes:
 
-- EF Core entities and configuration for roles, permissions, role-permission associations, user-role links, and audit entries.
+- EF Core entities and configuration for roles, permissions, role-permission associations, user-role links, service-principal-role links, and audit entries.
 - Configuration binding for role/permission definitions and default role assignments.
 - Services for role assignment and permission resolution.
 - `ClaimsPrincipal` helpers for parsing and checking `identity.permissions` claims.
@@ -35,3 +35,7 @@ await app.Services.SeedIdentityRolesAsync(); // host-controlled migrations must 
 ```
 
 Consumers opt in explicitly; no additional tables are created unless the package is referenced and configured.
+
+`ServicePrincipalRole` is deliberately parallel to `UserRole`: it shares the same
+role and permission catalog without changing user assignment APIs. Hosts upgrading
+to 0.9.x must generate a migration for the new `ServicePrincipalRoles` set.

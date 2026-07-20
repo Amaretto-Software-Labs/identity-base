@@ -2,6 +2,7 @@ using Identity.Base.Data;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Roles;
 using Identity.Base.Roles.Configuration;
+using Identity.Base.ServicePrincipals.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace Identity.Base.Host;
@@ -16,6 +17,7 @@ internal static class HostMigrationRunner
         await MigrateAsync<AppDbContext>(provider);
         await MigrateAsync<IdentityRolesDbContext>(provider);
         await MigrateAsync<OrganizationDbContext>(provider);
+        await MigrateAsync<ServicePrincipalDbContext>(provider);
 
         await provider.SeedIdentityRolesAsync();
     }
