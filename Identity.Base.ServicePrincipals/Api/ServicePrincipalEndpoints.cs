@@ -36,6 +36,7 @@ internal static class ServicePrincipalEndpoints
     private static async Task<IResult> ListAsync(
         [AsParameters] ListQuery query,
         ServicePrincipalDbContext dbContext,
+        IRoleDbContext roleDbContext,
         CancellationToken cancellationToken)
     {
         var page = Math.Max(1, query.Page ?? 1);
@@ -52,12 +53,24 @@ internal static class ServicePrincipalEndpoints
         }
 
         var total = await source.CountAsync(cancellationToken);
-        var items = await source.OrderBy(item => item.DisplayName).ThenBy(item => item.Id)
+        var principals = await source.OrderBy(item => item.DisplayName).ThenBy(item => item.Id)
             .Skip((page - 1) * pageSize).Take(pageSize)
-            .Select(item => new ServicePrincipalSummary(
-                item.Id, item.DisplayName, item.ClientId, item.IsDisabled,
-                item.CreatedAt, item.UpdatedAt, item.ConcurrencyStamp))
             .ToListAsync(cancellationToken);
+        var principalIds = principals.Select(item => item.Id).ToArray();
+        var roleAssignments = await roleDbContext.ServicePrincipalRoles
+            .Where(item => principalIds.Contains(item.ServicePrincipalId))
+            .Join(
+                roleDbContext.Roles,
+                assignment => assignment.RoleId,
+                role => role.Id,
+                (assignment, role) => new { assignment.ServicePrincipalId, role.Name })
+            .ToListAsync(cancellationToken);
+        var rolesByPrincipal = roleAssignments.ToLookup(item => item.ServicePrincipalId, item => item.Name);
+        var items = principals.Select(item => new ServicePrincipalSummary(
+                item.Id, item.DisplayName, item.ClientId, item.IsDisabled,
+                item.CreatedAt, item.UpdatedAt, item.ConcurrencyStamp,
+                rolesByPrincipal[item.Id].OrderBy(name => name).ToArray()))
+            .ToArray();
         return Results.Ok(new PagedResult<ServicePrincipalSummary>(page, pageSize, total, items));
     }
 
@@ -85,21 +98,21 @@ internal static class ServicePrincipalEndpoints
         IAuditLogger auditLogger,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.DisplayName) || string.IsNullOrWhiteSpace(request.ClientId))
+        if (string.IsNullOrWhiteSpace(request.DisplayName))
         {
             return Results.ValidationProblem(new Dictionary<string, string[]>
             {
-                ["request"] = ["DisplayName and ClientId are required."]
+                ["displayName"] = ["DisplayName is required."]
             });
         }
         try
         {
-            var principal = await service.CreateAsync(request.DisplayName, request.ClientId, cancellationToken);
+            var principal = await service.CreateAsync(request.DisplayName, cancellationToken);
             await auditLogger.LogAnonymousAsync(AuditEventTypes.AdminServicePrincipalCreated,
                 new { principal.Id, principal.ClientId }, cancellationToken);
             return Results.Created($"/admin/service-principals/{principal.Id:D}", new ServicePrincipalSummary(
                 principal.Id, principal.DisplayName, principal.ClientId, principal.IsDisabled,
-                principal.CreatedAt, principal.UpdatedAt, principal.ConcurrencyStamp));
+                principal.CreatedAt, principal.UpdatedAt, principal.ConcurrencyStamp, []));
         }
         catch (InvalidOperationException exception)
         {
@@ -132,7 +145,7 @@ internal static class ServicePrincipalEndpoints
                 new { principal.Id, principal.ClientId }, cancellationToken);
             return Results.Ok(new ServicePrincipalSummary(
                 principal.Id, principal.DisplayName, principal.ClientId, principal.IsDisabled,
-                principal.CreatedAt, principal.UpdatedAt, principal.ConcurrencyStamp));
+                principal.CreatedAt, principal.UpdatedAt, principal.ConcurrencyStamp, []));
         }
         catch (KeyNotFoundException)
         {

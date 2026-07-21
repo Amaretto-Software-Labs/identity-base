@@ -40,6 +40,19 @@ public sealed class ServicePrincipalServiceTests
     }
 
     [Fact]
+    public async Task Create_GeneratesUniqueKebabCaseClientIds()
+    {
+        await using var fixture = new Fixture();
+
+        var first = await fixture.Service.CreateAsync("Claims Automation", default);
+        var second = await fixture.Service.CreateAsync("Claims Automation", default);
+
+        first.ClientId.ShouldStartWith("claims-automation-");
+        second.ClientId.ShouldStartWith("claims-automation-");
+        second.ClientId.ShouldNotBe(first.ClientId);
+    }
+
+    [Fact]
     public async Task MultipleCredentials_AreHashed_AndCanBeSelectivelyRevoked()
     {
         await using var fixture = new Fixture();

@@ -7,7 +7,8 @@ public sealed record ServicePrincipalSummary(
     bool IsDisabled,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    string ConcurrencyStamp);
+    string ConcurrencyStamp,
+    IReadOnlyList<string> Roles);
 
 public sealed record ServicePrincipalDetail(
     Guid Id,
@@ -34,7 +35,7 @@ public sealed record IssuedServicePrincipalCredential(
     DateTimeOffset CreatedAt,
     DateTimeOffset? ExpiresAt);
 
-public sealed record CreateServicePrincipalRequest(string DisplayName, string ClientId);
+public sealed record CreateServicePrincipalRequest(string DisplayName);
 public sealed record UpdateServicePrincipalRequest(string DisplayName, string ConcurrencyStamp);
 public sealed record ServicePrincipalRolesResponse(IReadOnlyList<string> Roles);
 public sealed record UpdateServicePrincipalRolesRequest(IReadOnlyList<string>? Roles);

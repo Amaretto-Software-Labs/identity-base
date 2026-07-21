@@ -288,11 +288,10 @@ export interface AdminServicePrincipalSummary {
   createdAt: string
   updatedAt: string
   concurrencyStamp: string
-}
-
-export interface AdminServicePrincipalDetail extends AdminServicePrincipalSummary {
   roles: string[]
 }
+
+export type AdminServicePrincipalDetail = AdminServicePrincipalSummary
 
 export interface AdminServicePrincipalListQuery {
   page?: number
@@ -302,7 +301,7 @@ export interface AdminServicePrincipalListQuery {
 }
 
 export type AdminServicePrincipalListResponse = PagedResult<AdminServicePrincipalSummary>
-export interface AdminServicePrincipalCreateRequest { displayName: string; clientId: string }
+export interface AdminServicePrincipalCreateRequest { displayName: string }
 export interface AdminServicePrincipalUpdateRequest { displayName: string; concurrencyStamp: string }
 export interface AdminServicePrincipalRolesResponse { roles: string[] }
 export interface AdminServicePrincipalCredential {

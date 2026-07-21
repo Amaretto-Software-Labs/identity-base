@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using Identity.Base.Roles.Abstractions;
 using Identity.Base.Roles.Entities;
 using Identity.Base.ServicePrincipals.Data;
@@ -21,6 +22,23 @@ public sealed class ServicePrincipalService(
     IOptions<ServicePrincipalOptions> options,
     IEnumerable<IServicePrincipalLifecycleListener> lifecycleListeners)
 {
+    public async Task<ServicePrincipal> CreateAsync(string displayName, CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            var clientId = GenerateClientId(displayName);
+            if (await dbContext.ServicePrincipals.AnyAsync(item => item.ClientId == clientId, cancellationToken)
+                || await applicationManager.FindByClientIdAsync(clientId, cancellationToken) is not null)
+            {
+                continue;
+            }
+
+            return await CreateAsync(displayName, clientId, cancellationToken);
+        }
+
+        throw new InvalidOperationException("Unable to generate a unique client ID.");
+    }
+
     public async Task<ServicePrincipal> CreateAsync(string displayName, string clientId, CancellationToken cancellationToken)
     {
         var principal = new ServicePrincipal(displayName.Trim(), clientId.Trim());
@@ -199,6 +217,24 @@ public sealed class ServicePrincipalService(
         {
             _ = await tokenManager.TryRevokeAsync(token, cancellationToken);
         }
+    }
+
+    private static string GenerateClientId(string displayName)
+    {
+        var prefix = Regex.Replace(
+                displayName.Trim().ToLowerInvariant(),
+                "[^a-z0-9]+",
+                "-",
+                RegexOptions.CultureInvariant)
+            .Trim('-');
+        if (string.IsNullOrWhiteSpace(prefix))
+        {
+            prefix = "service-principal";
+        }
+
+        prefix = prefix[..Math.Min(prefix.Length, 180)];
+        var suffix = Convert.ToHexString(RandomNumberGenerator.GetBytes(6)).ToLowerInvariant();
+        return $"{prefix}-{suffix}";
     }
 }
 
