@@ -63,6 +63,29 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
     }
 
     [Fact]
+    public async Task Verify_DoesNotReportSuccess_WhenEnablingMfaFails()
+    {
+        using var factory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+                services.AddScoped<IUserValidator<ApplicationUser>, RejectMfaEnableUserValidator>());
+        });
+        const string email = "mfa-enable-failure@example.com";
+        const string password = "StrongPass!2345";
+
+        await SeedUserAsync(email, password, confirmEmail: true, factory);
+        using var client = await CreateAuthenticatedClientAsync(email, password, factory);
+        using var enrollResponse = await client.PostAsync("/auth/mfa/enroll", null);
+        enrollResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var code = await GenerateAuthenticatorCodeAsync(email, factory);
+
+        using var verifyResponse = await client.PostAsJsonAsync("/auth/mfa/verify", new { code });
+
+        verifyResponse.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await GetUserAsync(email, factory)).TwoFactorEnabled.ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task TwoFactorLogin_FlowsThroughVerifyEndpoint()
     {
         const string email = "mfa-login@example.com";
@@ -263,9 +286,13 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
         await client.PostAsJsonAsync("/auth/mfa/verify", new { code });
     }
 
-    private async Task<ApplicationUser> SeedUserAsync(string email, string password, bool confirmEmail)
+    private async Task<ApplicationUser> SeedUserAsync(
+        string email,
+        string password,
+        bool confirmEmail,
+        WebApplicationFactory<Program>? factory = null)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = (factory ?? _factory).Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var user = await userManager.FindByEmailAsync(email);
         if (user is null)
@@ -314,9 +341,11 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
         return user;
     }
 
-    private async Task<string> GenerateAuthenticatorCodeAsync(string email)
+    private async Task<string> GenerateAuthenticatorCodeAsync(
+        string email,
+        WebApplicationFactory<Program>? factory = null)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = (factory ?? _factory).Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var user = await userManager.FindByEmailAsync(email);
         user.ShouldNotBeNull();
@@ -390,18 +419,23 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
         return output.ToArray();
     }
 
-    private async Task<ApplicationUser> GetUserAsync(string email)
+    private async Task<ApplicationUser> GetUserAsync(
+        string email,
+        WebApplicationFactory<Program>? factory = null)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = (factory ?? _factory).Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var user = await userManager.FindByEmailAsync(email);
         user.ShouldNotBeNull();
         return user!;
     }
 
-    private async Task<HttpClient> CreateAuthenticatedClientAsync(string email, string password)
+    private async Task<HttpClient> CreateAuthenticatedClientAsync(
+        string email,
+        string password,
+        WebApplicationFactory<Program>? factory = null)
     {
-        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = (factory ?? _factory).CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false,
             HandleCookies = true
@@ -423,12 +457,26 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
             payloadDocument.RootElement.TryGetProperty("requiresTwoFactor", out var requiresTwoFactorElement) &&
             requiresTwoFactorElement.ValueKind == JsonValueKind.True)
         {
-            var code = await GenerateAuthenticatorCodeAsync(email);
+            var code = await GenerateAuthenticatorCodeAsync(email, factory);
             var verifyResponse = await client.PostAsJsonAsync("/auth/mfa/verify", new { code });
             verifyResponse.IsSuccessStatusCode.ShouldBeTrue();
         }
 
         return client;
+    }
+
+    private sealed class RejectMfaEnableUserValidator : IUserValidator<ApplicationUser>
+    {
+        public Task<IdentityResult> ValidateAsync(
+            UserManager<ApplicationUser> manager,
+            ApplicationUser user)
+            => Task.FromResult(user.TwoFactorEnabled
+                ? IdentityResult.Failed(new IdentityError
+                {
+                    Code = "MfaEnableRejected",
+                    Description = "Simulated MFA persistence failure."
+                })
+                : IdentityResult.Success);
     }
 }
 

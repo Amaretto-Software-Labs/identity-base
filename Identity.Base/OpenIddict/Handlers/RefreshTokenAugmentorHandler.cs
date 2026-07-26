@@ -12,7 +12,7 @@ using OpenIddict.Server;
 
 namespace Identity.Base.OpenIddict.Handlers;
 
-internal sealed class RefreshTokenAugmentorHandler : IOpenIddictServerHandler<OpenIddictServerEvents.HandleTokenRequestContext>
+internal sealed class RefreshTokenAugmentorHandler : IOpenIddictServerHandler<OpenIddictServerEvents.ProcessSignInContext>
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ILogger<RefreshTokenAugmentorHandler> _logger;
@@ -28,7 +28,7 @@ internal sealed class RefreshTokenAugmentorHandler : IOpenIddictServerHandler<Op
         _augmentors = augmentors;
     }
 
-    public async ValueTask HandleAsync(OpenIddictServerEvents.HandleTokenRequestContext context)
+    public async ValueTask HandleAsync(OpenIddictServerEvents.ProcessSignInContext context)
     {
         if (!context.Request.IsRefreshTokenGrantType())
         {
@@ -52,7 +52,26 @@ internal sealed class RefreshTokenAugmentorHandler : IOpenIddictServerHandler<Op
         var user = await _userManager.FindByIdAsync(subject).ConfigureAwait(false);
         if (user is null)
         {
-            _logger.LogDebug("Skipping refresh augmentation because user {Subject} could not be found.", subject);
+            _logger.LogInformation("Rejecting refresh token because user {Subject} could not be found.", subject);
+            context.Reject(OpenIddictConstants.Errors.InvalidGrant, "The refresh token is no longer valid.");
+            return;
+        }
+
+        if (await _userManager.IsLockedOutAsync(user).ConfigureAwait(false))
+        {
+            _logger.LogInformation("Rejecting refresh token because user {Subject} is locked out.", subject);
+            context.Reject(OpenIddictConstants.Errors.InvalidGrant, "The refresh token is no longer valid.");
+            return;
+        }
+
+        var securityStampClaimType = _userManager.Options.ClaimsIdentity.SecurityStampClaimType;
+        var tokenSecurityStamp = principal.FindFirstValue(securityStampClaimType);
+        var currentSecurityStamp = await _userManager.GetSecurityStampAsync(user).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(tokenSecurityStamp)
+            || !string.Equals(tokenSecurityStamp, currentSecurityStamp, StringComparison.Ordinal))
+        {
+            _logger.LogInformation("Rejecting refresh token because the security stamp changed for user {Subject}.", subject);
+            context.Reject(OpenIddictConstants.Errors.InvalidGrant, "The refresh token is no longer valid.");
             return;
         }
 
@@ -62,11 +81,10 @@ internal sealed class RefreshTokenAugmentorHandler : IOpenIddictServerHandler<Op
         }
 
         principal.SetDestinations(OpenIddictClaimDestinations.GetDestinations);
-        context.Principal = principal;
     }
 
     public static OpenIddictServerHandlerDescriptor Descriptor { get; } =
-        OpenIddictServerHandlerDescriptor.CreateBuilder<OpenIddictServerEvents.HandleTokenRequestContext>()
+        OpenIddictServerHandlerDescriptor.CreateBuilder<OpenIddictServerEvents.ProcessSignInContext>()
             .UseScopedHandler<RefreshTokenAugmentorHandler>()
             .SetOrder(int.MinValue + 5020)
             .SetType(OpenIddictServerHandlerType.Custom)

@@ -3,17 +3,20 @@ using System;
 using Identity.Base.Organizations.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Identity.Base.Host.PostgreSqlMigrations.Data.Migrations.Organizations
+namespace OrgSampleApi.Hosting.Infrastructure.Migrations.Organizations
 {
     [DbContext(typeof(OrganizationDbContext))]
-    partial class OrganizationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260726015926_EnforceUniqueOrganizationInvitations")]
+    partial class EnforceUniqueOrganizationInvitations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -66,22 +69,22 @@ namespace Identity.Base.Host.PostgreSqlMigrations.Data.Migrations.Organizations
                         .HasColumnType("uuid");
 
                     b.HasKey("Code")
-                        .HasName("PK_Host_OrganizationInvitations");
+                        .HasName("PK_OrgSample_OrganizationInvitations");
 
                     b.HasIndex("Email")
-                        .HasDatabaseName("IX_Host_OrganizationInvitations_Email");
+                        .HasDatabaseName("IX_OrgSample_OrganizationInvitations_Email");
 
                     b.HasIndex("OrganizationId")
-                        .HasDatabaseName("IX_Host_OrganizationInvitations_OrganizationId");
+                        .HasDatabaseName("IX_OrgSample_OrganizationInvitations_OrganizationId");
 
                     b.HasIndex("UsedAtUtc")
-                        .HasDatabaseName("IX_Host_OrganizationInvitations_UsedAtUtc");
+                        .HasDatabaseName("IX_OrgSample_OrganizationInvitations_UsedAtUtc");
 
                     b.HasIndex("OrganizationId", "Email")
                         .IsUnique()
-                        .HasDatabaseName("IX_Host_OrganizationInvitations_OrganizationId_Email");
+                        .HasDatabaseName("IX_OrgSample_OrganizationInvitations_OrganizationId_Email");
 
-                    b.ToTable("Host_OrganizationInvitations", (string)null);
+                    b.ToTable("OrgSample_OrganizationInvitations", (string)null);
                 });
 
             modelBuilder.Entity("Identity.Base.Organizations.Domain.Organization", b =>
@@ -129,13 +132,13 @@ namespace Identity.Base.Host.PostgreSqlMigrations.Data.Migrations.Organizations
 
                     b.HasIndex("TenantId", "DisplayName")
                         .IsUnique()
-                        .HasDatabaseName("IX_Host_Organizations_Tenant_DisplayName");
+                        .HasDatabaseName("IX_OrgSample_Organizations_Tenant_DisplayName");
 
                     b.HasIndex("TenantId", "Slug")
                         .IsUnique()
-                        .HasDatabaseName("IX_Host_Organizations_Tenant_Slug");
+                        .HasDatabaseName("IX_OrgSample_Organizations_Tenant_Slug");
 
-                    b.ToTable("Host_Organizations", (string)null);
+                    b.ToTable("OrgSample_Organizations", (string)null);
                 });
 
             modelBuilder.Entity("Identity.Base.Organizations.Domain.OrganizationMembership", b =>
@@ -162,15 +165,15 @@ namespace Identity.Base.Host.PostgreSqlMigrations.Data.Migrations.Organizations
                     b.HasKey("OrganizationId", "UserId");
 
                     b.HasIndex("OrganizationId", "CreatedAtUtc")
-                        .HasDatabaseName("IX_Host_OrganizationMemberships_Organization_Created");
+                        .HasDatabaseName("IX_OrgSample_OrganizationMemberships_Organization_Created");
 
                     b.HasIndex("OrganizationId", "UserId")
-                        .HasDatabaseName("IX_Host_OrganizationMemberships_Organization_User");
+                        .HasDatabaseName("IX_OrgSample_OrganizationMemberships_Organization_User");
 
                     b.HasIndex("UserId", "TenantId")
-                        .HasDatabaseName("IX_Host_OrganizationMemberships_User_Tenant");
+                        .HasDatabaseName("IX_OrgSample_OrganizationMemberships_User_Tenant");
 
-                    b.ToTable("Host_OrganizationMemberships", (string)null);
+                    b.ToTable("OrgSample_OrganizationMemberships", (string)null);
                 });
 
             modelBuilder.Entity("Identity.Base.Organizations.Domain.OrganizationRole", b =>
@@ -217,9 +220,9 @@ namespace Identity.Base.Host.PostgreSqlMigrations.Data.Migrations.Organizations
 
                     b.HasIndex("TenantId", "OrganizationId", "Name")
                         .IsUnique()
-                        .HasDatabaseName("IX_Host_OrganizationRoles_Tenant_Organization_Name");
+                        .HasDatabaseName("IX_OrgSample_OrganizationRoles_Tenant_Organization_Name");
 
-                    b.ToTable("Host_OrganizationRoles", (string)null);
+                    b.ToTable("OrgSample_OrganizationRoles", (string)null);
                 });
 
             modelBuilder.Entity("Identity.Base.Organizations.Domain.OrganizationRoleAssignment", b =>
@@ -249,12 +252,12 @@ namespace Identity.Base.Host.PostgreSqlMigrations.Data.Migrations.Organizations
                     b.HasKey("OrganizationId", "UserId", "RoleId");
 
                     b.HasIndex("RoleId")
-                        .HasDatabaseName("IX_Host_OrganizationRoleAssignments_Role");
+                        .HasDatabaseName("IX_OrgSample_OrganizationRoleAssignments_Role");
 
                     b.HasIndex("UserId", "TenantId")
-                        .HasDatabaseName("IX_Host_OrganizationRoleAssignments_User_Tenant");
+                        .HasDatabaseName("IX_OrgSample_OrganizationRoleAssignments_User_Tenant");
 
-                    b.ToTable("Host_OrganizationRoleAssignments", (string)null);
+                    b.ToTable("OrgSample_OrganizationRoleAssignments", (string)null);
                 });
 
             modelBuilder.Entity("Identity.Base.Organizations.Domain.OrganizationRolePermission", b =>
@@ -290,15 +293,15 @@ namespace Identity.Base.Host.PostgreSqlMigrations.Data.Migrations.Organizations
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizationId", "RoleId")
-                        .HasDatabaseName("IX_Host_OrganizationRolePermissions_Organization_Role");
+                        .HasDatabaseName("IX_OrgSample_OrganizationRolePermissions_Organization_Role");
 
                     b.HasIndex("RoleId", "PermissionId")
-                        .HasDatabaseName("IX_Host_OrganizationRolePermissions_Role_Permission");
+                        .HasDatabaseName("IX_OrgSample_OrganizationRolePermissions_Role_Permission");
 
                     b.HasIndex("TenantId", "RoleId")
-                        .HasDatabaseName("IX_Host_OrganizationRolePermissions_Tenant_Role");
+                        .HasDatabaseName("IX_OrgSample_OrganizationRolePermissions_Tenant_Role");
 
-                    b.ToTable("Host_OrganizationRolePermissions", (string)null);
+                    b.ToTable("OrgSample_OrganizationRolePermissions", (string)null);
                 });
 
             modelBuilder.Entity("Identity.Base.Organizations.Domain.OrganizationMembership", b =>
@@ -335,13 +338,15 @@ namespace Identity.Base.Host.PostgreSqlMigrations.Data.Migrations.Organizations
                         .WithMany("RoleAssignments")
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_OrgSample_OrganizationRoleAssignments_OrgSample_Organizati~1");
 
                     b.HasOne("Identity.Base.Organizations.Domain.OrganizationMembership", "Membership")
                         .WithMany("RoleAssignments")
                         .HasForeignKey("OrganizationId", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_OrgSample_OrganizationRoleAssignments_OrgSample_Organizati~2");
 
                     b.Navigation("Membership");
 

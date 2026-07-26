@@ -13,8 +13,10 @@ using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Domain;
 using Identity.Base.Organizations.Extensions;
 using Identity.Base.Organizations.Infrastructure;
+using Identity.Base.Organizations.Lifecycle;
 using Identity.Base.Organizations.Services;
 using Identity.Base.Organizations.Authorization;
+using Identity.Base.Lifecycle;
 using Identity.Base.Roles.Abstractions;
 using Identity.Base.Roles.Configuration;
 using Identity.Base.Roles.Entities;
@@ -270,6 +272,64 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         var list = JsonSerializer.Deserialize<PagedResult<UserOrganizationMembershipDto>>(listBody, JsonOptions);
         list.ShouldNotBeNull();
         list!.Items.ShouldContain(item => item.OrganizationId == dto.Id);
+    }
+
+    [Fact]
+    public async Task User_Create_Organization_RemovesOrganization_WhenOwnerMembershipFails()
+    {
+        using var factory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+                services.AddScoped<IOrganizationLifecycleListener, RejectMemberAddListener>());
+        });
+        const string email = "org-create-compensation@example.com";
+        const string password = "UserPass!2345";
+        Guid userId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = new ApplicationUser
+            {
+                Email = email,
+                UserName = email,
+                EmailConfirmed = true,
+                DisplayName = "Compensation User"
+            };
+            var result = await userManager.CreateAsync(user, password);
+            result.Succeeded.ShouldBeTrue(result.Errors.FirstOrDefault()?.Description);
+            userId = user.Id;
+        }
+
+        var token = await _factory.CreateAccessTokenAsync(
+            email,
+            password,
+            factory,
+            string.Join(' ', new[]
+            {
+                OpenIddictConstants.Scopes.OpenId,
+                OpenIddictConstants.Scopes.Profile,
+                OpenIddictConstants.Scopes.Email,
+                "identity.api"
+            }));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            HandleCookies = false
+        });
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var slug = $"failed-create-{Guid.NewGuid():N}";
+
+        using var response = await client.PostAsJsonAsync("/users/me/organizations", new
+        {
+            Slug = slug,
+            DisplayName = "Failed Created Org"
+        });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        using var verifyScope = factory.Services.CreateScope();
+        var dbContext = verifyScope.ServiceProvider.GetRequiredService<OrganizationDbContext>();
+        (await dbContext.Organizations.AnyAsync(organization => organization.Slug == slug)).ShouldBeFalse();
+        (await dbContext.OrganizationMemberships.AnyAsync(membership => membership.UserId == userId)).ShouldBeFalse();
     }
 
     [Fact]
@@ -1042,6 +1102,14 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     private sealed record OrganizationMembershipDto(Guid OrganizationId, Guid UserId, Guid[] RoleIds);
 
     private sealed record OrganizationMemberListDto(int Page, int PageSize, int TotalCount, OrganizationMembershipDto[] Members);
+
+    private sealed class RejectMemberAddListener : IOrganizationLifecycleListener
+    {
+        public ValueTask<LifecycleHookResult> BeforeMemberAddedAsync(
+            OrganizationLifecycleContext context,
+            CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(LifecycleHookResult.Fail("Simulated owner membership failure."));
+    }
 
     private async Task<Guid> GetSystemRoleIdAsync(string roleName)
     {

@@ -64,6 +64,31 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
     }
 
     [Fact]
+    public async Task ExternalLogin_DoesNotConfirmUnverifiedEmail_WhenCreatingUser()
+    {
+        var email = $"external-unverified-{Guid.NewGuid():N}@example.com";
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        client.BaseAddress = new Uri("https://localhost");
+
+        var startResponse = await client.GetAsync(
+            $"/auth/external/google/start?returnUrl=/client/callback&email={Uri.EscapeDataString(email)}&name=Unverified%20User&emailVerified=false");
+        startResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+
+        var callbackResponse = await client.GetAsync(startResponse.Headers.Location);
+        callbackResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+
+        using var scope = _factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await userManager.FindByEmailAsync(email);
+        user.ShouldNotBeNull();
+        user!.EmailConfirmed.ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task ExternalLogin_PersistsConfiguredExternalClaims()
     {
         using var claimsFactory = CreateExternalClaimPersistingFactory();

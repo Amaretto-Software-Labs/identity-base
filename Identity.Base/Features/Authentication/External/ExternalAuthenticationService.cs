@@ -387,7 +387,7 @@ internal sealed class ExternalAuthenticationService
         {
             UserName = userName,
             Email = email,
-            EmailConfirmed = !string.IsNullOrWhiteSpace(email),
+            EmailConfirmed = !string.IsNullOrWhiteSpace(email) && IsExternalEmailVerified(info.Principal),
             DisplayName = displayName
         };
 
@@ -397,12 +397,6 @@ internal sealed class ExternalAuthenticationService
             var description = string.Join(", ", createResult.Errors.Select(error => error.Description));
             _logger.LogWarning("Failed to create user for external login {Provider}: {Errors}", info.LoginProvider, description);
             return null;
-        }
-
-        if (!string.IsNullOrWhiteSpace(email) && !await _userManager.IsEmailConfirmedAsync(user))
-        {
-            user.EmailConfirmed = true;
-            await _userManager.UpdateAsync(user);
         }
 
         return user;

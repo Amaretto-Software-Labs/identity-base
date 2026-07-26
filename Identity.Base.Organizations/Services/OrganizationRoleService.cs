@@ -227,6 +227,11 @@ public sealed class OrganizationRoleService : IOrganizationRoleService
             throw new KeyNotFoundException($"Organization role {roleId} was not found.");
         }
 
+        if (role.OrganizationId != Guid.Empty && role.OrganizationId != organizationId)
+        {
+            throw new InvalidOperationException("Role does not belong to the specified organization scope.");
+        }
+
         var organization = await _dbContext.Organizations
             .AsNoTracking()
             .FirstOrDefaultAsync(entity => entity.Id == organizationId, cancellationToken)

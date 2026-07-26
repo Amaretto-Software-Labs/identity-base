@@ -105,6 +105,9 @@ public class OrganizationDbContext(DbContextOptions<OrganizationDbContext> optio
                 .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "OrganizationInvitations_OrganizationId"));
             entity.HasIndex(invitation => invitation.Email)
                 .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "OrganizationInvitations_Email"));
+            entity.HasIndex(invitation => new { invitation.OrganizationId, invitation.Email })
+                .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "OrganizationInvitations_OrganizationId_Email"))
+                .IsUnique();
             entity.HasIndex(invitation => invitation.UsedAtUtc)
                 .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "OrganizationInvitations_UsedAtUtc"));
         });

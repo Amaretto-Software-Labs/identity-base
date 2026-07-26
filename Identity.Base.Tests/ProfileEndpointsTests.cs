@@ -4,7 +4,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Shouldly;
+using Identity.Base.Abstractions;
 using Identity.Base.Identity;
+using Identity.Base.Lifecycle;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -138,6 +140,37 @@ public class ProfileEndpointsTests : IClassFixture<IdentityApiFactory>
     }
 
     [Fact]
+    public async Task UpdateProfile_ReturnsConflict_WhenConcurrentUpdateWinsAfterPrecheck()
+    {
+        using var factory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+                services.AddScoped<IUserLifecycleListener, ConcurrentProfileUpdateListener>());
+        });
+        const string email = "profile-concurrent-write@example.com";
+        const string password = "StrongPass!2345";
+        await SeedUserAsync(email, password, new Dictionary<string, string?>
+        {
+            ["displayName"] = "Original Name",
+            ["company"] = "Original Co"
+        }, factory);
+        using var client = await CreateAuthenticatedClientAsync(email, password, factory);
+        var current = await client.GetFromJsonAsync<UserProfilePayload>("/users/me");
+
+        using var response = await client.PutAsJsonAsync("/users/me/profile", new
+        {
+            metadata = new Dictionary<string, string?>
+            {
+                ["displayName"] = "Request Update",
+                ["company"] = "Request Co"
+            },
+            concurrencyStamp = current!.ConcurrencyStamp
+        });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
     public async Task UpdateProfile_ReturnsValidationError_ForMissingRequiredField()
     {
         const string email = "profile-validation@example.com";
@@ -167,9 +200,13 @@ public class ProfileEndpointsTests : IClassFixture<IdentityApiFactory>
         problem!.RootElement.GetProperty("errors").TryGetProperty("metadata.displayName", out _).ShouldBeTrue();
     }
 
-    private async Task SeedUserAsync(string email, string password, IDictionary<string, string?> metadata)
+    private async Task SeedUserAsync(
+        string email,
+        string password,
+        IDictionary<string, string?> metadata,
+        WebApplicationFactory<Program>? factory = null)
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = (factory ?? _factory).Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var user = await userManager.FindByEmailAsync(email);
         if (user is null)
@@ -202,9 +239,12 @@ public class ProfileEndpointsTests : IClassFixture<IdentityApiFactory>
         updateResult.Succeeded.ShouldBeTrue();
     }
 
-    private async Task<HttpClient> CreateAuthenticatedClientAsync(string email, string password)
+    private async Task<HttpClient> CreateAuthenticatedClientAsync(
+        string email,
+        string password,
+        WebApplicationFactory<Program>? factory = null)
     {
-        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = (factory ?? _factory).CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false,
             HandleCookies = true
@@ -223,6 +263,27 @@ public class ProfileEndpointsTests : IClassFixture<IdentityApiFactory>
         loginResponse.IsSuccessStatusCode.ShouldBeTrue(body);
 
         return client;
+    }
+
+    private sealed class ConcurrentProfileUpdateListener(IServiceScopeFactory scopeFactory) : IUserLifecycleListener
+    {
+        public async ValueTask<LifecycleHookResult> BeforeUserProfileUpdatedAsync(
+            UserLifecycleContext context,
+            CancellationToken cancellationToken = default)
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var concurrentUser = await userManager.FindByIdAsync(context.User.Id.ToString());
+            if (concurrentUser is null)
+            {
+                return LifecycleHookResult.Continue();
+            }
+
+            concurrentUser.DisplayName = "Concurrent Update";
+            var result = await userManager.UpdateAsync(concurrentUser);
+            result.Succeeded.ShouldBeTrue();
+            return LifecycleHookResult.Continue();
+        }
     }
 
     private sealed record UserProfilePayload(

@@ -147,6 +147,34 @@ public class OrganizationRoleServiceTests
     }
 
     [Fact]
+    public async Task GetPermissionsAsync_RejectsRoleFromAnotherOrganization()
+    {
+        await using var context = CreateContext(out var organization);
+        await using var roleContext = CreateRoleContext();
+        var otherOrganization = new Organization
+        {
+            Id = Guid.NewGuid(),
+            Slug = "foreign-org",
+            DisplayName = "Foreign Org"
+        };
+        var foreignRole = new OrganizationRole
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = otherOrganization.Id,
+            Name = "Foreign Manager",
+            CreatedAtUtc = DateTimeOffset.UtcNow
+        };
+        context.AddRange(otherOrganization, foreignRole);
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context, roleContext);
+
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            () => service.GetPermissionsAsync(foreignRole.Id, organization.Id));
+        exception.Message.ShouldContain("does not belong");
+    }
+
+    [Fact]
     public async Task UpdatePermissionsAsync_ReplacesExplicitAssignments()
     {
         await using var context = CreateContext(out var organization);

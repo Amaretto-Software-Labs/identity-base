@@ -172,8 +172,69 @@ public class RefreshTokenAugmentorTests : IClassFixture<OrganizationApiFactory>
         meResponse.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
+    [Fact]
+    public async Task RefreshToken_IsRejected_WhenUserIsLockedOut()
+    {
+        const string email = "refresh-locked@example.com";
+        const string password = "StrongPass!2345";
+        await SeedUserAsync(email, password);
+        var token = await _factory.CreateTokensAsync(email, password, scope: "openid profile email offline_access");
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await userManager.FindByEmailAsync(email);
+            user.ShouldNotBeNull();
+            (await userManager.SetLockoutEnabledAsync(user!, true)).Succeeded.ShouldBeTrue();
+            (await userManager.SetLockoutEndDateAsync(user!, DateTimeOffset.UtcNow.AddHours(1))).Succeeded.ShouldBeTrue();
+        }
+
+        using var client = _factory.CreateClient();
+        client.BaseAddress ??= new Uri("https://localhost");
+        using var response = await SendRefreshTokenAsync(client, token.RefreshToken!);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var payload = await response.Content.ReadFromJsonAsync<JsonDocument>();
+        payload!.RootElement.GetProperty("error").GetString().ShouldBe(OpenIddictConstants.Errors.InvalidGrant);
+    }
+
+    [Fact]
+    public async Task RefreshToken_IsRejected_WhenSecurityStampChanges()
+    {
+        const string email = "refresh-stamp@example.com";
+        const string password = "StrongPass!2345";
+        await SeedUserAsync(email, password);
+        var token = await _factory.CreateTokensAsync(email, password, scope: "openid profile email offline_access");
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await userManager.FindByEmailAsync(email);
+            user.ShouldNotBeNull();
+            (await userManager.UpdateSecurityStampAsync(user!)).Succeeded.ShouldBeTrue();
+        }
+
+        using var client = _factory.CreateClient();
+        client.BaseAddress ??= new Uri("https://localhost");
+        using var response = await SendRefreshTokenAsync(client, token.RefreshToken!);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var payload = await response.Content.ReadFromJsonAsync<JsonDocument>();
+        payload!.RootElement.GetProperty("error").GetString().ShouldBe(OpenIddictConstants.Errors.InvalidGrant);
+    }
+
 
     private static async Task<(string? AccessToken, string? RefreshToken)> RefreshTokenAsync(HttpClient client, string refreshToken)
+    {
+        using var response = await SendRefreshTokenAsync(client, refreshToken);
+        var payload = await response.Content.ReadAsStringAsync();
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, payload);
+        using var json = JsonDocument.Parse(payload);
+        json.ShouldNotBeNull();
+        var access = json.RootElement.GetProperty("access_token").GetString();
+        var refresh = json.RootElement.TryGetProperty("refresh_token", out var r) ? r.GetString() : null;
+        return (access, refresh);
+    }
+
+    private static async Task<HttpResponseMessage> SendRefreshTokenAsync(HttpClient client, string refreshToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, "/connect/token")
         {
@@ -185,14 +246,7 @@ public class RefreshTokenAugmentorTests : IClassFixture<OrganizationApiFactory>
             })
         };
 
-        using var response = await client.SendAsync(request);
-        var payload = await response.Content.ReadAsStringAsync();
-        response.StatusCode.ShouldBe(HttpStatusCode.OK, payload);
-        using var json = JsonDocument.Parse(payload);
-        json.ShouldNotBeNull();
-        var access = json.RootElement.GetProperty("access_token").GetString();
-        var refresh = json.RootElement.TryGetProperty("refresh_token", out var r) ? r.GetString() : null;
-        return (access, refresh);
+        return await client.SendAsync(request);
     }
 
     private async Task SeedUserAsync(string email, string password)
