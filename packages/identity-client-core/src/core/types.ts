@@ -279,6 +279,48 @@ export interface AdminPermissionListQuery {
 
 export type AdminPermissionListResponse = PagedResult<AdminPermissionSummary>
 
+// Admin API – Service Principals
+export interface AdminServicePrincipalSummary {
+  id: string
+  displayName: string
+  clientId: string
+  isDisabled: boolean
+  createdAt: string
+  updatedAt: string
+  concurrencyStamp: string
+  roles: string[]
+}
+
+export type AdminServicePrincipalDetail = AdminServicePrincipalSummary
+
+export interface AdminServicePrincipalListQuery {
+  page?: number
+  pageSize?: number
+  search?: string
+  disabled?: boolean
+}
+
+export type AdminServicePrincipalListResponse = PagedResult<AdminServicePrincipalSummary>
+export interface AdminServicePrincipalCreateRequest { displayName: string }
+export interface AdminServicePrincipalUpdateRequest { displayName: string; concurrencyStamp: string }
+export interface AdminServicePrincipalRolesResponse { roles: string[] }
+export interface AdminServicePrincipalCredential {
+  id: string
+  name: string
+  createdAt: string
+  expiresAt: string | null
+  revokedAt: string | null
+  revokedReason: string | null
+}
+export interface AdminServicePrincipalIssueCredentialRequest { name: string; expiresAt?: string | null }
+export interface AdminServicePrincipalIssuedCredential {
+  id: string
+  name: string
+  secret: string
+  createdAt: string
+  expiresAt: string | null
+}
+
 // Errors
 export interface ApiError {
   title?: string

@@ -12,6 +12,6 @@ public sealed class IdentityDbNamingOptions
         set => _tablePrefix = Normalize(value);
     }
 
-    internal static string Normalize(string? value)
+    public static string Normalize(string? value)
         => string.IsNullOrWhiteSpace(value) ? DefaultTablePrefix : value.Trim();
 }

@@ -7,6 +7,8 @@ using Identity.Base.Host;
 using Identity.Base.Host.Extensions;
 using Identity.Base.Roles;
 using Identity.Base.Roles.Endpoints;
+using Identity.Base.ServicePrincipals.Data;
+using Identity.Base.ServicePrincipals.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -34,6 +36,9 @@ var migrationsAssemblyApp = HostDatabaseProviderResolver.ResolveMigrationsAssemb
 var migrationsAssemblyRoles = HostDatabaseProviderResolver.ResolveMigrationsAssembly(
     builder.Configuration,
     nameof(IdentityRolesDbContext));
+var migrationsAssemblyServicePrincipals = HostDatabaseProviderResolver.ResolveMigrationsAssembly(
+    builder.Configuration,
+    nameof(ServicePrincipalDbContext));
 
 Action<IServiceProvider, DbContextOptionsBuilder> configureAppDbContext = (provider, options) =>
 {
@@ -58,6 +63,19 @@ Action<IServiceProvider, DbContextOptionsBuilder> configureRolesDbContext = (pro
     else
     {
         throw new InvalidOperationException("Unable to configure IdentityRolesDbContext options.");
+    }
+};
+
+Action<IServiceProvider, DbContextOptionsBuilder> configureServicePrincipalDbContext = (provider, options) =>
+{
+    var configuration = provider.GetRequiredService<IConfiguration>();
+    if (options is DbContextOptionsBuilder<ServicePrincipalDbContext> typed)
+    {
+        typed.UseHostProvider(configuration, migrationsAssemblyServicePrincipals, provider);
+    }
+    else
+    {
+        throw new InvalidOperationException("Unable to configure ServicePrincipalDbContext options.");
     }
 };
 
@@ -101,6 +119,7 @@ identityBuilder
     .UseMailJetEmailSender();
 
 builder.Services.AddIdentityAdmin(builder.Configuration, configureRolesDbContext);
+builder.Services.AddIdentityBaseServicePrincipals(builder.Configuration, configureServicePrincipalDbContext);
 
 var app = builder.Build();
 
@@ -110,6 +129,7 @@ app.MapControllers();
 app.MapApiEndpoints();
 app.MapIdentityAdminEndpoints();
 app.MapIdentityRolesUserEndpoints();
+app.MapIdentityBaseServicePrincipalEndpoints();
 
 await HostMigrationRunner.ApplyMigrationsAsync(app.Services);
 

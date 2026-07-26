@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Identity.Base.OpenIddict;
 using Identity.Base.Options;
 using Microsoft.Extensions.Options;
 using OpenIddict.Abstractions;
@@ -12,33 +13,49 @@ namespace Identity.Base.OpenIddict.Handlers;
 internal sealed class ClientCredentialsFlowValidator : IOpenIddictServerHandler<OpenIddictServerEvents.ValidateTokenRequestContext>
 {
     private readonly IOptions<OpenIddictOptions> _options;
+    private readonly IEnumerable<IManagedClientCredentialsClientResolver> _managedClientResolvers;
     private HashSet<string>? _allowedClients;
 
-    public ClientCredentialsFlowValidator(IOptions<OpenIddictOptions> options)
+    public ClientCredentialsFlowValidator(
+        IOptions<OpenIddictOptions> options,
+        IEnumerable<IManagedClientCredentialsClientResolver> managedClientResolvers)
     {
         _options = options;
+        _managedClientResolvers = managedClientResolvers;
     }
 
-    public ValueTask HandleAsync(OpenIddictServerEvents.ValidateTokenRequestContext context)
+    public async ValueTask HandleAsync(OpenIddictServerEvents.ValidateTokenRequestContext context)
     {
         if (!context.Request.IsClientCredentialsGrantType())
         {
-            return default;
+            return;
         }
 
         if (string.IsNullOrWhiteSpace(context.ClientId))
         {
             context.Reject(OpenIddictConstants.Errors.UnauthorizedClient, "Client must be registered to use the client credentials grant.");
-            return default;
+            return;
         }
 
         var allowed = _allowedClients ??= BuildAllowedClients();
-        if (!allowed.Contains(context.ClientId))
+        if (!allowed.Contains(context.ClientId) &&
+            !await IsManagedAsync(context.ClientId, context.CancellationToken))
         {
             context.Reject(OpenIddictConstants.Errors.UnauthorizedClient, "Client credentials grant is disabled for this client.");
         }
+    }
 
-        return default;
+    private async Task<bool> IsManagedAsync(string clientId, CancellationToken cancellationToken)
+    {
+        foreach (var resolver in _managedClientResolvers)
+        {
+            if (await resolver.IsManagedAsync(clientId, cancellationToken))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private HashSet<string> BuildAllowedClients()

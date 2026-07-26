@@ -33,6 +33,14 @@ public static class AuditEventTypes
     public const string AdminRoleCreated = "admin.role.created";
     public const string AdminRoleUpdated = "admin.role.updated";
     public const string AdminRoleDeleted = "admin.role.deleted";
+    public const string AdminServicePrincipalCreated = "admin.service-principal.created";
+    public const string AdminServicePrincipalUpdated = "admin.service-principal.updated";
+    public const string AdminServicePrincipalDisabled = "admin.service-principal.disabled";
+    public const string AdminServicePrincipalRestored = "admin.service-principal.restored";
+    public const string AdminServicePrincipalRolesUpdated = "admin.service-principal.roles-updated";
+    public const string AdminServicePrincipalCredentialIssued = "admin.service-principal.credential-issued";
+    public const string AdminServicePrincipalCredentialRevoked = "admin.service-principal.credential-revoked";
+    public const string AdminServicePrincipalCredentialsRevoked = "admin.service-principal.credentials-revoked";
     public const string PasswordChanged = "password.changed";
 }
 

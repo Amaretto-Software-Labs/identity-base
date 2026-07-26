@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Options;
 
-internal static class IdentityDbNamingHelper
+public static class IdentityDbNamingHelper
 {
     public static string ResolveTablePrefix(DbContext context)
     {

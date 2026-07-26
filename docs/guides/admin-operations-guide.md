@@ -46,6 +46,12 @@ This guide walks operators through enabling and using the Identity Base admin su
 - **Permissions:** select from the catalog defined in configuration. The admin UI can paste an existing permission ID that is not visible in the current page, but it does not create new catalog entries. For new permission IDs, prefer lowercase letters, digits, periods, hyphens, or underscores, and avoid spaces. `GET /admin/permissions` mirrors the paging API (`page`, `pageSize`, `search`, `sort=name|roleCount`) for large catalogs.
 - **Usage Count:** each role entry shows how many users are assigned, preventing accidental removal of in-use roles.
 
+### 4.3 Service Principals (`/admin/service-principals`)
+- Enable the optional `Identity.Base.ServicePrincipals` package and migrate both `ServicePrincipalDbContext` and the updated `IdentityRolesDbContext`.
+- Grant the dedicated `service-principals.read`, `.create`, `.update`, `.disable`, `.manage-roles`, and `.manage-credentials` permissions to admin roles.
+- Client IDs are immutable. Credential plaintext is returned only by the issue endpoint and cannot be retrieved later; store it in an approved secret store.
+- Disabling a principal revokes all credentials and OpenIddict token entries. Restoring it does not restore credentials; issue a new credential explicitly.
+
 ## 5. API Reference Snapshot
 - `GET /admin/users` — list users (requires `users.read`).
 - `GET /admin/users/{id}` — fetch user detail (`users.read`).
@@ -63,6 +69,7 @@ This guide walks operators through enabling and using the Identity Base admin su
 - `DELETE /admin/roles/{id}` — delete role (`roles.manage`).
 - `GET /admin/permissions` — list permission catalog (`roles.read`).
 - `GET /users/me/permissions` — resolves effective permissions for the signed-in user (returns an array of strings).
+- `/admin/service-principals` — paged CRUD/disable/restore surface, with nested `/roles` and `/credentials` management endpoints.
 
 ## 6. Troubleshooting
 - **404 on `/users/me/permissions`:** ensure `app.MapIdentityRolesUserEndpoints()` is called (already wired in `Identity.Base.Host/Program.cs`).
