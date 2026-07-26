@@ -91,6 +91,15 @@ public sealed class ServicePrincipalService(
         DateTimeOffset? expiresAt,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Credential name is required.", nameof(name));
+        }
+        if (expiresAt is { } expiry && expiry <= DateTimeOffset.UtcNow)
+        {
+            throw new ArgumentException("Credential expiry must be in the future.", nameof(expiresAt));
+        }
+
         var principal = await FindRequiredAsync(servicePrincipalId, cancellationToken);
         if (principal.IsDisabled)
         {

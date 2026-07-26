@@ -71,6 +71,38 @@ public sealed class ServicePrincipalServiceTests
         (await fixture.Service.ValidateCredentialAsync(principal.ClientId, second.Secret, default)).ShouldBeTrue();
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task IssueCredential_RejectsBlankName(string name)
+    {
+        await using var fixture = new Fixture();
+        var principal = await fixture.AddPrincipalAsync();
+
+        var exception = await Should.ThrowAsync<ArgumentException>(() =>
+            fixture.Service.IssueCredentialAsync(principal.Id, name, null, default));
+
+        exception.ParamName.ShouldBe("name");
+        (await fixture.Principals.ServicePrincipalCredentials.CountAsync()).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task IssueCredential_RejectsExpiredCredential()
+    {
+        await using var fixture = new Fixture();
+        var principal = await fixture.AddPrincipalAsync();
+
+        var exception = await Should.ThrowAsync<ArgumentException>(() =>
+            fixture.Service.IssueCredentialAsync(
+                principal.Id,
+                "expired",
+                DateTimeOffset.UtcNow.AddMinutes(-1),
+                default));
+
+        exception.ParamName.ShouldBe("expiresAt");
+        (await fixture.Principals.ServicePrincipalCredentials.CountAsync()).ShouldBe(0);
+    }
+
     [Fact]
     public async Task Disable_RevokesCredentialsAndIssuedTokens()
     {
