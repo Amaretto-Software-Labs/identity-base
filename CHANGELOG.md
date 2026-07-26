@@ -1,6 +1,7 @@
 # Changelog
 
 ## [Unreleased]
+- External email-based auto-linking now requires a verified provider email by default to prevent unverified or self-asserted email claims from attaching to existing accounts.
 - Relaxed the new permission-identifier guidance to preserve backward compatibility: legacy cataloged permission IDs continue to work in host configuration, admin role edits, and organization-role permission updates.
 - Role seeding now normalizes existing permission rows when configuration changes only the casing of an identifier, preserving existing role-permission links without requiring package-owned migrations.
 - Sample admin UI and docs now clarify that permission IDs must already exist in the catalog before assignment; lowercase IDs using letters, digits, periods, hyphens, or underscores are recommended for new permissions.

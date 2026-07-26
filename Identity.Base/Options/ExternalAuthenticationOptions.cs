@@ -14,7 +14,7 @@ public sealed class ExternalAuthenticationOptions
     /// When true, automatic email-based linking requires an explicit verified-email claim
     /// from the external provider (for example: "email_verified": "true").
     /// </summary>
-    public bool RequireVerifiedEmailForAutoLinkByEmail { get; set; }
+    public bool RequireVerifiedEmailForAutoLinkByEmail { get; set; } = true;
 
     /// <summary>
     /// External provider claim types that should be synchronized to the local user claim store

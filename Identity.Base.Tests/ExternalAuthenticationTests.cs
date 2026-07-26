@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.Json;
 using Shouldly;
 using Identity.Base.Identity;
+using Identity.Base.Options;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.WebUtilities;
@@ -27,6 +28,14 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
     public ExternalAuthenticationTests(IdentityApiFactory factory)
     {
         _factory = factory;
+    }
+
+    [Fact]
+    public void ExternalAuthenticationOptions_RequireVerifiedEmailForAutoLink_ByDefault()
+    {
+        var options = new ExternalAuthenticationOptions();
+
+        options.RequireVerifiedEmailForAutoLinkByEmail.ShouldBeTrue();
     }
 
     [Fact]
@@ -305,25 +314,12 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
     }
 
     [Fact]
-    public async Task ExternalLogin_RequiresVerifiedEmail_ForAutoLink_WhenEnabled()
+    public async Task ExternalLogin_RequiresVerifiedEmail_ForAutoLink_ByDefault()
     {
         const string email = "verified-required@example.com";
         const string password = "StrongPass!2345";
 
-        using var strictFactory = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureAppConfiguration((_, configurationBuilder) =>
-            {
-                var overrides = new Dictionary<string, string?>
-                {
-                    ["Authentication:External:AutoLinkByEmailOnLogin"] = "true",
-                    ["Authentication:External:RequireVerifiedEmailForAutoLinkByEmail"] = "true"
-                };
-                configurationBuilder.AddInMemoryCollection(overrides);
-            });
-        });
-
-        using (var scope = strictFactory.Services.CreateScope())
+        using (var scope = _factory.Services.CreateScope())
         {
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var existing = await userManager.FindByEmailAsync(email);
@@ -340,7 +336,7 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
             }
         }
 
-        using var client = strictFactory.CreateClient(new WebApplicationFactoryClientOptions
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false,
             HandleCookies = true
@@ -362,7 +358,7 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
         query["status"].ToString().ShouldBe("error");
         query["message"].ToString().ShouldContain("not verified");
 
-        using var verifyScope = strictFactory.Services.CreateScope();
+        using var verifyScope = _factory.Services.CreateScope();
         var verifyUserManager = verifyScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var user = await verifyUserManager.FindByEmailAsync(email);
         user.ShouldNotBeNull();
