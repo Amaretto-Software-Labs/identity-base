@@ -95,4 +95,4 @@ builder.Services.AddIdentityBaseAuthentication(
 - [Getting Started Guide](../../guides/getting-started.md#secure-additional-apis) and [Full-stack Integration Guide](../../guides/full-stack-integration-guide.md#protect-additional-microservices).
 
 ## Change Log
-- See [CHANGELOG.md](../../CHANGELOG.md) (`Identity.Base.AspNet` entries)
+- See [CHANGELOG.md](../../../CHANGELOG.md) (`Identity.Base.AspNet` entries)

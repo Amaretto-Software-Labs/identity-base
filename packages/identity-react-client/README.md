@@ -12,8 +12,8 @@ Built on (and depends on) `@identity-base/client-core`.
 - 🛡️ **Route protection** - `<ProtectedRoute>` and `useRequireAuth`
 - 📱 **MFA support** - Email and SMS multi-factor authentication
 - 👤 **Profile management** - User profiles with custom metadata
-- 🔗 **External providers** - Google, Microsoft, Apple sign-in
-- ⚡ **Cross-tab sync** - Authentication state synced across tabs
+- 🔗 **External providers** - Host-registered OAuth/OIDC provider login and linking
+- ⚡ **Stateful provider** - Explicit loading/error state and safe reinitialization when authority configuration changes
 - 📦 **TypeScript first** - Complete type definitions
 - 🪝 **React hooks** - Clean, composable API
 
@@ -157,7 +157,7 @@ interface IdentityConfig {
   redirectUri: string          // Where to redirect after auth
 
   // Optional
-  scope?: string               // OAuth2 scopes (default: 'openid profile email offline_access')
+  scope?: string               // Default: 'openid profile email offline_access identity.api'
   tokenStorage?: 'localStorage' | 'sessionStorage' | 'memory'
   autoRefresh?: boolean        // Auto refresh access tokens (default: true)
   timeout?: number            // API timeout in ms (default: 10000)
@@ -180,6 +180,7 @@ const {
   isLoading,      // Initial loading state
   error,          // Any auth errors
   refreshUser,    // Manually refresh user data
+  logout,         // End the cookie session and clear stored tokens
 } = useAuth()
 ```
 
@@ -249,6 +250,17 @@ function SecurePage() {
 ```
 
 ## Advanced Usage
+
+### Typed Admin APIs
+
+`useIdentityContext().authManager` exposes `admin.users`, `admin.roles`, `admin.permissions`, and `admin.servicePrincipals`. Service-principal operations cover lifecycle, role assignments, and one-time credential issuance:
+
+```tsx
+const { authManager } = useIdentityContext()
+const principal = await authManager.admin.servicePrincipals.create({
+  displayName: 'Invoice Worker',
+})
+```
 
 ### Debug Logging
 
@@ -395,13 +407,11 @@ __enableIdentityDebug(false)   // Disable
 // Check current state
 window.__identityDebugEnabled  // true or false
 
-// Manual user refresh (when authenticated)
-window.__identityRefreshUser?.()
 ```
 
 ### Performance Tips
 
-- **Use memory storage** for better performance in SPAs: `tokenStorage: 'memory'`
+- **Use memory storage** when tokens must not survive a reload; use the default `sessionStorage` when per-tab persistence is desired.
 - **Disable debug logging in production** to reduce console output
 - **Use route-level protection** with `<ProtectedRoute>` for better UX
 

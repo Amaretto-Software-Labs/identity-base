@@ -19,6 +19,7 @@ Use the links below to jump directly to the package you are integrating.
 | `Identity.Base.Roles` | NuGet | [Role & Permission System](identity-base-roles/index.md) |
 | `Identity.Base.Organizations` | NuGet | [Organizations & Memberships](identity-base-organizations/index.md) |
 | `Identity.Base.Admin` | NuGet | [Admin API Surface](identity-base-admin/index.md) |
+| `Identity.Base.ServicePrincipals` | NuGet | [Managed Machine Identities](identity-base-service-principals/index.md) |
 | `Identity.Base.Email.MailJet` | NuGet | [Mailjet Email Sender](identity-base-email-mailjet/index.md) |
 | `Identity.Base.Email.SendGrid` | NuGet | [SendGrid Email Sender](identity-base-email-sendgrid/index.md) |
 | `@identity-base/client-core` | npm | [Client Core](identity-base-client-core/index.md) |

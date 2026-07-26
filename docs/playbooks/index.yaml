@@ -83,4 +83,4 @@ playbooks:
     required_secrets:
       - CONNECTIONSTRINGS__PRIMARY
     tags: [operations, efcore, migrations]
-    last_reviewed: 2025-11-05
+    last_reviewed: 2026-07-26

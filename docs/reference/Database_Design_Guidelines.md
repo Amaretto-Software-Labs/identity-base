@@ -21,6 +21,19 @@
 5. **Apply:** run migrations via `dotnet ef database update` (CI/deploy pipeline) or an explicit startup helper in the host (`using var scope = app.Services.CreateScope(); await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();`). Identity Base does not auto-apply them for you.
 6. **Document:** update `docs/` and release notes with the migration name, purpose, and rollback steps so other hosts know when to regenerate.
 
+### Identity Base Context Inventory
+
+Each enabled package contributes a separate model. A host must migrate every registered context, including changes to an existing context introduced by a newly added package.
+
+| Context | Owning package | Main tables | Notes |
+| --- | --- | --- | --- |
+| `AppDbContext` | `Identity.Base` | ASP.NET Identity, OpenIddict, profile metadata | Required by the core host. |
+| `IdentityRolesDbContext` | `Identity.Base.Roles` / `Identity.Base.Admin` | roles, permissions, user-role links, service-principal-role links, audit entries | Adding service principals requires a new roles-context migration even when RBAC was already installed. |
+| `OrganizationDbContext` | `Identity.Base.Organizations` | organizations, memberships, organization roles/permissions, invitations | Invitation uniqueness changes require regenerating/updating the host’s organization migration chain. |
+| `ServicePrincipalDbContext` | `Identity.Base.ServicePrincipals` | service principals and credential hashes | Credentials cascade with their principal; plaintext secrets are never persisted. |
+
+Do not map two independent migration histories to the same context and database. Append a migration to the host’s existing `IdentityRolesDbContext` or `OrganizationDbContext` history when a package upgrade extends those models.
+
 ---
 
 ## 3. Unit of Work & DbContext Usage
@@ -40,6 +53,8 @@
 - **Indexes:** create explicit indexes for common filters (CommunityId, Status, CreatedAt). Name them `IX_<Table>_<Columns>`.
 - **Enums:** map to PostgreSQL enums via `HasConversion<string>()` or dedicated enum types; avoid magic integers.
 - **Auditing:** maintain append-only audit tables for sensitive transitions; seed data via migrations sparingly (only configuration values).
+- **Secrets:** never persist recoverable service-principal secrets. Store a one-way password hash with per-credential metadata and return plaintext only at issuance.
+- **Uniqueness and concurrency:** use unique indexes for immutable client IDs and per-principal credential names. Mark mutable aggregate concurrency stamps as EF concurrency tokens and translate save-time conflicts to `409 Conflict`.
 
 ---
 
@@ -70,6 +85,8 @@
 - [ ] Implement EF Core entity/config changes (respect Unit of Work boundaries).
 - [ ] Create migration and inspect generated SQL.
 - [ ] Verify your host applied the migrations locally (either via CLI output or startup logs).
+- [ ] Confirm every enabled DbContext is present in the migration runner and design-time factory configuration.
+- [ ] When enabling service principals, migrate both `ServicePrincipalDbContext` and the existing `IdentityRolesDbContext`.
 - [ ] Write/extend tests covering new behavior.
 - [ ] Update documentation and changelog entries.
 - [ ] Verify minimal API endpoints compile and expose necessary contracts.

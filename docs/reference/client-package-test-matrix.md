@@ -36,7 +36,7 @@ These are CI thresholds for `npm run coverage` (coverage is measured from built 
   - persist/consume behavior (single-consume semantics)
 - `IdentityAuthManager`:
   - authorization-code PKCE start + callback, event emission, authorized calls
-  - at least one admin endpoint URL/query builder path
+  - admin namespace URL/query builders, including service-principal lifecycle, role, and credential routes
 - `createError` formatting:
   - validation errors map → flattened message
 
@@ -53,7 +53,7 @@ These are CI thresholds for `npm run coverage` (coverage is measured from built 
 - `OrganizationsService`:
   - auth/no-auth endpoints
   - header attachment rules + query string building + id encoding
-  - error mapping (problem details and timeouts)
+  - empty `204`, plain-text/problem-details errors, invalid JSON, and timeouts
 
 ### `@identity-base/react-client`
 - Provider:
@@ -65,3 +65,7 @@ These are CI thresholds for `npm run coverage` (coverage is measured from built 
 - OrganizationsProvider:
   - bearer token attachment
   - org header behavior and persistence (storage key, default exclusion for user org routes)
+  - logout during in-flight membership loading and stale-response suppression
+  - membership/organization error states versus valid empty results
+- `useOrganizationMembers`:
+  - page caching/deduplication, query invalidation, page bounds, mutation updates, and error propagation

@@ -6,11 +6,11 @@
 
 ## Features
 - Organization aggregate (`Organization`, `OrganizationMetadata`) with per-tenant slug/display name uniqueness.
-- Membership service with primary-organization tracking, role assignments, and helper queries for listing memberships.
+- Membership service with role assignments and paged user/admin queries; active organization selection is explicit and client-side.
 - Organization-specific role catalog and claim formatter that augments Identity Base permission claims with organization context.
 - Hosted seed services that bootstrap default roles (`OrgOwner`, `OrgManager`, `OrgMember`) once your migrations have been applied.
 - Minimal API modules for CRUD, membership management, role management, and user-facing endpoints.
-- Builder hooks (`ConfigureOrganizationModel`, `AfterOrganizationSeed`, `AddOrganizationClaimFormatter`, `AddOrganizationScopeResolver`) mirroring Identity Base extensibility points.
+- Core-builder hooks for model/seed/claim/scope customization plus an organizations-builder lifecycle-listener registration.
 
 ## Installation
 
@@ -36,12 +36,16 @@ Action<IServiceProvider, DbContextOptionsBuilder> configureDbContext = (sp, opti
     options.UseNpgsql(connectionString); // or UseSqlServer(connectionString)
 };
 
-builder.Services.AddIdentityBase(builder.Configuration, builder.Environment, configureDbContext: configureDbContext);
+var identityBuilder = builder.Services.AddIdentityBase(
+    builder.Configuration,
+    builder.Environment,
+    configureDbContext: configureDbContext);
 builder.Services.AddIdentityRoles(builder.Configuration, configureDbContext);
-builder.Services.AddIdentityBaseOrganizations(configureDbContext);
+var organizationsBuilder = builder.Services.AddIdentityBaseOrganizations(configureDbContext);
 
 var app = builder.Build();
 app.UseApiPipeline(appBuilder => appBuilder.UseSerilogRequestLogging());
+app.UseOrganizationContextFromHeader();
 app.MapApiEndpoints();
 app.MapIdentityRolesUserEndpoints();
 app.MapIdentityBaseOrganizationEndpoints();
@@ -60,7 +64,7 @@ dotnet ef database update --context OrganizationDbContext
 ### 4. Seed default roles
 `OrganizationRoleSeeder` creates the default system roles after your host has applied migrations. Register additional callbacks if you need to extend the seed pipeline:
 ```csharp
-organizationsBuilder.AfterOrganizationSeed(async (sp, ct) =>
+identityBuilder.AfterOrganizationSeed(async (sp, ct) =>
 {
     // e.g. provision billing metadata, assign baseline memberships, etc.
 });
@@ -69,7 +73,7 @@ organizationsBuilder.AfterOrganizationSeed(async (sp, ct) =>
 ### 5. Customize the model
 Use `ConfigureOrganizationModel` to add indexes or shadow properties:
 ```csharp
-organizationsBuilder.ConfigureOrganizationModel(modelBuilder =>
+identityBuilder.ConfigureOrganizationModel(modelBuilder =>
 {
     modelBuilder.Entity<Organization>().HasIndex(org => org.CreatedAtUtc);
 });
@@ -79,18 +83,10 @@ organizationsBuilder.ConfigureOrganizationModel(modelBuilder =>
 
 | Method & Route | Description | Permission |
 | --- | --- | --- |
-| `GET /organizations` | List organizations (optionally filter by `tenantId` query). | `admin.organizations.read` |
-| `POST /organizations` | Create an organization. | `admin.organizations.manage` |
-| `GET /organizations/{id}` | Retrieve one organization. | `admin.organizations.read` |
-| `PATCH /organizations/{id}` | Update display name, metadata, or status. | `admin.organizations.manage` |
-| `DELETE /organizations/{id}` | Archive an organization. | `admin.organizations.manage` |
-| `GET /organizations/{id}/members` | List memberships + role assignments. | `admin.organizations.members.read` |
-| `POST /organizations/{id}/members` | Add a user to the organization. | `admin.organizations.members.manage` |
-| `PUT /organizations/{id}/members/{userId}` | Update membership roles/primary flag. | `admin.organizations.members.manage` |
-| `DELETE /organizations/{id}/members/{userId}` | Remove a membership. | `admin.organizations.members.manage` |
-| `GET /organizations/{id}/roles` | List organization + shared roles. | `admin.organizations.roles.read` |
-| `POST /organizations/{id}/roles` | Create a custom organization role. | `admin.organizations.roles.manage` |
-| `DELETE /organizations/{id}/roles/{roleId}` | Delete a custom role. | `admin.organizations.roles.manage` |
+| `/admin/organizations` | Platform administration: paged organization CRUD plus nested members, roles, permissions, and invitations. | `admin.organizations.*` |
+| `/users/me/organizations` | Self-service organization creation/list/detail plus nested member, role, permission, and invitation management. | Authenticated plus `user.organizations.*` |
+| `GET /invitations/{code}` | Return a public invitation preview without invitee email or role IDs. | Anonymous |
+| `POST /invitations/claim` | Accept an invitation for the authenticated matching user. | Authenticated |
 
 > Default organization roles (Owner/Manager/Member) currently receive only the user-scoped (`user.organizations.*`) permissions. Create a separate role with `admin.organizations.*` permissions if you need a platform-wide organization administrator.
 
@@ -102,7 +98,7 @@ Tokens issued by Identity Base now include an `org:memberships` claim listing al
 app.UseOrganizationContextFromHeader();
 ```
 
-Then send the `X-Organization-Id` header on each request. The middleware validates the caller still belongs to that organization (admins with `admin.organizations.*` bypass the membership check) and loads the organization metadata into `IOrganizationContextAccessor`; it automatically ignores the header on the admin `/organizations` APIs so those remain truly global. If a membership changes (for example, the user loses access to an organization), refresh their tokens so the `org:memberships` claim stays up to date.
+Then send the `X-Organization-Id` header on scoped requests. The middleware validates the caller still belongs to that organization and loads the metadata into `IOrganizationContextAccessor`; admin `/admin/organizations` routes intentionally ignore the header and remain global. If membership changes, refresh tokens so `org:memberships` and permission claims stay up to date.
 
 Authorization is enforced through the Identity Base RBAC package. The default `IOrganizationScopeResolver` verifies the caller is a member of the target organization; override it (or `IPermissionClaimFormatter`) via the builder extensions to compose tenant-specific or elevated administrator rules.
 
@@ -128,23 +124,17 @@ builder.Services.Configure<OrganizationOptions>(builder.Configuration.GetSection
 
 ## Extensibility
 ```csharp
-organizationsBuilder
+identityBuilder
     .ConfigureOrganizationModel(modelBuilder => { /* custom EF configuration */ })
     .AfterOrganizationSeed(async (sp, ct) => { /* custom seeding */ })
-    .AddOrganizationCreationListener<CustomOrganizationCreationListener>()
-    .AddOrganizationUpdateListener<CustomOrganizationUpdateListener>()
-    .AddOrganizationArchiveListener<CustomOrganizationArchiveListener>()
     .AddOrganizationClaimFormatter<CustomFormatter>()
     .AddOrganizationScopeResolver<CustomScopeResolver>();
+
+organizationsBuilder
+    .AddOrganizationLifecycleListener<CustomOrganizationLifecycleListener>();
 ```
 
-### Organization creation listeners
-- Register one or more `IOrganizationCreationListener` implementations via `AddOrganizationCreationListener<T>()`.
-- Each listener runs after `OrganizationService.CreateAsync` persists a new organization, enabling billing, automation, or audit hooks without modifying the core service.
-
-### Organization update & archive listeners
-- `AddOrganizationUpdateListener<T>()` registers `IOrganizationUpdateListener` implementations invoked after successful updates.
-- `AddOrganizationArchiveListener<T>()` registers `IOrganizationArchiveListener` implementations invoked after an organization is archived.
+`IOrganizationLifecycleListener` covers create/update/archive/restore, invitation create/revoke/accept, and membership add/update/remove operations. Legacy creation/update/archive listener helpers remain compatibility shims but are obsolete for new integrations.
 
 ## Testing
 Run the solution tests to execute the organizations unit suite alongside the existing Identity Base coverage:

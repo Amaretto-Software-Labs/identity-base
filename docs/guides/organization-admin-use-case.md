@@ -55,7 +55,7 @@ For detailed documentation on each package referenced below, use the [Package Do
     - Public flow: `GET /invitations/{code}` for validation and `POST /invitations/claim` (authenticated) to accept; the service automatically creates/updates the membership and returns `RequiresTokenRefresh = true`.
   - Use admin membership endpoints when you already know the user id:
     - `POST /admin/organizations/{orgId}/members` to add a member immediately.
-    - `PUT /admin/organizations/{orgId}/members/{userId}` to update role assignments / primary flag.
+    - `PUT /admin/organizations/{orgId}/members/{userId}` to update role assignments. Active organization selection remains client-side through `X-Organization-Id`.
     - `DELETE /admin/organizations/{orgId}/members/{userId}` to remove members.
     - `GET /admin/organizations/{orgId}/members` supports the shared pagination contract (`page`, `pageSize`, `search`, `roleId`, `sort`) and returns `PagedResult<OrganizationMembershipDto>`.
   - Hosts are still responsible for the invite delivery UX (email templates, SPA acceptance page) even though storage and APIs are provided.

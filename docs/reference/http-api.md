@@ -14,6 +14,8 @@ This document answers two common integration gaps:
 
 Scopes are **not** the same thing as RBAC permissions. Scopes gate access at the OAuth client level, while permissions (e.g. `users.read`, `admin.organizations.manage`) are enforced per-endpoint based on `identity.permissions` claims.
 
+Managed service principals use the same distinction. `Identity:ServicePrincipals:AllowedScopes` determines which OAuth scopes are granted to a newly created managed client, while its assigned global roles determine `identity.permissions` in newly issued tokens.
+
 ### How to add/seed them
 
 1. Define scopes in configuration (including `Resources` so access tokens carry the correct `aud` claim):
@@ -102,3 +104,19 @@ curl -s https://localhost:5000/openapi/v1.json | jq -r '.paths | to_entries[] | 
 ```
 
 > Note: the OpenAPI document reflects whichever packages you mapped in your host (e.g. `app.MapIdentityAdminEndpoints()`, `app.MapIdentityBaseOrganizationEndpoints()`). If you don’t map a module, it won’t show up in OpenAPI.
+
+## Managed Service Principal Endpoints
+
+When the host registers `Identity.Base.ServicePrincipals` and calls `MapIdentityBaseServicePrincipalEndpoints()`, OpenAPI also includes twelve routes beneath `/admin/service-principals` for principal lifecycle, roles, and credentials. They use the normal admin scope plus `service-principals.*` permissions. See the [package reference](../packages/identity-base-service-principals/index.md#admin-api) for the route matrix.
+
+The token exchange itself uses the standard OpenIddict endpoint:
+
+```bash
+curl -sS https://identity.example.com/connect/token \
+  -u "$CLIENT_ID:$CLIENT_SECRET" \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  --data-urlencode 'grant_type=client_credentials' \
+  --data-urlencode 'scope=identity.api'
+```
+
+Managed machine tokens contain a `Guid` `sub`, `client_id`, `identity.principal_type=ServicePrincipal`, and role-derived `identity.permissions`. They do not receive refresh tokens.

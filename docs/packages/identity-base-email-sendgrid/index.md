@@ -71,5 +71,4 @@ Identity Base supplies the following variables to templates:
 
 ## Change Log
 
-- See [CHANGELOG.md](../../CHANGELOG.md) (`Identity.Base.Email.SendGrid` entries)
-
+- See [CHANGELOG.md](../../../CHANGELOG.md) (`Identity.Base.Email.SendGrid` entries)

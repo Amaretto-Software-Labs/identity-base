@@ -8,7 +8,7 @@
 
 # Identity Base
 
-Identity Base is a modular Identity + OpenID Connect platform for .NET 9. It packages ASP.NET Core Identity, provider-agnostic EF Core contexts, OpenIddict server setup, MFA, external provider orchestration for host-registered OAuth/OIDC schemes, optional email delivery providers (Mailjet, SendGrid), and deployment-ready defaults. The recommended architecture is a dedicated Identity Host that runs all identity surfaces, a fleet of JWT-protected microservices, and a React 19 SPA consuming the APIs. Hosts are responsible for configuring the DbContexts, generating migrations for their chosen provider (PostgreSQL, SQL Server, etc.), and applying them before Identity Base runs its seeders.
+Identity Base is a modular Identity + OpenID Connect platform for .NET 9. It packages ASP.NET Core Identity, provider-agnostic EF Core contexts, OpenIddict server setup, MFA, host-registered external providers, RBAC, organization management, administrative APIs, and managed service principals. Optional Mailjet and SendGrid integrations cover account email delivery, while framework-agnostic, React 18/19, and Angular clients consume the HTTP surfaces. The recommended architecture is a dedicated Identity Host, a fleet of JWT-protected microservices, and one or more browser clients. Hosts configure every enabled DbContext, generate migrations for their chosen provider, and apply them before Identity Base runs its seeders.
 
 The project is open source under the MIT License.
 
@@ -18,7 +18,10 @@ The project is open source under the MIT License.
 - **Identity & OpenIddict orchestration** – authorization-code PKCE flow, refresh tokens, configured scopes, client seeding.
 - **Multi-factor authentication** – authenticator apps, SMS, email challenges, and recovery code support.
 - **External providers** – provider-agnostic endpoints with host-registered OAuth/OIDC schemes.
+- **Roles, organizations, and administration** – global RBAC, organization-scoped memberships and roles, and permission-protected admin APIs.
+- **Managed service principals** – immutable machine identities, independently revocable credentials, role-derived permissions, short-lived `client_credentials` tokens, and stored token-entry revocation.
 - **Email delivery integrations** – optional packages for Mailjet (`Identity.Base.Email.MailJet`) or SendGrid (`Identity.Base.Email.SendGrid`) to send confirmation, password reset, and MFA challenge emails.
+- **Typed client SDKs** – framework-agnostic core plus React and Angular authentication and organization packages.
 - **Extensible DI surface** – option validators, templated email sender, MFA challenge senders, audit logging, return URL validation.
 - **Secure defaults** – return URL normalization, request logging with redaction, dedicated health checks.
 
@@ -27,7 +30,7 @@ The project is open source under the MIT License.
 ## Database Providers & Migrations
 Identity Base is provider-agnostic: the packages expose DbContexts but never register a specific provider or ship migrations. Your host application must:
 
-1. Configure each required DbContext (e.g., via the `configureDbContext` delegate on `AddIdentityBase`, `AddIdentityRoles`, `AddIdentityOrganizations`, `AddIdentityAdmin`) and choose `UseNpgsql`, `UseSqlServer`, etc.
+1. Configure each required DbContext (for example through `AddIdentityBase`, `AddIdentityRoles`/`AddIdentityAdmin`, `AddIdentityBaseOrganizations`, and `AddIdentityBaseServicePrincipals`) and choose `UseNpgsql`, `UseSqlServer`, etc.
 2. Generate migrations from the host project (`dotnet ef migrations add ...`) and keep them with the host/source control.
 3. Apply migrations (for example, on startup before calling `SeedIdentityRolesAsync`) and then let the Identity Base seeders run.
 
@@ -43,6 +46,7 @@ See `Identity.Base.Host` and `apps/org-sample-api` for reference helper extensio
 | `Identity.Base.Roles/` | Role-based access control primitives (roles, permissions, seeding helpers). |
 | `Identity.Base.Admin/` | Admin API/RBAC extensions layered on the core package. |
 | `Identity.Base.Organizations/` | Multi-tenant organization, membership, and role tooling. |
+| `Identity.Base.ServicePrincipals/` | Managed machine identities, credentials, RBAC assignments, OpenIddict integration, and admin APIs. |
 | `Identity.Base.AspNet/` | Helpers that let microservices validate Identity Base-issued JWTs. |
 | `Identity.Base.Email.MailJet/` | Optional Mailjet email sender and configuration add-on. |
 | `Identity.Base.Email.SendGrid/` | Optional SendGrid email sender and configuration add-on. |
@@ -62,6 +66,7 @@ Key documents:
 - [Identity.Base Public API](docs/reference/identity-base-public-api.md)
 - [Release Checklist](docs/release/release-checklist.md)
 - [React Integration Guide](docs/guides/react-integration-guide.md)
+- [Service Principals Guide](docs/packages/identity-base-service-principals/index.md)
 
 ### Task Playbooks
 - Overview: docs/playbooks/README.md
@@ -78,6 +83,7 @@ Key documents:
 | [`Identity.Base.Roles`](https://www.nuget.org/packages/Identity.Base.Roles) | Role and permission management primitives (DbContext, seed helpers, configuration). |
 | [`Identity.Base.Admin`](https://www.nuget.org/packages/Identity.Base.Admin) | Admin API extensions layered on Identity Base + roles. |
 | [`Identity.Base.Organizations`](https://www.nuget.org/packages/Identity.Base.Organizations) | Organizations, memberships, and organization-scoped role tooling. |
+| [`Identity.Base.ServicePrincipals`](https://www.nuget.org/packages/Identity.Base.ServicePrincipals) | Managed machine identities with revocable credentials, RBAC, and OpenIddict client-credentials integration. |
 | [`Identity.Base.AspNet`](https://www.nuget.org/packages/Identity.Base.AspNet) | ASP.NET Core helpers for microservices consuming Identity Base tokens via JWT bearer authentication. |
 | [`Identity.Base.Email.MailJet`](https://www.nuget.org/packages/Identity.Base.Email.MailJet) | Optional Mailjet integration (email sender, options, health checks). |
 | [`Identity.Base.Email.SendGrid`](https://www.nuget.org/packages/Identity.Base.Email.SendGrid) | Optional SendGrid integration (email sender, options, health checks). |
@@ -90,6 +96,7 @@ dotnet add package Identity.Base --version <latest>
 dotnet add package Identity.Base.Roles --version <latest>
 dotnet add package Identity.Base.Admin --version <latest>
 dotnet add package Identity.Base.Organizations --version <latest>
+dotnet add package Identity.Base.ServicePrincipals --version <latest>
 dotnet add package Identity.Base.AspNet --version <latest>
 dotnet add package Identity.Base.Email.MailJet --version <latest>
 dotnet add package Identity.Base.Email.SendGrid --version <latest>
@@ -109,9 +116,7 @@ dotnet build Identity.sln
 dotnet run --project Identity.Base.Host/Identity.Base.Host.csproj
 ```
 
-The host wires the full pipeline:
-
-The host applies all bundled migrations on startup (Identity, Roles, Organizations) and seeds the admin account based on configuration. No manual `dotnet ef database update` is required unless you add custom entities.
+The sample host wires core identity, RBAC/admin APIs, and managed service principals. It applies its own provider-specific migrations for `AppDbContext`, `IdentityRolesDbContext`, and `ServicePrincipalDbContext` before seeding. Consuming hosts still own and apply their generated migrations; packages do not bundle migrations.
 
 If you install an email add-on, call `identity.UseMailJetEmailSender();` or `identity.UseSendGridEmailSender();` (or the corresponding `builder.Services.Add*EmailSender(...)`) when configuring services. Follow the [Getting Started guide](docs/guides/getting-started.md) for configuration schema and OpenIddict application registration.
 
@@ -208,13 +213,14 @@ export const appConfig = {
 - Node.js 20 / npm 10 if you run the React clients
 
 ### Configuration snapshot
-
-### Configuration snapshot
+- `Database` – provider and per-context migration assembly selection in the sample host.
 - `Registration` – profile fields, confirmation/reset URL templates (embed `{token}` + `{userId}`).
 - `MailJet` / `SendGrid` – API keys, sender info, template IDs (confirmation/reset/MFA). Only required when the corresponding package is enabled.
 - `Mfa` – issuer name, email/SMS toggles, Twilio credentials (if SMS is enabled).
 - External providers – register OAuth/OIDC schemes in your host and map route keys using `AddExternalAuthProvider(...)`.
+- `Authentication:External` – controls verified-email account association and optional synchronization of configured provider claim types.
 - `OpenIddict` – client applications, scopes, server key provider (development, file-system, Azure Key Vault).
+- `Identity:ServicePrincipals` – allowed managed-client scopes and access-token lifetime (15 minutes by default).
 - `Cors` – allowed origins for browser clients.
 
 Full option reference lives in [docs/guides/getting-started.md](docs/guides/getting-started.md). For the full architecture walk-through (Identity Host + microservices + React 19), see [docs/guides/full-stack-integration-guide.md](docs/guides/full-stack-integration-guide.md).
@@ -224,7 +230,7 @@ Full option reference lives in [docs/guides/getting-started.md](docs/guides/gett
 ## Testing & Tooling
 - Run `dotnet test Identity.sln` (integration + unit suites) before submitting changes.
 - The host project uses EF Core InMemory for tests; design-time factory enables CLI tooling.
-- CI (GitHub Actions) builds, tests, and packs both packages for every push/PR. Manual releases are triggered via **Run workflow** with a semantic version.
+- CI (GitHub Actions) builds, tests, and packs the .NET and npm packages for every push/PR. Manual releases are triggered via **Run workflow** with a semantic version.
 
 ---
 

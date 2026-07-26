@@ -112,9 +112,9 @@ curl -s http://localhost:8080/users/me/permissions -H "Authorization: Bearer $AC
 Expect: A non-zero count when admin roles are seeded.
 
 Optional Step 5: Verify organizations endpoints (if mapped)
-Command: curl -s http://localhost:8080/organizations -H "Authorization: Bearer $ACCESS_TOKEN" | jq 'length'
+Command: curl -s http://localhost:8080/admin/organizations -H "Authorization: Bearer $ACCESS_TOKEN" | jq '.totalCount'
 ```bash
-curl -s http://localhost:8080/organizations -H "Authorization: Bearer $ACCESS_TOKEN" | jq 'length'
+curl -s http://localhost:8080/admin/organizations -H "Authorization: Bearer $ACCESS_TOKEN" | jq '.totalCount'
 ```
 Expect: Zero or more organizations; non-error response confirms mapping and auth.
 

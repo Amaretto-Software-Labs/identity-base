@@ -1,7 +1,7 @@
 # Identity.Base.Roles
 
 ## Overview
-`Identity.Base.Roles` provides the shared role & permission infrastructure used by Identity Base hosts. It introduces EF Core entities for permissions (`Identity_Permissions`), roles (`Identity_Roles`), role-permission relationships, user-role assignments, and audit entries. The package also ships a seeding pipeline driven by configuration so you can declare permissions/roles in `appsettings.json` and have them synchronised automatically. `Identity.Base.Admin` and `Identity.Base.Organizations` rely on this package for consistent RBAC behaviour.
+`Identity.Base.Roles` provides the shared role & permission infrastructure used by Identity Base hosts. It introduces EF Core entities for permissions, roles, role-permission relationships, user-role assignments, service-principal-role assignments, and audit entries. The package also ships a seeding pipeline driven by configuration so you can declare permissions/roles in `appsettings.json` and have them synchronised automatically. `Identity.Base.Admin`, `Identity.Base.Organizations`, and `Identity.Base.ServicePrincipals` rely on this package for consistent RBAC behaviour.
 
 ## Installation & Wiring
 
@@ -60,10 +60,11 @@ Call `await app.Services.SeedIdentityRolesAsync()` during startup to synchronise
 | `MapIdentityRolesUserEndpoints()` | Registers `GET /users/me/permissions` – a debugging endpoint that returns `{ permissions: [...] }` for the current user. |
 
 ### Database schema
-- `Identity_Roles` – role definition (`Name`, `Description`, `IsSystemRole`, timestamps).
+- `Identity_RbacRoles` – role definition (`Name`, `Description`, `IsSystemRole`, timestamps).
 - `Identity_Permissions` – permission catalog (`Name`, `Description`).
 - `Identity_RolePermissions` – many-to-many join.
-- `Identity_UserRoles` – link between Identity users (`AppDbContext`) and roles (composite key `{UserId, RoleId}`).
+- `Identity_UserRolesRbac` – link between Identity users (`AppDbContext`) and roles (composite key `{UserId, RoleId}`).
+- `Identity_ServicePrincipalRoles` – link between managed service principals and global roles (composite key `{ServicePrincipalId, RoleId}`).
 - `Identity_AuditEntries` – optional audit log used by the admin package.
 
 ## Extension Points
@@ -75,8 +76,9 @@ Call `await app.Services.SeedIdentityRolesAsync()` during startup to synchronise
 
 ## Dependencies & Compatibility
 - Requires the core `Identity.Base` package.
-- Consumed by `Identity.Base.Admin` and `Identity.Base.Organizations` to enforce permissions.
+- Consumed by `Identity.Base.Admin`, `Identity.Base.Organizations`, and `Identity.Base.ServicePrincipals` to enforce permissions.
 - Hosts are responsible for generating/applying EF Core migrations targeting their chosen provider (PostgreSQL, SQL Server, etc.) before invoking `SeedIdentityRolesAsync`.
+- Hosts upgrading to a version with service-principal support must add a migration for the new `ServicePrincipalRoles` set even if they do not yet map the service-principal endpoints.
 
 ## Troubleshooting & Tips
 - **Seed not running** – make sure `SeedIdentityRolesAsync` is called after the host has built the service provider (e.g., right before `RunAsync`).
@@ -90,4 +92,4 @@ Call `await app.Services.SeedIdentityRolesAsync()` during startup to synchronise
 - Playbook: ../../playbooks/seed-roles-and-default-organization.md
 
 ## Change Log
-- See [CHANGELOG.md](../../CHANGELOG.md) (`Identity.Base.Roles` entries)
+- See [CHANGELOG.md](../../../CHANGELOG.md) (`Identity.Base.Roles` entries)

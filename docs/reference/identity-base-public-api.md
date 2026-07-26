@@ -22,8 +22,8 @@ These remain `public` so consumers can author custom `IConfigureOptions<>` imple
 - `ApplicationUser`, `ApplicationRole`
 - `AppDbContext`
 - `UserProfileMetadata`
-- Planned additions via `Identity.Base.Roles`:
-  - `Role`, `Permission`, `RolePermission`, `UserRole`
+- Types supplied by `Identity.Base.Roles`:
+  - `Role`, `Permission`, `RolePermission`, `UserRole`, `ServicePrincipalRole`
   - `AuditEntry` (configurable)
   - See `rbac-design.md` for schema details
 
@@ -37,6 +37,7 @@ Consumers can replace default services by implementing the following interfaces:
 - `IExternalCallbackUriFactory`
 - `IUserLifecycleListener`
 - `IOrganizationLifecycleListener` (via `IdentityBaseOrganizationsBuilder`)
+- `IServicePrincipalLifecycleListener` (via `Identity.Base.ServicePrincipals`)
 - `INotificationContextAugmentor<TContext>`
 
 The library keeps concrete implementations (`TwilioMfaChallengeSender`, `AuditLogger`, etc.) internal while still registering them by default through the builder. Email providers ship as optional packages (for example, `Identity.Base.Email.MailJet`). This limits the public API to dependency boundaries that hosts are expected to customise.
@@ -47,4 +48,18 @@ The library keeps concrete implementations (`TwilioMfaChallengeSender`, `AuditLo
 - `IdentityBaseBuilder.AddUserLifecycleListener<TListener>()`
 - `IdentityBaseBuilder.AddNotificationContextAugmentor<TContext, TAugmentor>()`
 - `IdentityBaseOrganizationsBuilder.AddOrganizationLifecycleListener<TListener>()`
+- `AddIdentityBaseServicePrincipals(...)` / `MapIdentityBaseServicePrincipalEndpoints()`
+- `IdentityBaseServicePrincipalsBuilder.ConfigureModel(...)` / `UseDbContext<TContext>()`
+
+## Service Principal Package Surface
+
+`Identity.Base.ServicePrincipals` intentionally exposes the types hosts need for composition and custom workflows:
+
+- `ServicePrincipalDbContext`, `ServicePrincipal`, and `ServicePrincipalCredential`
+- `ServicePrincipalService`
+- admin request/response records in `Identity.Base.ServicePrincipals.Api`
+- `ServicePrincipalOptions` and `ServicePrincipalPermissions`
+- `IServicePrincipalLifecycleListener`
+
+The core `Identity.Base` package also exposes `IClientCredentialsPrincipalProvider` and `IManagedClientCredentialsClientResolver` so other packages can provide managed client-credentials identities without replacing the grant handler.
 * [Lifecycle Hooks & Notification Augmentors](../plans/identity-base-lifecycle-hooks-and-notification-augmentors.md)

@@ -47,6 +47,7 @@ cd IdentityHost
 dotnet add package Identity.Base
 dotnet add package Identity.Base.Admin
 dotnet add package Identity.Base.Organizations
+dotnet add package Identity.Base.ServicePrincipals
 dotnet add package Identity.Base.Email.MailJet # optional Mailjet sender
 
 # Other required packages
@@ -61,6 +62,7 @@ dotnet tool install --global dotnet-ef
 - `Identity.Base` provides the core identity, OpenIddict, MFA, and email flows.
 - `Identity.Base.Admin` layers admin authorization and endpoints on top of RBAC (it implicitly registers `Identity.Base.Roles`).
 - `Identity.Base.Organizations` adds organization, membership, and organization-scoped role management.
+- `Identity.Base.ServicePrincipals` adds managed machine identities, credentials, global RBAC assignments, and client-credentials tokens.
 
 ### 3.2 Replace `Program.cs`
 
@@ -75,6 +77,8 @@ using Identity.Base.Organizations.Extensions;
 using Identity.Base.Roles;
 using Identity.Base.Roles.Configuration;
 using Identity.Base.Roles.Endpoints;
+using Identity.Base.ServicePrincipals.Data;
+using Identity.Base.ServicePrincipals.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -103,9 +107,13 @@ builder.Services.AddIdentityAdmin(builder.Configuration, configureDbContext)
 var organizationsBuilder = builder.Services.AddIdentityBaseOrganizations(configureDbContext)
     .UseTablePrefix("Contoso");
 
+// Managed service principals (machine identities)
+builder.Services.AddIdentityBaseServicePrincipals(builder.Configuration, configureDbContext);
+
 // Optional: extend organization model or seeding pipeline here
-// organizationsBuilder.ConfigureOrganizationModel(modelBuilder => { ... });
-// organizationsBuilder.AfterOrganizationSeed(async (sp, ct) => { ... });
+// identityBuilder.ConfigureOrganizationModel(modelBuilder => { ... });
+// identityBuilder.AfterOrganizationSeed(async (sp, ct) => { ... });
+// organizationsBuilder.AddOrganizationLifecycleListener<CustomOrganizationLifecycleListener>();
 
 var app = builder.Build();
 
@@ -121,7 +129,12 @@ await using (var scope = app.Services.CreateAsyncScope())
     if (rolesContext is not null)
     {
         await rolesContext.Database.MigrateAsync();
-        await services.SeedIdentityRolesAsync();
+    }
+
+    var servicePrincipalContext = services.GetService<ServicePrincipalDbContext>();
+    if (servicePrincipalContext is not null)
+    {
+        await servicePrincipalContext.Database.MigrateAsync();
     }
 
     var organizationContext = services.GetService<OrganizationDbContext>();
@@ -129,6 +142,8 @@ await using (var scope = app.Services.CreateAsyncScope())
     {
         await organizationContext.Database.MigrateAsync();
     }
+
+    await services.SeedIdentityRolesAsync();
 }
 
 app.UseApiPipeline(appBuilder => appBuilder.UseSerilogRequestLogging()); // Plug in your preferred request logging
@@ -136,6 +151,7 @@ app.MapControllers();                   // Allow MVC controllers if you add any
 app.MapApiEndpoints();                  // Core Identity Base endpoints
 app.MapIdentityRolesUserEndpoints();    // GET /users/me/permissions and scope helpers
 app.MapIdentityAdminEndpoints();        // /admin/users, /admin/roles
+app.MapIdentityBaseServicePrincipalEndpoints(); // /admin/service-principals
 app.UseOrganizationContextFromHeader(); // Honor X-Organization-Id for scoped requests
 app.MapIdentityBaseOrganizationEndpoints(); // /admin/organizations + user membership endpoints
 app.MapHealthChecks("/healthz");
@@ -181,6 +197,12 @@ Populate the generated `appsettings.json` with the minimal sections shown below.
     "Issuer": "Identity Base Sample",
     "Email": { "Enabled": true },
     "Sms": { "Enabled": false }
+  },
+  "Identity": {
+    "ServicePrincipals": {
+      "AccessTokenLifetime": "00:15:00",
+      "AllowedScopes": ["identity.api"]
+    }
   },
   "Cors": {
     "AllowedOrigins": [
@@ -243,7 +265,13 @@ Populate the generated `appsettings.json` with the minimal sections shown below.
           "users.read",
           "users.manage-roles",
           "admin.organizations.read",
-          "admin.organizations.manage"
+          "admin.organizations.manage",
+          "service-principals.read",
+          "service-principals.create",
+          "service-principals.update",
+          "service-principals.disable",
+          "service-principals.manage-roles",
+          "service-principals.manage-credentials"
         ],
         "IsSystemRole": true
       }
@@ -265,6 +293,7 @@ OpenIddict seeding is strict: only the permissions and requirements you list for
 - Confirmation and password reset templates must include `{token}` and `{userId}` placeholders to match the email flows.
 - Configure Mailjet secrets only if the Mailjet add-on is enabled; otherwise you can omit the section or leave `Enabled` false. Add MFA secrets to user secrets or environment variables in production.
 - Expand the `Permissions`/`Roles` lists as you add downstream authorization requirements.
+- `Identity.Base.ServicePrincipals` contributes its permission definitions automatically; assigning the IDs above to `IdentityAdmin` grants the actual operator capabilities.
 
 ### 3.4 Prepare Database Schema
 
@@ -290,13 +319,20 @@ dotnet ef migrations add InitialOrganizations \
   --context Identity.Base.Organizations.Data.OrganizationDbContext \
   --output-dir Data/Migrations/Organizations
 
+dotnet ef migrations add InitialServicePrincipals \
+  --project IdentityHost/IdentityHost.csproj \
+  --startup-project IdentityHost/IdentityHost.csproj \
+  --context Identity.Base.ServicePrincipals.Data.ServicePrincipalDbContext \
+  --output-dir Data/Migrations/ServicePrincipals
+
 # After the migrations have been added they can be applied with the commands below
 dotnet ef database update --project IdentityHost/IdentityHost.csproj --startup-project IdentityHost/IdentityHost.csproj --context Identity.Base.Data.AppDbContext
 dotnet ef database update --project IdentityHost/IdentityHost.csproj --startup-project IdentityHost/IdentityHost.csproj --context Identity.Base.Roles.IdentityRolesDbContext
 dotnet ef database update --project IdentityHost/IdentityHost.csproj --startup-project IdentityHost/IdentityHost.csproj --context Identity.Base.Organizations.Data.OrganizationDbContext
+dotnet ef database update --project IdentityHost/IdentityHost.csproj --startup-project IdentityHost/IdentityHost.csproj --context Identity.Base.ServicePrincipals.Data.ServicePrincipalDbContext
 ```
 
-Replace `IdentityHost` with your actual host project and remember to update the `.MigrationsAssembly("IdentityHost")` in `Program.cs` to the same project or a separate assembly with the migrations (the sample repo uses `Identity.Base.Host`). The startup helper shown earlier still calls `Database.MigrateAsync()` so newly generated migrations run automatically at boot, but you should also run the CLI commands during CI/CD to keep environments consistent.
+Replace `IdentityHost` with your actual host project and remember to update the `.MigrationsAssembly("IdentityHost")` in `Program.cs` to the same project or a separate assembly with the migrations (the sample repo uses `Identity.Base.Host`). If you add service principals to a host that already has roles migrations, also add a new `IdentityRolesDbContext` migration for the `ServicePrincipalRoles` set. The startup helper shown earlier still calls `Database.MigrateAsync()` so newly generated migrations run automatically at boot, but you should also run the CLI commands during CI/CD to keep environments consistent.
 
 ### 3.5 Run the Host
 
@@ -305,7 +341,7 @@ dotnet run
 ```
 
 - `https://localhost:5000/healthz` should report healthy checks.
-- `POST /auth/register`, `POST /auth/login`, `/admin/users`, and `/admin/organizations/...` are now available.
+- `POST /auth/register`, `POST /auth/login`, `/admin/users`, `/admin/organizations/...`, and `/admin/service-principals` are now available.
 - Sign in with the seeded admin account to exercise the admin and organization surfaces.
 > See also: Task Playbook — docs/playbooks/full-stack-smoke-test.md for copy-ready commands and explicit success criteria.
 
@@ -363,7 +399,7 @@ npm install
 npm install @identity-base/react-client @identity-base/react-organizations
 ```
 
-Both packages declare React 18/19 peer dependencies, so your Vite app must use React 19 (`"react": "^19.0.0"` in `package.json`).
+Both packages declare React 18/19 peer dependencies. This guide uses React 19, but an existing React 18 application is also supported.
 
 ### 5.3 Configure Environment Variables
 
@@ -425,18 +461,19 @@ Use the exported hooks to access membership data, list organization members, and
 import { useOrganizations, useOrganizationMembers, useOrganizationSwitcher } from '@identity-base/react-organizations';
 
 export function OrganizationDashboard() {
-  const { memberships, activeOrganizationId, switchActiveOrganization, isLoadingOrganizations } = useOrganizations();
+  const { memberships, activeOrganizationId, isLoadingOrganizations, organizationsError } = useOrganizations();
   const { members, isLoading: isLoadingMembers } = useOrganizationMembers(activeOrganizationId ?? undefined);
-  const { isSwitching } = useOrganizationSwitcher();
+  const { isSwitching, error: switchError, switchOrganization } = useOrganizationSwitcher();
 
   if (isLoadingOrganizations) return <p>Loading organizations…</p>;
+  if (organizationsError) return <p>Could not load organizations.</p>;
   if (!activeOrganizationId) return <p>Select an organization to continue.</p>;
 
   return (
     <>
       <select
         value={activeOrganizationId}
-        onChange={(event) => switchActiveOrganization(event.target.value)}
+        onChange={(event) => void switchOrganization(event.target.value)}
         disabled={isSwitching}
       >
         {memberships.map((membership) => (
@@ -445,6 +482,7 @@ export function OrganizationDashboard() {
           </option>
         ))}
       </select>
+      {switchError ? <p>Could not switch organizations.</p> : null}
 
       {isLoadingMembers ? (
         <p>Loading members…</p>
@@ -472,6 +510,7 @@ The provider loads organization data when the user signs in, persists the active
 | Profile | `useProfile()` | Allow metadata updates via `authManager.updateProfile`. |
 | Organization Management | `useOrganizations`, `useOrganizationMembers` from `@identity-base/react-organizations` | Use `useOrganizations().client.user` or `.client.admin` for CRUD and membership flows aligned with your permissions. |
 | Admin User Management | Direct calls to `/admin/users` (fetch, assign roles) | Include admin-only UI guards by checking `authManager.hasPermission('users.manage-roles')`. |
+| Service Principals | `authManager.admin.servicePrincipals.*` | Create machine identities, assign least-privilege roles, and show each issued secret once before discarding it from UI state. |
 | Domain APIs | Fetch from microservices such as `/orders`, `/inventory` | Attach access tokens from the React client (hooks expose `getAccessToken`). |
 
 Leverage the hooks to centralize token exchange, refresh, and error handling. The React client automatically stores and rotates tokens using the chosen storage strategy.
@@ -527,7 +566,8 @@ Vite serves the app on `http://localhost:5173` by default. Proxy protected API r
 2. In `IdentityHost`, run `dotnet run`. Verify `GET /healthz` returns `Healthy`.
 3. In `identity-spa`, run `npm run dev`. Confirm the React app loads at `http://localhost:5173`.
 4. Register a new user; complete login and MFA if enabled.
-5. Sign in with the seeded admin account (`admin@example.com`), navigate to admin pages, and verify role assignment + organization management endpoints respond.
+5. Sign in with the seeded admin account (`admin@example.com`), navigate to admin pages, and verify role assignment, organization management, and service-principal endpoints respond.
+6. Create a service principal, assign a role, issue a development credential, and exchange it at `/connect/token` using `grant_type=client_credentials`.
 6. Hit each protected microservice endpoint (for example `/orders`) to validate `Identity.Base.AspNet` authentication and scope enforcement.
 
 ---

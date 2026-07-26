@@ -26,13 +26,13 @@ export function Root() {
 }
 ```
 
-`OrganizationsProvider` fetches all membership pages after the user signs in, caches organization summaries, and persists the active organization id to `localStorage` so refreshes retain context. Use `setActiveOrganizationId` or `switchActiveOrganization` to react to context changes. Pass `fetcher` to supply a custom Fetch-compatible implementation and `storageKey` to change the local-storage key.
+`OrganizationsProvider` fetches all membership pages after the user signs in, caches organization summaries, and persists the active organization id to `localStorage` so refreshes retain context. It clears state on logout, ignores stale in-flight membership responses, and exposes membership and organization failures separately from valid empty results. Use `setActiveOrganizationId` or `switchActiveOrganization` to react to context changes. Pass `fetcher` to supply a custom Fetch-compatible implementation and `storageKey` to change the local-storage key.
 
 ## Public API
 
-- `useOrganizations()` – returns memberships, active-organization state, loading/errors, `reloadMemberships`, `setActiveOrganizationId`, `switchActiveOrganization`, and `client`.
-- `useOrganizationSwitcher()` – validates that the requested organization belongs to the current membership set, loads its summary if needed, and persists the active id. It does not refresh tokens.
-- `useOrganizationMembers(organizationId, { fetchOnMount, initialQuery })` – paginated member listing with `members`, `isLoading`, `ensurePage`, `reload`, `updateMember`, and `removeMember`. The initial query supports `search`, `roleId`, `page`, `pageSize`, and `sort`.
+- `useOrganizations()` – returns memberships, `isLoadingMemberships`, `membershipError`, cached organizations, `isLoadingOrganizations`, `organizationsError`, active-organization state, `reloadMemberships`, `setActiveOrganizationId`, `switchActiveOrganization`, and `client`.
+- `useOrganizationSwitcher()` – returns `switchOrganization`, `isSwitching`, and `error`. It validates membership, loads the summary if needed, and persists the active id. It does not refresh tokens.
+- `useOrganizationMembers(organizationId, { fetchOnMount, initialQuery })` – paginated member caching with `members`, `isLoading`, `error`, `page`, `pageSize`, `totalCount`, `pageCount`, `query`, `setQuery`, `ensurePage`, `isPageLoaded`, `getMemberAt`, `reload`, `updateMember`, and `removeMember`. The initial query supports `search`, `roleId`, `page`, `pageSize`, and `sort`.
 - `client.invitations` exposes public invitation `preview` and authenticated `claim`.
 - `client.user` exposes organization create/read/update; member list/add/update/remove; role list/create/delete and permission operations; and invitation list/create/revoke.
 - `client.admin` exposes organization list/create/read/update/archive and the corresponding member, role, permission, and invitation operations.
@@ -53,13 +53,14 @@ export function Root() {
 
 ## Dependencies & Compatibility
 
-- Requires `@identity-base/react-client`.
-- Designed for React 19.
+- Requires a matching `@identity-base/react-client` version.
+- Supports React 18 and 19.
 - Aligns with Identity Base organizations (server v0.4.0+ for invitation endpoints).
 
 ## Troubleshooting & Tips
 - **Header not sent** – ensure you consume `useOrganizations()` or `useOrganizationSwitcher()` before issuing API calls; these hooks provide the selected organization id. Forward it as `X-Organization-Id` on custom fetch calls.
 - **Stale memberships** – call `useOrganizations().reloadMemberships()` after the backend mutates memberships outside of the current UI flow.
+- **Load failure hidden by empty state** – inspect `membershipError` and `organizationsError`; the provider does not collapse request failures into an empty data set.
 - **Token refresh loop** – when switching organizations or changing memberships, refresh tokens if your UI depends on `org:*` claims (e.g., call `IdentityAuthManager.refreshTokens()`).
 - **Optimistic updates** – hooks expose `updateMember`/`removeMember` for optimistic UI updates. Catch thrown `IdentityError`s to revert state when the API rejects a change.
 
@@ -71,4 +72,4 @@ export function Root() {
 
 ## Change Log
 
-- See [CHANGELOG.md](../../CHANGELOG.md) (`@identity-base/react-organizations` entries)
+- See [CHANGELOG.md](../../../CHANGELOG.md) (`@identity-base/react-organizations` entries)
