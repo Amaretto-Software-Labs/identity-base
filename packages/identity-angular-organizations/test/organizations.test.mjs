@@ -250,6 +250,7 @@ test('OrganizationsService covers user/admin namespaces and optional auth/token 
         method: init.method,
         auth: init.headers.get('Authorization'),
         org: init.headers.get('X-Organization-Id'),
+        body: init.body,
       })
 
       if (init.method === 'DELETE') return makeResponse({ status: 204 })
@@ -268,8 +269,8 @@ test('OrganizationsService covers user/admin namespaces and optional auth/token 
 
     await service.invitations.claim({ code: 'abc' })
 
-    await service.user.organizations.create({ slug: 's', displayName: 'Org' })
-    await service.user.organizations.patch('org 1', { displayName: 'New' })
+    await service.user.organizations.create({ slug: 's', displayName: 'Org', metadata: { plan: 'pro' } })
+    await service.user.organizations.patch('org 1', { displayName: 'New', metadata: { plan: null } })
 
     await service.user.members.list('org 1', { page: 1, pageSize: 25 })
     await service.user.members.add('org 1', { userId: 'u1', roleIds: ['r1'] })
@@ -277,8 +278,7 @@ test('OrganizationsService covers user/admin namespaces and optional auth/token 
     await service.user.members.remove('org 1', 'u1')
 
     await service.user.roles.list('org 1', { page: 1, pageSize: 25 })
-    await service.user.roles.create('org 1', { name: 'admin', displayName: 'Admin', description: null })
-    await service.user.roles.update('org 1', 'role 1', { displayName: 'Admin', description: '' })
+    await service.user.roles.create('org 1', { name: 'admin', description: null })
     await service.user.roles.delete('org 1', 'role 1')
     await service.user.roles.getPermissions('org 1', 'role 1')
     await service.user.roles.updatePermissions('org 1', 'role 1', { permissions: ['p1', 'p2'] })
@@ -287,16 +287,15 @@ test('OrganizationsService covers user/admin namespaces and optional auth/token 
     await service.user.invitations.create('org 1', { email: 'a@example.com', roleIds: ['r1'] })
     await service.user.invitations.revoke('org 1', 'code 1')
 
-    await service.admin.organizations.create({ slug: 's', displayName: 'Org' })
-    await service.admin.organizations.patch('org 1', { displayName: 'New' })
+    await service.admin.organizations.create({ slug: 's', displayName: 'Org', metadata: { plan: 'enterprise' } })
+    await service.admin.organizations.patch('org 1', { displayName: 'New', metadata: { plan: null } })
     await service.admin.organizations.delete('org 1')
 
     await service.admin.members.add('org 1', { userId: 'u1', roleIds: ['r1'] })
     await service.admin.members.update('org 1', 'u1', { roleIds: ['r2'] })
     await service.admin.members.remove('org 1', 'u1')
 
-    await service.admin.roles.create('org 1', { name: 'admin', displayName: 'Admin', description: null })
-    await service.admin.roles.update('org 1', 'role 1', { displayName: 'Admin', description: '' })
+    await service.admin.roles.create('org 1', { name: 'admin', description: null })
     await service.admin.roles.delete('org 1', 'role 1')
     await service.admin.roles.getPermissions('org 1', 'role 1')
     await service.admin.roles.updatePermissions('org 1', 'role 1', { permissions: ['p1', 'p2'] })
@@ -308,6 +307,28 @@ test('OrganizationsService covers user/admin namespaces and optional auth/token 
     assert.ok(calls.length > 20, 'Expected many request wrappers to be executed')
     assert.ok(calls.every(c => c.org === 'org-1'), 'Expected org header to be attached by default')
     assert.ok(calls.every(c => c.auth === null), 'Expected null token to omit Authorization header')
+    const userCreate = calls.find(c => c.pathname === '/users/me/organizations' && c.method === 'POST')
+    const userPatch = calls.find(c => c.pathname === '/users/me/organizations/org%201' && c.method === 'PATCH')
+    const adminCreate = calls.find(c => c.pathname === '/admin/organizations' && c.method === 'POST')
+    const adminPatch = calls.find(c => c.pathname === '/admin/organizations/org%201' && c.method === 'PATCH')
+    assert.deepEqual(JSON.parse(userCreate.body), {
+      slug: 's',
+      displayName: 'Org',
+      metadata: { values: { plan: 'pro' } },
+    })
+    assert.deepEqual(JSON.parse(userPatch.body), {
+      displayName: 'New',
+      metadata: { values: { plan: null } },
+    })
+    assert.deepEqual(JSON.parse(adminCreate.body), {
+      slug: 's',
+      displayName: 'Org',
+      metadata: { values: { plan: 'enterprise' } },
+    })
+    assert.deepEqual(JSON.parse(adminPatch.body), {
+      displayName: 'New',
+      metadata: { values: { plan: null } },
+    })
   } finally {
     globalThis.fetch = originalFetch
   }
@@ -329,7 +350,7 @@ test('OrganizationsService surfaces API errors, invalid JSON, and timeouts as Id
     )
 
     // 2) Non-OK with JSON parsing failure, text fallback
-    globalThis.fetch = async () => makeResponse({ status: 500, json: null, text: 'server blew up' })
+    globalThis.fetch = async () => new Response('server blew up', { status: 500 })
     const service2 = new OrganizationsService(auth, active, { apiBase: 'https://identity.example.com' })
     await assert.rejects(
       () => service2.user.organizations.list(),

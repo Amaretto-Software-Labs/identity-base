@@ -77,13 +77,16 @@ namespace Identity.Base.Host.SqlServerMigrations.Data.Migrations.Organizations
                     b.HasIndex("UsedAtUtc")
                         .HasDatabaseName("IX_Host_OrganizationInvitations_UsedAtUtc");
 
+                    b.HasIndex("OrganizationId", "Email")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Host_OrganizationInvitations_OrganizationId_Email");
+
                     b.ToTable("Host_OrganizationInvitations", (string)null);
                 });
 
             modelBuilder.Entity("Identity.Base.Organizations.Domain.Organization", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTimeOffset?>("ArchivedAtUtc")

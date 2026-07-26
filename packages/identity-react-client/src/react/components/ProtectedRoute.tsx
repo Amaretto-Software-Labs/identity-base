@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { useAuth } from '../hooks/useAuth'
 
@@ -17,6 +17,25 @@ export function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading } = useAuth()
 
+  useEffect(() => {
+    if (isLoading || isAuthenticated) {
+      return
+    }
+
+    if (onUnauthenticated) {
+      onUnauthenticated()
+      return
+    }
+
+    if (redirectTo) {
+      window.location.href = redirectTo
+      return
+    }
+
+    const returnUrl = encodeURIComponent(window.location.href)
+    window.location.href = `/login?returnUrl=${returnUrl}`
+  }, [isAuthenticated, isLoading, onUnauthenticated, redirectTo])
+
   // Show loading state
   if (isLoading) {
     return fallback || <div>Loading...</div>
@@ -24,19 +43,6 @@ export function ProtectedRoute({
 
   // Handle unauthenticated state
   if (!isAuthenticated) {
-    if (onUnauthenticated) {
-      onUnauthenticated()
-      return null
-    }
-
-    if (redirectTo) {
-      window.location.href = redirectTo
-      return null
-    }
-
-    // Default: redirect to login with return URL
-    const returnUrl = encodeURIComponent(window.location.href)
-    window.location.href = `/login?returnUrl=${returnUrl}`
     return null
   }
 

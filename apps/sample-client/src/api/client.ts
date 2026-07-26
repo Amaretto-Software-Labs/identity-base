@@ -23,13 +23,8 @@ export async function apiFetch<T>(
   })
 
   if (!response.ok) {
-    let errorBody: ApiError | string | null = null
-
-    try {
-      errorBody = await response.json()
-    } catch {
-      errorBody = await response.text()
-    }
+    const rawBody = await response.text()
+    const errorBody = parseErrorBody(rawBody)
 
     const error: ApiError = typeof errorBody === 'string' ? { detail: errorBody } : errorBody ?? {}
     error.status = response.status
@@ -45,6 +40,18 @@ export async function apiFetch<T>(
   }
 
   return (await response.json()) as T
+}
+
+function parseErrorBody(rawBody: string): ApiError | string | null {
+  if (!rawBody) {
+    return null
+  }
+
+  try {
+    return JSON.parse(rawBody) as ApiError
+  } catch {
+    return rawBody
+  }
 }
 
 export function buildUrl(path: string, params: Record<string, string | number | boolean | undefined>) {

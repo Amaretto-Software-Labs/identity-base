@@ -16,6 +16,7 @@ export const API_ROUTES = {
   confirmEmail: '/auth/confirm-email',
   profileSchema: '/sample/registration/profile-fields',
   profile: '/users/me',
+  permissions: '/users/me/permissions',
   organizationsMe: '/users/me/organizations',
   // User-scoped organization routes
   organization: (organizationId: string) => `/users/me/organizations/${organizationId}`,

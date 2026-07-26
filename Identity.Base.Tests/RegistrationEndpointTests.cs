@@ -5,6 +5,7 @@ using Identity.Base.Data;
 using Identity.Base.Features.Email;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Identity.Base.Tests;
 
@@ -55,5 +56,38 @@ public class RegistrationEndpointTests : IClassFixture<IdentityApiFactory>
         email.ToEmail.ShouldBe(uniqueEmail);
         email.TemplateKey.ShouldBe(TemplatedEmailKeys.AccountConfirmation);
         email.Variables.ShouldContainKey("confirmationUrl");
+    }
+
+    [Fact]
+    public async Task RegisterUser_RemovesUser_WhenConfirmationEmailFails()
+    {
+        using var factory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<ITemplatedEmailSender>();
+                services.AddSingleton<ITemplatedEmailSender, ThrowingEmailSender>();
+            });
+        });
+        using var client = factory.CreateClient();
+        var uniqueEmail = $"failed-registration-{Guid.NewGuid():N}@example.com";
+
+        var response = await client.PostAsJsonAsync("/auth/register", new
+        {
+            email = uniqueEmail,
+            password = "Passw0rd!Passw0rd!",
+            metadata = new { displayName = "Failed Registration" }
+        });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.InternalServerError);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        (await dbContext.Users.AnyAsync(user => user.Email == uniqueEmail)).ShouldBeFalse();
+    }
+
+    private sealed class ThrowingEmailSender : ITemplatedEmailSender
+    {
+        public Task SendAsync(TemplatedEmail email, CancellationToken cancellationToken = default)
+            => Task.FromException(new InvalidOperationException("Simulated email failure."));
     }
 }

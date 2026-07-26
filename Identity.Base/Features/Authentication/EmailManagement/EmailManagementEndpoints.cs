@@ -124,7 +124,7 @@ public static class EmailManagementEndpoints
 
         if (await userManager.IsEmailConfirmedAsync(user))
         {
-            return Results.Ok(new { message = "Email already confirmed." });
+            return Results.Accepted();
         }
 
         var logger = loggerFactory.CreateLogger(typeof(EmailManagementEndpoints).FullName!);

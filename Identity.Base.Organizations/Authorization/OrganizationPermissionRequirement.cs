@@ -45,18 +45,24 @@ public sealed class OrganizationPermissionAuthorizationHandler(
             return;
         }
 
-        if (context.User.HasPermission(requirement.Permission))
+        var isUserOrganizationPermission = requirement.Permission.StartsWith(
+            "user.organizations.",
+            StringComparison.OrdinalIgnoreCase);
+        var routeOrganizationId = ResolveRouteOrganizationId(context);
+
+        if ((!isUserOrganizationPermission || !routeOrganizationId.HasValue) &&
+            context.User.HasPermission(requirement.Permission))
         {
             context.Succeed(requirement);
             return;
         }
 
-        if (!requirement.Permission.StartsWith("user.organizations.", StringComparison.OrdinalIgnoreCase))
+        if (!isUserOrganizationPermission)
         {
             return;
         }
 
-        var organizationId = ResolveOrganizationId(context);
+        var organizationId = routeOrganizationId ?? ResolveClaimOrganizationId(context.User);
         var userIdValue = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (!organizationId.HasValue || organizationId.Value == Guid.Empty)
@@ -84,7 +90,7 @@ public sealed class OrganizationPermissionAuthorizationHandler(
         }
     }
 
-    private static Guid? ResolveOrganizationId(AuthorizationHandlerContext context)
+    private static Guid? ResolveRouteOrganizationId(AuthorizationHandlerContext context)
     {
         var httpContext = context.Resource as HttpContext;
         if (httpContext is not null)
@@ -100,7 +106,12 @@ public sealed class OrganizationPermissionAuthorizationHandler(
             }
         }
 
-        var claimValue = context.User.FindFirstValue(OrganizationClaimTypes.OrganizationId);
+        return null;
+    }
+
+    private static Guid? ResolveClaimOrganizationId(ClaimsPrincipal user)
+    {
+        var claimValue = user.FindFirstValue(OrganizationClaimTypes.OrganizationId);
         if (Guid.TryParse(claimValue, out var claimOrganizationId))
         {
             return claimOrganizationId;

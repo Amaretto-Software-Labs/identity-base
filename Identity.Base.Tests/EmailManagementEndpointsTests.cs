@@ -70,6 +70,27 @@ public class EmailManagementEndpointsTests : IClassFixture<IdentityApiFactory>
     }
 
     [Fact]
+    public async Task ResendConfirmation_ReturnsSameResponse_ForConfirmedAndUnknownUsers()
+    {
+        const string confirmedEmail = "resend-confirmed@example.com";
+        const string password = "StrongPass!2345";
+        await SeedUserAsync(confirmedEmail, password, confirmEmail: true);
+
+        using var client = CreateClient();
+        using var confirmedResponse = await client.PostAsJsonAsync(
+            "/auth/resend-confirmation",
+            new { email = confirmedEmail });
+        using var unknownResponse = await client.PostAsJsonAsync(
+            "/auth/resend-confirmation",
+            new { email = $"unknown-{Guid.NewGuid():N}@example.com" });
+
+        confirmedResponse.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        unknownResponse.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        (await confirmedResponse.Content.ReadAsStringAsync()).ShouldBe(
+            await unknownResponse.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
     public async Task ForgotPassword_ForConfirmedUser_SendsEmail()
     {
         const string email = "forgot-password@example.com";

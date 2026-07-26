@@ -16,14 +16,12 @@ export interface OrganizationDto {
 
 export interface UserOrganizationMembershipDto {
   organizationId: string
-  organizationSlug: string
-  organizationName: string
+  slug: string
+  displayName: string
   status: OrganizationStatus | string
-  metadata?: Record<string, string | null>
   roleIds: string[]
   createdAtUtc: string
   updatedAtUtc?: string | null
-  archivedAtUtc?: string | null
   tenantId?: string | null
 }
 
@@ -112,11 +110,6 @@ export interface CreateOrganizationRoleRequest {
   description?: string | null
 }
 
-export interface UpdateOrganizationRoleRequest {
-  name?: string | null
-  description?: string | null
-}
-
 export interface UpdateOrganizationRolePermissionsRequest {
   permissions: string[]
 }
@@ -176,4 +169,3 @@ export type MembershipListResponse = PagedResult<UserOrganizationMembershipDto>
 export type MemberListResponse = PagedResult<OrganizationMemberDto>
 export type RoleListResponse = PagedResult<OrganizationRoleDto>
 export type InvitationListResponse = PagedResult<OrganizationInvitationDto>
-

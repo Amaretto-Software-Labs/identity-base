@@ -18,7 +18,7 @@ import { OrganizationsProvider } from '@identity-base/react-organizations'
 export function Root() {
   return (
     <IdentityProvider config={identityConfig}>
-      <OrganizationsProvider apiBase={identityConfig.authority}>
+      <OrganizationsProvider apiBase={identityConfig.apiBase}>
         <App />
       </OrganizationsProvider>
     </IdentityProvider>
@@ -26,29 +26,30 @@ export function Root() {
 }
 ```
 
-`OrganizationsProvider` fetches memberships after the user signs in, caches them, and persists the active organization id to `localStorage` so refreshes retain context. Pass `onOrganizationChanged` to react to context changes or supply a custom `fetch`/`storage` implementation for advanced scenarios.
+`OrganizationsProvider` fetches all membership pages after the user signs in, caches organization summaries, and persists the active organization id to `localStorage` so refreshes retain context. Use `setActiveOrganizationId` or `switchActiveOrganization` to react to context changes. Pass `fetcher` to supply a custom Fetch-compatible implementation and `storageKey` to change the local-storage key.
 
 ## Public API
 
-- `useOrganizations()` – returns `{ memberships, activeOrganizationId, isLoadingMemberships, membershipError, organizations, isLoadingOrganizations, reloadMemberships, setActiveOrganizationId, client }`.
-- `useOrganizationSwitcher()` – updates the active organization id (persists to storage) and refreshes memberships/tokens when needed.
-- `useOrganizationMembers(organizationId, query)` – paginated member listing with helpers (`members`, `isLoading`, `ensurePage`, `updateMember`, `removeMember`, `refresh`). Supports server-side filters (`search`, `roleId`, `page`, `pageSize`, `sort`).
-- `client` (from `useOrganizations().client`) exposes typed helpers: `listMembers`, `inviteMember`, `revokeInvitation`, `listInvitations`, `getRolePermissions`, `updateRolePermissions`, `listRoles`, `createRole`, `deleteRole`, etc. The list helpers accept `query` objects (e.g., `{ page, pageSize, search, sort }`) so your UI can request the exact slice it needs while still receiving normalized arrays.
-- Exported types: `OrganizationMembership`, `OrganizationSummary`, `OrganizationRole`, `OrganizationInvitation`, plus query/paging types like `OrganizationMemberQuery`, `OrganizationRoleListQuery`, and `OrganizationInvitationListQuery`.
+- `useOrganizations()` – returns memberships, active-organization state, loading/errors, `reloadMemberships`, `setActiveOrganizationId`, `switchActiveOrganization`, and `client`.
+- `useOrganizationSwitcher()` – validates that the requested organization belongs to the current membership set, loads its summary if needed, and persists the active id. It does not refresh tokens.
+- `useOrganizationMembers(organizationId, { fetchOnMount, initialQuery })` – paginated member listing with `members`, `isLoading`, `ensurePage`, `reload`, `updateMember`, and `removeMember`. The initial query supports `search`, `roleId`, `page`, `pageSize`, and `sort`.
+- `client.invitations` exposes public invitation `preview` and authenticated `claim`.
+- `client.user` exposes organization create/read/update; member list/add/update/remove; role list/create/delete and permission operations; and invitation list/create/revoke.
+- `client.admin` exposes organization list/create/read/update/archive and the corresponding member, role, permission, and invitation operations.
+- Exported types include `Membership`, `OrganizationSummary`, `OrganizationMember`, `OrganizationRole`, `OrganizationInvitation`, and their option/query/page types.
 
 ## Server Expectations
 
 - Identity Base organizations endpoints must be available: `/users/me/organizations`, `/admin/organizations/{id}/members`, `/admin/organizations/{id}/invitations`, `/admin/organizations/{id}/roles`, `/admin/organizations/{id}/roles/{roleId}/permissions`, etc.
-- The SPA must send `X-Organization-Id` with API requests that require an active organization. The provider exposes the current id for convenience.
+- The SPA must send `X-Organization-Id` with API requests that require an active organization. The built-in client attaches it to scoped admin requests once an active organization is selected; user-membership and public invitation routes remain unscoped.
 - There is no API to “set” the active organization; persisting and forwarding the selected id is entirely client-side.
 - Send `X-Organization-Id` on API calls that should operate within an organization scope. Changes to membership/role assignments generally require a token refresh (call `IdentityAuthManager.refreshTokens()`) so downstream services pick up the new `org:*` claims.
 
 ## Extension Points
 
-- Custom networking: pass a `fetch` prop to integrate with libraries such as React Query or to inject auth headers.
-- Persistence: provide a `storage` adapter if you prefer session storage or encrypted storage instead of the default `localStorage`.
-- Events: use `onOrganizationChanged` to update UI/global state when the active organization changes.
-- Invitations: build bespoke invitation/resend flows by calling `client.inviteMember`/`client.revokeInvitation` and using your own email templates.
+- Custom networking: pass a `fetcher` prop with the standard Fetch signature.
+- Persistence: pass `storageKey` to choose the `localStorage` key used for the active organization.
+- Invitations: build invitation flows with `client.user.createInvitation`, `client.admin.createInvitation`, `client.invitations.preview`, and `client.invitations.claim`.
 
 ## Dependencies & Compatibility
 
@@ -58,7 +59,7 @@ export function Root() {
 
 ## Troubleshooting & Tips
 - **Header not sent** – ensure you consume `useOrganizations()` or `useOrganizationSwitcher()` before issuing API calls; these hooks provide the selected organization id. Forward it as `X-Organization-Id` on custom fetch calls.
-- **Stale memberships** – call `useOrganizations().reloadMemberships()` (or re-invoke `setActiveOrganizationId`) after the backend mutates memberships outside of the current UI flow.
+- **Stale memberships** – call `useOrganizations().reloadMemberships()` after the backend mutates memberships outside of the current UI flow.
 - **Token refresh loop** – when switching organizations or changing memberships, refresh tokens if your UI depends on `org:*` claims (e.g., call `IdentityAuthManager.refreshTokens()`).
 - **Optimistic updates** – hooks expose `updateMember`/`removeMember` for optimistic UI updates. Catch thrown `IdentityError`s to revert state when the API rejects a change.
 

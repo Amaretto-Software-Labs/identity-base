@@ -343,12 +343,35 @@ internal sealed class ExternalAuthenticationService
                 methods: null);
         }
 
+        if (existingByEmail is null
+            && (string.IsNullOrWhiteSpace(externalEmail) || !IsExternalEmailVerified(info.Principal)))
+        {
+            await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+            return CreateLoginResponse(
+                returnUrl,
+                "error",
+                "External account must provide a verified email address.",
+                requiresTwoFactor: false,
+                methods: null);
+        }
+
         // Attempt to link or create a user based on external login information.
         var user = await FindOrCreateUserFromExternalLoginAsync(info, existingByEmail, cancellationToken);
         if (user is null)
         {
             await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
             return CreateLoginResponse(returnUrl, "error", "Unable to create or locate user for external login.", requiresTwoFactor: false, methods: null);
+        }
+
+        if (!await _userManager.IsEmailConfirmedAsync(user))
+        {
+            await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+            return CreateLoginResponse(
+                returnUrl,
+                "error",
+                "Email confirmation is required before signing in.",
+                requiresTwoFactor: false,
+                methods: null);
         }
 
         var addLoginResult = await _userManager.AddLoginAsync(user, info);
@@ -387,7 +410,7 @@ internal sealed class ExternalAuthenticationService
         {
             UserName = userName,
             Email = email,
-            EmailConfirmed = !string.IsNullOrWhiteSpace(email),
+            EmailConfirmed = !string.IsNullOrWhiteSpace(email) && IsExternalEmailVerified(info.Principal),
             DisplayName = displayName
         };
 
@@ -397,12 +420,6 @@ internal sealed class ExternalAuthenticationService
             var description = string.Join(", ", createResult.Errors.Select(error => error.Description));
             _logger.LogWarning("Failed to create user for external login {Provider}: {Errors}", info.LoginProvider, description);
             return null;
-        }
-
-        if (!string.IsNullOrWhiteSpace(email) && !await _userManager.IsEmailConfirmedAsync(user))
-        {
-            user.EmailConfirmed = true;
-            await _userManager.UpdateAsync(user);
         }
 
         return user;

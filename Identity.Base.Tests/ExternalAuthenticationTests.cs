@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.Json;
 using Shouldly;
 using Identity.Base.Identity;
+using Identity.Base.Options;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.WebUtilities;
@@ -27,6 +28,14 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
     public ExternalAuthenticationTests(IdentityApiFactory factory)
     {
         _factory = factory;
+    }
+
+    [Fact]
+    public void ExternalAuthenticationOptions_RequireVerifiedEmailForAutoLink_ByDefault()
+    {
+        var options = new ExternalAuthenticationOptions();
+
+        options.RequireVerifiedEmailForAutoLinkByEmail.ShouldBeTrue();
     }
 
     [Fact]
@@ -61,6 +70,87 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
         var logins = await userManager.GetLoginsAsync(user!);
         logins.ShouldContain(login => login.LoginProvider == IdentityApiFactory.FakeGoogleScheme);
         logins.Count(login => login.LoginProvider == IdentityApiFactory.FakeGoogleScheme).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ExternalLogin_RejectsUnverifiedEmail_WithoutCreatingSessionOrUser()
+    {
+        var email = $"external-unverified-{Guid.NewGuid():N}@example.com";
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        client.BaseAddress = new Uri("https://localhost");
+
+        var startResponse = await client.GetAsync(
+            $"/auth/external/google/start?returnUrl=/client/callback&email={Uri.EscapeDataString(email)}&name=Unverified%20User&emailVerified=false");
+        startResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+
+        var callbackResponse = await client.GetAsync(startResponse.Headers.Location);
+        callbackResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        callbackResponse.Headers.Location.ShouldNotBeNull();
+
+        var uri = new Uri(client.BaseAddress!, callbackResponse.Headers.Location);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+        query["status"].ToString().ShouldBe("error");
+        query["message"].ToString().ShouldContain("verified email");
+
+        using var profileResponse = await client.GetAsync("/users/me");
+        profileResponse.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+
+        using var scope = _factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await userManager.FindByEmailAsync(email);
+        user.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task ExternalLogin_DoesNotLinkOrSignIn_UnconfirmedExistingUser()
+    {
+        var email = $"external-unconfirmed-{Guid.NewGuid():N}@example.com";
+        using (var seedScope = _factory.Services.CreateScope())
+        {
+            var userManager = seedScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var createResult = await userManager.CreateAsync(new ApplicationUser
+            {
+                Email = email,
+                UserName = email,
+                EmailConfirmed = false,
+                DisplayName = "Unconfirmed External User"
+            });
+            createResult.Succeeded.ShouldBeTrue();
+        }
+
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        client.BaseAddress = new Uri("https://localhost");
+
+        var startResponse = await client.GetAsync(
+            $"/auth/external/google/start?returnUrl=/client/callback&email={Uri.EscapeDataString(email)}&name=Unconfirmed%20User");
+        startResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+
+        var callbackResponse = await client.GetAsync(startResponse.Headers.Location);
+        callbackResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        callbackResponse.Headers.Location.ShouldNotBeNull();
+
+        var uri = new Uri(client.BaseAddress!, callbackResponse.Headers.Location);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+        query["status"].ToString().ShouldBe("error");
+        query["message"].ToString().ShouldContain("confirmation");
+
+        using var profileResponse = await client.GetAsync("/users/me");
+        profileResponse.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+
+        using var verifyScope = _factory.Services.CreateScope();
+        var verifyUserManager = verifyScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await verifyUserManager.FindByEmailAsync(email);
+        user.ShouldNotBeNull();
+        var logins = await verifyUserManager.GetLoginsAsync(user!);
+        logins.ShouldNotContain(login => login.LoginProvider == IdentityApiFactory.FakeGoogleScheme);
     }
 
     [Fact]
@@ -224,25 +314,12 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
     }
 
     [Fact]
-    public async Task ExternalLogin_RequiresVerifiedEmail_ForAutoLink_WhenEnabled()
+    public async Task ExternalLogin_RequiresVerifiedEmail_ForAutoLink_ByDefault()
     {
         const string email = "verified-required@example.com";
         const string password = "StrongPass!2345";
 
-        using var strictFactory = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureAppConfiguration((_, configurationBuilder) =>
-            {
-                var overrides = new Dictionary<string, string?>
-                {
-                    ["Authentication:External:AutoLinkByEmailOnLogin"] = "true",
-                    ["Authentication:External:RequireVerifiedEmailForAutoLinkByEmail"] = "true"
-                };
-                configurationBuilder.AddInMemoryCollection(overrides);
-            });
-        });
-
-        using (var scope = strictFactory.Services.CreateScope())
+        using (var scope = _factory.Services.CreateScope())
         {
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var existing = await userManager.FindByEmailAsync(email);
@@ -259,7 +336,7 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
             }
         }
 
-        using var client = strictFactory.CreateClient(new WebApplicationFactoryClientOptions
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false,
             HandleCookies = true
@@ -281,7 +358,7 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
         query["status"].ToString().ShouldBe("error");
         query["message"].ToString().ShouldContain("not verified");
 
-        using var verifyScope = strictFactory.Services.CreateScope();
+        using var verifyScope = _factory.Services.CreateScope();
         var verifyUserManager = verifyScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var user = await verifyUserManager.FindByEmailAsync(email);
         user.ShouldNotBeNull();

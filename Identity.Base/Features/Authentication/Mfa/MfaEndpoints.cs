@@ -78,7 +78,12 @@ public static class MfaEndpoints
             return Results.Unauthorized();
         }
 
-        await userManager.ResetAuthenticatorKeyAsync(user);
+        var resetResult = await userManager.ResetAuthenticatorKeyAsync(user);
+        if (!resetResult.Succeeded)
+        {
+            return Results.ValidationProblem(resetResult.ToDictionary());
+        }
+
         var sharedKey = await userManager.GetAuthenticatorKeyAsync(user);
         if (string.IsNullOrEmpty(sharedKey))
         {
@@ -161,8 +166,18 @@ public static class MfaEndpoints
 
             await lifecycleDispatcher.EnsureCanEnableMfaAsync(lifecycleContext, cancellationToken);
 
-            await userManager.SetTwoFactorEnabledAsync(user, true);
-            await userManager.UpdateSecurityStampAsync(user);
+            var enableResult = await userManager.SetTwoFactorEnabledAsync(user, true);
+            if (!enableResult.Succeeded)
+            {
+                return Results.ValidationProblem(enableResult.ToDictionary());
+            }
+
+            var securityStampResult = await userManager.UpdateSecurityStampAsync(user);
+            if (!securityStampResult.Succeeded)
+            {
+                return Results.ValidationProblem(securityStampResult.ToDictionary());
+            }
+
             var recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
 
             await auditLogger.LogAsync(AuditEventTypes.MfaEnabled, user.Id, new { Method = "authenticator" }, cancellationToken);
@@ -240,8 +255,17 @@ public static class MfaEndpoints
             return Results.ValidationProblem(disableResult.ToDictionary());
         }
 
-        await userManager.ResetAuthenticatorKeyAsync(user);
-        await userManager.UpdateSecurityStampAsync(user);
+        var resetResult = await userManager.ResetAuthenticatorKeyAsync(user);
+        if (!resetResult.Succeeded)
+        {
+            return Results.ValidationProblem(resetResult.ToDictionary());
+        }
+
+        var securityStampResult = await userManager.UpdateSecurityStampAsync(user);
+        if (!securityStampResult.Succeeded)
+        {
+            return Results.ValidationProblem(securityStampResult.ToDictionary());
+        }
 
         await auditLogger.LogAsync(AuditEventTypes.MfaDisabled, user.Id, null, cancellationToken);
         await lifecycleDispatcher.NotifyUserMfaDisabledAsync(lifecycleContext, cancellationToken);

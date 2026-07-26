@@ -13,8 +13,10 @@ using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Domain;
 using Identity.Base.Organizations.Extensions;
 using Identity.Base.Organizations.Infrastructure;
+using Identity.Base.Organizations.Lifecycle;
 using Identity.Base.Organizations.Services;
 using Identity.Base.Organizations.Authorization;
+using Identity.Base.Lifecycle;
 using Identity.Base.Roles.Abstractions;
 using Identity.Base.Roles.Configuration;
 using Identity.Base.Roles.Entities;
@@ -273,6 +275,64 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     }
 
     [Fact]
+    public async Task User_Create_Organization_RemovesOrganization_WhenOwnerMembershipFails()
+    {
+        using var factory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+                services.AddScoped<IOrganizationLifecycleListener, RejectMemberAddListener>());
+        });
+        const string email = "org-create-compensation@example.com";
+        const string password = "UserPass!2345";
+        Guid userId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = new ApplicationUser
+            {
+                Email = email,
+                UserName = email,
+                EmailConfirmed = true,
+                DisplayName = "Compensation User"
+            };
+            var result = await userManager.CreateAsync(user, password);
+            result.Succeeded.ShouldBeTrue(result.Errors.FirstOrDefault()?.Description);
+            userId = user.Id;
+        }
+
+        var token = await _factory.CreateAccessTokenAsync(
+            email,
+            password,
+            factory,
+            string.Join(' ', new[]
+            {
+                OpenIddictConstants.Scopes.OpenId,
+                OpenIddictConstants.Scopes.Profile,
+                OpenIddictConstants.Scopes.Email,
+                "identity.api"
+            }));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            HandleCookies = false
+        });
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var slug = $"failed-create-{Guid.NewGuid():N}";
+
+        using var response = await client.PostAsJsonAsync("/users/me/organizations", new
+        {
+            Slug = slug,
+            DisplayName = "Failed Created Org"
+        });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        using var verifyScope = factory.Services.CreateScope();
+        var dbContext = verifyScope.ServiceProvider.GetRequiredService<OrganizationDbContext>();
+        (await dbContext.Organizations.AnyAsync(organization => organization.Slug == slug)).ShouldBeFalse();
+        (await dbContext.OrganizationMemberships.AnyAsync(membership => membership.UserId == userId)).ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task User_Can_Get_Organization_Detail()
     {
         var organizationId = await CreateOrganizationAsync($"org-user-detail-{Guid.NewGuid():N}", "Detail Org");
@@ -450,6 +510,41 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
 
         var deleteResponse = await client.DeleteAsync($"/users/me/organizations/{organizationId:D}/roles/{createdRole.Id}");
         deleteResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task User_Role_Permissions_Return_NotFound_For_Role_From_Another_Organization()
+    {
+        var organizationId = await CreateOrganizationAsync(
+            $"org-user-role-scope-{Guid.NewGuid():N}",
+            "User Role Scope Org");
+        var otherOrganizationId = await CreateOrganizationAsync(
+            $"org-user-role-other-{Guid.NewGuid():N}",
+            "Other Role Org");
+        var ownerEmail = $"owner-role-scope-{Guid.NewGuid():N}@example.com";
+        const string ownerPassword = "UserPass!2345";
+        var (ownerId, _) = await CreateStandardUserAndTokenAsync(ownerEmail, ownerPassword);
+        await AddMembershipAsync(organizationId, ownerId, assignOwnerRole: true);
+
+        Guid otherRoleId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var roleService = scope.ServiceProvider.GetRequiredService<IOrganizationRoleService>();
+            var role = await roleService.CreateAsync(new OrganizationRoleCreateRequest
+            {
+                OrganizationId = otherOrganizationId,
+                Name = $"OtherRole-{Guid.NewGuid():N}"
+            });
+            otherRoleId = role.Id;
+        }
+
+        var ownerToken = await RefreshUserTokenAsync(ownerEmail, ownerPassword);
+        using var client = CreateAuthorizedClient(ownerToken);
+
+        var response = await client.GetAsync(
+            $"/users/me/organizations/{organizationId:D}/roles/{otherRoleId:D}/permissions");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -1042,6 +1137,14 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     private sealed record OrganizationMembershipDto(Guid OrganizationId, Guid UserId, Guid[] RoleIds);
 
     private sealed record OrganizationMemberListDto(int Page, int PageSize, int TotalCount, OrganizationMembershipDto[] Members);
+
+    private sealed class RejectMemberAddListener : IOrganizationLifecycleListener
+    {
+        public ValueTask<LifecycleHookResult> BeforeMemberAddedAsync(
+            OrganizationLifecycleContext context,
+            CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(LifecycleHookResult.Fail("Simulated owner membership failure."));
+    }
 
     private async Task<Guid> GetSystemRoleIdAsync(string roleName)
     {

@@ -21,10 +21,14 @@ interface IdentityProviderProps {
 
 export function IdentityProvider({ config, children }: IdentityProviderProps) {
   const configRef = useRef(config)
+  const configChanged = !configsAreEqual(configRef.current, config)
   const [authManager, setAuthManager] = useState(() => {
     debugLog('IdentityProvider: Creating new IdentityAuthManager')
     return new IdentityAuthManager(config)
   })
+  const [user, setUser] = useState<UserProfile | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<any>(null)
 
   useEffect(() => {
     if (configsAreEqual(configRef.current, config)) {
@@ -35,11 +39,11 @@ export function IdentityProvider({ config, children }: IdentityProviderProps) {
     debugLog('IdentityProvider: Config changed, recreating IdentityAuthManager', config)
     const manager = new IdentityAuthManager(config)
     configRef.current = config
+    setUser(null)
+    setError(null)
+    setIsLoading(true)
     setAuthManager(manager)
   }, [config])
-  const [user, setUser] = useState<UserProfile | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<any>(null)
 
   const refreshUser = useCallback(async () => {
     debugLog('IdentityProvider.refreshUser: Starting user refresh')
@@ -123,13 +127,13 @@ export function IdentityProvider({ config, children }: IdentityProviderProps) {
 
   const value = useMemo<IdentityContextValue>(() => ({
     authManager,
-    user,
-    isAuthenticated: !!user,
-    isLoading,
-    error,
+    user: configChanged ? null : user,
+    isAuthenticated: !configChanged && !!user,
+    isLoading: configChanged || isLoading,
+    error: configChanged ? null : error,
     refreshUser,
     logout,
-  }), [authManager, user, isLoading, error, refreshUser, logout])
+  }), [authManager, configChanged, user, isLoading, error, refreshUser, logout])
 
   return (
     <IdentityContext.Provider value={value}>

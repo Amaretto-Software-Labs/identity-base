@@ -138,6 +138,12 @@ public static class UserEndpoints
         var updateResult = await userManager.UpdateAsync(user);
         if (!updateResult.Succeeded)
         {
+            if (updateResult.Errors.Any(error =>
+                    string.Equals(error.Code, nameof(IdentityErrorDescriber.ConcurrencyFailure), StringComparison.Ordinal)))
+            {
+                return Results.Problem("Profile was updated by another process.", statusCode: StatusCodes.Status409Conflict);
+            }
+
             return Results.ValidationProblem(updateResult.ToDictionary());
         }
 

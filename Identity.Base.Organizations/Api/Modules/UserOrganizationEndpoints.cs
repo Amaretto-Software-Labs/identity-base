@@ -87,11 +87,19 @@ public static class UserOrganizationEndpoints
                 {
                     try
                     {
-                        await organizationService.ArchiveAsync(organization.Id, cancellationToken).ConfigureAwait(false);
+                        dbContext.ChangeTracker.Clear();
+                        var failedOrganization = await dbContext.Organizations
+                            .FirstOrDefaultAsync(entity => entity.Id == organization.Id, cancellationToken)
+                            .ConfigureAwait(false);
+                        if (failedOrganization is not null)
+                        {
+                            dbContext.Organizations.Remove(failedOrganization);
+                            await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                        }
                     }
                     catch
                     {
-                        // Swallow archival failures; original exception will be thrown
+                        // Swallow compensation failures; the original membership exception will be thrown.
                     }
 
                     throw;
@@ -459,7 +467,7 @@ public static class UserOrganizationEndpoints
 
             try
             {
-                await roleService.DeleteAsync(roleId, cancellationToken).ConfigureAwait(false);
+                await roleService.DeleteAsync(roleId, organizationId, cancellationToken).ConfigureAwait(false);
                 return Results.NoContent();
             }
             catch (InvalidOperationException ex)

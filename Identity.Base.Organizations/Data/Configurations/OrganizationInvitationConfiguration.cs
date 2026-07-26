@@ -35,6 +35,8 @@ internal sealed class OrganizationInvitationConfiguration : IEntityTypeConfigura
 
         builder.HasIndex(entity => entity.OrganizationId);
         builder.HasIndex(entity => entity.Email);
+        builder.HasIndex(entity => new { entity.OrganizationId, entity.Email })
+            .IsUnique();
         builder.HasIndex(entity => entity.UsedAtUtc);
     }
 }

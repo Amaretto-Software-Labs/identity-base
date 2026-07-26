@@ -90,6 +90,16 @@ public static class RegisterUserEndpoint
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
             logger.LogError(exception, "Failed to send confirmation email for {Email}", logSanitizer.RedactEmail(user.Email));
+
+            var deleteResult = await userManager.DeleteAsync(user);
+            if (!deleteResult.Succeeded)
+            {
+                logger.LogError(
+                    "Failed to compensate registration for {Email}: {Errors}",
+                    logSanitizer.RedactEmail(user.Email),
+                    string.Join(", ", deleteResult.Errors.Select(error => error.Code)));
+            }
+
             return Results.Problem("Failed to dispatch confirmation email.", statusCode: StatusCodes.Status500InternalServerError);
         }
 

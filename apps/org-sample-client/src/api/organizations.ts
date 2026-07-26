@@ -21,6 +21,14 @@ export function getOrganization(organizationId: string) {
   }>(API_ROUTES.organization(organizationId))
 }
 
+export function getOrganizationPermissions(organizationId: string) {
+  return apiFetch<{ permissions: string[] }>(API_ROUTES.permissions, {
+    headers: {
+      'X-Organization-Id': organizationId,
+    },
+  }).then((response) => response.permissions)
+}
+
 export function getOrganizationRoles(organizationId: string) {
   return apiFetch<{ items: OrganizationRole[] }>(`${API_ROUTES.organizationRoles(organizationId)}?pageSize=200`)
     .then((response) => response.items)
@@ -38,8 +46,7 @@ export function updateOrganizationRolePermissions(organizationId: string, roleId
 }
 
 export function listInvitations(organizationId: string) {
-  return apiFetch<{ items: InvitationResponse[] }>(`${API_ROUTES.invitations(organizationId)}?pageSize=200`)
-    .then((response) => response.items)
+  return apiFetch<InvitationResponse[]>(API_ROUTES.invitations(organizationId))
 }
 
 export function createInvitation(organizationId: string, payload: CreateInvitationRequest) {

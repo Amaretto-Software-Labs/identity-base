@@ -9,6 +9,7 @@ using Identity.Base.Extensions;
 using Identity.Base.Organizations.Abstractions;
 using Identity.Base.Organizations.Data;
 using Identity.Base.Organizations.Data.Entities;
+using Identity.Base.Organizations.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace Identity.Base.Organizations.Infrastructure;
@@ -26,9 +27,35 @@ public sealed class OrganizationInvitationStore : IOrganizationInvitationStore
     {
         ArgumentNullException.ThrowIfNull(invitation);
 
+        var invitationSet = _dbContext.Set<OrganizationInvitationEntity>();
+        var now = DateTimeOffset.UtcNow;
+        var matchingInvitations = await invitationSet
+            .Where(entity =>
+                entity.OrganizationId == invitation.OrganizationId &&
+                entity.Email == invitation.Email)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var expiredInvitations = matchingInvitations
+            .Where(entity => entity.ExpiresAtUtc <= now)
+            .ToList();
+        invitationSet.RemoveRange(expiredInvitations);
+
         var entity = MapToEntity(invitation);
-        _dbContext.Set<OrganizationInvitationEntity>().Add(entity);
-        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        invitationSet.Add(entity);
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateException)
+        {
+            _dbContext.Entry(entity).State = EntityState.Detached;
+            if (await HasActiveInvitationAsync(invitation.OrganizationId, invitation.Email, cancellationToken).ConfigureAwait(false))
+            {
+                throw new OrganizationInvitationAlreadyExistsException(invitation.Email);
+            }
+
+            throw;
+        }
 
         return MapToRecord(entity);
     }
@@ -134,15 +161,15 @@ public sealed class OrganizationInvitationStore : IOrganizationInvitationStore
     public async Task<bool> HasActiveInvitationAsync(Guid organizationId, string normalizedEmail, CancellationToken cancellationToken = default)
     {
         var now = DateTimeOffset.UtcNow;
-        return await _dbContext.Set<OrganizationInvitationEntity>()
+        var matchingInvitations = await _dbContext.Set<OrganizationInvitationEntity>()
             .AsNoTracking()
-            .AnyAsync(invitation =>
+            .Where(invitation =>
                 invitation.OrganizationId == organizationId &&
                 invitation.Email == normalizedEmail &&
-                invitation.UsedAtUtc == null &&
-                invitation.ExpiresAtUtc > now,
-                cancellationToken)
+                invitation.UsedAtUtc == null)
+            .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+        return matchingInvitations.Any(invitation => invitation.ExpiresAtUtc > now);
     }
 
     private async Task RemoveInternalAsync(Guid code, CancellationToken cancellationToken)

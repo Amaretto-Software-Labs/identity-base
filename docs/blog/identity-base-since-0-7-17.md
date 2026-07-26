@@ -91,14 +91,14 @@ Configure under `Authentication:External`:
   "Authentication": {
     "External": {
       "AutoLinkByEmailOnLogin": true,
-      "RequireVerifiedEmailForAutoLinkByEmail": false
+      "RequireVerifiedEmailForAutoLinkByEmail": true
     }
   }
 }
 ```
 
 - `AutoLinkByEmailOnLogin` (default `true`): when an external login has no existing provider link, allow matching an existing user by email and link automatically.
-- `RequireVerifiedEmailForAutoLinkByEmail` (default `false`): when auto-linking by email, require provider claim evidence such as `email_verified=true`.
+- `RequireVerifiedEmailForAutoLinkByEmail` (default `true`): when auto-linking by email, require provider claim evidence such as `email_verified=true`. Disable this only when every configured provider guarantees that its email claim is verified.
 
 ## Recommended Upgrade Checklist (0.7.17 -> 0.8.1)
 

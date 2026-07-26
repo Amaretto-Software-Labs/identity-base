@@ -77,13 +77,16 @@ namespace OrgSampleApi.Hosting.Infrastructure.Migrations.Organizations
                     b.HasIndex("UsedAtUtc")
                         .HasDatabaseName("IX_OrgSample_OrganizationInvitations_UsedAtUtc");
 
+                    b.HasIndex("OrganizationId", "Email")
+                        .IsUnique()
+                        .HasDatabaseName("IX_OrgSample_OrganizationInvitations_OrganizationId_Email");
+
                     b.ToTable("OrgSample_OrganizationInvitations", (string)null);
                 });
 
             modelBuilder.Entity("Identity.Base.Organizations.Domain.Organization", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset?>("ArchivedAtUtc")

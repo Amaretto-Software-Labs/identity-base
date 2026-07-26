@@ -230,6 +230,33 @@ test('ApiClient.fetch converts error responses into IdentityError with status', 
   }
 })
 
+test('ApiClient.fetch preserves a plain-text error body without reading the response twice', async () => {
+  const { ApiClient, IdentityError } = require('../dist/index.js')
+  const originalFetch = globalThis.fetch
+
+  globalThis.fetch = async () => new Response('server blew up', { status: 500 })
+
+  try {
+    const client = new ApiClient({
+      apiBase: 'https://identity.example.com',
+      clientId: 'spa-client',
+      redirectUri: 'https://app.example.com/auth/callback',
+    })
+
+    await assert.rejects(
+      () => client.fetch('/fail', { method: 'GET' }),
+      (err) => {
+        assert.ok(err instanceof IdentityError)
+        assert.equal(err.status, 500)
+        assert.equal(err.message, 'server blew up')
+        return true
+      },
+    )
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
 test('ApiClient.fetch throws timeout IdentityError when request aborts', async () => {
   const { ApiClient, IdentityError } = require('../dist/index.js')
   const originalFetch = globalThis.fetch
@@ -303,6 +330,45 @@ test('TokenManager coalesces concurrent refreshes', async () => {
     const [t1, t2] = await Promise.all([tokenManager.ensureValidToken(), tokenManager.ensureValidToken()])
     assert.equal(typeof t1, 'string')
     assert.equal(t1, t2)
+    assert.equal(refreshCalls, 1)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('TokenManager enables auto-refresh when autoRefresh is omitted', async () => {
+  const { TokenManager } = require('../dist/index.js')
+  const originalFetch = globalThis.fetch
+  let refreshCalls = 0
+
+  globalThis.fetch = async () => {
+    refreshCalls += 1
+    return makeResponse({
+      status: 200,
+      json: {
+        access_token: makeJwt({ exp: Math.floor(Date.now() / 1000) + 3600 }),
+        refresh_token: 'r2',
+        expires_in: 3600,
+      },
+    })
+  }
+
+  try {
+    const tokenManager = new TokenManager({
+      apiBase: 'https://identity.example.com',
+      clientId: 'spa-client',
+      redirectUri: 'https://app.example.com/auth/callback',
+      tokenStorage: 'memory',
+    })
+
+    tokenManager.setTokens({
+      access_token: makeJwt({ exp: Math.floor(Date.now() / 1000) + 1 }),
+      refresh_token: 'r1',
+      expires_in: 1,
+    })
+
+    assert.equal(typeof (await tokenManager.ensureValidToken()), 'string')
+    assert.equal(tokenManager.getRefreshToken(), 'r2')
     assert.equal(refreshCalls, 1)
   } finally {
     globalThis.fetch = originalFetch
@@ -724,6 +790,65 @@ test('IdentityAuthManager login uses cookie flow when no token is present', asyn
     assert.ok(calls.some(c => c.pathname === '/users/me'))
     await auth.unlinkExternalProvider('google')
     assert.ok(calls.some(c => c.pathname === '/auth/external/google' && c.method === 'DELETE'))
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('IdentityAuthManager profile and MFA mutations support cookie-only sessions', async () => {
+  const { IdentityAuthManager } = require('../dist/index.js')
+  const originalFetch = globalThis.fetch
+  const calls = []
+
+  globalThis.fetch = async (url, init = {}) => {
+    const { pathname } = new URL(typeof url === 'string' ? url : url.toString())
+    const method = (init.method || 'GET').toUpperCase()
+    const headers = init.headers || {}
+    calls.push({ pathname, method, headers })
+    assert.equal(headers.Authorization, undefined)
+
+    if (pathname === '/users/me/profile' && method === 'PUT') {
+      return makeResponse({
+        status: 200,
+        json: {
+          id: 'u1',
+          email: 'alice@example.com',
+          displayName: 'Alice',
+          emailConfirmed: true,
+          metadata: {},
+          concurrencyStamp: 'cs2',
+          createdAt: '',
+          updatedAt: '',
+        },
+      })
+    }
+    if (pathname === '/auth/mfa/enroll' && method === 'POST') {
+      return makeResponse({ status: 200, json: { sharedKey: 'k', authenticatorUri: 'otpauth://totp/x' } })
+    }
+    if (pathname === '/auth/mfa/disable' && method === 'POST') {
+      return makeResponse({ status: 200, json: { message: 'ok' } })
+    }
+    if (pathname === '/auth/mfa/recovery-codes' && method === 'POST') {
+      return makeResponse({ status: 200, json: { recoveryCodes: ['c1'] } })
+    }
+
+    return makeResponse({ status: 404, json: { title: 'Not found' } })
+  }
+
+  try {
+    const auth = new IdentityAuthManager({
+      apiBase: 'https://identity.example.com',
+      clientId: 'spa-client',
+      redirectUri: 'https://app.example.com/auth/callback',
+      tokenStorage: 'memory',
+      autoRefresh: false,
+    })
+
+    assert.equal((await auth.updateProfile({ metadata: {}, concurrencyStamp: 'cs' })).concurrencyStamp, 'cs2')
+    assert.equal((await auth.enrollMfa()).sharedKey, 'k')
+    assert.equal((await auth.disableMfa()).message, 'ok')
+    assert.deepEqual((await auth.regenerateRecoveryCodes()).recoveryCodes, ['c1'])
+    assert.equal(calls.length, 4)
   } finally {
     globalThis.fetch = originalFetch
   }

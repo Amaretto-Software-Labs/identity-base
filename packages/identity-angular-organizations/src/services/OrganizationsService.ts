@@ -28,7 +28,6 @@ import type {
   UpdateMembershipRequest,
   UpdateOrganizationRequest,
   UpdateOrganizationRolePermissionsRequest,
-  UpdateOrganizationRoleRequest,
 } from '../types'
 
 @Injectable()
@@ -56,7 +55,7 @@ export class OrganizationsService {
         return await this.request<MembershipListResponse>(qs ? `/users/me/organizations?${qs}` : '/users/me/organizations', { method: 'GET' })
       },
       create: async (payload: CreateOrganizationRequest): Promise<OrganizationDto> => {
-        return await this.request<OrganizationDto>('/users/me/organizations', { method: 'POST', body: payload })
+        return await this.request<OrganizationDto>('/users/me/organizations', { method: 'POST', body: toOrganizationRequest(payload) })
       },
       get: async (organizationId: string): Promise<OrganizationDto> => {
         const id = encodeURIComponent(organizationId)
@@ -64,7 +63,7 @@ export class OrganizationsService {
       },
       patch: async (organizationId: string, payload: UpdateOrganizationRequest): Promise<OrganizationDto> => {
         const id = encodeURIComponent(organizationId)
-        return await this.request<OrganizationDto>(`/users/me/organizations/${id}`, { method: 'PATCH', body: payload })
+        return await this.request<OrganizationDto>(`/users/me/organizations/${id}`, { method: 'PATCH', body: toOrganizationRequest(payload) })
       },
     },
     members: {
@@ -99,11 +98,6 @@ export class OrganizationsService {
       create: async (organizationId: string, payload: CreateOrganizationRoleRequest): Promise<OrganizationRoleDto> => {
         const org = encodeURIComponent(organizationId)
         return await this.request<OrganizationRoleDto>(`/users/me/organizations/${org}/roles`, { method: 'POST', body: payload })
-      },
-      update: async (organizationId: string, roleId: string, payload: UpdateOrganizationRoleRequest): Promise<OrganizationRoleDto> => {
-        const org = encodeURIComponent(organizationId)
-        const role = encodeURIComponent(roleId)
-        return await this.request<OrganizationRoleDto>(`/users/me/organizations/${org}/roles/${role}`, { method: 'PUT', body: payload })
       },
       delete: async (organizationId: string, roleId: string) => {
         const org = encodeURIComponent(organizationId)
@@ -147,7 +141,7 @@ export class OrganizationsService {
         return await this.request<OrganizationListResponse>(qs ? `/admin/organizations?${qs}` : '/admin/organizations', { method: 'GET' })
       },
       create: async (payload: CreateOrganizationRequest): Promise<OrganizationDto> => {
-        return await this.request<OrganizationDto>('/admin/organizations', { method: 'POST', body: payload })
+        return await this.request<OrganizationDto>('/admin/organizations', { method: 'POST', body: toOrganizationRequest(payload) })
       },
       get: async (organizationId: string): Promise<OrganizationDto> => {
         const org = encodeURIComponent(organizationId)
@@ -155,7 +149,7 @@ export class OrganizationsService {
       },
       patch: async (organizationId: string, payload: UpdateOrganizationRequest): Promise<OrganizationDto> => {
         const org = encodeURIComponent(organizationId)
-        return await this.request<OrganizationDto>(`/admin/organizations/${org}`, { method: 'PATCH', body: payload })
+        return await this.request<OrganizationDto>(`/admin/organizations/${org}`, { method: 'PATCH', body: toOrganizationRequest(payload) })
       },
       delete: async (organizationId: string) => {
         const org = encodeURIComponent(organizationId)
@@ -194,11 +188,6 @@ export class OrganizationsService {
       create: async (organizationId: string, payload: CreateOrganizationRoleRequest): Promise<OrganizationRoleDto> => {
         const org = encodeURIComponent(organizationId)
         return await this.request<OrganizationRoleDto>(`/admin/organizations/${org}/roles`, { method: 'POST', body: payload })
-      },
-      update: async (organizationId: string, roleId: string, payload: UpdateOrganizationRoleRequest): Promise<OrganizationRoleDto> => {
-        const org = encodeURIComponent(organizationId)
-        const role = encodeURIComponent(roleId)
-        return await this.request<OrganizationRoleDto>(`/admin/organizations/${org}/roles/${role}`, { method: 'PUT', body: payload })
       },
       delete: async (organizationId: string, roleId: string) => {
         const org = encodeURIComponent(organizationId)
@@ -272,12 +261,7 @@ export class OrganizationsService {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        let errorBody: ApiError | string | null = null
-        try {
-          errorBody = await response.json()
-        } catch {
-          errorBody = await response.text()
-        }
+        const errorBody = await readResponseBody(response)
 
         const error: ApiError = typeof errorBody === 'string' ? { detail: errorBody } : errorBody ?? {}
         error.status = response.status
@@ -308,6 +292,19 @@ export class OrganizationsService {
   }
 }
 
+async function readResponseBody(response: Response): Promise<ApiError | string | null> {
+  const rawBody = await response.text()
+  if (!rawBody) {
+    return null
+  }
+
+  try {
+    return JSON.parse(rawBody) as ApiError
+  } catch {
+    return rawBody
+  }
+}
+
 function toQueryString(query: object): string {
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(query as Record<string, unknown>)) {
@@ -323,6 +320,13 @@ function toQueryString(query: object): string {
     if (trimmed.length > 0) params.set(key, trimmed)
   }
   return params.toString()
+}
+
+function toOrganizationRequest(payload: CreateOrganizationRequest | UpdateOrganizationRequest): Record<string, unknown> {
+  const { metadata, ...rest } = payload
+  return metadata === undefined
+    ? rest
+    : { ...rest, metadata: { values: metadata } }
 }
 
 function shouldAttachHeader(url: string, config: IdentityAngularOrganizationsConfig): boolean {

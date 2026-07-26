@@ -31,13 +31,7 @@ export class ApiClient {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        let errorBody: ApiError | string | null = null
-
-        try {
-          errorBody = await response.json()
-        } catch {
-          errorBody = await response.text()
-        }
+        const errorBody = await readResponseBody(response)
 
         const error: ApiError = typeof errorBody === 'string' ? { detail: errorBody } : errorBody ?? {}
         error.status = response.status
@@ -98,3 +92,15 @@ export class ApiClient {
   }
 }
 
+async function readResponseBody(response: Response): Promise<ApiError | string | null> {
+  const raw = await response.text()
+  if (!raw) {
+    return null
+  }
+
+  try {
+    return JSON.parse(raw) as ApiError
+  } catch {
+    return raw
+  }
+}

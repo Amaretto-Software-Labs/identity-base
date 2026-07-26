@@ -53,7 +53,11 @@ public sealed class PageRequest
             Search,
             Sorts);
 
-    public int GetSkip() => (Page - 1) * PageSize;
+    public int GetSkip()
+    {
+        var skip = ((long)Page - 1) * PageSize;
+        return skip > int.MaxValue ? int.MaxValue : (int)skip;
+    }
 
     private static int NormalizePage(int? page)
     {
