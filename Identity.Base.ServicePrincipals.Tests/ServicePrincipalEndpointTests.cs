@@ -5,6 +5,8 @@ using Identity.Base.Admin.Authorization;
 using Identity.Base.Logging;
 using Identity.Base.Roles;
 using Identity.Base.Roles.Abstractions;
+using Identity.Base.Roles.Entities;
+using Identity.Base.ServicePrincipals.Api;
 using Identity.Base.ServicePrincipals.Data;
 using Identity.Base.ServicePrincipals.Domain;
 using Identity.Base.ServicePrincipals.Extensions;
@@ -37,28 +39,11 @@ public sealed class ServicePrincipalEndpointTests
         var auditLogger = Substitute.For<IAuditLogger>();
         var principalDatabaseName = $"endpoint-concurrency-{Guid.NewGuid():N}";
         var roleDatabaseName = $"endpoint-concurrency-roles-{Guid.NewGuid():N}";
-        var builder = WebApplication.CreateBuilder();
-        builder.WebHost.UseTestServer();
-        builder.Services.AddAuthentication(TestAuthenticationHandler.AuthenticationScheme)
-            .AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>(
-                TestAuthenticationHandler.AuthenticationScheme,
-                _ => { });
-        builder.Services.AddAuthorization();
-        builder.Services.AddSingleton<IAuthorizationHandler, AllowPermissionHandler>();
-        builder.Services.AddDbContext<ServicePrincipalDbContext>(options => options
-            .UseInMemoryDatabase(principalDatabaseName)
-            .AddInterceptors(saveChangesInterceptor));
-        builder.Services.AddDbContext<IdentityRolesDbContext>(options =>
-            options.UseInMemoryDatabase(roleDatabaseName));
-        builder.Services.AddScoped<IRoleDbContext>(provider => provider.GetRequiredService<IdentityRolesDbContext>());
-        builder.Services.AddScoped<ServicePrincipalService>();
-        builder.Services.AddSingleton(auditLogger);
-        builder.Services.AddSingleton(Substitute.For<IOpenIddictApplicationManager>());
-        builder.Services.AddSingleton(Substitute.For<IOpenIddictTokenManager>());
-        builder.Services.AddSingleton<IPasswordHasher<ServicePrincipalCredential>, PasswordHasher<ServicePrincipalCredential>>();
-        builder.Services.AddOptions<ServicePrincipalOptions>();
-        await using var app = builder.Build();
-        app.MapIdentityBaseServicePrincipalEndpoints();
+        await using var app = BuildTestApplication(
+            principalDatabaseName,
+            roleDatabaseName,
+            auditLogger,
+            saveChangesInterceptor);
 
         await using var scope = app.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ServicePrincipalDbContext>();
@@ -79,6 +64,110 @@ public sealed class ServicePrincipalEndpointTests
         ((int)response.StatusCode).ShouldBe(StatusCodes.Status409Conflict, responseBody);
         responseBody.ShouldContain("Service principal was modified by another process.");
         await auditLogger.DidNotReceiveWithAnyArgs().LogAnonymousAsync(default!, default!, default);
+    }
+
+    [Fact]
+    public async Task Update_ReturnsCurrentRoles()
+    {
+        var auditLogger = Substitute.For<IAuditLogger>();
+        await using var app = BuildTestApplication(
+            $"endpoint-update-{Guid.NewGuid():N}",
+            $"endpoint-update-roles-{Guid.NewGuid():N}",
+            auditLogger);
+
+        await using var scope = app.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ServicePrincipalDbContext>();
+        var roleDbContext = scope.ServiceProvider.GetRequiredService<IdentityRolesDbContext>();
+        var principal = new ServicePrincipal("Automation", "automation");
+        var role = new Role { Name = "Deployer" };
+        dbContext.ServicePrincipals.Add(principal);
+        roleDbContext.Roles.Add(role);
+        roleDbContext.ServicePrincipalRoles.Add(new ServicePrincipalRole
+        {
+            ServicePrincipalId = principal.Id,
+            Role = role
+        });
+        await dbContext.SaveChangesAsync();
+        await roleDbContext.SaveChangesAsync();
+
+        await app.StartAsync();
+        using var client = app.GetTestClient();
+        var response = await client.PutAsJsonAsync($"/admin/service-principals/{principal.Id:D}", new
+        {
+            displayName = "Updated automation",
+            concurrencyStamp = principal.ConcurrencyStamp
+        });
+
+        var responseBody = await response.Content.ReadFromJsonAsync<ServicePrincipalSummary>();
+        ((int)response.StatusCode).ShouldBe(StatusCodes.Status200OK);
+        responseBody.ShouldNotBeNull();
+        responseBody.Roles.ShouldBe(["Deployer"]);
+    }
+
+    [Fact]
+    public async Task PutRoles_ReturnsAndAuditsPersistedRoleNames()
+    {
+        var auditLogger = Substitute.For<IAuditLogger>();
+        await using var app = BuildTestApplication(
+            $"endpoint-put-roles-{Guid.NewGuid():N}",
+            $"endpoint-put-roles-roles-{Guid.NewGuid():N}",
+            auditLogger);
+
+        await using var scope = app.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ServicePrincipalDbContext>();
+        var roleDbContext = scope.ServiceProvider.GetRequiredService<IdentityRolesDbContext>();
+        var principal = new ServicePrincipal("Automation", "automation");
+        dbContext.ServicePrincipals.Add(principal);
+        roleDbContext.Roles.AddRange(
+            new Role { Name = "Deployer" },
+            new Role { Name = "Reader" });
+        await dbContext.SaveChangesAsync();
+        await roleDbContext.SaveChangesAsync();
+
+        await app.StartAsync();
+        using var client = app.GetTestClient();
+        var response = await client.PutAsJsonAsync($"/admin/service-principals/{principal.Id:D}/roles", new
+        {
+            roles = new[] { " Deployer ", "deployer", "Reader" }
+        });
+
+        var responseBody = await response.Content.ReadFromJsonAsync<ServicePrincipalRolesResponse>();
+        ((int)response.StatusCode).ShouldBe(StatusCodes.Status200OK);
+        responseBody.ShouldNotBeNull();
+        responseBody.Roles.ShouldBe(["Deployer", "Reader"]);
+        await auditLogger.Received(1).LogAnonymousAsync(
+            AuditEventTypes.AdminServicePrincipalRolesUpdated,
+            Arg.Is<object>(details => AuditRolesMatch(details, "Deployer", "Reader")),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task IssueCredential_AllowsNonExpiringCredential()
+    {
+        var auditLogger = Substitute.For<IAuditLogger>();
+        await using var app = BuildTestApplication(
+            $"endpoint-credential-{Guid.NewGuid():N}",
+            $"endpoint-credential-roles-{Guid.NewGuid():N}",
+            auditLogger);
+
+        await using var scope = app.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ServicePrincipalDbContext>();
+        var principal = new ServicePrincipal("Automation", "automation");
+        dbContext.ServicePrincipals.Add(principal);
+        await dbContext.SaveChangesAsync();
+
+        await app.StartAsync();
+        using var client = app.GetTestClient();
+        var response = await client.PostAsJsonAsync($"/admin/service-principals/{principal.Id:D}/credentials", new
+        {
+            name = "primary",
+            expiresAt = (DateTimeOffset?)null
+        });
+
+        var responseBody = await response.Content.ReadFromJsonAsync<IssuedServicePrincipalCredential>();
+        ((int)response.StatusCode).ShouldBe(StatusCodes.Status201Created);
+        responseBody.ShouldNotBeNull();
+        responseBody.ExpiresAt.ShouldBeNull();
     }
 
     [Fact]
@@ -112,6 +201,46 @@ public sealed class ServicePrincipalEndpointTests
         permissions.ShouldContain(ServicePrincipalPermissions.ManageCredentials);
         permissions.ShouldContain(ServicePrincipalPermissions.Disable);
     }
+
+    private static WebApplication BuildTestApplication(
+        string principalDatabaseName,
+        string roleDatabaseName,
+        IAuditLogger auditLogger,
+        ISaveChangesInterceptor? saveChangesInterceptor = null)
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddAuthentication(TestAuthenticationHandler.AuthenticationScheme)
+            .AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>(
+                TestAuthenticationHandler.AuthenticationScheme,
+                _ => { });
+        builder.Services.AddAuthorization();
+        builder.Services.AddSingleton<IAuthorizationHandler, AllowPermissionHandler>();
+        builder.Services.AddDbContext<ServicePrincipalDbContext>(options =>
+        {
+            options.UseInMemoryDatabase(principalDatabaseName);
+            if (saveChangesInterceptor is not null)
+            {
+                options.AddInterceptors(saveChangesInterceptor);
+            }
+        });
+        builder.Services.AddDbContext<IdentityRolesDbContext>(options =>
+            options.UseInMemoryDatabase(roleDatabaseName));
+        builder.Services.AddScoped<IRoleDbContext>(provider => provider.GetRequiredService<IdentityRolesDbContext>());
+        builder.Services.AddScoped<ServicePrincipalService>();
+        builder.Services.AddSingleton(auditLogger);
+        builder.Services.AddSingleton(Substitute.For<IOpenIddictApplicationManager>());
+        builder.Services.AddSingleton(Substitute.For<IOpenIddictTokenManager>());
+        builder.Services.AddSingleton<IPasswordHasher<ServicePrincipalCredential>, PasswordHasher<ServicePrincipalCredential>>();
+        builder.Services.AddOptions<ServicePrincipalOptions>();
+        var app = builder.Build();
+        app.MapIdentityBaseServicePrincipalEndpoints();
+        return app;
+    }
+
+    private static bool AuditRolesMatch(object details, params string[] expectedRoles) =>
+        details.GetType().GetProperty("Roles")?.GetValue(details) is IEnumerable<string> roles
+        && roles.SequenceEqual(expectedRoles);
 
     private sealed class ToggleConcurrencyExceptionInterceptor : SaveChangesInterceptor
     {

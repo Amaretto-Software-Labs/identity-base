@@ -125,6 +125,7 @@ internal static class ServicePrincipalEndpoints
         UpdateServicePrincipalRequest request,
         ServicePrincipalService service,
         ServicePrincipalDbContext dbContext,
+        IRoleDbContext roleDbContext,
         IAuditLogger auditLogger,
         CancellationToken cancellationToken)
     {
@@ -143,9 +144,10 @@ internal static class ServicePrincipalEndpoints
             await dbContext.SaveChangesAsync(cancellationToken);
             await auditLogger.LogAnonymousAsync(AuditEventTypes.AdminServicePrincipalUpdated,
                 new { principal.Id, principal.ClientId }, cancellationToken);
+            var roles = await GetRoleNamesAsync(id, roleDbContext, cancellationToken);
             return Results.Ok(new ServicePrincipalSummary(
                 principal.Id, principal.DisplayName, principal.ClientId, principal.IsDisabled,
-                principal.CreatedAt, principal.UpdatedAt, principal.ConcurrencyStamp, []));
+                principal.CreatedAt, principal.UpdatedAt, principal.ConcurrencyStamp, roles));
         }
         catch (KeyNotFoundException)
         {
@@ -209,12 +211,12 @@ internal static class ServicePrincipalEndpoints
 
     private static async Task<IResult> PutRolesAsync(
         Guid id, UpdateServicePrincipalRolesRequest request, ServicePrincipalService service,
-        IAuditLogger auditLogger, CancellationToken cancellationToken)
+        IRoleDbContext roleDbContext, IAuditLogger auditLogger, CancellationToken cancellationToken)
     {
         try
         {
-            var roles = request.Roles ?? [];
-            await service.ReplaceRolesAsync(id, roles, cancellationToken);
+            await service.ReplaceRolesAsync(id, request.Roles ?? [], cancellationToken);
+            var roles = await GetRoleNamesAsync(id, roleDbContext, cancellationToken);
             await auditLogger.LogAnonymousAsync(AuditEventTypes.AdminServicePrincipalRolesUpdated,
                 new { Id = id, Roles = roles }, cancellationToken);
             return Results.Ok(new ServicePrincipalRolesResponse(roles));
