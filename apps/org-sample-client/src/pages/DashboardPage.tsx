@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useOrganizations, useOrganizationSwitcher } from '@identity-base/react-organizations'
-import { getOrganizationRoles } from '../api/organizations'
+import { getOrganizationPermissions, getOrganizationRoles } from '../api/organizations'
 import type { OrganizationRole } from '../api/types'
 import { renderApiError } from '../api/client'
+
+const ORGANIZATION_ROLES_READ_PERMISSION = 'user.organizations.roles.read'
+const ORGANIZATION_MANAGEMENT_PERMISSIONS = [
+  'user.organizations.manage',
+  'user.organizations.members.manage',
+  'user.organizations.roles.manage',
+]
 
 export default function DashboardPage() {
   const {
@@ -16,48 +23,104 @@ export default function DashboardPage() {
     organizationsError,
   } = useOrganizations()
   const { isSwitching, switchOrganization } = useOrganizationSwitcher()
-
+  const [activePermissions, setActivePermissions] = useState<{
+    organizationId: string | null
+    permissions: string[]
+  }>({ organizationId: null, permissions: [] })
+  const [isLoadingPermissions, setIsLoadingPermissions] = useState(false)
+  const [permissionsError, setPermissionsError] = useState<string | null>(null)
   const [rolesLookup, setRolesLookup] = useState<Record<string, Record<string, OrganizationRole>>>({})
   const [isLoadingRoles, setIsLoadingRoles] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [rolesError, setRolesError] = useState<string | null>(null)
+  const permissionsForActiveOrganization = activePermissions.organizationId === activeOrganizationId
+    ? activePermissions.permissions
+    : []
+  const canReadActiveOrganizationRoles = permissionsForActiveOrganization.includes(ORGANIZATION_ROLES_READ_PERMISSION)
+  const canManageActiveOrganization = ORGANIZATION_MANAGEMENT_PERMISSIONS.some(
+    (permission) => permissionsForActiveOrganization.includes(permission),
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    const hasActiveMembership = activeOrganizationId
+      ? memberships.some((membership) => membership.organizationId === activeOrganizationId)
+      : false
+
+    if (!activeOrganizationId || !hasActiveMembership) {
+      setActivePermissions({ organizationId: null, permissions: [] })
+      setPermissionsError(null)
+      setIsLoadingPermissions(false)
+      return () => {
+        cancelled = true
+      }
+    }
+
+    const organizationId = activeOrganizationId
+    setPermissionsError(null)
+    setIsLoadingPermissions(true)
+
+    getOrganizationPermissions(organizationId)
+      .then((permissions) => {
+        if (!cancelled) {
+          setActivePermissions({ organizationId, permissions })
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setActivePermissions({ organizationId, permissions: [] })
+          setPermissionsError(renderApiError(err))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingPermissions(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeOrganizationId, memberships])
 
   useEffect(() => {
     let cancelled = false
 
     const loadRoles = async () => {
-      if (memberships.length === 0) {
+      const hasActiveMembership = activeOrganizationId
+        ? memberships.some((membership) => membership.organizationId === activeOrganizationId)
+        : false
+
+      if (!activeOrganizationId || !hasActiveMembership || !canReadActiveOrganizationRoles) {
         setRolesLookup({})
         setRolesError(null)
+        setIsLoadingRoles(false)
         return
       }
 
       setIsLoadingRoles(true)
       setRolesError(null)
 
-      const uniqueOrgIds = Array.from(new Set(memberships.map((membership) => membership.organizationId)))
-      const nextRoles: Record<string, Record<string, OrganizationRole>> = {}
+      try {
+        const roles = await getOrganizationRoles(activeOrganizationId)
+        const activeRoles = roles.reduce<Record<string, OrganizationRole>>((acc, role) => {
+          acc[role.id] = role
+          return acc
+        }, {})
 
-      await Promise.all(
-        uniqueOrgIds.map(async (organizationId) => {
-          try {
-            const roles = await getOrganizationRoles(organizationId)
-            nextRoles[organizationId] = roles.reduce<Record<string, OrganizationRole>>((acc, role) => {
-              acc[role.id] = role
-              return acc
-            }, {})
-          } catch (err) {
-            if (!cancelled) {
-              setRolesError((previous) => previous ?? renderApiError(err))
-            }
-          }
-        }),
-      )
-
-      if (!cancelled) {
-        setRolesLookup(nextRoles)
-        setIsLoadingRoles(false)
+        if (!cancelled) {
+          setRolesLookup({ [activeOrganizationId]: activeRoles })
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setRolesLookup({})
+          setRolesError(renderApiError(err))
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingRoles(false)
+        }
       }
     }
 
@@ -71,7 +134,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true
     }
-  }, [memberships])
+  }, [activeOrganizationId, canReadActiveOrganizationRoles, memberships])
 
   const handleSetActive = async (organizationId: string) => {
     setStatusMessage(null)
@@ -93,7 +156,7 @@ export default function DashboardPage() {
   const activeOrganizationLabel = activeOrganization?.displayName ?? activeOrganization?.slug ?? (activeOrganizationId ?? 'None')
   const organizationsErrorMessage = organizationsError ? renderApiError(organizationsError) : null
 
-  const isLoading = isLoadingMemberships || isLoadingOrganizationSummaries || isLoadingRoles
+  const isLoading = isLoadingMemberships || isLoadingOrganizationSummaries || isLoadingPermissions || isLoadingRoles
 
   return (
     <div className="space-y-6">
@@ -126,6 +189,12 @@ export default function DashboardPage() {
       {rolesError ? (
         <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           {rolesError}
+        </div>
+      ) : null}
+
+      {permissionsError ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          Unable to determine organization capabilities. {permissionsError}
         </div>
       ) : null}
 
@@ -185,9 +254,9 @@ export default function DashboardPage() {
                     <p className="text-xs text-slate-500">No organization roles assigned.</p>
                   ) : (
                     <ul className="mt-1 space-y-1 text-xs text-slate-600">
-                      {membership.roleIds.map((roleId) => (
-                        <li key={roleId} className="rounded bg-slate-100 px-2 py-1 font-mono">
-                          {roles[roleId]?.name ?? roleId}
+                      {membership.roleIds.map((roleId, index) => (
+                        <li key={roleId} className="rounded bg-slate-100 px-2 py-1">
+                          {roles[roleId]?.name ?? `Assigned role ${index + 1}`}
                         </li>
                       ))}
                     </ul>
@@ -203,12 +272,14 @@ export default function DashboardPage() {
                   >
                     {isActive ? 'Current organization' : isSwitching ? 'Switching…' : 'Set active'}
                   </button>
-                  <Link
-                    to={`/organizations/${membership.organizationId}`}
-                    className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
-                  >
-                    Manage organization
-                  </Link>
+                  {isActive && canManageActiveOrganization ? (
+                    <Link
+                      to={`/organizations/${membership.organizationId}`}
+                      className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                    >
+                      Manage organization
+                    </Link>
+                  ) : null}
                 </div>
               </div>
             )

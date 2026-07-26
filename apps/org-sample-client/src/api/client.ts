@@ -75,8 +75,27 @@ export function renderApiError(error: unknown): string {
     return error
   }
 
-  if (error && typeof error === 'object' && 'detail' in error) {
-    return String(error.detail)
+  if (error && typeof error === 'object') {
+    const apiError = error as ApiError
+    const validationMessages = Object.values(apiError.errors ?? {})
+      .flatMap((messages) => messages)
+      .filter((message): message is string => typeof message === 'string' && message.trim().length > 0)
+
+    if (validationMessages.length > 0) {
+      return validationMessages.join(' ')
+    }
+
+    if (typeof apiError.detail === 'string' && apiError.detail.trim().length > 0) {
+      return apiError.detail
+    }
+
+    if (typeof apiError.title === 'string' && apiError.title.trim().length > 0) {
+      return apiError.title
+    }
+
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return error.message
+    }
   }
 
   return 'Unexpected error occurred.'

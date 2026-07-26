@@ -1,23 +1,30 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { confirmEmail } from '../api/auth'
 
 export default function ConfirmEmailPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const handledRef = useRef(false)
   const [status, setStatus] = useState<'pending' | 'success' | 'error'>('pending')
   const [message, setMessage] = useState('')
 
   useEffect(() => {
+    if (handledRef.current) {
+      return
+    }
+
     const userId = searchParams.get('userId')?.trim()
     const token = searchParams.get('token')?.trim()
 
     if (!userId || !token) {
+      handledRef.current = true
       setStatus('error')
       setMessage('Missing confirmation parameters. Please use the link from your email.')
       return
     }
 
+    handledRef.current = true
     confirmEmail({ userId, token })
       .then(() => {
         setStatus('success')
