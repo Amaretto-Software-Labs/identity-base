@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 - External email-based auto-linking now requires a verified provider email by default to prevent unverified or self-asserted email claims from attaching to existing accounts.
+- External authentication can synchronize configured provider claims into the local user claim store through `Authentication:External:PersistedClaimTypes`, removing stale configured values on later login/link operations.
+- React authentication now preserves loading/error state across meaningful provider configuration changes, and route guards wait for initialization before redirecting.
+- React organization state now reports membership and organization failures explicitly, prevents stale in-flight responses from repopulating logged-out state, and provides paged member caching/query helpers.
+- Organization invitations now enforce one active invitation per organization/email pair at the database and service layers; hosts must update their `OrganizationDbContext` migrations.
 - 0.9.x intent: added the opt-in `Identity.Base.ServicePrincipals` package with immutable Guid machine identities, multiple one-time-returned hashed credentials, parallel RBAC role assignments, managed `client_credentials` claims, 15-minute default access tokens, immediate token-entry revocation, admin endpoints, and client-core contracts.
 - Hosts adopting service principals must generate provider-specific migrations for `ServicePrincipalDbContext` and the new `IdentityRolesDbContext.ServicePrincipalRoles` set before enabling the endpoints.
 - Relaxed the new permission-identifier guidance to preserve backward compatibility: legacy cataloged permission IDs continue to work in host configuration, admin role edits, and organization-role permission updates.

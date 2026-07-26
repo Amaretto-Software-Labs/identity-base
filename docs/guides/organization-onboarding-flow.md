@@ -43,8 +43,12 @@ identity.UseTablePrefix("Contoso"); // optional
 var orgsBuilder = builder.Services.AddIdentityBaseOrganizations(configureDbContext)
     .UseTablePrefix("Contoso");
 
+identity.ConfigureOrganizationModel(model => { /* optional customizations */ });
+identity.AfterOrganizationSeed((services, cancellationToken) => Task.CompletedTask);
+
 var app = builder.Build();
 app.UseApiPipeline();
+app.UseOrganizationContextFromHeader();
 app.MapApiEndpoints();
 app.MapIdentityRolesUserEndpoints();
 app.MapIdentityBaseOrganizationEndpoints();
@@ -54,7 +58,7 @@ await app.RunAsync();
 **Seeding**
 - Call `await app.Services.SeedIdentityRolesAsync();` to apply permission/role defaults (e.g., `OrgOwner`, `OrgManager`, `OrgMember`). The built-in roles now carry user-scoped permissions (`user.organizations.*`). Grant `admin.organizations.*` to a separate role if you need platform-wide actions.
 - Add `app.UseOrganizationContextFromHeader();` to the host and send the `X-Organization-Id` header from the SPA so each request selects the active organization without refreshing tokens on every switch. Refresh tokens only when membership changes (e.g., an owner is added or removed).
-- Configure organization hooks (`AfterOrganizationSeed`, `ConfigureOrganizationModel`) for custom metadata/roles if needed.
+- Configure organization hooks on the core `identity` builder (`AfterOrganizationSeed`, `ConfigureOrganizationModel`) for custom metadata/roles if needed.
 - Ensure OpenIddict clients support refresh tokens so new org claims reach tokens after registration.
 
 ## 3. Registration → Organization Creation
@@ -62,7 +66,7 @@ await app.RunAsync();
 **Server flow:**
 1. Collect organization metadata (e.g., name, slug) during registration in your API or SPA.
 2. After `AddIdentityBase` creates the user, call `IOrganizationService.CreateAsync` to provision the organization.
-3. Add the registering user as a member via `IOrganizationMembershipService.AddMemberAsync`, assign `OrgOwner` (or equivalent), mark as primary.
+3. Add the registering user as a member via `IOrganizationMembershipService.AddMemberAsync` and assign `OrgOwner` (or equivalent). Active organization selection is client-side; there is no primary-membership flag.
 4. Trigger `SignInManager.RefreshSignInAsync` so new org claims propagate to tokens/cookies.
 5. Optional: create default org metadata via `AfterOrganizationSeed` callback, e.g., seeded profile fields.
 
@@ -160,7 +164,7 @@ async function remove(userId: string) {
   await removeMember(userId)
 }
 ```
-- Use `useOrganizations().client.getRolePermissions` and `.updateRolePermissions` to show role permissions editor.
+- Use `useOrganizations().client.user.getRolePermissions` and `.user.updateRolePermissions` for user-scoped management, or the parallel `.admin` methods for platform administrators.
 
 ## 6. React Client Setup
 
@@ -182,18 +186,18 @@ export function Root() {
 
 Key hooks (from `@identity-base/react-organizations`):
 - `useOrganizations()` – memberships, active org, `switchActiveOrganization`, errors/loading.
-- `useOrganizationSwitcher()` – convenience wrapper that updates the active organization id (persisted locally) and refreshes memberships/tokens when needed.
+- `useOrganizationSwitcher()` – convenience wrapper that exposes `switchOrganization`, `isSwitching`, and `error`; it validates membership, loads the organization summary if needed, and persists the active id. It does not refresh tokens.
 - `useOrganizationMembers(orgId)` – paginated member list with `updateMember`, `removeMember` helpers.
-- `useOrganizations().client` – typed client with `getRolePermissions`, `updateRolePermissions`, membership CRUD.
+- `useOrganizations().client` – typed `invitations`, `user`, and `admin` namespaces for invitation, role, and membership operations.
 
 ### Page-by-page guidance for a new React app
 
 1. **Registration Form** – collect org name/slug in addition to user credentials. After calling `authManager.register`, call a custom endpoint to create the org and membership, then call `authManager.refreshTokens()`.
-2. **Dashboard** – use `useOrganizations()` to show the active org, with a switcher (e.g., dropdown). When the user selects another org, call `switchActiveOrganization` and await the refresh.
+2. **Dashboard** – use `useOrganizations()` to show the active org, with a switcher (e.g., dropdown). Call `switchActiveOrganization` from that context directly, or `switchOrganization` from `useOrganizationSwitcher()`.
 3. **Invite Members Page** – gather email + role list, POST to invite API. Display existing invites/members using `useOrganizationMembers`.
 4. **Accept Invite Page** – unauthenticated route reading `inviteId` from query string. After verifying invite, either capture new user registration or sign in existing user, then redirect to dashboard with refreshed session.
 5. **Member Management Page** – list members via `useOrganizationMembers`, provide UI to change roles/remove. Use `updateMember` and `removeMember` helpers.
-6. **Role Permissions Page** – fetch roles via `useOrganizations().client.listRoles(orgId)` and use permission helpers to edit overrides, calling `updateRolePermissions`.
+6. **Role Permissions Page** – fetch roles via `useOrganizations().client.user.listRoles(orgId)` (or `.admin.listRoles`) and update overrides through the matching namespace.
 
 ## 7. Sample Projects & References
 

@@ -105,6 +105,7 @@ curl -X GET https://identity.example.com/admin/users?page=1&pageSize=20 \
 ## Dependencies & Compatibility
 - Requires `Identity.Base` and `Identity.Base.Roles`.
 - Works alongside `Identity.Base.Organizations`; admin endpoints operate on all organisations regardless of the `X-Organization-Id` header (the header is ignored intentionally for admin routes).
+- Supplies the admin authorization helpers used by the optional `Identity.Base.ServicePrincipals` package. Service-principal routes are registered and documented by that package, not by `MapIdentityAdminEndpoints()`.
 - Shares `IdentityRolesDbContext`; no additional migrations beyond the RBAC package are needed.
 
 ## Troubleshooting & Tips
@@ -120,4 +121,4 @@ curl -X GET https://identity.example.com/admin/users?page=1&pageSize=20 \
 - Playbook: ../../playbooks/admin-api-smoke.md
 
 ## Change Log
-- See [CHANGELOG.md](../../CHANGELOG.md) (`Identity.Base.Admin` entries)
+- See [CHANGELOG.md](../../../CHANGELOG.md) (`Identity.Base.Admin` entries)

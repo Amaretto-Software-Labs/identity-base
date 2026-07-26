@@ -1,8 +1,8 @@
 ---
 id: playbooks/database-migrations-and-rollback
 title: Database Migrations and Rollback
-version: 0.1.0
-last_reviewed: 2025-11-05
+version: 0.2.0
+last_reviewed: 2026-07-26
 tags: [operations, efcore, migrations]
 required_roles: [Developer, Operator]
 prerequisites:
@@ -16,7 +16,7 @@ required_secrets:
 ---
 
 # Goal
-Manage EF Core migrations for the Identity Base solution: inspect, add (when extending contexts), apply, script, and roll back migrations for the three DbContexts (AppDbContext, IdentityRolesDbContext, OrganizationDbContext).
+Manage EF Core migrations for the Identity Base solution: inspect, add (when extending contexts), apply, script, and roll back migrations for the four DbContexts (`AppDbContext`, `IdentityRolesDbContext`, `OrganizationDbContext`, and `ServicePrincipalDbContext`).
 
 # Preconditions
 - Hosts own their migrations. The commands below target the sample host (`Identity.Base.Host`). Substitute your own host project when running them.
@@ -24,7 +24,7 @@ Manage EF Core migrations for the Identity Base solution: inspect, add (when ext
 
 # Resources
 - EF Core CLI: https://learn.microsoft.com/ef/core/cli/dotnet
-- Packages: docs/packages/identity-base/index.md, docs/packages/identity-base-roles/index.md, docs/packages/identity-base-organizations/index.md
+- Packages: docs/packages/identity-base/index.md, docs/packages/identity-base-roles/index.md, docs/packages/identity-base-organizations/index.md, docs/packages/identity-base-service-principals/index.md
 
 # Command Steps
 Command: Install EF Core CLI (once per machine)
@@ -45,7 +45,7 @@ Command: List IdentityRolesDbContext migrations (RBAC)
 dotnet ef migrations list \
   --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
-  --context Identity.Base.Roles.Data.IdentityRolesDbContext
+  --context Identity.Base.Roles.IdentityRolesDbContext
 ```
 
 Command: List OrganizationDbContext migrations (organizations)
@@ -54,6 +54,14 @@ dotnet ef migrations list \
   --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Organizations.Data.OrganizationDbContext
+```
+
+Command: List ServicePrincipalDbContext migrations (managed machine identities)
+```bash
+dotnet ef migrations list \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
+  --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
+  --context Identity.Base.ServicePrincipals.Data.ServicePrincipalDbContext
 ```
 
 Optional Step 4: Add a custom migration to AppDbContext (only when extending)
@@ -66,12 +74,12 @@ dotnet ef migrations add Custom_AddSampleIndex \
 ```
 
 Optional Step 5: Add a custom migration to IdentityRolesDbContext
-Command: dotnet ef migrations add Rbac_Custom_AddCol --project Identity.Base.Roles/Identity.Base.Roles.csproj --startup-project Identity.Base.Host/Identity.Base.Host.csproj --context Identity.Base.Roles.Data.IdentityRolesDbContext
+Command: dotnet ef migrations add Rbac_Custom_AddCol --project Identity.Base.Roles/Identity.Base.Roles.csproj --startup-project Identity.Base.Host/Identity.Base.Host.csproj --context Identity.Base.Roles.IdentityRolesDbContext
 ```bash
 dotnet ef migrations add Rbac_Custom_AddCol \
   --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
-  --context Identity.Base.Roles.Data.IdentityRolesDbContext
+  --context Identity.Base.Roles.IdentityRolesDbContext
 ```
 
 Optional Step 6: Add a custom migration to OrganizationDbContext
@@ -82,6 +90,16 @@ dotnet ef migrations add Orgs_Custom_AddIndex \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Organizations.Data.OrganizationDbContext
 ```
+
+Optional Step 7: Add a custom migration to ServicePrincipalDbContext
+```bash
+dotnet ef migrations add ServicePrincipals_Custom_AddIndex \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
+  --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
+  --context Identity.Base.ServicePrincipals.Data.ServicePrincipalDbContext
+```
+
+When first adopting service principals, also add a migration to the existing `IdentityRolesDbContext` chain for the `ServicePrincipalRoles` set.
 
 Command: Apply AppDbContext migrations
 ```bash
@@ -96,7 +114,7 @@ Command: Apply IdentityRolesDbContext migrations
 dotnet ef database update \
   --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
-  --context Identity.Base.Roles.Data.IdentityRolesDbContext
+  --context Identity.Base.Roles.IdentityRolesDbContext
 ```
 
 Command: Apply OrganizationDbContext migrations
@@ -105,6 +123,14 @@ dotnet ef database update \
   --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
   --context Identity.Base.Organizations.Data.OrganizationDbContext
+```
+
+Command: Apply ServicePrincipalDbContext migrations
+```bash
+dotnet ef database update \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
+  --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
+  --context Identity.Base.ServicePrincipals.Data.ServicePrincipalDbContext
 ```
 
 Command: Generate idempotent SQL scripts (for CI/CD)
@@ -120,7 +146,7 @@ dotnet ef migrations script \
 dotnet ef migrations script \
   --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
-  --context Identity.Base.Roles.Data.IdentityRolesDbContext \
+  --context Identity.Base.Roles.IdentityRolesDbContext \
   --idempotent \
   --output scripts/rbac.sql
 
@@ -130,6 +156,13 @@ dotnet ef migrations script \
   --context Identity.Base.Organizations.Data.OrganizationDbContext \
   --idempotent \
   --output scripts/orgs.sql
+
+dotnet ef migrations script \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
+  --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
+  --context Identity.Base.ServicePrincipals.Data.ServicePrincipalDbContext \
+  --idempotent \
+  --output scripts/service-principals.sql
 ```
 
 Command: Roll back AppDbContext to previous migration (example)
@@ -184,6 +217,6 @@ flowchart LR
 
 # Completion Checklist
 - [ ] EF CLI installed and reachable.
-- [ ] Migrations listed for all three contexts.
+- [ ] Migrations listed for all four contexts.
 - [ ] Database update completed successfully.
 - [ ] Host health check reports `database` = `Healthy`.

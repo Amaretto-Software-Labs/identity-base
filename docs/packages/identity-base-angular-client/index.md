@@ -37,6 +37,13 @@ export const appConfig = {
 - `IdentityAdminService` – exposes `users`, `roles`, and `permissions` admin namespaces.
 - `IdentityRequireAuthGuard` – protects routes and redirects to `loginPath` with a `returnUrl` query string (or calls `onUnauthenticated`).
 
+For managed service-principal administration, inject the exported `IDENTITY_AUTH_MANAGER` token and use the core `admin.servicePrincipals` namespace:
+
+```ts
+const manager = inject(IDENTITY_AUTH_MANAGER)
+const principals = await manager.admin.servicePrincipals.list({ page: 1 })
+```
+
 ## HTTP Interceptor
 
 `IdentityAuthInterceptor` attaches `Authorization: Bearer <token>` when the request URL matches `apiBase` (or configured `tokenAttachment` rules).

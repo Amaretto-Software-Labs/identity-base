@@ -6,7 +6,7 @@ Generated from the Development OpenAPI document served by `apps/org-sample-api` 
 - OpenAPI version: `1.0.0`
 - Paths: `63`, operations: `87`
 
-> Note: OpenIddict protocol endpoints like `/connect/authorize` and `/connect/token` are not described in this OpenAPI document.
+> Snapshot scope: this document comes from `apps/org-sample-api`, which maps organization/admin/user surfaces but not `Identity.Base.ServicePrincipals`. The current managed-machine route matrix is documented in [the service-principal package reference](../packages/identity-base-service-principals/index.md#admin-api). The sample exposes `/connect/authorize` in this snapshot; `/connect/token` and other OpenIddict protocol operations may not appear in generated OpenAPI and should be treated according to the protocol configuration.
 
 ## Contents
 

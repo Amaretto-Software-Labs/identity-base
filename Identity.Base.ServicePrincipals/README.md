@@ -1,21 +1,47 @@
 # Identity.Base.ServicePrincipals
 
-Opt-in managed machine identities for Identity Base. Register with
-`AddIdentityBaseServicePrincipals(...)` after Identity Base/Admin and map
-`MapIdentityBaseServicePrincipalEndpoints()`. The host owns migrations for
-`ServicePrincipalDbContext` and the extended `IdentityRolesDbContext`.
+> Full setup, endpoint, token, SDK, migration, and operational documentation lives at [docs/packages/identity-base-service-principals/index.md](../docs/packages/identity-base-service-principals/index.md).
 
-Managed clients use multiple independently revocable hashed credentials while
-legacy configuration-seeded `client_credentials` clients continue to use the
-standard OpenIddict application secret.
+Opt-in managed machine identities for Identity Base:
 
-Admin creation accepts a display name only. Identity Base generates an immutable,
-unique `client_id` from a lowercase kebab-case display-name prefix plus a
-cryptographically random suffix.
+- immutable generated client IDs and `Guid` subjects;
+- multiple independently revocable, one-time-returned credentials;
+- global RBAC role assignments and `identity.permissions` claims;
+- short-lived OAuth 2.0 `client_credentials` access tokens without refresh tokens;
+- token-entry revocation on disable and revoke-all;
+- permission-protected admin APIs and typed client-core contracts.
 
-Managed access tokens use the configured `Identity:ServicePrincipals:AccessTokenLifetime`
-(15 minutes by default) and do not receive refresh tokens. Hosts can register
-`IServicePrincipalLifecycleListener` implementations to enforce product-specific
-cleanup or governance before a principal is disabled. A listener can reject the
-operation with a conflict response by throwing `InvalidOperationException`; other
-exception types are treated as unexpected failures.
+## Quick Start
+
+```csharp
+builder.Services.AddIdentityBase(
+    builder.Configuration,
+    builder.Environment,
+    configureDbContext: configureDbContext);
+builder.Services.AddIdentityAdmin(builder.Configuration, configureRolesDbContext);
+builder.Services.AddIdentityBaseServicePrincipals(
+    builder.Configuration,
+    configureServicePrincipalDbContext);
+
+var app = builder.Build();
+app.MapApiEndpoints();
+app.MapIdentityAdminEndpoints();
+app.MapIdentityBaseServicePrincipalEndpoints();
+```
+
+The host owns migrations for both `ServicePrincipalDbContext` and the extended `IdentityRolesDbContext`. Configure defaults under `Identity:ServicePrincipals`:
+
+```json
+{
+  "Identity": {
+    "ServicePrincipals": {
+      "AccessTokenLifetime": "00:15:00",
+      "AllowedScopes": ["identity.api"]
+    }
+  }
+}
+```
+
+Admin creation accepts a display name only. Identity Base generates the immutable `client_id`. Credential plaintext is returned once by the issue endpoint and only a salted hash is stored.
+
+Managed clients coexist with legacy configuration-seeded `client_credentials` clients, which continue to use standard OpenIddict application secrets. Register `IServicePrincipalLifecycleListener` to enforce product-specific governance before disable.

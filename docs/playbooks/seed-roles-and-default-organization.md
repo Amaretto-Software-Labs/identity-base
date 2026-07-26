@@ -54,7 +54,7 @@ dotnet ef database update \
 dotnet ef database update \
   --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
-  --context Identity.Base.Roles.Data.IdentityRolesDbContext
+  --context Identity.Base.Roles.IdentityRolesDbContext
 
 dotnet ef database update \
   --project Identity.Base.Host/Identity.Base.Host.csproj \
@@ -209,13 +209,13 @@ Expect: Non-empty token printed.
 
 Command: List organizations (should include Acme Corp)
 ```bash
-curl -s http://localhost:8080/admin/organizations -H "Authorization: Bearer $ACCESS_TOKEN" | jq '.[0] | {id, slug, displayName}'
+curl -s http://localhost:8080/admin/organizations -H "Authorization: Bearer $ACCESS_TOKEN" | jq '.items[0] | {id, slug, displayName}'
 ```
 Expect: `{ "slug": "acme", "displayName": "Acme Corp" }` with a valid `id`.
 
 Command: Verify membership using member-facing endpoint
 ```bash
-curl -s http://localhost:8080/users/me/organizations -H "Authorization: Bearer $ACCESS_TOKEN" | jq '.[0] | {organization: .organization.displayName, roles: .roleIds}'
+curl -s http://localhost:8080/users/me/organizations -H "Authorization: Bearer $ACCESS_TOKEN" | jq '.items[0] | {organization: .displayName, roles: .roleIds}'
 ```
 Expect: Shows membership for "Acme Corp" with the owner role assigned.
 
@@ -235,10 +235,10 @@ flowchart LR
 
 # Outputs
 - Admin user email/password configured and created.
-- Organization "Acme Corp" created; admin membership set as primary.
+- Organization "Acme Corp" created; admin membership assigned the owner role.
 
 # Completion Checklist
 - [ ] Host compiles and starts without errors.
 - [ ] Admin user created and able to obtain access token.
 - [ ] `/admin/organizations` returns the seeded organization.
-- [ ] `/users/me/organizations` reflects primary membership.
+- [ ] `/users/me/organizations` includes the admin membership and expected role IDs.

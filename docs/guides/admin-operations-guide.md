@@ -8,7 +8,7 @@ This guide walks operators through enabling and using the Identity Base admin su
 
 ## 1. Prerequisites
 - Identity Base host running (e.g., `dotnet run --project Identity.Base.Host`).
-- Database schema up to date. Generate migrations from your host project (Identity + Roles + any add-ons) and apply them via `dotnet ef database update` or your startup helper before exposing the admin APIs.
+- Database schema up to date. Generate migrations from your host project (Identity + Roles + any add-ons) and apply them via `dotnet ef database update` or your startup helper before exposing the admin APIs. Service principals require migrations for both `ServicePrincipalDbContext` and `IdentityRolesDbContext`.
 - At least one admin user seeded with the appropriate roles/permissions (`users.read`, `users.manage-roles`, `roles.read`, `roles.manage`, `users.create`, etc.). You can configure these in `Roles:Definitions` and `Roles:DefaultAdminRoles` inside `appsettings`.
 - OAuth client with the `identity.admin` scope. The sample SPA requests this scope by default.
 
@@ -47,10 +47,32 @@ This guide walks operators through enabling and using the Identity Base admin su
 - **Usage Count:** each role entry shows how many users are assigned, preventing accidental removal of in-use roles.
 
 ### 4.3 Service Principals (`/admin/service-principals`)
-- Enable the optional `Identity.Base.ServicePrincipals` package and migrate both `ServicePrincipalDbContext` and the updated `IdentityRolesDbContext`.
-- Grant the dedicated `service-principals.read`, `.create`, `.update`, `.disable`, `.manage-roles`, and `.manage-credentials` permissions to admin roles.
-- Client IDs are immutable. Credential plaintext is returned only by the issue endpoint and cannot be retrieved later; store it in an approved secret store.
-- Disabling a principal revokes all credentials and OpenIddict token entries. Restoring it does not restore credentials; issue a new credential explicitly.
+
+Enable the optional `Identity.Base.ServicePrincipals` package, map `MapIdentityBaseServicePrincipalEndpoints()`, and migrate both `ServicePrincipalDbContext` and the updated `IdentityRolesDbContext`. The [package guide](../packages/identity-base-service-principals/index.md) contains complete wiring and migration commands.
+
+Grant only the permissions each operator needs:
+
+| Permission | Capability |
+| --- | --- |
+| `service-principals.read` | List principals, inspect details/roles, and list credential metadata. |
+| `service-principals.create` | Create a principal and receive its generated immutable client ID. |
+| `service-principals.update` | Change display names using optimistic concurrency. |
+| `service-principals.disable` | Disable or restore a principal. |
+| `service-principals.manage-roles` | Replace global RBAC role assignments. |
+| `service-principals.manage-credentials` | Issue, revoke, and revoke-all credentials. |
+
+Recommended provisioning and rotation workflow:
+
+1. Create the principal with a descriptive workload name.
+2. Assign an existing least-privilege role; role names must already exist in the shared RBAC store.
+3. Issue one named credential per deployment or workload and set an expiry.
+4. Copy the returned plaintext secret directly to an approved secret store. It is returned once and cannot be recovered.
+5. Verify a `client_credentials` exchange and inspect `sub`, `client_id`, `identity.principal_type`, and `identity.permissions`.
+6. For rotation, issue the replacement first, deploy it, verify it, then revoke the old credential.
+
+Client IDs are immutable. Role changes appear in newly issued access tokens, not tokens already in circulation. Revoking one credential blocks future exchanges with that secret but does not invalidate existing tokens. Use revoke-all or disable when existing token entries must also be revoked.
+
+Disabling a principal revokes all credentials and OpenIddict token entries. Restoring it does not restore credentials; issue a new credential explicitly. A product-specific `IServicePrincipalLifecycleListener` may also reject disable with `409 Conflict` until required cleanup has completed.
 
 ## 5. API Reference Snapshot
 - `GET /admin/users` — list users (requires `users.read`).
@@ -69,13 +91,42 @@ This guide walks operators through enabling and using the Identity Base admin su
 - `DELETE /admin/roles/{id}` — delete role (`roles.manage`).
 - `GET /admin/permissions` — list permission catalog (`roles.read`).
 - `GET /users/me/permissions` — resolves effective permissions for the signed-in user (returns an array of strings).
-- `/admin/service-principals` — paged CRUD/disable/restore surface, with nested `/roles` and `/credentials` management endpoints.
+- `GET /admin/service-principals` — paged list with `page`, `pageSize`, `search`, and `disabled` filters (`service-principals.read`).
+- `GET /admin/service-principals/{id}` — detail plus current role names (`service-principals.read`).
+- `POST /admin/service-principals` — create from a display name (`service-principals.create`).
+- `PUT /admin/service-principals/{id}` — update display name and concurrency stamp (`service-principals.update`).
+- `POST /admin/service-principals/{id}/disable` / `restore` — change lifecycle state (`service-principals.disable`).
+- `GET /admin/service-principals/{id}/roles` / `PUT /admin/service-principals/{id}/roles` — inspect or replace role assignments (`service-principals.read` / `service-principals.manage-roles`).
+- `GET /admin/service-principals/{id}/credentials` / `POST /admin/service-principals/{id}/credentials` — list metadata or issue a secret (`service-principals.read` / `service-principals.manage-credentials`).
+- `POST /admin/service-principals/{id}/credentials/{credentialId}/revoke` — revoke one secret (`service-principals.manage-credentials`).
+- `POST /admin/service-principals/{id}/credentials/revoke-all` — revoke all secrets and token entries (`service-principals.manage-credentials`).
+
+### 5.1 Client SDK Example
+
+The framework-agnostic client, and the React package that re-exports it, expose the same workflow:
+
+```ts
+const servicePrincipals = authManager.admin.servicePrincipals
+
+const principal = await servicePrincipals.create({ displayName: 'Invoice Worker' })
+await servicePrincipals.updateRoles(principal.id, ['InvoiceWorker'])
+
+const credential = await servicePrincipals.issueCredential(principal.id, {
+  name: 'production',
+  expiresAt: '2027-01-01T00:00:00Z',
+})
+
+// Persist credential.secret now. No later API can return it.
+```
 
 ## 6. Troubleshooting
 - **404 on `/users/me/permissions`:** ensure `app.MapIdentityRolesUserEndpoints()` is called (already wired in `Identity.Base.Host/Program.cs`).
 - **Admin link missing:** verify the signed-in user has `roles.read` and `users.read`. Also confirm `/users/me/permissions` is returning data (watch the network tab or use curl).
 - **403 responses:** double-check that the access token or cookie contains both the admin scope and the required permission claims.
 - **Migrations failing:** inspect the logs for failures in your migration runner (CLI or startup helper). Fix connection strings/permissions, rerun `dotnet ef database update`, then restart the host so seeding can continue.
+- **Service principal gets `unauthorized_client`:** verify it is enabled and requests only scopes granted through `Identity:ServicePrincipals:AllowedScopes` when the principal was created.
+- **Service principal gets `invalid_client`:** the secret is incorrect, expired, revoked, or belongs to a disabled principal.
+- **Machine token has stale permissions:** role changes do not mutate existing token claims; request a new access token.
 
 ## 7. Next Steps
 - Customize the React admin pages by copying `apps/sample-client/src/pages/admin` into your own SPA and replacing the styling or UX components.

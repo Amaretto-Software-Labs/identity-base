@@ -84,6 +84,7 @@ Options are bound automatically from `IConfiguration`. The sections below are th
 | `ConnectionStrings:Primary` | Database connection string | *(required)* | Used by `AppDbContext` and reused by add-ons if not overridden. Supports `InMemory:Name` for ephemeral scenarios. |
 | `IdentitySeed` (`IdentitySeedOptions`) | `Enabled`, `Email`, `Password`, `Roles` | Disabled | When enabled, creates/updates a bootstrap admin user during startup and assigns the listed roles. |
 | `Registration` (`RegistrationOptions`) | `ConfirmationUrlTemplate`, `PasswordResetUrlTemplate`, `ProfileFields` | Empty | Controls email templates and which metadata fields are collected and validated during registration. |
+| `Authentication:External` (`ExternalAuthenticationOptions`) | `AutoLinkByEmailOnLogin`, `RequireVerifiedEmailForAutoLinkByEmail`, `PersistedClaimTypes` | Auto-link enabled; verified email required; no persisted claims | Controls external account association. Configured provider claim types are synchronized to the local user claim store after successful login/link, including removal of stale values. |
 | `Mfa` (`MfaOptions`) | `Issuer`, `Email.Enabled`, `Sms.Enabled`, `Sms.AccountSid`, `Sms.AuthToken`, `Sms.FromPhoneNumber` | Email enabled, SMS disabled | SMS validation requires Twilio credentials. Tokens are issued with the configured `Issuer`. |
 | `OpenIddict` (`OpenIddictOptions`) | `Applications`, `Scopes`, token lifetimes | SPA (`spa-client`) and confidential (`test-client`) seeded | Configure additional client ids/redirect URIs or adjust lifetimes. |
 | `OpenIddict:ServerKeys` (`OpenIddictServerKeyOptions`) | Signing/encryption key descriptors | Runtime-generated | Override to use persisted keys or external key stores. |
@@ -140,6 +141,7 @@ identity.AfterIdentitySeed(async (sp, ct) =>
 - **MFA channels** – register custom `IMfaChallengeSender` implementations; the default supports authenticator apps plus email/SMS (when enabled in configuration).
 - **Audit logging & sanitisation** – override `IAuditLogger` and `ILogSanitizer` to integrate with your logging stack or redact additional fields.
 - **External provider plumbing** – register provider schemes in the host and map route keys with `AddExternalAuthProvider`.
+- **External claim synchronization** – set `Authentication:External:PersistedClaimTypes` to the exact provider claim types the host needs locally. Keep the list minimal; empty means no provider metadata is persisted.
 - **Seeding callbacks** – use `AfterRoleSeeding` and `AfterIdentitySeed` to run arbitrary provisioning steps once the core seeds finish.
 - **EF Core model customisation** – `ConfigureAppDbContextModel` and `ConfigureIdentityRolesModel` let you add indexes/shadow properties without forking the package.
 - **User & organization lifecycle hooks** – implement `IUserLifecycleListener` / `IOrganizationLifecycleListener` (or add them via `IdentityBaseBuilder.AddUserLifecycleListener<T>()` / `IdentityBaseOrganizationsBuilder.AddOrganizationLifecycleListener<T>()`) to observe/veto registration, confirmation, password resets, MFA enable/disable, admin actions, org creation/update/archive, invitation acceptance, membership changes, etc. Legacy listeners (`IUserCreationListener`, `IOrganizationCreationListener`, etc.) still function through compatibility shims.
@@ -164,4 +166,4 @@ identity.AfterIdentitySeed(async (sp, ct) =>
 - Sample host implementation: `Identity.Base.Host/Program.cs`
 
 ## Change Log
-- See [CHANGELOG.md](../../CHANGELOG.md) (`Identity.Base` section)
+- See [CHANGELOG.md](../../../CHANGELOG.md) (`Identity.Base` section)

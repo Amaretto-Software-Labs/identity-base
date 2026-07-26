@@ -109,7 +109,7 @@ See `apps/sample-api/` for a complete working example that demonstrates:
 - User profile access
 - JWT claims inspection
 
-For detailed configuration options, troubleshooting, and API reference, see the [Identity.Base.AspNet README](../Identity.Base.AspNet/README.md).
+For detailed configuration options, troubleshooting, and API reference, see the [Identity.Base.AspNet README](../../Identity.Base.AspNet/README.md).
 
 ## 9. Building for Production
 Generate a production bundle with:

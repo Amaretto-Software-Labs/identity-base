@@ -76,7 +76,7 @@ ADMIN_TOKEN=$(get_access_token "admin@example.com" "P@ssword12345!" "openid prof
 
 Command: Capture an existing organization id (first item)
 ```bash
-ORG_ID=$(curl -s http://localhost:8080/admin/organizations -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.[0].id // empty'); if [ -z "$ORG_ID" ]; then echo "NO_ORGS"; else echo $ORG_ID; fi
+ORG_ID=$(curl -s http://localhost:8080/admin/organizations -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.items[0].id // empty'); if [ -z "$ORG_ID" ]; then echo "NO_ORGS"; else echo $ORG_ID; fi
 ```
 
 Optional Step 3: Create an organization if none exists
@@ -121,7 +121,7 @@ curl -s -X POST http://localhost:8080/invitations/claim \
 
 Command: Verify invitee membership
 ```bash
-curl -s http://localhost:8080/users/me/organizations -H "Authorization: Bearer $INV_TOKEN" | jq 'map({organization: .organization.displayName, roles: .roleIds})[0]'
+curl -s http://localhost:8080/users/me/organizations -H "Authorization: Bearer $INV_TOKEN" | jq '.items | map({organization: .displayName, roles: .roleIds})[0]'
 ```
 
 # Verification

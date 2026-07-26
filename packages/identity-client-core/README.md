@@ -1,6 +1,6 @@
 # @identity-base/client-core
 
-Framework-agnostic TypeScript client core for Identity Base.
+Framework-agnostic TypeScript client core for Identity Base. It supports PKCE, token refresh, same-origin cookie fallback, registration/recovery/MFA/profile flows, external providers, permissions, and typed admin APIs for users, roles, permissions, and service principals.
 
 ## Install
 
@@ -21,5 +21,13 @@ const auth = new IdentityAuthManager({
   tokenStorage: 'sessionStorage',
   autoRefresh: true,
 })
+
+await auth.startAuthorization()
+
+// Administrative APIs use explicit namespaces.
+const principals = await auth.admin.servicePrincipals.list({ page: 1, pageSize: 25 })
 ```
 
+`tokenStorage` defaults to `sessionStorage` and `autoRefresh` defaults to `true`. Requests include credentials, attach bearer tokens when available, accept Problem Details or plain-text errors, and handle empty `204` responses.
+
+Full documentation: [docs/packages/identity-base-client-core/index.md](../../docs/packages/identity-base-client-core/index.md).

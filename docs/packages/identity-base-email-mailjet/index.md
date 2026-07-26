@@ -84,4 +84,4 @@ Disable the sender in non-production environments by setting `MailJet.Enabled` t
 
 ## Change Log
 
-- See [CHANGELOG.md](../../CHANGELOG.md) (`Identity.Base.Email.MailJet` entries)
+- See [CHANGELOG.md](../../../CHANGELOG.md) (`Identity.Base.Email.MailJet` entries)

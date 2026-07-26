@@ -41,3 +41,5 @@ export const routes: Routes = [
   },
 ]
 ```
+
+The package exports `IDENTITY_AUTH_MANAGER` for direct access to the full client-core surface, including `admin.servicePrincipals`.

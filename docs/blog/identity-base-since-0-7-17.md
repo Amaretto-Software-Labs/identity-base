@@ -39,7 +39,10 @@ This keeps `Identity.Base` provider-agnostic and avoids hard-coded provider assu
 
 ```csharp
 builder.Services
-    .AddIdentityBase(builder.Configuration, builder.Environment, configureDbContext)
+    .AddIdentityBase(
+        builder.Configuration,
+        builder.Environment,
+        configureDbContext: configureDbContext)
     .AddExternalAuthProvider("google", "Google", auth =>
     {
         return auth.AddGoogle("Google", options =>

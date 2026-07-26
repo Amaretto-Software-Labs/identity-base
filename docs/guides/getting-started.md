@@ -1,6 +1,6 @@
 # Getting Started with Identity Base Packages
 
-This walkthrough shows how to stand up Identity Base as a service using only the published NuGet packages. By the end of each stage you will have a working host that you can run and test. Subsequent sections add optional RBAC (`Identity.Base.Roles`) and the full admin API (`Identity.Base.Admin`).
+This walkthrough shows how to stand up Identity Base as a service using only the published NuGet packages. By the end of each stage you will have a working host that you can run and test. Subsequent sections add optional RBAC, organizations, the admin API, and managed service principals.
 
 > Repository: [Identity Base](https://github.com/Amaretto-Software-Labs/identity-base) • Issue tracker: [GitHub Issues](https://github.com/Amaretto-Software-Labs/identity-base/issues)
 
@@ -95,6 +95,13 @@ Add an `appsettings.json` (or edit the existing file) with at least the followin
   "Cors": {
     "AllowedOrigins": ["https://localhost:5173", "http://localhost:5173"]
   },
+  "Authentication": {
+    "External": {
+      "AutoLinkByEmailOnLogin": true,
+      "RequireVerifiedEmailForAutoLinkByEmail": true,
+      "PersistedClaimTypes": []
+    }
+  },
   "MailJet": {
     "Enabled": true,
     "FromEmail": "noreply@example.com",
@@ -182,6 +189,7 @@ Key sections:
 - `MailJet` / `SendGrid` (optional) – configure only when the corresponding package is referenced. Leave `Enabled` as `false` to skip sends.
 - `Mfa` – configure additional factors as needed.
 - External providers are host-registered (for example `AddExternalAuthProvider("github", "GitHub", ...)`) rather than bound from `appsettings`.
+- `Authentication:External` controls whether verified external emails may link existing accounts and which explicitly named provider claims are synchronized into the local user claim store.
 - `OpenIddict` – register clients, scopes, and key management strategy.
 
 ### 2.3.1 Default OAuth scopes (and how to add them)
@@ -302,13 +310,13 @@ Run the following commands from your host project (again using `Identity.Base.Ho
 dotnet ef migrations add InitialIdentityRoles \
   --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
-  --context Identity.Base.Roles.Data.IdentityRolesDbContext \
+  --context Identity.Base.Roles.IdentityRolesDbContext \
   --output-dir Data/Migrations/IdentityRoles
 
 dotnet ef database update \
   --project Identity.Base.Host/Identity.Base.Host.csproj \
   --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
-  --context Identity.Base.Roles.Data.IdentityRolesDbContext
+  --context Identity.Base.Roles.IdentityRolesDbContext
 ```
 
 Re-run `dotnet run` and check `GET https://localhost:5000/users/me/permissions` after authenticating—your roles now determine the returned permission set.
@@ -319,7 +327,7 @@ Re-run `dotnet run` and check `GET https://localhost:5000/users/me/permissions` 
 
 Install the organizations add-on if you need per-tenant organizations, memberships, and organization-level roles. The comprehensive package reference lives at [docs/packages/identity-base-organizations/index.md](../packages/identity-base-organizations/index.md).
 
-### 5.1 Install Package
+### 4.1 Install Package
 ```bash
 dotnet add package Identity.Base.Organizations
 ```
@@ -333,7 +341,7 @@ using Microsoft.EntityFrameworkCore;
 var organizationsBuilder = builder.Services.AddIdentityBaseOrganizations(configureDbContext)
     .UseTablePrefix("Contoso");
 
-organizationsBuilder.ConfigureOrganizationModel(modelBuilder =>
+identity.ConfigureOrganizationModel(modelBuilder =>
 {
     // Optional: add custom indexes or shadow properties.
 });
@@ -366,10 +374,12 @@ The hosted seed service will provision the default organization roles (`OrgOwner
 ### 4.4 Extend Hooks
 Use the builder hooks when you need custom behaviour:
 ```csharp
-organizationsBuilder
+identity
     .AfterOrganizationSeed(async (sp, ct) => { /* custom seeding */ })
     .AddOrganizationScopeResolver<CustomScopeResolver>()
     .AddOrganizationClaimFormatter<CustomClaimFormatter>();
+
+organizationsBuilder.AddOrganizationLifecycleListener<CustomOrganizationLifecycleListener>();
 ```
 
 At this stage your host exposes organization CRUD, membership, and role endpoints alongside identity + RBAC features.
@@ -381,7 +391,7 @@ At this stage your host exposes organization CRUD, membership, and role endpoint
 
 `Identity.Base.Admin` layers admin endpoints on top of the roles package. If you add this package you do **not** need the separate `AddIdentityRoles` registration from the previous step (the admin builder already includes it). Consult the full package reference at [docs/packages/identity-base-admin/index.md](../packages/identity-base-admin/index.md) for endpoint details and configuration tips.
 
-### 4.1 Install Package
+### 5.1 Install Package
 ```bash
 dotnet add package Identity.Base.Admin
 ```
@@ -422,10 +432,109 @@ After `dotnet run`, authenticate with an admin account and call `GET https://loc
 
 ---
 
-## 6. Where to Go Next
+## 6. (Optional) Add Managed Service Principals
+
+`Identity.Base.ServicePrincipals` adds database-backed machine identities to the admin/RBAC host from section 5. Each identity has a generated immutable client ID, independently revocable secrets, role-derived permissions, and short-lived `client_credentials` access tokens. See the [complete package guide](../packages/identity-base-service-principals/index.md) for every endpoint and operational rule.
+
+### 6.1 Install the Package
+
+```bash
+dotnet add package Identity.Base.ServicePrincipals
+```
+
+The package depends on `Identity.Base.Admin` and `Identity.Base.Roles`, so complete section 5 first.
+
+### 6.2 Register Services and Endpoints
+
+Use a separate configuration delegate if your migration layout gives each context its own migrations assembly:
+
+```csharp
+using Identity.Base.ServicePrincipals.Data;
+using Identity.Base.ServicePrincipals.Extensions;
+using Microsoft.EntityFrameworkCore;
+
+Action<IServiceProvider, DbContextOptionsBuilder> configureServicePrincipalDbContext =
+    (sp, options) =>
+    {
+        var connectionString = sp.GetRequiredService<IConfiguration>()
+            .GetConnectionString("Primary")
+            ?? throw new InvalidOperationException("ConnectionStrings:Primary must be set.");
+
+        options.UseNpgsql(connectionString); // or UseSqlServer(connectionString)
+    };
+
+builder.Services.AddIdentityBaseServicePrincipals(
+    builder.Configuration,
+    configureServicePrincipalDbContext);
+
+var app = builder.Build();
+app.MapIdentityBaseServicePrincipalEndpoints();
+```
+
+Configure token policy:
+
+```json
+{
+  "Identity": {
+    "ServicePrincipals": {
+      "AccessTokenLifetime": "00:15:00",
+      "AllowedScopes": ["identity.api"]
+    }
+  }
+}
+```
+
+Every allowed scope must also be defined under `OpenIddict:Scopes`. The package adds its six `service-principals.*` entries to the permission catalog, but your admin role must explicitly include the permissions its operators need.
+
+### 6.3 Generate Both Migrations
+
+The feature spans two contexts: its own principal/credential store and the RBAC role-assignment store.
+
+```bash
+dotnet ef migrations add AddServicePrincipals \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
+  --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
+  --context Identity.Base.ServicePrincipals.Data.ServicePrincipalDbContext \
+  --output-dir Data/Migrations/ServicePrincipals
+
+dotnet ef migrations add AddServicePrincipalRoles \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
+  --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
+  --context Identity.Base.Roles.IdentityRolesDbContext \
+  --output-dir Data/Migrations/IdentityRoles
+
+dotnet ef database update \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
+  --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
+  --context Identity.Base.ServicePrincipals.Data.ServicePrincipalDbContext
+
+dotnet ef database update \
+  --project Identity.Base.Host/Identity.Base.Host.csproj \
+  --startup-project Identity.Base.Host/Identity.Base.Host.csproj \
+  --context Identity.Base.Roles.IdentityRolesDbContext
+```
+
+If the roles context already has migrations, add the new migration to that existing chain rather than creating a second independent history for the same context.
+
+### 6.4 Provision and Verify
+
+Authenticate as an administrator with the `identity.admin` scope and the relevant service-principal permissions:
+
+1. `POST /admin/service-principals` with `{ "displayName": "Invoice Worker" }`.
+2. `PUT /admin/service-principals/{id}/roles` with an existing role name.
+3. `POST /admin/service-principals/{id}/credentials` with `{ "name": "development" }`.
+4. Store the returned secret immediately; it cannot be retrieved again.
+5. Exchange the generated `clientId` and secret at `/connect/token` with `grant_type=client_credentials`.
+
+Disabling a principal revokes all credentials and its OpenIddict token entries. Restoring it does not restore credentials, so issue a new one explicitly.
+
+---
+
+## 7. Where to Go Next
 - Admin workflows: [`docs/guides/admin-operations-guide.md`](./admin-operations-guide.md)
+- Managed machine identities: [`docs/packages/identity-base-service-principals/index.md`](../packages/identity-base-service-principals/index.md)
 - React harness & integration patterns: [`docs/guides/integration-guide.md`](./integration-guide.md)
 - Raising issues or feature requests: [GitHub Issues](https://github.com/Amaretto-Software-Labs/identity-base/issues)
 - AI Agent Contributor rules: [`AGENTS.md`](../../AGENTS.md)
 
-With the packages wired into your host, you now have a configurable identity platform that can grow from core authentication to full-featured administrative tooling. EOF
+With the packages wired into your host, you now have a configurable identity platform that can grow from core authentication to organization-aware administration and managed machine identities.

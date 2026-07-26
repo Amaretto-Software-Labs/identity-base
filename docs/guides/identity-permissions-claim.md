@@ -101,7 +101,7 @@ The organizations package also emits an `org:memberships` claim containing all o
 app.UseOrganizationContextFromHeader();
 ```
 
-and the client-side `X-Organization-Id` header to indicate which organization is active per request. The middleware ignores the header when the request targets `/organizations…` (admin APIs) so global admins remain unrestricted. When memberships change, refresh tokens so the `org:memberships` claim stays current.
+and the client-side `X-Organization-Id` header to indicate which organization is active per request. The middleware ignores the header when the request targets `/admin/organizations…` so global admin APIs remain unrestricted. When memberships change, refresh tokens so the `org:memberships` claim stays current.
 
 ## 4. Apply Migrations Before Seeding
 

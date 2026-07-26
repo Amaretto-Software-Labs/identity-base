@@ -25,11 +25,14 @@ using Identity.Base.Admin;
 using Identity.Base.Organizations;
 using Identity.Base.Roles;
 
-builder.Services.AddIdentityBase(builder.Configuration, configureDbContext);
+builder.Services.AddIdentityBase(
+    builder.Configuration,
+    builder.Environment,
+    configureDbContext: configureDbContext);
 builder.Services.AddIdentityRoles(builder.Configuration, configureDbContext);
 
 builder.Services.AddIdentityAdmin(builder.Configuration, configureDbContext);
-builder.Services.AddIdentityBaseOrganizations(builder.Configuration, configureDbContext);
+builder.Services.AddIdentityBaseOrganizations(configureDbContext);
 ```
 
 ## Example: Guarding custom endpoints

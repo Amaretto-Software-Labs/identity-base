@@ -24,10 +24,17 @@ Action<IServiceProvider, DbContextOptionsBuilder> configureDbContext = (sp, opti
     options.UseNpgsql(connectionString); // or UseSqlServer(connectionString)
 };
 
-builder.Services.AddIdentityBase(builder.Configuration, builder.Environment, configureDbContext: configureDbContext);
+var identityBuilder = builder.Services.AddIdentityBase(
+    builder.Configuration,
+    builder.Environment,
+    configureDbContext: configureDbContext);
 builder.Services.AddIdentityRoles(builder.Configuration, configureDbContext);
-builder.Services.AddIdentityBaseOrganizations(configureDbContext)
+var organizationsBuilder = builder.Services.AddIdentityBaseOrganizations(configureDbContext)
     .UseTablePrefix("Contoso"); // optional: use the same prefix as the core/RBAC tables
+
+identityBuilder.ConfigureOrganizationModel(model => { /* optional custom indexes */ });
+identityBuilder.AfterOrganizationSeed((services, cancellationToken) => Task.CompletedTask);
+organizationsBuilder.AddOrganizationLifecycleListener<MyOrganizationLifecycleListener>();
 
 var app = builder.Build();
 app.UseApiPipeline(appBuilder => appBuilder.UseSerilogRequestLogging());
@@ -44,8 +51,9 @@ await app.RunAsync();
 
 - `OrganizationOptions` – slug/display name length limits, metadata size caps.
 - `OrganizationRoleOptions` – default role definitions, system role names, description lengths.
-- Use `orgsBuilder.ConfigureOrganizationModel(...)` to apply additional EF Core configuration (indexes, value converters).
-- Seed hooks: `orgsBuilder.AfterOrganizationSeed(...)` for post-seeding provisioning (e.g., billing setup, tenant metadata).
+- Use `identityBuilder.ConfigureOrganizationModel(...)` to apply additional EF Core configuration (indexes, value converters).
+- Use `identityBuilder.AfterOrganizationSeed(...)` for post-seeding provisioning (e.g., billing setup, tenant metadata).
+- Use `organizationsBuilder.AddOrganizationLifecycleListener<TListener>()` to observe or veto organization lifecycle operations.
 
 Connection strings must be supplied via your own DbContext registrations or the delegate shown above; the package no longer infers `IdentityOrganizations` automatically.
 
@@ -139,12 +147,11 @@ curl -X POST https://identity.example.com/invitations/claim \
 
 ## Extension Points
 
-- `orgsBuilder.AddOrganizationScopeResolver<TResolver>()` – override the membership scope checks (e.g., allow tenant-wide admins).
-- `orgsBuilder.AddOrganizationClaimFormatter<TFormatter>()` – change how org metadata is serialized into claims.
-- `orgsBuilder.ConfigureOrganizationModel(...)` – apply EF Core customizations.
-- `orgsBuilder.AfterOrganizationSeed(...)` – run additional provisioning after default roles are created.
+- `identityBuilder.AddOrganizationScopeResolver<TResolver>()` – override the membership scope checks (e.g., allow tenant-wide admins).
+- `identityBuilder.AddOrganizationClaimFormatter<TFormatter>()` – change how org metadata is serialized into claims.
+- `identityBuilder.ConfigureOrganizationModel(...)` – apply EF Core customizations.
+- `identityBuilder.AfterOrganizationSeed(...)` – run additional provisioning after default roles are created.
 - `IdentityBaseOrganizationsBuilder.AddOrganizationLifecycleListener<TListener>()` – implement `IOrganizationLifecycleListener` once to observe/veto organization lifecycle events (create/update/archive/restore, invitation created/revoked/accepted, membership add/update/remove). Legacy listener registrations (`AddOrganizationCreationListener`, etc.) still work via shims.
-- `orgsBuilder.AddOrganizationScopeResolver<TResolver>()` – override the membership scope checks (e.g., allow tenant-wide admins).
 - Implement custom invitation stores by replacing `IOrganizationInvitationStore`.
 
 ## Dependencies & Compatibility
@@ -157,7 +164,7 @@ curl -X POST https://identity.example.com/invitations/claim \
 - **Missing organization context** – ensure `app.UseOrganizationContextFromHeader()` is registered *before* `MapIdentityBaseOrganizationEndpoints()` and that the SPA sends the `X-Organization-Id` header for non-admin routes.
 - **Header set for admin routes** – admin endpoints intentionally ignore the header and operate on all organizations; do not expect the header to scope `/admin/organizations`.
 - **Invitation emails** – the package persists invitations but does not send email. Call `OrganizationInvitationService.CreateAsync` then hand the returned record to your email infrastructure (e.g., Mailjet sender) using the `Code` property.
-- **RequiresTokenRefresh` = true** – when the claim endpoint responds with `RequiresTokenRefresh`, instruct the SPA to call `IdentityAuthManager.refreshTokens()` so the new organization membership is reflected in tokens.
+- **`RequiresTokenRefresh = true`** – when the claim endpoint responds with `RequiresTokenRefresh`, instruct the SPA to call `IdentityAuthManager.refreshTokens()` so the new organization membership is reflected in tokens.
 
 ## Examples & Guides
 
@@ -170,4 +177,4 @@ curl -X POST https://identity.example.com/invitations/claim \
 
 ## Change Log
 
-- See [CHANGELOG.md](../../CHANGELOG.md) (`Identity.Base.Organizations` entries)
+- See [CHANGELOG.md](../../../CHANGELOG.md) (`Identity.Base.Organizations` entries)
