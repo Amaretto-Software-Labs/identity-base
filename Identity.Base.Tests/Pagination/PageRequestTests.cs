@@ -63,6 +63,14 @@ public class PageRequestTests
     }
 
     [Fact]
+    public void GetSkip_Clamps_WhenPageOffsetExceedsIntRange()
+    {
+        var request = PageRequest.Create(int.MaxValue, 200, null, null);
+
+        request.GetSkip().ShouldBe(int.MaxValue);
+    }
+
+    [Fact]
     public void WithDefaults_Reapplies_Limits()
     {
         var request = PageRequest.Create(5, 500, null, null, defaultPageSize: 10, maxPageSize: 50);

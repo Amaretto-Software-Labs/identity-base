@@ -173,18 +173,23 @@ public sealed class OrganizationRoleService : IOrganizationRoleService
         return new PagedResult<OrganizationRole>(normalized.Page, normalized.PageSize, total, items);
     }
 
-    public async Task DeleteAsync(Guid roleId, CancellationToken cancellationToken = default)
+    public async Task DeleteAsync(Guid roleId, Guid organizationId, CancellationToken cancellationToken = default)
     {
         if (roleId == Guid.Empty)
         {
             throw new ArgumentException("Role identifier is required.", nameof(roleId));
         }
 
+        if (organizationId == Guid.Empty)
+        {
+            throw new ArgumentException("Organization identifier is required.", nameof(organizationId));
+        }
+
         var role = await _dbContext.OrganizationRoles
             .FirstOrDefaultAsync(entity => entity.Id == roleId, cancellationToken)
             .ConfigureAwait(false);
 
-        if (role is null)
+        if (role is null || role.OrganizationId != organizationId)
         {
             return;
         }

@@ -7,6 +7,7 @@ using Identity.Base.Organizations.Options;
 using Identity.Base.Organizations.Services;
 using Identity.Base.Roles.Claims;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Organizations.Tests.Authorization;
@@ -94,6 +95,35 @@ public class OrganizationPermissionAuthorizationHandlerTests
         }, authenticationType: "Test"));
 
         var context = new AuthorizationHandlerContext(new[] { requirement }, user, null);
+
+        await handler.HandleAsync(context);
+
+        context.HasSucceeded.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task HandleRequirementAsync_DoesNotReusePermissionClaimAcrossOrganizations()
+    {
+        var claimedOrganizationId = Guid.NewGuid();
+        var routeOrganizationId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var resolver = new StubOrganizationPermissionResolver
+        {
+            OrganizationId = claimedOrganizationId,
+            UserId = userId,
+            Permissions = [UserOrganizationPermissions.OrganizationMembersManage]
+        };
+        var handler = CreateHandler(resolver);
+        var requirement = new OrganizationPermissionRequirement(UserOrganizationPermissions.OrganizationMembersManage);
+        var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+            new Claim(RoleClaimTypes.Permissions, UserOrganizationPermissions.OrganizationMembersManage),
+            new Claim(OrganizationClaimTypes.OrganizationId, claimedOrganizationId.ToString())
+        }, authenticationType: "Test"));
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.RouteValues["organizationId"] = routeOrganizationId.ToString();
+        var context = new AuthorizationHandlerContext(new[] { requirement }, user, httpContext);
 
         await handler.HandleAsync(context);
 

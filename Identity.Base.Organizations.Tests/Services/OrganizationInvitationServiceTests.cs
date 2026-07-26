@@ -361,7 +361,7 @@ public class OrganizationInvitationServiceTests
         public Task<OrganizationRole?> GetByIdAsync(Guid roleId, CancellationToken cancellationToken = default)
             => throw new NotImplementedException();
 
-        public Task DeleteAsync(Guid roleId, CancellationToken cancellationToken = default)
+        public Task DeleteAsync(Guid roleId, Guid organizationId, CancellationToken cancellationToken = default)
             => throw new NotImplementedException();
 
         public Task<OrganizationRolePermissionSet> GetPermissionsAsync(Guid roleId, Guid organizationId, CancellationToken cancellationToken = default)

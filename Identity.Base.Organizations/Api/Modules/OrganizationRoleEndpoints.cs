@@ -97,7 +97,7 @@ public static class OrganizationRoleEndpoints
 
             try
             {
-                await roleService.DeleteAsync(roleId, cancellationToken).ConfigureAwait(false);
+                await roleService.DeleteAsync(roleId, organizationId, cancellationToken).ConfigureAwait(false);
                 return Results.NoContent();
             }
             catch (InvalidOperationException ex)

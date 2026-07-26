@@ -57,9 +57,34 @@ public class OrganizationRoleServiceTests
         var service = CreateService(context, roleContext);
 
         var role = await service.CreateAsync(new OrganizationRoleCreateRequest { OrganizationId = organization.Id, Name = "Temp" });
-        await service.DeleteAsync(role.Id);
+        await service.DeleteAsync(role.Id, organization.Id);
 
         (await context.OrganizationRoles.CountAsync()).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_DoesNotDeleteRoleFromAnotherOrganization()
+    {
+        await using var context = CreateContext(out var organization);
+        await using var roleContext = CreateRoleContext();
+        var otherOrganization = new Organization
+        {
+            Id = Guid.NewGuid(),
+            Slug = "other-org",
+            DisplayName = "Other Org"
+        };
+        context.Organizations.Add(otherOrganization);
+        await context.SaveChangesAsync();
+        var service = CreateService(context, roleContext);
+        var otherRole = await service.CreateAsync(new OrganizationRoleCreateRequest
+        {
+            OrganizationId = otherOrganization.Id,
+            Name = "Other Manager"
+        });
+
+        await service.DeleteAsync(otherRole.Id, organization.Id);
+
+        (await context.OrganizationRoles.AnyAsync(role => role.Id == otherRole.Id)).ShouldBeTrue();
     }
 
     [Fact]

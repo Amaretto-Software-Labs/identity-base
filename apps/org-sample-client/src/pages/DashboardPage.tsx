@@ -159,7 +159,7 @@ export default function DashboardPage() {
 
             return (
               <div
-                key={`${membership.organizationId}-${membership.userId}`}
+                key={membership.organizationId}
                 className="flex h-full flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
               >
                 <div className="space-y-1">

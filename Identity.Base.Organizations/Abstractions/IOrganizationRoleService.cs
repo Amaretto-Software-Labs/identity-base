@@ -21,7 +21,7 @@ public interface IOrganizationRoleService
         PageRequest pageRequest,
         CancellationToken cancellationToken = default);
 
-    Task DeleteAsync(Guid roleId, CancellationToken cancellationToken = default);
+    Task DeleteAsync(Guid roleId, Guid organizationId, CancellationToken cancellationToken = default);
 
     Task<OrganizationRolePermissionSet> GetPermissionsAsync(Guid roleId, Guid organizationId, CancellationToken cancellationToken = default);
 
