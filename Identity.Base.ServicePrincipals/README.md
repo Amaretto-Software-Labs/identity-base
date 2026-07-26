@@ -16,5 +16,6 @@ cryptographically random suffix.
 Managed access tokens use the configured `Identity:ServicePrincipals:AccessTokenLifetime`
 (15 minutes by default) and do not receive refresh tokens. Hosts can register
 `IServicePrincipalLifecycleListener` implementations to enforce product-specific
-cleanup or governance before a principal is disabled; throwing aborts the disable
-operation with a conflict response.
+cleanup or governance before a principal is disabled. A listener can reject the
+operation with a conflict response by throwing `InvalidOperationException`; other
+exception types are treated as unexpected failures.

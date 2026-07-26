@@ -93,6 +93,19 @@ public sealed class ServicePrincipalServiceTests
         (await fixture.Service.ValidateCredentialAsync(principal.ClientId, second.Secret, default)).ShouldBeTrue();
     }
 
+    [Fact]
+    public async Task IssueCredential_HashesAndVerifiesUsingPersistedCredentialInstance()
+    {
+        await using var fixture = new Fixture(passwordHasher: new CredentialBoundPasswordHasher());
+        var principal = await fixture.AddPrincipalAsync();
+
+        var issued = await fixture.Service.IssueCredentialAsync(principal.Id, "primary", null, default);
+
+        var stored = await fixture.Principals.ServicePrincipalCredentials.SingleAsync();
+        stored.Id.ShouldBe(issued.Credential.Id);
+        (await fixture.Service.ValidateCredentialAsync(principal.ClientId, issued.Secret, default)).ShouldBeTrue();
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
@@ -237,7 +250,9 @@ public sealed class ServicePrincipalServiceTests
 
     private sealed class Fixture : IAsyncDisposable
     {
-        public Fixture(ISaveChangesInterceptor? saveChangesInterceptor = null)
+        public Fixture(
+            ISaveChangesInterceptor? saveChangesInterceptor = null,
+            IPasswordHasher<ServicePrincipalCredential>? passwordHasher = null)
         {
             var suffix = Guid.NewGuid().ToString("N");
             var principalOptions = new DbContextOptionsBuilder<ServicePrincipalDbContext>()
@@ -258,7 +273,7 @@ public sealed class ServicePrincipalServiceTests
                 Roles,
                 ApplicationManager,
                 TokenManager,
-                new PasswordHasher<ServicePrincipalCredential>(),
+                passwordHasher ?? new PasswordHasher<ServicePrincipalCredential>(),
                 Microsoft.Extensions.Options.Options.Create(new ServicePrincipalOptions()),
                 []);
         }
@@ -288,6 +303,23 @@ public sealed class ServicePrincipalServiceTests
             await Task.CompletedTask;
             yield break;
         }
+    }
+
+    private sealed class CredentialBoundPasswordHasher : IPasswordHasher<ServicePrincipalCredential>
+    {
+        public string HashPassword(ServicePrincipalCredential user, string password) =>
+            $"{user.Id:N}:{password}";
+
+        public PasswordVerificationResult VerifyHashedPassword(
+            ServicePrincipalCredential user,
+            string hashedPassword,
+            string providedPassword) =>
+            string.Equals(
+                hashedPassword,
+                $"{user.Id:N}:{providedPassword}",
+                StringComparison.Ordinal)
+                ? PasswordVerificationResult.Success
+                : PasswordVerificationResult.Failed;
     }
 
     private sealed class ThrowingSaveChangesInterceptor(Exception exception) : SaveChangesInterceptor

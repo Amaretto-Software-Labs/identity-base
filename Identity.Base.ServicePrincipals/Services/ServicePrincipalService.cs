@@ -114,7 +114,7 @@ public sealed class ServicePrincipalService(
         var secret = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
         var credential = new ServicePrincipalCredential(servicePrincipalId, normalizedName, string.Empty, expiresAt);
         var hash = passwordHasher.HashPassword(credential, secret);
-        credential = new ServicePrincipalCredential(servicePrincipalId, normalizedName, hash, expiresAt);
+        credential.SetSecretHash(hash);
         dbContext.ServicePrincipalCredentials.Add(credential);
         await dbContext.SaveChangesAsync(cancellationToken);
         return new IssuedCredential(credential, secret);

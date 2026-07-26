@@ -40,6 +40,8 @@ public sealed class ServicePrincipalCredential
         RevokedReason = normalizedReason;
     }
 
+    internal void SetSecretHash(string secretHash) => SecretHash = secretHash;
+
     internal static string NormalizeName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
