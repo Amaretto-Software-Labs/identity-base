@@ -106,6 +106,31 @@ public sealed class ServicePrincipalServiceTests
         (await fixture.Service.ValidateCredentialAsync(principal.ClientId, issued.Secret, default)).ShouldBeTrue();
     }
 
+    [Fact]
+    public async Task ValidateCredential_RehashesCredentialWhenHasherRequestsUpgrade()
+    {
+        var passwordHasher = new UpgradingPasswordHasher();
+        await using var fixture = new Fixture(passwordHasher: passwordHasher);
+        var principal = await fixture.AddPrincipalAsync();
+        var credential = new ServicePrincipalCredential(
+            principal.Id,
+            "primary",
+            "legacy:secret",
+            null);
+        fixture.Principals.ServicePrincipalCredentials.Add(credential);
+        await fixture.Principals.SaveChangesAsync();
+
+        (await fixture.Service.ValidateCredentialAsync(principal.ClientId, "secret", default)).ShouldBeTrue();
+
+        fixture.Principals.ChangeTracker.Clear();
+        var stored = await fixture.Principals.ServicePrincipalCredentials.AsNoTracking().SingleAsync();
+        stored.SecretHash.ShouldBe($"current:{credential.Id:N}:secret");
+        passwordHasher.RehashNeededResults.ShouldBe(1);
+
+        (await fixture.Service.ValidateCredentialAsync(principal.ClientId, "secret", default)).ShouldBeTrue();
+        passwordHasher.RehashNeededResults.ShouldBe(1);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
@@ -320,6 +345,33 @@ public sealed class ServicePrincipalServiceTests
                 StringComparison.Ordinal)
                 ? PasswordVerificationResult.Success
                 : PasswordVerificationResult.Failed;
+    }
+
+    private sealed class UpgradingPasswordHasher : IPasswordHasher<ServicePrincipalCredential>
+    {
+        public int RehashNeededResults { get; private set; }
+
+        public string HashPassword(ServicePrincipalCredential user, string password) =>
+            $"current:{user.Id:N}:{password}";
+
+        public PasswordVerificationResult VerifyHashedPassword(
+            ServicePrincipalCredential user,
+            string hashedPassword,
+            string providedPassword)
+        {
+            if (string.Equals(hashedPassword, $"legacy:{providedPassword}", StringComparison.Ordinal))
+            {
+                RehashNeededResults++;
+                return PasswordVerificationResult.SuccessRehashNeeded;
+            }
+
+            return string.Equals(
+                hashedPassword,
+                HashPassword(user, providedPassword),
+                StringComparison.Ordinal)
+                ? PasswordVerificationResult.Success
+                : PasswordVerificationResult.Failed;
+        }
     }
 
     private sealed class ThrowingSaveChangesInterceptor(Exception exception) : SaveChangesInterceptor

@@ -209,17 +209,17 @@ export class IdentityAuthManager {
           return await this.authorizedFetch<AdminServicePrincipalListResponse>(
             qs ? `/admin/service-principals?${qs}` : '/admin/service-principals')
         },
-        get: async (id) => await this.authorizedFetch(`/admin/service-principals/${encodeURIComponent(id)}`),
-        create: async (payload) => await this.authorizedFetch('/admin/service-principals', { method: 'POST', body: JSON.stringify(payload) }),
-        update: async (id, payload) => await this.authorizedFetch(`/admin/service-principals/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(payload) }),
-        disable: async (id, reason) => await this.authorizedFetch(`/admin/service-principals/${encodeURIComponent(id)}/disable`, { method: 'POST', body: JSON.stringify({ reason }) }),
-        restore: async (id) => await this.authorizedFetch(`/admin/service-principals/${encodeURIComponent(id)}/restore`, { method: 'POST' }),
-        getRoles: async (id) => await this.authorizedFetch(`/admin/service-principals/${encodeURIComponent(id)}/roles`),
-        updateRoles: async (id, roles) => await this.authorizedFetch(`/admin/service-principals/${encodeURIComponent(id)}/roles`, { method: 'PUT', body: JSON.stringify({ roles }) }),
-        listCredentials: async (id) => await this.authorizedFetch(`/admin/service-principals/${encodeURIComponent(id)}/credentials`),
-        issueCredential: async (id, payload) => await this.authorizedFetch(`/admin/service-principals/${encodeURIComponent(id)}/credentials`, { method: 'POST', body: JSON.stringify(payload) }),
-        revokeCredential: async (id, credentialId, reason) => await this.authorizedFetch(`/admin/service-principals/${encodeURIComponent(id)}/credentials/${encodeURIComponent(credentialId)}/revoke`, { method: 'POST', body: JSON.stringify({ reason }) }),
-        revokeAllCredentials: async (id, reason) => await this.authorizedFetch(`/admin/service-principals/${encodeURIComponent(id)}/credentials/revoke-all`, { method: 'POST', body: JSON.stringify({ reason }) }),
+        get: async (id) => await this.authorizedFetch<AdminServicePrincipalDetail>(`/admin/service-principals/${encodeURIComponent(id)}`),
+        create: async (payload) => await this.authorizedFetch<AdminServicePrincipalSummary>('/admin/service-principals', { method: 'POST', body: JSON.stringify(payload) }),
+        update: async (id, payload) => await this.authorizedFetch<AdminServicePrincipalSummary>(`/admin/service-principals/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(payload) }),
+        disable: async (id, reason) => await this.authorizedFetch<void>(`/admin/service-principals/${encodeURIComponent(id)}/disable`, { method: 'POST', body: JSON.stringify({ reason }) }),
+        restore: async (id) => await this.authorizedFetch<void>(`/admin/service-principals/${encodeURIComponent(id)}/restore`, { method: 'POST' }),
+        getRoles: async (id) => await this.authorizedFetch<AdminServicePrincipalRolesResponse>(`/admin/service-principals/${encodeURIComponent(id)}/roles`),
+        updateRoles: async (id, roles) => await this.authorizedFetch<AdminServicePrincipalRolesResponse>(`/admin/service-principals/${encodeURIComponent(id)}/roles`, { method: 'PUT', body: JSON.stringify({ roles }) }),
+        listCredentials: async (id) => await this.authorizedFetch<AdminServicePrincipalCredential[]>(`/admin/service-principals/${encodeURIComponent(id)}/credentials`),
+        issueCredential: async (id, payload) => await this.authorizedFetch<AdminServicePrincipalIssuedCredential>(`/admin/service-principals/${encodeURIComponent(id)}/credentials`, { method: 'POST', body: JSON.stringify(payload) }),
+        revokeCredential: async (id, credentialId, reason) => await this.authorizedFetch<void>(`/admin/service-principals/${encodeURIComponent(id)}/credentials/${encodeURIComponent(credentialId)}/revoke`, { method: 'POST', body: JSON.stringify({ reason }) }),
+        revokeAllCredentials: async (id, reason) => await this.authorizedFetch<void>(`/admin/service-principals/${encodeURIComponent(id)}/credentials/revoke-all`, { method: 'POST', body: JSON.stringify({ reason }) }),
       },
     }
   }

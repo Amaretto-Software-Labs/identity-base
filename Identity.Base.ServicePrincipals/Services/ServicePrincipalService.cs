@@ -131,10 +131,24 @@ public sealed class ServicePrincipalService(
         }
 
         var now = DateTimeOffset.UtcNow;
-        return principal.Credentials
-            .Where(item => item.IsActive(now))
-            .Any(item => passwordHasher.VerifyHashedPassword(item, item.SecretHash, secret)
-                is PasswordVerificationResult.Success or PasswordVerificationResult.SuccessRehashNeeded);
+        foreach (var credential in principal.Credentials.Where(item => item.IsActive(now)))
+        {
+            var result = passwordHasher.VerifyHashedPassword(credential, credential.SecretHash, secret);
+            if (result == PasswordVerificationResult.Failed)
+            {
+                continue;
+            }
+
+            if (result == PasswordVerificationResult.SuccessRehashNeeded)
+            {
+                credential.SetSecretHash(passwordHasher.HashPassword(credential, secret));
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     public async Task DisableAsync(Guid id, string? reason, CancellationToken cancellationToken)
