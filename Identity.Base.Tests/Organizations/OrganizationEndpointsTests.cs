@@ -513,6 +513,41 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
     }
 
     [Fact]
+    public async Task User_Role_Permissions_Return_NotFound_For_Role_From_Another_Organization()
+    {
+        var organizationId = await CreateOrganizationAsync(
+            $"org-user-role-scope-{Guid.NewGuid():N}",
+            "User Role Scope Org");
+        var otherOrganizationId = await CreateOrganizationAsync(
+            $"org-user-role-other-{Guid.NewGuid():N}",
+            "Other Role Org");
+        var ownerEmail = $"owner-role-scope-{Guid.NewGuid():N}@example.com";
+        const string ownerPassword = "UserPass!2345";
+        var (ownerId, _) = await CreateStandardUserAndTokenAsync(ownerEmail, ownerPassword);
+        await AddMembershipAsync(organizationId, ownerId, assignOwnerRole: true);
+
+        Guid otherRoleId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var roleService = scope.ServiceProvider.GetRequiredService<IOrganizationRoleService>();
+            var role = await roleService.CreateAsync(new OrganizationRoleCreateRequest
+            {
+                OrganizationId = otherOrganizationId,
+                Name = $"OtherRole-{Guid.NewGuid():N}"
+            });
+            otherRoleId = role.Id;
+        }
+
+        var ownerToken = await RefreshUserTokenAsync(ownerEmail, ownerPassword);
+        using var client = CreateAuthorizedClient(ownerToken);
+
+        var response = await client.GetAsync(
+            $"/users/me/organizations/{organizationId:D}/roles/{otherRoleId:D}/permissions");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task User_Role_Permission_Update_UsesRoleIdKey_ForEmptyRoleId()
     {
         var organizationId = await CreateOrganizationAsync($"org-user-role-empty-id-{Guid.NewGuid():N}", "User Role Empty Id Org");

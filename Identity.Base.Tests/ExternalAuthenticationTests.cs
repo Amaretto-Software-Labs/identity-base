@@ -64,7 +64,7 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
     }
 
     [Fact]
-    public async Task ExternalLogin_DoesNotConfirmUnverifiedEmail_WhenCreatingUser()
+    public async Task ExternalLogin_RejectsUnverifiedEmail_WithoutCreatingSessionOrUser()
     {
         var email = $"external-unverified-{Guid.NewGuid():N}@example.com";
         using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -80,12 +80,68 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
 
         var callbackResponse = await client.GetAsync(startResponse.Headers.Location);
         callbackResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        callbackResponse.Headers.Location.ShouldNotBeNull();
+
+        var uri = new Uri(client.BaseAddress!, callbackResponse.Headers.Location);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+        query["status"].ToString().ShouldBe("error");
+        query["message"].ToString().ShouldContain("verified email");
+
+        using var profileResponse = await client.GetAsync("/users/me");
+        profileResponse.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
 
         using var scope = _factory.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var user = await userManager.FindByEmailAsync(email);
+        user.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task ExternalLogin_DoesNotLinkOrSignIn_UnconfirmedExistingUser()
+    {
+        var email = $"external-unconfirmed-{Guid.NewGuid():N}@example.com";
+        using (var seedScope = _factory.Services.CreateScope())
+        {
+            var userManager = seedScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var createResult = await userManager.CreateAsync(new ApplicationUser
+            {
+                Email = email,
+                UserName = email,
+                EmailConfirmed = false,
+                DisplayName = "Unconfirmed External User"
+            });
+            createResult.Succeeded.ShouldBeTrue();
+        }
+
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        client.BaseAddress = new Uri("https://localhost");
+
+        var startResponse = await client.GetAsync(
+            $"/auth/external/google/start?returnUrl=/client/callback&email={Uri.EscapeDataString(email)}&name=Unconfirmed%20User");
+        startResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+
+        var callbackResponse = await client.GetAsync(startResponse.Headers.Location);
+        callbackResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        callbackResponse.Headers.Location.ShouldNotBeNull();
+
+        var uri = new Uri(client.BaseAddress!, callbackResponse.Headers.Location);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+        query["status"].ToString().ShouldBe("error");
+        query["message"].ToString().ShouldContain("confirmation");
+
+        using var profileResponse = await client.GetAsync("/users/me");
+        profileResponse.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+
+        using var verifyScope = _factory.Services.CreateScope();
+        var verifyUserManager = verifyScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await verifyUserManager.FindByEmailAsync(email);
         user.ShouldNotBeNull();
-        user!.EmailConfirmed.ShouldBeFalse();
+        var logins = await verifyUserManager.GetLoginsAsync(user!);
+        logins.ShouldNotContain(login => login.LoginProvider == IdentityApiFactory.FakeGoogleScheme);
     }
 
     [Fact]

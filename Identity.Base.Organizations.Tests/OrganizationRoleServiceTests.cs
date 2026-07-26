@@ -169,9 +169,9 @@ public class OrganizationRoleServiceTests
 
         var service = CreateService(context, roleContext);
 
-        var exception = await Should.ThrowAsync<InvalidOperationException>(
+        var exception = await Should.ThrowAsync<KeyNotFoundException>(
             () => service.GetPermissionsAsync(foreignRole.Id, organization.Id));
-        exception.Message.ShouldContain("does not belong");
+        exception.Message.ShouldContain("was not found");
     }
 
     [Fact]

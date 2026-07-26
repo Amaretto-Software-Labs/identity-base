@@ -229,7 +229,7 @@ public sealed class OrganizationRoleService : IOrganizationRoleService
 
         if (role.OrganizationId != Guid.Empty && role.OrganizationId != organizationId)
         {
-            throw new InvalidOperationException("Role does not belong to the specified organization scope.");
+            throw new KeyNotFoundException($"Organization role {roleId} was not found.");
         }
 
         var organization = await _dbContext.Organizations
