@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using Identity.Base.Abstractions.Pagination;
 using Identity.Base.Admin.Authorization;
 using Identity.Base.Logging;
 using Identity.Base.Roles;
@@ -33,6 +34,37 @@ namespace Identity.Base.ServicePrincipals.Tests;
 
 public sealed class ServicePrincipalEndpointTests
 {
+    [Fact]
+    public async Task List_SearchesDisplayNameAndClientIdIgnoringCase()
+    {
+        var auditLogger = Substitute.For<IAuditLogger>();
+        await using var app = BuildTestApplication(
+            $"endpoint-search-{Guid.NewGuid():N}",
+            $"endpoint-search-roles-{Guid.NewGuid():N}",
+            auditLogger);
+
+        await using var scope = app.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ServicePrincipalDbContext>();
+        dbContext.ServicePrincipals.AddRange(
+            new ServicePrincipal("Mixed Case Automation", "automation-client"),
+            new ServicePrincipal("Deployment Agent", "mixed-case-client"));
+        await dbContext.SaveChangesAsync();
+
+        await app.StartAsync();
+        using var client = app.GetTestClient();
+        var displayNameResponse = await client.GetFromJsonAsync<PagedResult<ServicePrincipalSummary>>(
+            "/admin/service-principals?search=mIxEd%20CaSe%20AuToMaTiOn");
+        var clientIdResponse = await client.GetFromJsonAsync<PagedResult<ServicePrincipalSummary>>(
+            "/admin/service-principals?search=MiXeD-cAsE-cLiEnT");
+
+        displayNameResponse.ShouldNotBeNull();
+        displayNameResponse.TotalCount.ShouldBe(1);
+        displayNameResponse.Items.Single().ClientId.ShouldBe("automation-client");
+        clientIdResponse.ShouldNotBeNull();
+        clientIdResponse.TotalCount.ShouldBe(1);
+        clientIdResponse.Items.Single().ClientId.ShouldBe("mixed-case-client");
+    }
+
     [Fact]
     public async Task Update_ReturnsConflict_WhenSaveDetectsConcurrentUpdate()
     {

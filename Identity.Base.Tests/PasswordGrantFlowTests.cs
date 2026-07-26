@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Identity.Base.OpenIddict;
 using Shouldly;
 using Identity.Base.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -146,6 +148,37 @@ public class PasswordGrantFlowTests : IClassFixture<IdentityApiFactory>
         json!.RootElement.GetProperty("error").GetString().ShouldBe("unauthorized_client");
     }
 
+    [Fact]
+    public async Task ClientCredentialsGrant_RejectsInvalidPrincipalProviderState()
+    {
+        using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services =>
+                services.AddScoped<IClientCredentialsPrincipalProvider, InvalidPrincipalProvider>()));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        client.BaseAddress ??= new Uri("https://localhost");
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/connect/token")
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = OpenIddictConstants.GrantTypes.ClientCredentials,
+                ["scope"] = "identity.api"
+            })
+        };
+        request.Headers.Authorization = CreateBasicAuth("test-client", "test-secret");
+
+        using var response = await client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        var json = await response.Content.ReadFromJsonAsync<JsonDocument>();
+        json.ShouldNotBeNull();
+        json!.RootElement.GetProperty("error").GetString().ShouldBe(OpenIddictConstants.Errors.InvalidClient);
+    }
+
     private async Task SeedUserAsync(string email, string password)
     {
         using var scope = _factory.Services.CreateScope();
@@ -175,5 +208,14 @@ public class PasswordGrantFlowTests : IClassFixture<IdentityApiFactory>
     {
         var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
         return new AuthenticationHeaderValue("Basic", credentials);
+    }
+
+    private sealed class InvalidPrincipalProvider : IClientCredentialsPrincipalProvider
+    {
+        public Task<ClaimsPrincipal?> CreatePrincipalAsync(
+            string clientId,
+            IReadOnlyList<string> scopes,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The managed client is no longer valid.");
     }
 }

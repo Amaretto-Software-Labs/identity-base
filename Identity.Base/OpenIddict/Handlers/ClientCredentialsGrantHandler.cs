@@ -35,8 +35,17 @@ internal sealed class ClientCredentialsGrantHandler : IOpenIddictServerHandler<O
         }
 
         var scopes = context.Request.GetScopes();
-        var principal = await CreateManagedPrincipalAsync(context.ClientId, scopes, context.CancellationToken)
-            ?? CreateLegacyPrincipal(context, context.ClientId);
+        ClaimsPrincipal principal;
+        try
+        {
+            principal = await CreateManagedPrincipalAsync(context.ClientId, scopes, context.CancellationToken)
+                ?? CreateLegacyPrincipal(context, context.ClientId);
+        }
+        catch (InvalidOperationException)
+        {
+            context.Reject(OpenIddictConstants.Errors.InvalidClient, "Invalid client credentials.");
+            return;
+        }
         principal.SetScopes(scopes);
 
         if (!scopes.IsEmpty)

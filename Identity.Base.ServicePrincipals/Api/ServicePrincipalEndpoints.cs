@@ -1,5 +1,6 @@
 using Identity.Base.Abstractions.Pagination;
 using Identity.Base.Admin.Configuration;
+using Identity.Base.Extensions;
 using Identity.Base.Logging;
 using Identity.Base.Roles.Abstractions;
 using Identity.Base.ServicePrincipals.Data;
@@ -44,8 +45,10 @@ internal static class ServicePrincipalEndpoints
         var source = dbContext.ServicePrincipals.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            var search = query.Search.Trim();
-            source = source.Where(item => item.DisplayName.Contains(search) || item.ClientId.Contains(search));
+            var pattern = SearchPatternHelper.CreateSearchPattern(query.Search).ToUpperInvariant();
+            source = source.Where(item =>
+                EF.Functions.Like(item.DisplayName.ToUpper(), pattern) ||
+                EF.Functions.Like(item.ClientId.ToUpper(), pattern));
         }
         if (query.Disabled.HasValue)
         {
