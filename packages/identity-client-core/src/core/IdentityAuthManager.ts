@@ -343,44 +343,20 @@ export class IdentityAuthManager {
   }
 
   async enrollMfa(): Promise<{ sharedKey: string; authenticatorUri: string }> {
-    const token = await this.tokenManager.ensureValidToken()
-    if (!token) {
-      throw createError('Authentication required')
-    }
-
-    return await this.apiClient.fetch<{ sharedKey: string; authenticatorUri: string }>('/auth/mfa/enroll', {
+    return await this.authorizedFetch<{ sharedKey: string; authenticatorUri: string }>('/auth/mfa/enroll', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
     })
   }
 
   async disableMfa(): Promise<{ message: string }> {
-    const token = await this.tokenManager.ensureValidToken()
-    if (!token) {
-      throw createError('Authentication required')
-    }
-
-    return await this.apiClient.fetch<{ message: string }>('/auth/mfa/disable', {
+    return await this.authorizedFetch<{ message: string }>('/auth/mfa/disable', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
     })
   }
 
   async regenerateRecoveryCodes(): Promise<{ recoveryCodes: string[] }> {
-    const token = await this.tokenManager.ensureValidToken()
-    if (!token) {
-      throw createError('Authentication required')
-    }
-
-    return await this.apiClient.fetch<{ recoveryCodes: string[] }>('/auth/mfa/recovery-codes', {
+    return await this.authorizedFetch<{ recoveryCodes: string[] }>('/auth/mfa/recovery-codes', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
     })
   }
 
@@ -392,16 +368,8 @@ export class IdentityAuthManager {
   }
 
   async updateProfile(payload: { metadata: Record<string, string | null>; concurrencyStamp: string }): Promise<UserProfile> {
-    const token = await this.tokenManager.ensureValidToken()
-    if (!token) {
-      throw createError('Authentication required')
-    }
-
-    return await this.apiClient.fetch<UserProfile>('/users/me/profile', {
+    return await this.authorizedFetch<UserProfile>('/users/me/profile', {
       method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
       body: JSON.stringify(payload),
     })
   }

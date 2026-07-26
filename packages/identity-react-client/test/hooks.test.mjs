@@ -67,7 +67,7 @@ test('ProtectedRoute redirects to /login when unauthenticated', async () => {
     }
 
     let renderer
-    await act(async () => {
+    act(() => {
       renderer = TestRenderer.create(
         React.createElement(
           IdentityProvider,
@@ -75,6 +75,11 @@ test('ProtectedRoute redirects to /login when unauthenticated', async () => {
           React.createElement(ProtectedRoute, null, React.createElement('div', null, 'ok')),
         ),
       )
+    })
+
+    assert.equal(window.location.href, 'https://app.example.com/protected')
+
+    await act(async () => {
       await flush()
       await flush()
     })

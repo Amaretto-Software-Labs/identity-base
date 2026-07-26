@@ -415,7 +415,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 );
 ```
 
-`OrganizationsProvider` consumes the user’s tokens from `@identity-base/react-client`, loads the caller’s organization memberships, and exposes helper hooks for switching organizations or managing memberships. The provider automatically sets the `X-Organization-Id` header for every API call so the middleware can resolve the active organization. Provide `apiBase` whenever the SPA’s origin differs from the Identity Host.
+`OrganizationsProvider` consumes the user’s tokens from `@identity-base/react-client`, loads the caller’s organization memberships, and exposes helper hooks for switching organizations or managing memberships. Its built-in client sets `X-Organization-Id` on scoped admin calls once an active organization is selected, while user-membership and public invitation routes remain unscoped. Provide `apiBase` whenever the SPA’s origin differs from the Identity Host.
 
 ### 5.5 Organization Hooks in Practice
 
@@ -460,7 +460,7 @@ export function OrganizationDashboard() {
 }
 ```
 
-The provider automatically refreshes organization data when the user signs in or switches organizations, persists the active organization in `localStorage`, and attaches the `X-Organization-Id` header so downstream APIs receive the active organization context.
+The provider loads organization data when the user signs in, persists the active organization in `localStorage`, and validates a switch against the loaded memberships before changing active state. Refresh tokens explicitly after membership or role changes when downstream services depend on updated organization claims.
 
 ### 5.6 Implement Core Screens
 
@@ -470,7 +470,7 @@ The provider automatically refreshes organization data when the user signs in or
 | Login + MFA | `useLogin`, `useMfa()` | Handle `requiresTwoFactor`, drive challenge + verification steps. |
 | Forgot / Reset Password | `useForgotPassword`, `useResetPassword` | Parse `token` & `userId` query params during reset. |
 | Profile | `useProfile()` | Allow metadata updates via `authManager.updateProfile`. |
-| Organization Management | `useOrganizationList`, `useOrganizationMembers` from `@identity-base/react-organizations` | Surface CRUD and membership flows aligned with your permissions. |
+| Organization Management | `useOrganizations`, `useOrganizationMembers` from `@identity-base/react-organizations` | Use `useOrganizations().client.user` or `.client.admin` for CRUD and membership flows aligned with your permissions. |
 | Admin User Management | Direct calls to `/admin/users` (fetch, assign roles) | Include admin-only UI guards by checking `authManager.hasPermission('users.manage-roles')`. |
 | Domain APIs | Fetch from microservices such as `/orders`, `/inventory` | Attach access tokens from the React client (hooks expose `getAccessToken`). |
 

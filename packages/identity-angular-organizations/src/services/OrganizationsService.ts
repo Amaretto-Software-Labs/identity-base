@@ -272,12 +272,7 @@ export class OrganizationsService {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        let errorBody: ApiError | string | null = null
-        try {
-          errorBody = await response.json()
-        } catch {
-          errorBody = await response.text()
-        }
+        const errorBody = await readResponseBody(response)
 
         const error: ApiError = typeof errorBody === 'string' ? { detail: errorBody } : errorBody ?? {}
         error.status = response.status
@@ -305,6 +300,19 @@ export class OrganizationsService {
       }
       throw createError(error)
     }
+  }
+}
+
+async function readResponseBody(response: Response): Promise<ApiError | string | null> {
+  const rawBody = await response.text()
+  if (!rawBody) {
+    return null
+  }
+
+  try {
+    return JSON.parse(rawBody) as ApiError
+  } catch {
+    return rawBody
   }
 }
 

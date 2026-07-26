@@ -122,8 +122,26 @@ test('IdentityProvider initializes user state from /users/me', async () => {
 })
 
 test('IdentityProvider recreates IdentityAuthManager when config changes', async () => {
+  let resolveConfigB
+  const configBResponse = new Promise((resolve) => {
+    resolveConfigB = resolve
+  })
   const fetchMock = createFetchMock({
-    'GET /users/me': async () => createJsonResponse(null, 200),
+    'GET /users/me': async ({ url }) => {
+      if (new URL(url).origin === 'https://identity-b.example.com') {
+        return await configBResponse
+      }
+
+      return createJsonResponse({
+        id: 'u1',
+        email: 'alice@example.com',
+        displayName: 'Alice',
+        emailConfirmed: true,
+        metadata: {},
+        concurrencyStamp: 'cs1',
+        twoFactorEnabled: false,
+      })
+    },
   })
 
   const previousFetch = globalThis.fetch
@@ -162,6 +180,7 @@ test('IdentityProvider recreates IdentityAuthManager when config changes', async
     })
 
     const managerA = snapshot.authManager
+    assert.equal(snapshot.user.email, 'alice@example.com')
 
     act(() => {
       renderer.update(
@@ -173,11 +192,26 @@ test('IdentityProvider recreates IdentityAuthManager when config changes', async
       )
     })
 
+    assert.equal(snapshot.user, null)
+    assert.equal(snapshot.isAuthenticated, false)
+    assert.equal(snapshot.isLoading, true)
+
     await act(async () => {
+      resolveConfigB(createJsonResponse({
+        id: 'u2',
+        email: 'bob@example.com',
+        displayName: 'Bob',
+        emailConfirmed: true,
+        metadata: {},
+        concurrencyStamp: 'cs2',
+        twoFactorEnabled: false,
+      }))
       await flush()
     })
 
     assert.notEqual(snapshot.authManager, managerA)
+    assert.equal(snapshot.user.email, 'bob@example.com')
+    assert.equal(snapshot.isLoading, false)
     act(() => renderer.unmount())
   } finally {
     globalThis.fetch = previousFetch

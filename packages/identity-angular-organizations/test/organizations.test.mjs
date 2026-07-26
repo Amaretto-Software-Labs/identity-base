@@ -329,7 +329,7 @@ test('OrganizationsService surfaces API errors, invalid JSON, and timeouts as Id
     )
 
     // 2) Non-OK with JSON parsing failure, text fallback
-    globalThis.fetch = async () => makeResponse({ status: 500, json: null, text: 'server blew up' })
+    globalThis.fetch = async () => new Response('server blew up', { status: 500 })
     const service2 = new OrganizationsService(auth, active, { apiBase: 'https://identity.example.com' })
     await assert.rejects(
       () => service2.user.organizations.list(),

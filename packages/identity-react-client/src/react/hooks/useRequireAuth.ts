@@ -8,6 +8,7 @@ interface UseRequireAuthOptions {
 
 export function useRequireAuth(options: UseRequireAuthOptions = {}) {
   const { user, isAuthenticated, isLoading } = useAuth()
+  const { onUnauthenticated, redirectTo } = options
 
   useEffect(() => {
     // Don't do anything while loading
@@ -15,17 +16,17 @@ export function useRequireAuth(options: UseRequireAuthOptions = {}) {
 
     // If not authenticated, handle the redirect/callback
     if (!isAuthenticated) {
-      if (options.onUnauthenticated) {
-        options.onUnauthenticated()
-      } else if (options.redirectTo) {
-        window.location.href = options.redirectTo
+      if (onUnauthenticated) {
+        onUnauthenticated()
+      } else if (redirectTo) {
+        window.location.href = redirectTo
       } else {
         // Default behavior: redirect to login with return URL
         const returnUrl = encodeURIComponent(window.location.href)
         window.location.href = `/login?returnUrl=${returnUrl}`
       }
     }
-  }, [isAuthenticated, isLoading, options])
+  }, [isAuthenticated, isLoading, onUnauthenticated, redirectTo])
 
   // Return user only if authenticated (will be null during loading or if unauthenticated)
   return isAuthenticated ? user : null

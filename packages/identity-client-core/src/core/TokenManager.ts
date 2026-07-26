@@ -110,7 +110,7 @@ export class TokenManager {
     const isExpired = expiresAt <= now
     const refreshThreshold = now + 30 // refresh 30s before expiry to avoid race conditions
 
-    if (!this.config.autoRefresh) {
+    if (!(this.config.autoRefresh ?? true)) {
       if (isExpired) {
         this.clearTokens()
         return null
@@ -167,4 +167,3 @@ export class TokenManager {
     )
   }
 }
-
