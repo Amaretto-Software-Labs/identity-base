@@ -24,16 +24,17 @@ public sealed class ServicePrincipalService(
 {
     public async Task<ServicePrincipal> CreateAsync(string displayName, CancellationToken cancellationToken)
     {
+        var normalizedDisplayName = ServicePrincipal.NormalizeDisplayName(displayName);
         for (var attempt = 0; attempt < 10; attempt++)
         {
-            var clientId = GenerateClientId(displayName);
+            var clientId = GenerateClientId(normalizedDisplayName);
             if (await dbContext.ServicePrincipals.AnyAsync(item => item.ClientId == clientId, cancellationToken)
                 || await applicationManager.FindByClientIdAsync(clientId, cancellationToken) is not null)
             {
                 continue;
             }
 
-            return await CreateAsync(displayName, clientId, cancellationToken);
+            return await CreateAsync(normalizedDisplayName, clientId, cancellationToken);
         }
 
         throw new InvalidOperationException("Unable to generate a unique client ID.");
@@ -91,10 +92,7 @@ public sealed class ServicePrincipalService(
         DateTimeOffset? expiresAt,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            throw new ArgumentException("Credential name is required.", nameof(name));
-        }
+        var normalizedName = ServicePrincipalCredential.NormalizeName(name);
         if (expiresAt is { } expiry && expiry <= DateTimeOffset.UtcNow)
         {
             throw new ArgumentException("Credential expiry must be in the future.", nameof(expiresAt));
@@ -106,7 +104,6 @@ public sealed class ServicePrincipalService(
             throw new InvalidOperationException("Disabled service principals cannot receive credentials.");
         }
 
-        var normalizedName = name.Trim();
         if (await dbContext.ServicePrincipalCredentials.AnyAsync(
             item => item.ServicePrincipalId == servicePrincipalId && item.Name == normalizedName,
             cancellationToken))
@@ -142,6 +139,8 @@ public sealed class ServicePrincipalService(
 
     public async Task DisableAsync(Guid id, string? reason, CancellationToken cancellationToken)
     {
+        var revokedReason = ServicePrincipalCredential.NormalizeRevokedReason(
+            reason ?? "Service principal disabled.");
         var principal = await FindRequiredWithCredentialsAsync(id, cancellationToken);
         foreach (var listener in lifecycleListeners)
         {
@@ -150,7 +149,7 @@ public sealed class ServicePrincipalService(
         principal.Disable();
         foreach (var credential in principal.Credentials)
         {
-            credential.Revoke(reason ?? "Service principal disabled.");
+            credential.Revoke(revokedReason);
         }
         await dbContext.SaveChangesAsync(cancellationToken);
         await RevokeTokensAsync(principal.Id, cancellationToken);
@@ -169,19 +168,21 @@ public sealed class ServicePrincipalService(
         string? reason,
         CancellationToken cancellationToken)
     {
+        var revokedReason = ServicePrincipalCredential.NormalizeRevokedReason(reason);
         var credential = await dbContext.ServicePrincipalCredentials.SingleOrDefaultAsync(
             item => item.ServicePrincipalId == servicePrincipalId && item.Id == credentialId,
             cancellationToken) ?? throw new KeyNotFoundException("Credential was not found.");
-        credential.Revoke(reason);
+        credential.Revoke(revokedReason);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task RevokeAllCredentialsAsync(Guid servicePrincipalId, string? reason, CancellationToken cancellationToken)
     {
+        var revokedReason = ServicePrincipalCredential.NormalizeRevokedReason(reason);
         var principal = await FindRequiredWithCredentialsAsync(servicePrincipalId, cancellationToken);
         foreach (var credential in principal.Credentials)
         {
-            credential.Revoke(reason);
+            credential.Revoke(revokedReason);
         }
         await dbContext.SaveChangesAsync(cancellationToken);
         await RevokeTokensAsync(principal.Id, cancellationToken);
@@ -192,11 +193,22 @@ public sealed class ServicePrincipalService(
         _ = await FindRequiredAsync(id, cancellationToken);
         var normalized = roleNames.Where(name => !string.IsNullOrWhiteSpace(name))
             .Select(name => name.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        var roles = await roleDbContext.Roles.Where(role => normalized.Contains(role.Name)).ToListAsync(cancellationToken);
-        if (roles.Count != normalized.Length)
+        var normalizedKeys = normalized.Select(name => name.ToUpperInvariant()).ToArray();
+        var candidates = roleDbContext.Database.ProviderName?.Contains(
+                "InMemory",
+                StringComparison.OrdinalIgnoreCase) == true
+            ? roleDbContext.Roles.AsEnumerable()
+                .Where(role => normalized.Contains(role.Name, StringComparer.OrdinalIgnoreCase))
+                .ToList()
+            : await roleDbContext.Roles
+                .Where(role => normalizedKeys.Contains(role.Name.ToUpper()))
+                .ToListAsync(cancellationToken);
+        var rolesByName = candidates.ToLookup(role => role.Name, StringComparer.OrdinalIgnoreCase);
+        if (normalized.Any(name => rolesByName[name].Count() != 1))
         {
-            throw new InvalidOperationException("One or more roles do not exist.");
+            throw new InvalidOperationException("One or more roles do not exist or are ambiguous.");
         }
+        var roles = normalized.Select(name => rolesByName[name].Single()).ToArray();
 
         var existing = await roleDbContext.ServicePrincipalRoles
             .Where(item => item.ServicePrincipalId == id).ToListAsync(cancellationToken);

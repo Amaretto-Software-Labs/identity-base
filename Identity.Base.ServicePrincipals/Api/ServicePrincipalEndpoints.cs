@@ -98,13 +98,6 @@ internal static class ServicePrincipalEndpoints
         IAuditLogger auditLogger,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.DisplayName))
-        {
-            return Results.ValidationProblem(new Dictionary<string, string[]>
-            {
-                ["displayName"] = ["DisplayName is required."]
-            });
-        }
         try
         {
             var principal = await service.CreateAsync(request.DisplayName, cancellationToken);
@@ -113,6 +106,10 @@ internal static class ServicePrincipalEndpoints
             return Results.Created($"/admin/service-principals/{principal.Id:D}", new ServicePrincipalSummary(
                 principal.Id, principal.DisplayName, principal.ClientId, principal.IsDisabled,
                 principal.CreatedAt, principal.UpdatedAt, principal.ConcurrencyStamp, []));
+        }
+        catch (ArgumentException exception)
+        {
+            return ArgumentValidationProblem(exception);
         }
         catch (InvalidOperationException exception)
         {
@@ -136,11 +133,7 @@ internal static class ServicePrincipalEndpoints
             {
                 return ConcurrentModificationConflict();
             }
-            if (string.IsNullOrWhiteSpace(request.DisplayName))
-            {
-                return Results.ValidationProblem(new Dictionary<string, string[]> { ["displayName"] = ["Display name is required."] });
-            }
-            principal.UpdateDisplayName(request.DisplayName.Trim());
+            principal.UpdateDisplayName(request.DisplayName);
             await dbContext.SaveChangesAsync(cancellationToken);
             await auditLogger.LogAnonymousAsync(AuditEventTypes.AdminServicePrincipalUpdated,
                 new { principal.Id, principal.ClientId }, cancellationToken);
@@ -152,6 +145,10 @@ internal static class ServicePrincipalEndpoints
         catch (KeyNotFoundException)
         {
             return Results.NotFound();
+        }
+        catch (ArgumentException exception)
+        {
+            return ArgumentValidationProblem(exception);
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -177,6 +174,7 @@ internal static class ServicePrincipalEndpoints
             return Results.NoContent();
         }
         catch (KeyNotFoundException) { return Results.NotFound(); }
+        catch (ArgumentException exception) { return ArgumentValidationProblem(exception); }
         catch (InvalidOperationException exception)
         {
             return Results.Conflict(new ProblemDetails
@@ -247,10 +245,6 @@ internal static class ServicePrincipalEndpoints
         Guid id, IssueServicePrincipalCredentialRequest request, ServicePrincipalService service,
         IAuditLogger auditLogger, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Name) || request.ExpiresAt <= DateTimeOffset.UtcNow)
-        {
-            return Results.ValidationProblem(new Dictionary<string, string[]> { ["credential"] = ["A name and future expiry are required."] });
-        }
         try
         {
             var issued = await service.IssueCredentialAsync(id, request.Name, request.ExpiresAt, cancellationToken);
@@ -261,6 +255,7 @@ internal static class ServicePrincipalEndpoints
                     issued.Credential.CreatedAt, issued.Credential.ExpiresAt));
         }
         catch (KeyNotFoundException) { return Results.NotFound(); }
+        catch (ArgumentException exception) { return ArgumentValidationProblem(exception); }
         catch (InvalidOperationException exception)
         {
             return Results.Conflict(new ProblemDetails { Detail = exception.Message });
@@ -279,6 +274,7 @@ internal static class ServicePrincipalEndpoints
             return Results.NoContent();
         }
         catch (KeyNotFoundException) { return Results.NotFound(); }
+        catch (ArgumentException exception) { return ArgumentValidationProblem(exception); }
     }
 
     private static async Task<IResult> RevokeAllCredentialsAsync(
@@ -293,7 +289,14 @@ internal static class ServicePrincipalEndpoints
             return Results.NoContent();
         }
         catch (KeyNotFoundException) { return Results.NotFound(); }
+        catch (ArgumentException exception) { return ArgumentValidationProblem(exception); }
     }
+
+    private static IResult ArgumentValidationProblem(ArgumentException exception) =>
+        Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            [exception.ParamName ?? "request"] = [exception.Message]
+        });
 
     private static Task<List<string>> GetRoleNamesAsync(
         Guid id, IRoleDbContext roleDbContext, CancellationToken cancellationToken) =>

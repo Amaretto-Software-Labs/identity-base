@@ -44,12 +44,34 @@ public sealed class ServicePrincipalServiceTests
     {
         await using var fixture = new Fixture();
 
-        var first = await fixture.Service.CreateAsync("Claims Automation", default);
+        var first = await fixture.Service.CreateAsync("  Claims Automation  ", default);
         var second = await fixture.Service.CreateAsync("Claims Automation", default);
 
+        first.DisplayName.ShouldBe("Claims Automation");
         first.ClientId.ShouldStartWith("claims-automation-");
         second.ClientId.ShouldStartWith("claims-automation-");
         second.ClientId.ShouldNotBe(first.ClientId);
+    }
+
+    [Fact]
+    public async Task Create_RejectsOversizedValuesBeforeOpenIddictRegistration()
+    {
+        await using var fixture = new Fixture();
+
+        var displayNameException = await Should.ThrowAsync<ArgumentException>(() =>
+            fixture.Service.CreateAsync(
+                new string('d', ServicePrincipal.MaxDisplayNameLength + 1),
+                default));
+        var clientIdException = await Should.ThrowAsync<ArgumentException>(() =>
+            fixture.Service.CreateAsync(
+                "Automation",
+                new string('c', ServicePrincipal.MaxClientIdLength + 1),
+                default));
+
+        displayNameException.ParamName.ShouldBe("displayName");
+        clientIdException.ParamName.ShouldBe("clientId");
+        await fixture.ApplicationManager.DidNotReceiveWithAnyArgs()
+            .CreateAsync(default!, default);
     }
 
     [Fact]
@@ -101,6 +123,69 @@ public sealed class ServicePrincipalServiceTests
 
         exception.ParamName.ShouldBe("expiresAt");
         (await fixture.Principals.ServicePrincipalCredentials.CountAsync()).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task IssueCredential_RejectsOversizedName()
+    {
+        await using var fixture = new Fixture();
+        var principal = await fixture.AddPrincipalAsync();
+
+        var exception = await Should.ThrowAsync<ArgumentException>(() =>
+            fixture.Service.IssueCredentialAsync(
+                principal.Id,
+                new string('n', ServicePrincipalCredential.MaxNameLength + 1),
+                null,
+                default));
+
+        exception.ParamName.ShouldBe("name");
+        (await fixture.Principals.ServicePrincipalCredentials.CountAsync()).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ReplaceRoles_MatchesRoleNamesIgnoringCase()
+    {
+        await using var fixture = new Fixture();
+        var principal = await fixture.AddPrincipalAsync();
+        var role = new Role { Name = "Deployer" };
+        fixture.Roles.Roles.Add(role);
+        await fixture.Roles.SaveChangesAsync();
+
+        await fixture.Service.ReplaceRolesAsync(principal.Id, ["deployer"], default);
+
+        var assignment = await fixture.Roles.ServicePrincipalRoles.SingleAsync();
+        assignment.RoleId.ShouldBe(role.Id);
+    }
+
+    [Fact]
+    public async Task RevokeCredential_RejectsOversizedReason()
+    {
+        await using var fixture = new Fixture();
+        var principal = await fixture.AddPrincipalAsync();
+        var issued = await fixture.Service.IssueCredentialAsync(principal.Id, "primary", null, default);
+
+        var exception = await Should.ThrowAsync<ArgumentException>(() =>
+            fixture.Service.RevokeCredentialAsync(
+                principal.Id,
+                issued.Credential.Id,
+                new string('r', ServicePrincipalCredential.MaxRevokedReasonLength + 1),
+                default));
+
+        exception.ParamName.ShouldBe("reason");
+        issued.Credential.RevokedAt.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Credential_RevokeRejectsOversizedReasonWithoutMutation()
+    {
+        var credential = new ServicePrincipalCredential(Guid.NewGuid(), "primary", "hash", null);
+
+        var exception = Should.Throw<ArgumentException>(() =>
+            credential.Revoke(new string('r', ServicePrincipalCredential.MaxRevokedReasonLength + 1)));
+
+        exception.ParamName.ShouldBe("reason");
+        credential.RevokedAt.ShouldBeNull();
+        credential.RevokedReason.ShouldBeNull();
     }
 
     [Fact]

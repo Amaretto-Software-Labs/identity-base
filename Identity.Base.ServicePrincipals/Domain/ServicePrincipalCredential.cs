@@ -2,12 +2,15 @@ namespace Identity.Base.ServicePrincipals.Domain;
 
 public sealed class ServicePrincipalCredential
 {
+    public const int MaxNameLength = 128;
+    public const int MaxRevokedReasonLength = 256;
+
     private ServicePrincipalCredential() { }
 
     public ServicePrincipalCredential(Guid servicePrincipalId, string name, string secretHash, DateTimeOffset? expiresAt)
     {
         ServicePrincipalId = servicePrincipalId;
-        Name = name;
+        Name = NormalizeName(name);
         SecretHash = secretHash;
         ExpiresAt = expiresAt;
     }
@@ -32,7 +35,38 @@ public sealed class ServicePrincipalCredential
             return;
         }
 
+        var normalizedReason = NormalizeRevokedReason(reason);
         RevokedAt = DateTimeOffset.UtcNow;
-        RevokedReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+        RevokedReason = normalizedReason;
+    }
+
+    internal static string NormalizeName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Credential name is required.", nameof(name));
+        }
+
+        var normalized = name.Trim();
+        return normalized.Length <= MaxNameLength
+            ? normalized
+            : throw new ArgumentException(
+                $"Credential name cannot exceed {MaxNameLength} characters.",
+                nameof(name));
+    }
+
+    internal static string? NormalizeRevokedReason(string? reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return null;
+        }
+
+        var normalized = reason.Trim();
+        return normalized.Length <= MaxRevokedReasonLength
+            ? normalized
+            : throw new ArgumentException(
+                $"Revocation reason cannot exceed {MaxRevokedReasonLength} characters.",
+                nameof(reason));
     }
 }

@@ -24,8 +24,8 @@ public class ServicePrincipalDbContext(
             entity.ToTable(IdentityDbNamingHelper.Table(prefix, "ServicePrincipals"));
             entity.HasKey(item => item.Id);
             entity.Property(item => item.Id).ValueGeneratedNever();
-            entity.Property(item => item.DisplayName).IsRequired().HasMaxLength(200);
-            entity.Property(item => item.ClientId).IsRequired().HasMaxLength(200);
+            entity.Property(item => item.DisplayName).IsRequired().HasMaxLength(ServicePrincipal.MaxDisplayNameLength);
+            entity.Property(item => item.ClientId).IsRequired().HasMaxLength(ServicePrincipal.MaxClientIdLength);
             entity.Property(item => item.ConcurrencyStamp).IsRequired().HasMaxLength(64).IsConcurrencyToken();
             entity.HasIndex(item => item.ClientId)
                 .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "ServicePrincipals_ClientId"))
@@ -37,9 +37,9 @@ public class ServicePrincipalDbContext(
             entity.ToTable(IdentityDbNamingHelper.Table(prefix, "ServicePrincipalCredentials"));
             entity.HasKey(item => item.Id);
             entity.Property(item => item.Id).ValueGeneratedNever();
-            entity.Property(item => item.Name).IsRequired().HasMaxLength(128);
+            entity.Property(item => item.Name).IsRequired().HasMaxLength(ServicePrincipalCredential.MaxNameLength);
             entity.Property(item => item.SecretHash).IsRequired().HasMaxLength(512);
-            entity.Property(item => item.RevokedReason).HasMaxLength(256);
+            entity.Property(item => item.RevokedReason).HasMaxLength(ServicePrincipalCredential.MaxRevokedReasonLength);
             entity.HasIndex(item => new { item.ServicePrincipalId, item.Name })
                 .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "ServicePrincipalCredentials_Principal_Name"))
                 .IsUnique();

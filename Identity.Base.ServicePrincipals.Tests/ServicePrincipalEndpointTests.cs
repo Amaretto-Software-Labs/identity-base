@@ -105,6 +105,41 @@ public sealed class ServicePrincipalEndpointTests
     }
 
     [Fact]
+    public async Task CreateAndUpdate_ReturnValidationForOversizedDisplayNames()
+    {
+        var auditLogger = Substitute.For<IAuditLogger>();
+        await using var app = BuildTestApplication(
+            $"endpoint-display-name-{Guid.NewGuid():N}",
+            $"endpoint-display-name-roles-{Guid.NewGuid():N}",
+            auditLogger);
+
+        await using var scope = app.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ServicePrincipalDbContext>();
+        var principal = new ServicePrincipal("Automation", "automation");
+        dbContext.ServicePrincipals.Add(principal);
+        await dbContext.SaveChangesAsync();
+
+        await app.StartAsync();
+        using var client = app.GetTestClient();
+        var oversizedDisplayName = new string('d', ServicePrincipal.MaxDisplayNameLength + 1);
+        var createResponse = await client.PostAsJsonAsync("/admin/service-principals", new
+        {
+            displayName = oversizedDisplayName
+        });
+        var updateResponse = await client.PutAsJsonAsync($"/admin/service-principals/{principal.Id:D}", new
+        {
+            displayName = oversizedDisplayName,
+            concurrencyStamp = principal.ConcurrencyStamp
+        });
+
+        ((int)createResponse.StatusCode).ShouldBe(StatusCodes.Status400BadRequest);
+        ((int)updateResponse.StatusCode).ShouldBe(StatusCodes.Status400BadRequest);
+        (await createResponse.Content.ReadAsStringAsync()).ShouldContain("displayName");
+        (await updateResponse.Content.ReadAsStringAsync()).ShouldContain("displayName");
+        await auditLogger.DidNotReceiveWithAnyArgs().LogAnonymousAsync(default!, default!, default);
+    }
+
+    [Fact]
     public async Task PutRoles_ReturnsAndAuditsPersistedRoleNames()
     {
         var auditLogger = Substitute.For<IAuditLogger>();
@@ -168,6 +203,65 @@ public sealed class ServicePrincipalEndpointTests
         ((int)response.StatusCode).ShouldBe(StatusCodes.Status201Created);
         responseBody.ShouldNotBeNull();
         responseBody.ExpiresAt.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task IssueCredential_ReturnsFieldSpecificValidationErrors()
+    {
+        var auditLogger = Substitute.For<IAuditLogger>();
+        await using var app = BuildTestApplication(
+            $"endpoint-invalid-credential-{Guid.NewGuid():N}",
+            $"endpoint-invalid-credential-roles-{Guid.NewGuid():N}",
+            auditLogger);
+
+        await using var scope = app.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ServicePrincipalDbContext>();
+        var principal = new ServicePrincipal("Automation", "automation");
+        dbContext.ServicePrincipals.Add(principal);
+        await dbContext.SaveChangesAsync();
+
+        await app.StartAsync();
+        using var client = app.GetTestClient();
+        var nameResponse = await client.PostAsJsonAsync(
+            $"/admin/service-principals/{principal.Id:D}/credentials",
+            new { name = " ", expiresAt = (DateTimeOffset?)null });
+        var expiryResponse = await client.PostAsJsonAsync(
+            $"/admin/service-principals/{principal.Id:D}/credentials",
+            new { name = "expired", expiresAt = DateTimeOffset.UtcNow.AddMinutes(-1) });
+
+        ((int)nameResponse.StatusCode).ShouldBe(StatusCodes.Status400BadRequest);
+        ((int)expiryResponse.StatusCode).ShouldBe(StatusCodes.Status400BadRequest);
+        (await nameResponse.Content.ReadAsStringAsync()).ShouldContain("\"name\"");
+        (await expiryResponse.Content.ReadAsStringAsync()).ShouldContain("\"expiresAt\"");
+    }
+
+    [Fact]
+    public async Task RevokeCredential_ReturnsValidationForOversizedReason()
+    {
+        var auditLogger = Substitute.For<IAuditLogger>();
+        await using var app = BuildTestApplication(
+            $"endpoint-revoke-reason-{Guid.NewGuid():N}",
+            $"endpoint-revoke-reason-roles-{Guid.NewGuid():N}",
+            auditLogger);
+
+        await using var scope = app.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ServicePrincipalDbContext>();
+        var service = scope.ServiceProvider.GetRequiredService<ServicePrincipalService>();
+        var principal = new ServicePrincipal("Automation", "automation");
+        dbContext.ServicePrincipals.Add(principal);
+        await dbContext.SaveChangesAsync();
+        var issued = await service.IssueCredentialAsync(principal.Id, "primary", null, default);
+
+        await app.StartAsync();
+        using var client = app.GetTestClient();
+        var response = await client.PostAsJsonAsync(
+            $"/admin/service-principals/{principal.Id:D}/credentials/{issued.Credential.Id:D}/revoke",
+            new { reason = new string('r', ServicePrincipalCredential.MaxRevokedReasonLength + 1) });
+
+        ((int)response.StatusCode).ShouldBe(StatusCodes.Status400BadRequest);
+        (await response.Content.ReadAsStringAsync()).ShouldContain("\"reason\"");
+        issued.Credential.RevokedAt.ShouldBeNull();
+        await auditLogger.DidNotReceiveWithAnyArgs().LogAnonymousAsync(default!, default!, default);
     }
 
     [Fact]
