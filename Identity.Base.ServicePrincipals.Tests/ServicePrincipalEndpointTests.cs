@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -233,6 +234,37 @@ public sealed class ServicePrincipalEndpointTests
         ((int)expiryResponse.StatusCode).ShouldBe(StatusCodes.Status400BadRequest);
         (await nameResponse.Content.ReadAsStringAsync()).ShouldContain("\"name\"");
         (await expiryResponse.Content.ReadAsStringAsync()).ShouldContain("\"expiresAt\"");
+    }
+
+    [Fact]
+    public async Task IssueCredential_ReturnsConflictStatusInProblemDetails()
+    {
+        var auditLogger = Substitute.For<IAuditLogger>();
+        await using var app = BuildTestApplication(
+            $"endpoint-duplicate-credential-{Guid.NewGuid():N}",
+            $"endpoint-duplicate-credential-roles-{Guid.NewGuid():N}",
+            auditLogger);
+
+        await using var scope = app.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ServicePrincipalDbContext>();
+        var service = scope.ServiceProvider.GetRequiredService<ServicePrincipalService>();
+        var principal = new ServicePrincipal("Automation", "automation");
+        dbContext.ServicePrincipals.Add(principal);
+        await dbContext.SaveChangesAsync();
+        await service.IssueCredentialAsync(principal.Id, "primary", null, default);
+
+        await app.StartAsync();
+        using var client = app.GetTestClient();
+        var response = await client.PostAsJsonAsync(
+            $"/admin/service-principals/{principal.Id:D}/credentials",
+            new { name = "primary", expiresAt = (DateTimeOffset?)null });
+
+        var responseBody = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        ((int)response.StatusCode).ShouldBe(StatusCodes.Status409Conflict);
+        responseBody.ShouldNotBeNull();
+        responseBody.Status.ShouldBe(StatusCodes.Status409Conflict);
+        responseBody.Detail.ShouldBe("Credential name already exists.");
+        await auditLogger.DidNotReceiveWithAnyArgs().LogAnonymousAsync(default!, default!, default);
     }
 
     [Fact]

@@ -258,7 +258,11 @@ internal static class ServicePrincipalEndpoints
         catch (ArgumentException exception) { return ArgumentValidationProblem(exception); }
         catch (InvalidOperationException exception)
         {
-            return Results.Conflict(new ProblemDetails { Detail = exception.Message });
+            return Results.Conflict(new ProblemDetails
+            {
+                Detail = exception.Message,
+                Status = StatusCodes.Status409Conflict
+            });
         }
     }
 
