@@ -121,6 +121,34 @@ public class PasswordGrantFlowTests : IClassFixture<IdentityApiFactory>
     }
 
     [Fact]
+    public async Task ClientCredentialsGrant_Fails_ForConfidentialClientWithoutSecret()
+    {
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        client.BaseAddress ??= new Uri("https://localhost");
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/connect/token")
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = OpenIddictConstants.GrantTypes.ClientCredentials,
+                ["client_id"] = "test-client",
+                ["scope"] = "identity.api"
+            })
+        };
+
+        using var response = await client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var json = await response.Content.ReadFromJsonAsync<JsonDocument>();
+        json.ShouldNotBeNull();
+        json!.RootElement.GetProperty("error").GetString().ShouldBe(OpenIddictConstants.Errors.InvalidRequest);
+    }
+
+    [Fact]
     public async Task ClientCredentialsGrant_Fails_ForDisallowedClient()
     {
         using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions

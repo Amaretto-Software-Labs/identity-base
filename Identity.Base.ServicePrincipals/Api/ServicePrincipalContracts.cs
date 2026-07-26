@@ -40,4 +40,6 @@ public sealed record UpdateServicePrincipalRequest(string DisplayName, string Co
 public sealed record ServicePrincipalRolesResponse(IReadOnlyList<string> Roles);
 public sealed record UpdateServicePrincipalRolesRequest(IReadOnlyList<string>? Roles);
 public sealed record IssueServicePrincipalCredentialRequest(string Name, DateTimeOffset? ExpiresAt);
+public sealed record DisableServicePrincipalRequest(string? Reason);
 public sealed record RevokeServicePrincipalCredentialRequest(string? Reason);
+public sealed record RevokeAllServicePrincipalCredentialsRequest(string? Reason);

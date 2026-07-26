@@ -167,7 +167,7 @@ internal static class ServicePrincipalEndpoints
         });
 
     private static async Task<IResult> DisableAsync(
-        Guid id, RevokeServicePrincipalCredentialRequest? request, ServicePrincipalService service,
+        Guid id, DisableServicePrincipalRequest? request, ServicePrincipalService service,
         IAuditLogger auditLogger, CancellationToken cancellationToken)
     {
         try
@@ -285,7 +285,7 @@ internal static class ServicePrincipalEndpoints
     }
 
     private static async Task<IResult> RevokeAllCredentialsAsync(
-        Guid id, RevokeServicePrincipalCredentialRequest? request, ServicePrincipalService service,
+        Guid id, RevokeAllServicePrincipalCredentialsRequest? request, ServicePrincipalService service,
         IAuditLogger auditLogger, CancellationToken cancellationToken)
     {
         try
