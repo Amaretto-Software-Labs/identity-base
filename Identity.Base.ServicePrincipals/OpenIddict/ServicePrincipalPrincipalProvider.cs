@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Identity.Base.OpenIddict;
 using Identity.Base.Roles.Abstractions;
+using Identity.Base.Roles.Claims;
 using Identity.Base.ServicePrincipals.Data;
 using Identity.Base.ServicePrincipals.Options;
 using Microsoft.EntityFrameworkCore;
@@ -49,9 +50,14 @@ internal sealed class ServicePrincipalPrincipalProvider(
         principal.SetClaim(OpenIddictConstants.Claims.ClientId, servicePrincipal.ClientId);
         principal.SetClaim(OpenIddictConstants.Claims.Name, servicePrincipal.DisplayName);
         principal.SetClaim("identity.principal_type", "ServicePrincipal");
-        foreach (var permission in permissions)
+        var permissionClaim = string.Join(' ', permissions
+            .Where(permission => !string.IsNullOrWhiteSpace(permission))
+            .Select(permission => permission.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(permission => permission, StringComparer.OrdinalIgnoreCase));
+        if (permissionClaim.Length > 0)
         {
-            identity.AddClaim(new Claim("identity.permissions", permission));
+            identity.AddClaim(new Claim(RoleClaimTypes.Permissions, permissionClaim));
         }
         principal.SetAccessTokenLifetime(options.Value.AccessTokenLifetime);
         return principal;

@@ -1,6 +1,7 @@
 using Identity.Base.OpenIddict;
 using Identity.Base.Roles;
 using Identity.Base.Roles.Abstractions;
+using Identity.Base.Roles.Claims;
 using Identity.Base.Roles.Entities;
 using Identity.Base.ServicePrincipals.Data;
 using Identity.Base.ServicePrincipals.Domain;
@@ -255,8 +256,15 @@ public sealed class ServicePrincipalServiceTests
         var principals = scope.ServiceProvider.GetRequiredService<ServicePrincipalDbContext>();
         var roles = scope.ServiceProvider.GetRequiredService<IdentityRolesDbContext>();
         var principal = new ServicePrincipal("Build agent", "build-agent");
-        var permission = new Permission { Name = "deployments.run" };
-        var role = new Role { Name = "deployer", RolePermissions = [new RolePermission { Permission = permission }] };
+        var role = new Role
+        {
+            Name = "deployer",
+            RolePermissions =
+            [
+                new RolePermission { Permission = new Permission { Name = " deployments.run " } },
+                new RolePermission { Permission = new Permission { Name = "Artifacts.Read" } }
+            ]
+        };
         principals.ServicePrincipals.Add(principal);
         roles.Roles.Add(role);
         roles.ServicePrincipalRoles.Add(new ServicePrincipalRole { ServicePrincipalId = principal.Id, Role = role });
@@ -269,7 +277,8 @@ public sealed class ServicePrincipalServiceTests
         claimsPrincipal.ShouldNotBeNull();
         claimsPrincipal.GetClaim(OpenIddictConstants.Claims.Subject).ShouldBe(principal.Id.ToString("D"));
         claimsPrincipal.GetClaim("identity.principal_type").ShouldBe("ServicePrincipal");
-        claimsPrincipal.FindAll("identity.permissions").Select(claim => claim.Value).ShouldContain("deployments.run");
+        claimsPrincipal.FindAll(RoleClaimTypes.Permissions).Single().Value
+            .ShouldBe("Artifacts.Read deployments.run");
         claimsPrincipal.GetAccessTokenLifetime().ShouldBe(TimeSpan.FromMinutes(15));
     }
 
