@@ -14,20 +14,32 @@ Opt-in managed machine identities for Identity Base:
 ## Quick Start
 
 ```csharp
+var configureDbContext =
+    new Action<IServiceProvider, DbContextOptionsBuilder>((sp, options) =>
+    {
+        var connectionString = sp.GetRequiredService<IConfiguration>()
+            .GetConnectionString("Primary")
+            ?? throw new InvalidOperationException("ConnectionStrings:Primary must be set.");
+
+        options.UseNpgsql(connectionString); // or UseSqlServer(connectionString)
+    });
+
 builder.Services.AddIdentityBase(
     builder.Configuration,
     builder.Environment,
     configureDbContext: configureDbContext);
-builder.Services.AddIdentityAdmin(builder.Configuration, configureRolesDbContext);
+builder.Services.AddIdentityAdmin(builder.Configuration, configureDbContext);
 builder.Services.AddIdentityBaseServicePrincipals(
     builder.Configuration,
-    configureServicePrincipalDbContext);
+    configureDbContext);
 
 var app = builder.Build();
 app.MapApiEndpoints();
 app.MapIdentityAdminEndpoints();
 app.MapIdentityBaseServicePrincipalEndpoints();
 ```
+
+Use separate delegates when a host needs different migrations assemblies or provider options for each context.
 
 The host owns migrations for both `ServicePrincipalDbContext` and the extended `IdentityRolesDbContext`. Configure defaults under `Identity:ServicePrincipals`:
 
