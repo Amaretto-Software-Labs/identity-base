@@ -8,8 +8,10 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Shouldly;
 using Identity.Base.Identity;
+using Identity.Base.Options;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Identity;
 using Xunit;
@@ -180,6 +182,34 @@ public class UserEndpointsTests : IClassFixture<IdentityApiFactory>
         using var document = JsonDocument.Parse(payload);
         document.RootElement.GetProperty("email").GetString().ShouldBe(email);
         document.RootElement.GetProperty("concurrencyStamp").GetString().ShouldNotBeNullOrWhiteSpace();
+        document.RootElement.GetProperty("createdAt").GetDateTimeOffset().ShouldNotBe(default);
+    }
+
+    [Fact]
+    public async Task GetCurrentUser_UsesConfiguredFullName_WhenStoredDisplayNameIsEmpty()
+    {
+        const string email = "users-me-existing-full-name@example.com";
+        const string password = "StrongPass!2345";
+
+        using var factory = CreateFullNameFactory();
+        await SeedUserAsync(factory, email, password, confirmEmail: true);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await userManager.FindByEmailAsync(email);
+            user.ShouldNotBeNull();
+            user!.DisplayName = null;
+            user.SetProfileMetadata(new Dictionary<string, string?> { ["fullName"] = "Existing Full Name" });
+            (await userManager.UpdateAsync(user)).Succeeded.ShouldBeTrue();
+        }
+
+        using var client = await CreateAuthenticatedClientAsync(factory, email, password);
+        var response = await client.GetAsync("/users/me");
+        var payload = await response.Content.ReadAsStringAsync();
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, payload);
+
+        using var document = JsonDocument.Parse(payload);
+        document.RootElement.GetProperty("displayName").GetString().ShouldBe("Existing Full Name");
     }
 
     [Fact]
@@ -227,9 +257,44 @@ public class UserEndpointsTests : IClassFixture<IdentityApiFactory>
         document.RootElement.GetProperty("metadata").GetProperty("company").GetString().ShouldBe(updatedCompany);
     }
 
-    private async Task SeedUserAsync(string email, string password, bool confirmEmail)
+    [Fact]
+    public async Task UpdateProfile_UsesFullNameAsDisplayName()
     {
-        using var scope = _factory.Services.CreateScope();
+        const string email = "users-me-full-name@example.com";
+        const string password = "StrongPass!2345";
+        const string fullName = "Full Name User";
+
+        using var factory = CreateFullNameFactory();
+        await SeedUserAsync(factory, email, password, confirmEmail: true);
+
+        using var client = await CreateAuthenticatedClientAsync(factory, email, password);
+        var meResponse = await client.GetAsync("/users/me");
+        using var meDocument = JsonDocument.Parse(await meResponse.Content.ReadAsStringAsync());
+        var concurrencyStamp = meDocument.RootElement.GetProperty("concurrencyStamp").GetString();
+
+        var response = await client.PutAsJsonAsync("/users/me/profile", new
+        {
+            concurrencyStamp,
+            metadata = new { fullName }
+        }, JsonOptions);
+
+        var payload = await response.Content.ReadAsStringAsync();
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, payload);
+        using var document = JsonDocument.Parse(payload);
+        document.RootElement.GetProperty("displayName").GetString().ShouldBe(fullName);
+        document.RootElement.GetProperty("createdAt").GetDateTimeOffset().ShouldNotBe(default);
+    }
+
+    private async Task SeedUserAsync(string email, string password, bool confirmEmail)
+        => await SeedUserAsync(_factory, email, password, confirmEmail);
+
+    private static async Task SeedUserAsync(
+        WebApplicationFactory<Program> factory,
+        string email,
+        string password,
+        bool confirmEmail)
+    {
+        using var scope = factory.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
         var user = await userManager.FindByEmailAsync(email);
@@ -256,8 +321,14 @@ public class UserEndpointsTests : IClassFixture<IdentityApiFactory>
     }
 
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string email, string password)
+        => await CreateAuthenticatedClientAsync(_factory, email, password);
+
+    private static async Task<HttpClient> CreateAuthenticatedClientAsync(
+        WebApplicationFactory<Program> factory,
+        string email,
+        string password)
     {
-        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost"),
             HandleCookies = true,
@@ -276,4 +347,25 @@ public class UserEndpointsTests : IClassFixture<IdentityApiFactory>
 
         return client;
     }
+
+    private WebApplicationFactory<Program> CreateFullNameFactory()
+        => _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureTestServices(services =>
+            {
+                services.PostConfigure<RegistrationOptions>(options =>
+                {
+                    options.ProfileFields = new List<RegistrationProfileFieldOptions>
+                    {
+                        new()
+                        {
+                            Name = "fullName",
+                            DisplayName = "Full name",
+                            Required = true,
+                            MaxLength = 128
+                        }
+                    };
+                });
+            });
+        });
 }

@@ -55,6 +55,7 @@ public static class UserEndpoints
     private static async Task<IResult> GetCurrentUserAsync(
         HttpContext context,
         UserManager<ApplicationUser> userManager,
+        IOptions<RegistrationOptions> registrationOptions,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -65,14 +66,20 @@ public static class UserEndpoints
             return Results.Unauthorized();
         }
 
+        var metadata = user.ProfileMetadata.Values;
+        var displayName = !string.IsNullOrWhiteSpace(user.DisplayName)
+            ? user.DisplayName
+            : IdentityDisplayNameResolver.Resolve(metadata, registrationOptions.Value.ProfileFields);
+
         return Results.Ok(new UserProfileResponse(
             user.Id,
             user.Email,
             user.EmailConfirmed,
-            user.DisplayName,
-            user.ProfileMetadata.Values,
+            displayName,
+            metadata,
             user.ConcurrencyStamp ?? string.Empty,
-            user.TwoFactorEnabled));
+            user.TwoFactorEnabled,
+            user.CreatedAt));
     }
 
     private static async Task<IResult> UpdateProfileAsync(
@@ -130,7 +137,8 @@ public static class UserEndpoints
 
         user.SetProfileMetadata(normalized);
 
-        if (normalized.TryGetValue("displayName", out var displayName) && !string.IsNullOrWhiteSpace(displayName))
+        var displayName = IdentityDisplayNameResolver.Resolve(normalized, fields);
+        if (!string.IsNullOrWhiteSpace(displayName))
         {
             user.DisplayName = displayName.Trim();
         }
@@ -160,7 +168,8 @@ public static class UserEndpoints
             user.DisplayName,
             user.ProfileMetadata.Values,
             user.ConcurrencyStamp ?? string.Empty,
-            user.TwoFactorEnabled));
+            user.TwoFactorEnabled,
+            user.CreatedAt));
     }
 
     private static async Task<IResult> ChangePasswordAsync(
@@ -245,7 +254,8 @@ internal sealed record UserProfileResponse(
     string? DisplayName,
     IReadOnlyDictionary<string, string?> Metadata,
     string ConcurrencyStamp,
-    bool TwoFactorEnabled);
+    bool TwoFactorEnabled,
+    DateTimeOffset CreatedAt);
 
 internal sealed class UpdateProfileRequest
 {

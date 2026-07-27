@@ -3,6 +3,8 @@ using System.Net.Http.Json;
 using Shouldly;
 using Identity.Base.Data;
 using Identity.Base.Features.Email;
+using Identity.Base.Options;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -52,10 +54,53 @@ public class RegistrationEndpointTests : IClassFixture<IdentityApiFactory>
         createdUser.ProfileMetadata.Values.ShouldContainKey("company");
         createdUser.ProfileMetadata.Values["company"].ShouldBe("Acme");
 
-        var email = _factory.EmailSender.Sent.ShouldHaveSingleItem();
+        var email = _factory.EmailSender.Sent
+            .Where(item => item.ToEmail == uniqueEmail)
+            .ShouldHaveSingleItem();
         email.ToEmail.ShouldBe(uniqueEmail);
         email.TemplateKey.ShouldBe(TemplatedEmailKeys.AccountConfirmation);
         email.Variables.ShouldContainKey("confirmationUrl");
+    }
+
+    [Fact]
+    public async Task RegisterUser_UsesConfiguredFullNameAsDisplayName()
+    {
+        using var factory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureTestServices(services =>
+            {
+                services.PostConfigure<RegistrationOptions>(options =>
+                {
+                    options.ProfileFields = new List<RegistrationProfileFieldOptions>
+                    {
+                        new()
+                        {
+                            Name = "fullName",
+                            DisplayName = "Full name",
+                            Required = true,
+                            MaxLength = 128
+                        }
+                    };
+                });
+            });
+        });
+        using var client = factory.CreateClient();
+        var uniqueEmail = $"full-name-{Guid.NewGuid():N}@example.com";
+
+        var response = await client.PostAsJsonAsync("/auth/register", new
+        {
+            email = uniqueEmail,
+            password = "Passw0rd!Passw0rd!",
+            metadata = new { fullName = "Configured Full Name" }
+        });
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+        response.StatusCode.ShouldBe(HttpStatusCode.Accepted, responseBody);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var createdUser = await dbContext.Users.SingleAsync(user => user.Email == uniqueEmail);
+        createdUser.DisplayName.ShouldBe("Configured Full Name");
     }
 
     [Fact]
