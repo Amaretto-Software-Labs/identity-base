@@ -110,13 +110,7 @@ public static class RegisterUserEndpoint
     }
 
     private static string? ResolveDisplayName(RegisterUserRequest request, RegistrationOptions options)
-    {
-        var preferredField = options.ProfileFields.FirstOrDefault(field => field.Name.Equals("displayName", StringComparison.OrdinalIgnoreCase));
-        if (preferredField is not null && request.Metadata.TryGetValue(preferredField.Name, out var displayName) && !string.IsNullOrWhiteSpace(displayName))
-        {
-            return displayName;
-        }
-
-        return null;
-    }
+        => IdentityDisplayNameResolver.Resolve(
+            new Dictionary<string, string?>(request.Metadata, StringComparer.OrdinalIgnoreCase),
+            options.ProfileFields);
 }
