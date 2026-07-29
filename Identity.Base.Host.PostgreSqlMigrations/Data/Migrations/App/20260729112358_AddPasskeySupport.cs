@@ -64,6 +64,7 @@ namespace Identity.Base.Host.PostgreSqlMigrations.Data.Migrations.App
                 name: "Host_UserPasskeys",
                 columns: table => new
                 {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
                     CredentialId = table.Column<byte[]>(type: "bytea", maxLength: 1024, nullable: false),
                     ConcurrencyStamp = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
                     UserId = table.Column<Guid>(type: "uuid", nullable: false),
@@ -71,7 +72,7 @@ namespace Identity.Base.Host.PostgreSqlMigrations.Data.Migrations.App
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Host_UserPasskeys", x => x.CredentialId);
+                    table.PrimaryKey("PK_Host_UserPasskeys", x => x.Id);
                     table.ForeignKey(
                         name: "FK_Host_UserPasskeys_Host_Users_UserId",
                         column: x => x.UserId,
@@ -100,6 +101,12 @@ namespace Identity.Base.Host.PostgreSqlMigrations.Data.Migrations.App
                 name: "IX_Host_PasskeyRegistrationDrafts_NormalizedEmail",
                 table: "Host_PasskeyRegistrationDrafts",
                 column: "NormalizedEmail",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Host_UserPasskeys_CredentialId",
+                table: "Host_UserPasskeys",
+                column: "CredentialId",
                 unique: true);
 
             migrationBuilder.CreateIndex(

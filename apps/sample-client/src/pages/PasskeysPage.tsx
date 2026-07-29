@@ -218,6 +218,12 @@ function PasskeyManagement() {
   const { passkeys, create, rename, remove, isLoading, error } = usePasskeys()
   const [name, setName] = useState('Another passkey')
   const [renameValue, setRenameValue] = useState<Record<string, string>>({})
+  const [pendingRemovalId, setPendingRemovalId] = useState<string | null>(null)
+
+  const confirmRemoval = async (id: string) => {
+    await remove(id)
+    setPendingRemovalId(null)
+  }
 
   return (
     <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-5">
@@ -246,27 +252,57 @@ function PasskeyManagement() {
                 {passkey.isBackedUp ? 'Synced/backed up' : 'Not reported as backed up'}
               </span>
             </div>
-            <div className="flex gap-2">
-              <input
-                aria-label={`Rename ${passkey.name}`}
-                value={renameValue[passkey.id] ?? passkey.name}
-                onChange={event => setRenameValue(previous => ({
-                  ...previous,
-                  [passkey.id]: event.target.value,
-                }))}
-                className="min-w-0 flex-1 rounded-md border border-slate-300 px-3 py-1 text-sm"
-              />
-              <button
-                type="button"
-                onClick={() => void rename(passkey, renameValue[passkey.id] ?? passkey.name)}
-                className="text-sm text-slate-700"
+            {pendingRemovalId === passkey.id ? (
+              <div
+                role="group"
+                aria-label={`Confirm removal of ${passkey.name}`}
+                className="flex flex-wrap items-center gap-2 rounded-md bg-red-50 p-2"
               >
-                Rename
-              </button>
-              <button type="button" onClick={() => void remove(passkey.id)} className="text-sm text-red-700">
-                Remove
-              </button>
-            </div>
+                <span className="mr-auto text-sm text-red-800">
+                  Remove {passkey.name}? You will not be able to use it to sign in.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPendingRemovalId(null)}
+                  className="rounded-md border border-slate-300 bg-white px-3 py-1 text-sm text-slate-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void confirmRemoval(passkey.id)}
+                  className="rounded-md bg-red-700 px-3 py-1 text-sm font-semibold text-white"
+                >
+                  Remove passkey
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  aria-label={`Rename ${passkey.name}`}
+                  value={renameValue[passkey.id] ?? passkey.name}
+                  onChange={event => setRenameValue(previous => ({
+                    ...previous,
+                    [passkey.id]: event.target.value,
+                  }))}
+                  className="min-w-0 flex-1 rounded-md border border-slate-300 px-3 py-1 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => void rename(passkey, renameValue[passkey.id] ?? passkey.name)}
+                  className="text-sm text-slate-700"
+                >
+                  Rename
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPendingRemovalId(passkey.id)}
+                  className="text-sm text-red-700"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
           </li>
         ))}
       </ul>

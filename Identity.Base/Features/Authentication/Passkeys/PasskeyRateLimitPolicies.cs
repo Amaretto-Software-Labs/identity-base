@@ -1,6 +1,7 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using Identity.Base.Options;
 
@@ -19,27 +20,68 @@ public static class PasskeyRateLimitPolicies
     public const string Management = "passkeys-management";
     public const string Admin = "passkeys-admin";
 
-    public static IServiceCollection AddPasskeyRateLimiting(
-        this IServiceCollection services,
-        PasskeyRateLimitOptions rateLimits)
+    public static IServiceCollection AddPasskeyRateLimiting(this IServiceCollection services)
     {
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            options.AddPolicy(Configuration, context => PerIp(context, rateLimits.Configuration, rateLimits.Enabled));
-            options.AddPolicy(AuthenticationOptions, context => PerIp(context, rateLimits.AuthenticationOptions, rateLimits.Enabled));
-            options.AddPolicy(Authentication, context => PerIp(context, rateLimits.Authentication, rateLimits.Enabled));
-            options.AddPolicy(SignupEnrollment, context => PerIp(context, rateLimits.SignupEnrollment, rateLimits.Enabled));
-            options.AddPolicy(SignupEmail, context => PerIp(context, rateLimits.SignupEmail, rateLimits.Enabled));
-            options.AddPolicy(RecoveryEnrollment, context => PerIp(context, rateLimits.RecoveryEnrollment, rateLimits.Enabled));
-            options.AddPolicy(RecoveryEmail, context => PerIp(context, rateLimits.RecoveryEmail, rateLimits.Enabled));
-            options.AddPolicy(Creation, context => PerActorOrIp(context, rateLimits.Creation, rateLimits.Enabled));
-            options.AddPolicy(Management, context => PerActorOrIp(context, rateLimits.Management, rateLimits.Enabled));
-            options.AddPolicy(Admin, context => PerActorOrIp(context, rateLimits.Admin, rateLimits.Enabled));
+            options.AddPolicy(Configuration, context =>
+            {
+                var rateLimits = ResolveRateLimits(context);
+                return PerIp(context, rateLimits.Configuration, rateLimits.Enabled);
+            });
+            options.AddPolicy(AuthenticationOptions, context =>
+            {
+                var rateLimits = ResolveRateLimits(context);
+                return PerIp(context, rateLimits.AuthenticationOptions, rateLimits.Enabled);
+            });
+            options.AddPolicy(Authentication, context =>
+            {
+                var rateLimits = ResolveRateLimits(context);
+                return PerIp(context, rateLimits.Authentication, rateLimits.Enabled);
+            });
+            options.AddPolicy(SignupEnrollment, context =>
+            {
+                var rateLimits = ResolveRateLimits(context);
+                return PerIp(context, rateLimits.SignupEnrollment, rateLimits.Enabled);
+            });
+            options.AddPolicy(SignupEmail, context =>
+            {
+                var rateLimits = ResolveRateLimits(context);
+                return PerIp(context, rateLimits.SignupEmail, rateLimits.Enabled);
+            });
+            options.AddPolicy(RecoveryEnrollment, context =>
+            {
+                var rateLimits = ResolveRateLimits(context);
+                return PerIp(context, rateLimits.RecoveryEnrollment, rateLimits.Enabled);
+            });
+            options.AddPolicy(RecoveryEmail, context =>
+            {
+                var rateLimits = ResolveRateLimits(context);
+                return PerIp(context, rateLimits.RecoveryEmail, rateLimits.Enabled);
+            });
+            options.AddPolicy(Creation, context =>
+            {
+                var rateLimits = ResolveRateLimits(context);
+                return PerActorOrIp(context, rateLimits.Creation, rateLimits.Enabled);
+            });
+            options.AddPolicy(Management, context =>
+            {
+                var rateLimits = ResolveRateLimits(context);
+                return PerActorOrIp(context, rateLimits.Management, rateLimits.Enabled);
+            });
+            options.AddPolicy(Admin, context =>
+            {
+                var rateLimits = ResolveRateLimits(context);
+                return PerActorOrIp(context, rateLimits.Admin, rateLimits.Enabled);
+            });
         });
 
         return services;
     }
+
+    private static PasskeyRateLimitOptions ResolveRateLimits(HttpContext context)
+        => context.RequestServices.GetRequiredService<IOptions<PasskeyOptions>>().Value.RateLimits;
 
     private static RateLimitPartition<string> PerIp(
         HttpContext context,

@@ -8,7 +8,9 @@ using Identity.Base.Options;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Shouldly;
 
 namespace Identity.Base.Tests;
@@ -85,6 +87,35 @@ public sealed class PasskeyEndpointTests : IClassFixture<IdentityApiFactory>
             .EnumerateArray()
             .Select(element => element.GetString())
             .ShouldBe(["passkey-assisted", "passwordless"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task ProgrammaticOptions_DriveIdentitySchemaAndRateLimitPolicies()
+    {
+        using var factory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureAppConfiguration((_, configuration) =>
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Passkeys:Enabled"] = "false"
+                }));
+            builder.ConfigureServices(services =>
+                services.PostConfigure<PasskeyOptions>(options =>
+                {
+                    options.Enabled = true;
+                    options.RateLimits.Configuration = new PasskeyRateLimitRule(1, 60);
+                }));
+        });
+        using var client = factory.CreateClient();
+
+        factory.Services.GetRequiredService<IOptions<IdentityOptions>>()
+            .Value.Stores.SchemaVersion.ShouldBe(IdentitySchemaVersions.Version3);
+
+        using var first = await client.GetAsync("/auth/passkeys/configuration");
+        using var second = await client.GetAsync("/auth/passkeys/configuration");
+
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
+        second.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
     }
 
     [Fact]

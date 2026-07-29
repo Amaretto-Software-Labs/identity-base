@@ -80,6 +80,7 @@ public sealed class IdentityBaseBuilder
         Services.AddOpenApi();
         Services.AddOptions<IdentityDbNamingOptions>();
         Services.AddControllers();
+        Services.TryAddSingleton<Microsoft.Extensions.Hosting.IHostEnvironment>(Environment);
         Services.TryAddSingleton<IExternalAuthenticationProviderRegistry>(_externalProviderRegistry);
         Services.TryAddSingleton(_ => _modelCustomizationOptions);
         Services.TryAddSingleton(_ => _seedCallbacks);
@@ -89,10 +90,7 @@ public sealed class IdentityBaseBuilder
         ConfigureDatabase();
         ConfigureIdentity();
         RegisterHostedServices();
-        Services.AddPasskeyRateLimiting(
-            Configuration
-                .GetSection($"{PasskeyOptions.SectionName}:RateLimits")
-                .Get<PasskeyRateLimitOptions>() ?? new PasskeyRateLimitOptions());
+        Services.AddPasskeyRateLimiting();
         ConfigureCorsAndHttpClients();
         ConfigureOpenIddict();
         ConfigureAuthentication();
@@ -271,10 +269,6 @@ public sealed class IdentityBaseBuilder
 
                 options.User.RequireUniqueEmail = true;
 
-                if (Configuration.GetValue<bool>($"{PasskeyOptions.SectionName}:Enabled"))
-                {
-                    options.Stores.SchemaVersion = IdentitySchemaVersions.Version3;
-                }
             })
             .AddRoles<ApplicationRole>()
             .AddEntityFrameworkStores<AppDbContext>()
@@ -432,6 +426,7 @@ public sealed class IdentityBaseBuilder
         Services.TryAddScoped(typeof(INotificationContextPipeline<>), typeof(NotificationContextPipeline<>));
         Services.AddScoped<ExternalAuthenticationService>();
         Services.AddScoped<IAuditLogger, AuditLogger>();
+        Services.AddSingleton<IConfigureOptions<IdentityOptions>, PasskeyIdentityStoreOptionsConfigurator>();
         Services.AddSingleton<IConfigureOptions<IdentityPasskeyOptions>, PasskeyIdentityOptionsConfigurator>();
         Services.AddOptions<LifecycleHookOptions>();
         Services.AddScoped<IUserLifecycleHookDispatcher, UserLifecycleHookDispatcher>();

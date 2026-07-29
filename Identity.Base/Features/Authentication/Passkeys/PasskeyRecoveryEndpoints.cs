@@ -1,4 +1,5 @@
 using System.Data;
+using System.Data.Common;
 using System.Security.Cryptography;
 using System.Security.Claims;
 using Identity.Base.Data;
@@ -93,11 +94,11 @@ internal static class PasskeyRecoveryEndpoints
             ExpiresAt = now.AddMinutes(passkeyOptions.Value.Recovery.DraftLifetimeMinutes)
         };
 
-        await using var transaction = dbContext.Database.IsRelational()
-            ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
-            : null;
         try
         {
+            await using var transaction = dbContext.Database.IsRelational()
+                ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+                : null;
             if (dbContext.Database.IsRelational())
             {
                 await dbContext.PasskeyRecoveryDrafts
@@ -120,10 +121,12 @@ internal static class PasskeyRecoveryEndpoints
                 await transaction.CommitAsync(cancellationToken);
             }
         }
-        catch (DbUpdateException exception)
+        catch (Exception exception) when (
+            !cancellationToken.IsCancellationRequested &&
+            exception is (DbUpdateException or DbException))
         {
             loggerFactory.CreateLogger(typeof(PasskeyRecoveryEndpoints).FullName!)
-                .LogWarning(exception, "A concurrent passkey recovery draft superseded draft {DraftId}.", draft.Id);
+                .LogWarning(exception, "Could not persist passkey recovery draft {DraftId}.", draft.Id);
             return Results.Accepted($"/auth/passkeys/recovery/{correlationId}", new { correlationId });
         }
 

@@ -64,6 +64,7 @@ namespace Identity.Base.Host.SqlServerMigrations.Data.Migrations.App
                 name: "Host_UserPasskeys",
                 columns: table => new
                 {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     CredentialId = table.Column<byte[]>(type: "varbinary(1024)", maxLength: 1024, nullable: false),
                     ConcurrencyStamp = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
                     UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
@@ -71,7 +72,7 @@ namespace Identity.Base.Host.SqlServerMigrations.Data.Migrations.App
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Host_UserPasskeys", x => x.CredentialId);
+                    table.PrimaryKey("PK_Host_UserPasskeys", x => x.Id);
                     table.ForeignKey(
                         name: "FK_Host_UserPasskeys_Host_Users_UserId",
                         column: x => x.UserId,
@@ -101,6 +102,13 @@ namespace Identity.Base.Host.SqlServerMigrations.Data.Migrations.App
                 table: "Host_PasskeyRegistrationDrafts",
                 column: "NormalizedEmail",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Host_UserPasskeys_CredentialId",
+                table: "Host_UserPasskeys",
+                column: "CredentialId",
+                unique: true,
+                filter: "[CredentialId] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Host_UserPasskeys_UserId",

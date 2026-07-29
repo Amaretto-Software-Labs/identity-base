@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Data;
+using System.Data.Common;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using Identity.Base.Data;
@@ -124,11 +125,11 @@ internal static class PasskeySignupEndpoints
             ExpiresAt = now.AddMinutes(options.Signup.DraftLifetimeMinutes)
         };
 
-        await using var transaction = dbContext.Database.IsRelational()
-            ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
-            : null;
         try
         {
+            await using var transaction = dbContext.Database.IsRelational()
+                ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+                : null;
             if (dbContext.Database.IsRelational())
             {
                 await dbContext.PasskeyRegistrationDrafts
@@ -151,10 +152,12 @@ internal static class PasskeySignupEndpoints
                 await transaction.CommitAsync(cancellationToken);
             }
         }
-        catch (DbUpdateException exception)
+        catch (Exception exception) when (
+            !cancellationToken.IsCancellationRequested &&
+            exception is (DbUpdateException or DbException))
         {
             loggerFactory.CreateLogger(typeof(PasskeySignupEndpoints).FullName!)
-                .LogWarning(exception, "A concurrent passkey signup draft superseded draft {DraftId}.", draft.Id);
+                .LogWarning(exception, "Could not persist passkey signup draft {DraftId}.", draft.Id);
             return Results.Accepted($"/auth/passkeys/registration/{correlationId}", new { correlationId });
         }
 

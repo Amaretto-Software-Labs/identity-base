@@ -107,6 +107,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             modelBuilder.Entity<ApplicationUserPasskey>(entity =>
             {
                 entity.ToTable(IdentityDbNamingHelper.Table(prefix, "UserPasskeys"));
+                entity.HasKey(passkey => passkey.Id);
+                entity.HasIndex(passkey => passkey.CredentialId)
+                    .IsUnique()
+                    .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "UserPasskeys_CredentialId"));
                 entity.HasIndex(passkey => passkey.UserId)
                     .HasDatabaseName(IdentityDbNamingHelper.Index(prefix, "UserPasskeys_UserId"));
                 entity.Property(passkey => passkey.ConcurrencyStamp)

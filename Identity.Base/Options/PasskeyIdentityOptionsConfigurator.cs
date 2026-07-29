@@ -3,6 +3,18 @@ using Microsoft.Extensions.Options;
 
 namespace Identity.Base.Options;
 
+internal sealed class PasskeyIdentityStoreOptionsConfigurator(
+    IOptions<PasskeyOptions> options) : IConfigureOptions<IdentityOptions>
+{
+    public void Configure(IdentityOptions identityOptions)
+    {
+        if (options.Value.Enabled)
+        {
+            identityOptions.Stores.SchemaVersion = IdentitySchemaVersions.Version3;
+        }
+    }
+}
+
 internal sealed class PasskeyIdentityOptionsConfigurator(
     IOptions<PasskeyOptions> options) : IConfigureOptions<IdentityPasskeyOptions>
 {

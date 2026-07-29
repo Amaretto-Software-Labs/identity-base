@@ -270,10 +270,18 @@ namespace Identity.Base.Host.PostgreSqlMigrations.Data.Migrations.App
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.HasKey("CredentialId");
+                    b.HasKey("Id");
+
+                    b.HasIndex("CredentialId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Host_UserPasskeys_CredentialId");
 
                     b.HasIndex("UserId")
                         .HasDatabaseName("IX_Host_UserPasskeys_UserId");
@@ -582,7 +590,7 @@ namespace Identity.Base.Host.PostgreSqlMigrations.Data.Migrations.App
 
                     b.OwnsOne("Microsoft.AspNetCore.Identity.IdentityPasskeyData", "Data", b1 =>
                         {
-                            b1.Property<byte[]>("ApplicationUserPasskeyCredentialId");
+                            b1.Property<Guid>("ApplicationUserPasskeyId");
 
                             b1.Property<byte[]>("AttestationObject")
                                 .IsRequired();
@@ -607,14 +615,16 @@ namespace Identity.Base.Host.PostgreSqlMigrations.Data.Migrations.App
 
                             b1.PrimitiveCollection<string>("Transports");
 
-                            b1.HasKey("ApplicationUserPasskeyCredentialId");
+                            b1.HasKey("ApplicationUserPasskeyId");
 
                             b1.ToTable("Host_UserPasskeys");
 
-                            b1.ToJson("Data");
+                            b1
+                                .ToJson("Data")
+                                .HasColumnType("jsonb");
 
                             b1.WithOwner()
-                                .HasForeignKey("ApplicationUserPasskeyCredentialId");
+                                .HasForeignKey("ApplicationUserPasskeyId");
                         });
 
                     b.Navigation("Data")

@@ -17,7 +17,7 @@ namespace Identity.Base.Host.SqlServerMigrations.Data.Migrations.App
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("ProductVersion", "10.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -260,9 +260,9 @@ namespace Identity.Base.Host.SqlServerMigrations.Data.Migrations.App
 
             modelBuilder.Entity("Identity.Base.Identity.ApplicationUserPasskey", b =>
                 {
-                    b.Property<byte[]>("CredentialId")
-                        .HasMaxLength(1024)
-                        .HasColumnType("varbinary(1024)");
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
@@ -270,10 +270,19 @@ namespace Identity.Base.Host.SqlServerMigrations.Data.Migrations.App
                         .HasMaxLength(32)
                         .HasColumnType("nvarchar(32)");
 
+                    b.Property<byte[]>("CredentialId")
+                        .HasMaxLength(1024)
+                        .HasColumnType("varbinary(1024)");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.HasKey("CredentialId");
+                    b.HasKey("Id");
+
+                    b.HasIndex("CredentialId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Host_UserPasskeys_CredentialId")
+                        .HasFilter("[CredentialId] IS NOT NULL");
 
                     b.HasIndex("UserId")
                         .HasDatabaseName("IX_Host_UserPasskeys_UserId");
@@ -586,7 +595,7 @@ namespace Identity.Base.Host.SqlServerMigrations.Data.Migrations.App
 
                     b.OwnsOne("Microsoft.AspNetCore.Identity.IdentityPasskeyData", "Data", b1 =>
                         {
-                            b1.Property<byte[]>("ApplicationUserPasskeyCredentialId");
+                            b1.Property<Guid>("ApplicationUserPasskeyId");
 
                             b1.Property<byte[]>("AttestationObject")
                                 .IsRequired();
@@ -611,14 +620,16 @@ namespace Identity.Base.Host.SqlServerMigrations.Data.Migrations.App
 
                             b1.PrimitiveCollection<string>("Transports");
 
-                            b1.HasKey("ApplicationUserPasskeyCredentialId");
+                            b1.HasKey("ApplicationUserPasskeyId");
 
                             b1.ToTable("Host_UserPasskeys");
 
-                            b1.ToJson("Data");
+                            b1
+                                .ToJson("Data")
+                                .HasColumnType("nvarchar(max)");
 
                             b1.WithOwner()
-                                .HasForeignKey("ApplicationUserPasskeyCredentialId");
+                                .HasForeignKey("ApplicationUserPasskeyId");
                         });
 
                     b.Navigation("Data")
