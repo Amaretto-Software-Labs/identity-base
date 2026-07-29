@@ -89,7 +89,10 @@ public sealed class IdentityBaseBuilder
         ConfigureDatabase();
         ConfigureIdentity();
         RegisterHostedServices();
-        Services.AddPasskeyRateLimiting();
+        Services.AddPasskeyRateLimiting(
+            Configuration
+                .GetSection($"{PasskeyOptions.SectionName}:RateLimits")
+                .Get<PasskeyRateLimitOptions>() ?? new PasskeyRateLimitOptions());
         ConfigureCorsAndHttpClients();
         ConfigureOpenIddict();
         ConfigureAuthentication();
@@ -423,6 +426,8 @@ public sealed class IdentityBaseBuilder
         Services.AddScoped<PasskeyClientValidator>();
         Services.AddScoped<PasskeyManagementService>();
         Services.AddScoped<PasskeyEmailService>();
+        Services.AddSingleton<PasskeyEmailRateLimiter>();
+        Services.AddSingleton<PasskeyDraftRateLimiter>();
         Services.AddSingleton<PasskeyStateProtector>();
         Services.TryAddScoped(typeof(INotificationContextPipeline<>), typeof(NotificationContextPipeline<>));
         Services.AddScoped<ExternalAuthenticationService>();

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from '@identity-base/sample-router'
 import { useAuth } from '@identity-base/react-client'
 import { useOrganizationMembers } from '@identity-base/react-organizations'
 import { useVirtualizer } from '@tanstack/react-virtual'

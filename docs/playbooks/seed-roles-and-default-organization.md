@@ -6,7 +6,7 @@ last_reviewed: 2025-11-05
 tags: [roles, organizations, seeding]
 required_roles: [Developer]
 prerequisites:
-  dotnet: "9.x"
+  dotnet: "10.x"
   database: "PostgreSQL 18"
   repo_root: "cloned"
   env_files: [".env"]
@@ -132,7 +132,7 @@ dotnet ef database update \
             "Description": "Full administrative access",
             "Permissions": [
               "users.read", "users.create", "users.update", "users.lock",
-              "users.reset-password", "users.reset-mfa", "users.manage-roles",
+              "users.reset-password", "users.reset-mfa", "users.reset-passkeys", "users.manage-roles",
               "users.delete", "roles.read", "roles.manage",
               "admin.organizations.read", "admin.organizations.manage",
               "admin.organizations.members.read", "admin.organizations.members.manage",

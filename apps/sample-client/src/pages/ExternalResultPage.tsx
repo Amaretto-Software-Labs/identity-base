@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams } from '@identity-base/sample-router'
 
 export default function ExternalResultPage() {
   const [params] = useSearchParams()

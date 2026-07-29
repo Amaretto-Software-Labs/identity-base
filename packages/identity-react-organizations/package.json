@@ -16,7 +16,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.tsx --format cjs,esm --dts --clean --external react --external react-dom",
+    "build": "tsup src/index.tsx --format cjs,esm --dts --clean --external react --external react-dom --external @identity-base/react-client",
     "test": "npm --prefix ../identity-react-client run build && npm run build && node --test --loader ./test/loader.mjs test/*.test.mjs",
     "coverage": "npm --prefix ../identity-react-client run build && npm run build && c8 --check-coverage --lines 30 --functions 20 --branches 40 --reporter=text --reporter=lcov node --test --loader ./test/loader.mjs test/*.test.mjs"
   },

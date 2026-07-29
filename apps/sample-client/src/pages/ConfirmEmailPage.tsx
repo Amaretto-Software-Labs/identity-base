@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from '@identity-base/sample-router'
 import { confirmEmail } from '../api/auth'
 
 export default function ConfirmEmailPage() {

@@ -34,6 +34,8 @@ public sealed class PasskeyOptions
     public PasskeySignupOptions Signup { get; set; } = new();
 
     public PasskeyRecoveryOptions Recovery { get; set; } = new();
+
+    public PasskeyRateLimitOptions RateLimits { get; set; } = new();
 }
 
 public sealed class PasskeyRecoveryOptions
@@ -54,6 +56,54 @@ public sealed class PasskeySignupOptions
 
     [Range(10, 60)]
     public int DraftLifetimeMinutes { get; set; } = 30;
+}
+
+public sealed class PasskeyRateLimitOptions
+{
+    public bool Enabled { get; set; } = true;
+
+    public PasskeyRateLimitRule Configuration { get; set; } = new(60, 60);
+
+    public PasskeyRateLimitRule AuthenticationOptions { get; set; } = new(20, 60);
+
+    public PasskeyRateLimitRule Authentication { get; set; } = new(10, 60);
+
+    public PasskeyRateLimitRule SignupEmail { get; set; } = new(5, 15 * 60);
+
+    public PasskeyRateLimitRule SignupEnrollment { get; set; } = new(10, 15 * 60);
+
+    public PasskeyRateLimitRule RecoveryEmail { get; set; } = new(3, 60 * 60);
+
+    public PasskeyRateLimitRule RecoveryEnrollment { get; set; } = new(5, 60 * 60);
+
+    public PasskeyRateLimitRule Creation { get; set; } = new(5, 10 * 60);
+
+    public PasskeyRateLimitRule Management { get; set; } = new(20, 10 * 60);
+
+    public PasskeyRateLimitRule Admin { get; set; } = new(10, 60);
+
+    public PasskeyRateLimitRule SignupEmailAddress { get; set; } = new(3, 60 * 60);
+
+    public PasskeyRateLimitRule RecoveryEmailAddress { get; set; } = new(3, 60 * 60);
+}
+
+public sealed class PasskeyRateLimitRule
+{
+    public PasskeyRateLimitRule()
+    {
+    }
+
+    public PasskeyRateLimitRule(int permitLimit, int windowSeconds)
+    {
+        PermitLimit = permitLimit;
+        WindowSeconds = windowSeconds;
+    }
+
+    [Range(1, 10_000)]
+    public int PermitLimit { get; set; }
+
+    [Range(1, 86_400)]
+    public int WindowSeconds { get; set; }
 }
 
 public static class PasskeySignupModes

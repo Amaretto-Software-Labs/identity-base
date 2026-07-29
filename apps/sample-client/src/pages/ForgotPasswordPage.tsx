@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from '@identity-base/sample-router'
 import { useForgotPassword } from '@identity-base/react-client'
 
 export default function ForgotPasswordPage() {

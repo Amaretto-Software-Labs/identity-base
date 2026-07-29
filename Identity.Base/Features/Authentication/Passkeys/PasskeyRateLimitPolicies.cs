@@ -2,6 +2,7 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
 using System.Security.Claims;
+using Identity.Base.Options;
 
 namespace Identity.Base.Features.Authentication.Passkeys;
 
@@ -18,21 +19,23 @@ public static class PasskeyRateLimitPolicies
     public const string Management = "passkeys-management";
     public const string Admin = "passkeys-admin";
 
-    public static IServiceCollection AddPasskeyRateLimiting(this IServiceCollection services)
+    public static IServiceCollection AddPasskeyRateLimiting(
+        this IServiceCollection services,
+        PasskeyRateLimitOptions rateLimits)
     {
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            options.AddPolicy(Configuration, context => PerIp(context, 60, TimeSpan.FromMinutes(1)));
-            options.AddPolicy(AuthenticationOptions, context => PerIp(context, 20, TimeSpan.FromMinutes(1)));
-            options.AddPolicy(Authentication, context => PerIp(context, 10, TimeSpan.FromMinutes(1)));
-            options.AddPolicy(SignupEnrollment, context => PerIp(context, 10, TimeSpan.FromMinutes(15)));
-            options.AddPolicy(SignupEmail, context => PerIp(context, 5, TimeSpan.FromMinutes(15)));
-            options.AddPolicy(RecoveryEnrollment, context => PerIp(context, 5, TimeSpan.FromHours(1)));
-            options.AddPolicy(RecoveryEmail, context => PerIp(context, 3, TimeSpan.FromHours(1)));
-            options.AddPolicy(Creation, context => PerActorOrIp(context, 5, TimeSpan.FromMinutes(10)));
-            options.AddPolicy(Management, context => PerActorOrIp(context, 20, TimeSpan.FromMinutes(10)));
-            options.AddPolicy(Admin, context => PerActorOrIp(context, 10, TimeSpan.FromMinutes(1)));
+            options.AddPolicy(Configuration, context => PerIp(context, rateLimits.Configuration, rateLimits.Enabled));
+            options.AddPolicy(AuthenticationOptions, context => PerIp(context, rateLimits.AuthenticationOptions, rateLimits.Enabled));
+            options.AddPolicy(Authentication, context => PerIp(context, rateLimits.Authentication, rateLimits.Enabled));
+            options.AddPolicy(SignupEnrollment, context => PerIp(context, rateLimits.SignupEnrollment, rateLimits.Enabled));
+            options.AddPolicy(SignupEmail, context => PerIp(context, rateLimits.SignupEmail, rateLimits.Enabled));
+            options.AddPolicy(RecoveryEnrollment, context => PerIp(context, rateLimits.RecoveryEnrollment, rateLimits.Enabled));
+            options.AddPolicy(RecoveryEmail, context => PerIp(context, rateLimits.RecoveryEmail, rateLimits.Enabled));
+            options.AddPolicy(Creation, context => PerActorOrIp(context, rateLimits.Creation, rateLimits.Enabled));
+            options.AddPolicy(Management, context => PerActorOrIp(context, rateLimits.Management, rateLimits.Enabled));
+            options.AddPolicy(Admin, context => PerActorOrIp(context, rateLimits.Admin, rateLimits.Enabled));
         });
 
         return services;
@@ -40,38 +43,48 @@ public static class PasskeyRateLimitPolicies
 
     private static RateLimitPartition<string> PerIp(
         HttpContext context,
-        int permitLimit,
-        TimeSpan window)
+        PasskeyRateLimitRule rule,
+        bool enabled)
     {
         var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (!enabled)
+        {
+            return RateLimitPartition.GetNoLimiter(key);
+        }
+
         return RateLimitPartition.GetFixedWindowLimiter(
             key,
             _ => new FixedWindowRateLimiterOptions
             {
                 AutoReplenishment = true,
-                PermitLimit = permitLimit,
+                PermitLimit = rule.PermitLimit,
                 QueueLimit = 0,
-                Window = window
+                Window = TimeSpan.FromSeconds(rule.WindowSeconds)
             });
     }
 
     private static RateLimitPartition<string> PerActorOrIp(
         HttpContext context,
-        int permitLimit,
-        TimeSpan window)
+        PasskeyRateLimitRule rule,
+        bool enabled)
     {
         var actorId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
         var key = string.IsNullOrWhiteSpace(actorId)
             ? $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}"
             : $"actor:{actorId}";
+        if (!enabled)
+        {
+            return RateLimitPartition.GetNoLimiter(key);
+        }
+
         return RateLimitPartition.GetFixedWindowLimiter(
             key,
             _ => new FixedWindowRateLimiterOptions
             {
                 AutoReplenishment = true,
-                PermitLimit = permitLimit,
+                PermitLimit = rule.PermitLimit,
                 QueueLimit = 0,
-                Window = window
+                Window = TimeSpan.FromSeconds(rule.WindowSeconds)
             });
     }
 }

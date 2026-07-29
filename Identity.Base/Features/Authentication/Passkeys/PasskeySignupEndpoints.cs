@@ -50,6 +50,7 @@ internal static class PasskeySignupEndpoints
         PasskeyClientValidator clientValidator,
         AppDbContext dbContext,
         UserManager<ApplicationUser> userManager,
+        PasskeyEmailRateLimiter emailRateLimiter,
         PasskeyEmailService emailService,
         IOptions<PasskeyOptions> passkeyOptions,
         IOptions<RegistrationOptions> registrationOptions,
@@ -78,8 +79,17 @@ internal static class PasskeySignupEndpoints
 
         var correlationId = Guid.NewGuid().ToString("N");
         var normalizedEmail = userManager.NormalizeEmail(request.Email);
-        if (string.IsNullOrWhiteSpace(normalizedEmail) ||
-            await userManager.FindByEmailAsync(request.Email) is not null)
+        if (string.IsNullOrWhiteSpace(normalizedEmail))
+        {
+            return Results.Accepted($"/auth/passkeys/registration/{correlationId}", new { correlationId });
+        }
+
+        if (!emailRateLimiter.TryAcquire("signup", normalizedEmail))
+        {
+            return Results.StatusCode(StatusCodes.Status429TooManyRequests);
+        }
+
+        if (await userManager.FindByEmailAsync(request.Email) is not null)
         {
             return Results.Accepted($"/auth/passkeys/registration/{correlationId}", new { correlationId });
         }
@@ -114,14 +124,32 @@ internal static class PasskeySignupEndpoints
             ExpiresAt = now.AddMinutes(options.Signup.DraftLifetimeMinutes)
         };
 
-        var existingDrafts = await dbContext.PasskeyRegistrationDrafts
-            .Where(existing => existing.NormalizedEmail == normalizedEmail)
-            .ToListAsync(cancellationToken);
-        dbContext.PasskeyRegistrationDrafts.RemoveRange(existingDrafts);
-        dbContext.PasskeyRegistrationDrafts.Add(draft);
+        await using var transaction = dbContext.Database.IsRelational()
+            ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+            : null;
         try
         {
+            if (dbContext.Database.IsRelational())
+            {
+                await dbContext.PasskeyRegistrationDrafts
+                    .Where(existing => existing.NormalizedEmail == normalizedEmail)
+                    .ExecuteDeleteAsync(cancellationToken);
+            }
+            else
+            {
+                var existingDrafts = await dbContext.PasskeyRegistrationDrafts
+                    .Where(existing => existing.NormalizedEmail == normalizedEmail)
+                    .ToListAsync(cancellationToken);
+                dbContext.PasskeyRegistrationDrafts.RemoveRange(existingDrafts);
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            dbContext.PasskeyRegistrationDrafts.Add(draft);
             await dbContext.SaveChangesAsync(cancellationToken);
+            if (transaction is not null)
+            {
+                await transaction.CommitAsync(cancellationToken);
+            }
         }
         catch (DbUpdateException exception)
         {
@@ -158,6 +186,7 @@ internal static class PasskeySignupEndpoints
     private static async Task<IResult> ResendAsync(
         PasskeyDraftRequest request,
         AppDbContext dbContext,
+        PasskeyEmailRateLimiter emailRateLimiter,
         PasskeyEmailService emailService,
         IOptions<PasskeyOptions> passkeyOptions,
         ILoggerFactory loggerFactory,
@@ -168,9 +197,15 @@ internal static class PasskeySignupEndpoints
             .SingleOrDefaultAsync(candidate => candidate.Id == request.DraftId, cancellationToken);
         if (draft is null ||
             draft.ExpiresAt <= DateTimeOffset.UtcNow ||
-            draft.ConsumedAt is not null)
+            draft.ConsumedAt is not null ||
+            draft.EmailConfirmedAt is not null)
         {
             return Results.Accepted($"/auth/passkeys/registration/{correlationId}", new { correlationId });
+        }
+
+        if (!emailRateLimiter.TryAcquire("signup", draft.NormalizedEmail))
+        {
+            return Results.StatusCode(StatusCodes.Status429TooManyRequests);
         }
 
         var token = RandomNumberGenerator.GetBytes(32);
@@ -212,6 +247,7 @@ internal static class PasskeySignupEndpoints
         PasskeyEmailConfirmationRequest request,
         AppDbContext dbContext,
         PasskeyStateProtector stateProtector,
+        PasskeyDraftRateLimiter draftRateLimiter,
         IOptions<PasskeyOptions> passkeyOptions,
         CancellationToken cancellationToken)
     {
@@ -220,8 +256,19 @@ internal static class PasskeySignupEndpoints
         if (draft is null ||
             draft.ExpiresAt <= DateTimeOffset.UtcNow ||
             draft.ConsumedAt is not null ||
-            !passkeyOptions.Value.Signup.EnabledModes.Contains(draft.Mode, StringComparer.Ordinal) ||
-            !PasskeyEncoding.TryToken(request.Token, out var token) ||
+            !passkeyOptions.Value.Signup.EnabledModes.Contains(draft.Mode, StringComparer.Ordinal))
+        {
+            return PasskeyEndpoints.Problem(
+                "passkey_registration_draft_invalid",
+                "Registration link is invalid or expired.");
+        }
+
+        if (!draftRateLimiter.TryAcquire("signup", draft.Id))
+        {
+            return Results.StatusCode(StatusCodes.Status429TooManyRequests);
+        }
+
+        if (!PasskeyEncoding.TryToken(request.Token, out var token) ||
             !CryptographicOperations.FixedTimeEquals(
                 draft.ConfirmationTokenHash,
                 SHA256.HashData(token)))
@@ -231,9 +278,19 @@ internal static class PasskeySignupEndpoints
                 "Registration link is invalid or expired.");
         }
 
-        draft.EmailConfirmedAt ??= DateTimeOffset.UtcNow;
+        draft.EmailConfirmedAt = DateTimeOffset.UtcNow;
+        draft.ConfirmationTokenHash = SHA256.HashData(RandomNumberGenerator.GetBytes(32));
         draft.ConcurrencyStamp = Guid.NewGuid().ToString("N");
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return PasskeyEndpoints.Problem(
+                "passkey_registration_draft_invalid",
+                "Registration link is invalid or expired.");
+        }
 
         stateProtector.WriteRegistration(
             context.Response,
@@ -243,18 +300,24 @@ internal static class PasskeySignupEndpoints
                 draft.Mode,
                 draft.ClientId,
                 draft.ExpiresAt));
-        return Results.NoContent();
+        return Results.Ok(new { registrationMode = draft.Mode });
     }
 
     private static async Task<IResult> MakeCreationOptionsAsync(
         HttpContext context,
         AppDbContext dbContext,
         PasskeyStateProtector stateProtector,
+        PasskeyDraftRateLimiter draftRateLimiter,
         SignInManager<ApplicationUser> signInManager,
         IOptions<PasskeyOptions> passkeyOptions,
         CancellationToken cancellationToken)
     {
         var state = stateProtector.ReadRegistration(context.Request);
+        if (state is not null && !draftRateLimiter.TryAcquire("signup", state.DraftId))
+        {
+            return Results.StatusCode(StatusCodes.Status429TooManyRequests);
+        }
+
         var draft = state is null
             ? null
             : await dbContext.PasskeyRegistrationDrafts
@@ -281,6 +344,7 @@ internal static class PasskeySignupEndpoints
         PasskeySignupCompleteRequest request,
         AppDbContext dbContext,
         PasskeyStateProtector stateProtector,
+        PasskeyDraftRateLimiter draftRateLimiter,
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         IOptions<PasskeyOptions> passkeyOptions,
@@ -289,6 +353,11 @@ internal static class PasskeySignupEndpoints
         CancellationToken cancellationToken)
     {
         var state = stateProtector.ReadRegistration(context.Request);
+        if (state is not null && !draftRateLimiter.TryAcquire("signup", state.DraftId))
+        {
+            return Results.StatusCode(StatusCodes.Status429TooManyRequests);
+        }
+
         var draft = state is null
             ? null
             : await dbContext.PasskeyRegistrationDrafts

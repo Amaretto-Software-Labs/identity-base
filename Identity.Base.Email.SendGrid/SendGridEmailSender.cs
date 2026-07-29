@@ -163,13 +163,9 @@ internal sealed class SendGridEmailSender(
                     ? _options.Templates.Confirmation
                     : _options.Templates.PasskeyRecoveryConfirmation,
             TemplatedEmailKeys.PasskeyRecoveryCompleted =>
-                string.IsNullOrWhiteSpace(_options.Templates.PasskeyRecoveryCompleted)
-                    ? _options.Templates.Confirmation
-                    : _options.Templates.PasskeyRecoveryCompleted,
+                _options.Templates.PasskeyRecoveryCompleted,
             TemplatedEmailKeys.PasskeysReset =>
-                string.IsNullOrWhiteSpace(_options.Templates.PasskeysReset)
-                    ? _options.Templates.Confirmation
-                    : _options.Templates.PasskeysReset,
+                _options.Templates.PasskeysReset,
             _ => string.Empty
         };
 

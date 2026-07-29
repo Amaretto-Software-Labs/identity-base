@@ -42,6 +42,7 @@ import type {
   PasskeySummary,
   PasskeySignupRequest,
   PasskeyEmailConfirmation,
+  PasskeySignupConfirmation,
   PasskeyCompletionRequest,
   PasskeyRecoveryRequest,
   PasskeyLoginOptions,
@@ -158,7 +159,7 @@ export class IdentityAuthManager {
         },
         resetPasskeys: async (id: string, reason?: string): Promise<void> => {
           const encodedId = encodeURIComponent(id)
-          return await this.authorizedFetch<void>(`/admin/users/${encodedId}/passkeys/reset`, {
+          return await this.authorizedFetch<void>(`/admin/users/${encodedId}/passkeys/revoke-all`, {
             method: 'POST',
             body: JSON.stringify({ reason }),
           })
@@ -400,8 +401,8 @@ export class IdentityAuthManager {
     })
   }
 
-  async confirmPasskeySignupEmail(request: PasskeyEmailConfirmation): Promise<void> {
-    await this.apiClient.fetch('/auth/passkeys/registration/confirm-email', {
+  async confirmPasskeySignupEmail(request: PasskeyEmailConfirmation): Promise<PasskeySignupConfirmation> {
+    return await this.apiClient.fetch<PasskeySignupConfirmation>('/auth/passkeys/registration/confirm-email', {
       method: 'POST',
       body: JSON.stringify(request),
     })

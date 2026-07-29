@@ -71,6 +71,7 @@ export interface LoginResponse {
   clientId: string
   requiresTwoFactor?: boolean
   methods?: string[]
+  recovered?: boolean
 }
 
 export type PasskeySignupMode = 'passkey-assisted' | 'passwordless'
@@ -103,6 +104,10 @@ export interface PasskeySignupRequest {
 export interface PasskeyEmailConfirmation {
   draftId: string
   token: string
+}
+
+export interface PasskeySignupConfirmation {
+  registrationMode: PasskeySignupMode
 }
 
 export interface PasskeyCompletionRequest {

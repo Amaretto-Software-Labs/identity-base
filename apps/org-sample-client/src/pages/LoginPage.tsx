@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '@identity-base/sample-router'
 import { useLogin, useIdentityContext } from '@identity-base/react-client'
 import { useOrganizations } from '@identity-base/react-organizations'
 

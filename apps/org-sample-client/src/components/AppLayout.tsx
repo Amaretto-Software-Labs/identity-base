@@ -1,5 +1,5 @@
 import { useEffect, useState, type ChangeEvent } from 'react'
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet } from '@identity-base/sample-router'
 import { useAuth, useIdentityContext, useLogin } from '@identity-base/react-client'
 import { useOrganizations, useOrganizationSwitcher } from '@identity-base/react-organizations'
 import { renderApiError } from '../api/client'

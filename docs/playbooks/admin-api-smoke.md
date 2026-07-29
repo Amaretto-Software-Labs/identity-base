@@ -6,7 +6,7 @@ last_reviewed: 2025-11-05
 tags: [admin, roles, users]
 required_roles: [Developer]
 prerequisites:
-  dotnet: "9.x"
+  dotnet: "10.x"
   database: "PostgreSQL 18"
   repo_root: "cloned"
 required_secrets:

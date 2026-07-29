@@ -31,6 +31,7 @@ function identityProxy(): ProxyOptions {
 export default defineConfig({
   plugins: [react()],
   resolve: {
+    preserveSymlinks: true,
     // Local package links also expose the React client's development dependencies.
     // Keep hooks on the application's React instance in both dev and production builds.
     dedupe: ['react', 'react-dom'],

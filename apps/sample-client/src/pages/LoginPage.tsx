@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link } from '@identity-base/sample-router'
 import { useLogin, useIdentityContext, usePasskeyLogin } from '@identity-base/react-client'
 import { CONFIG } from '../config'
 

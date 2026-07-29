@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from '@identity-base/sample-router'
 import { IdentityProvider } from '@identity-base/react-client'
 import Layout from './layout/Layout'
 import AdminLayout from './layout/AdminLayout'

@@ -32,6 +32,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -115,15 +116,18 @@ namespace Identity.Base.Admin.Features.AdminUsers;
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .RequireAuthorization(policy => policy.RequireAdminPermission("users.reset-mfa"));
 
-        group.MapPost("/{id:guid}/passkeys/reset", ResetPasskeysAsync)
-            .WithName("AdminResetPasskeys")
-            .WithSummary("Revokes every passkey for the user and invalidates existing sessions.")
-            .Produces(StatusCodes.Status204NoContent)
-            .ProducesValidationProblem()
-            .Produces(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status403Forbidden)
-            .RequireRateLimiting(PasskeyRateLimitPolicies.Admin)
-            .RequireAuthorization(policy => policy.RequireAdminPermission("users.reset-passkeys"));
+        if (endpoints.ServiceProvider.GetRequiredService<IOptions<PasskeyOptions>>().Value.Enabled)
+        {
+            group.MapPost("/{id:guid}/passkeys/revoke-all", ResetPasskeysAsync)
+                .WithName("AdminResetPasskeys")
+                .WithSummary("Revokes every passkey for the user and invalidates existing sessions.")
+                .Produces(StatusCodes.Status204NoContent)
+                .ProducesValidationProblem()
+                .Produces(StatusCodes.Status404NotFound)
+                .ProducesProblem(StatusCodes.Status403Forbidden)
+                .RequireRateLimiting(PasskeyRateLimitPolicies.Admin)
+                .RequireAuthorization(policy => policy.RequireAdminPermission("users.reset-passkeys"));
+        }
 
         group.MapPost("/{id:guid}/resend-confirmation", ResendConfirmationEmailAsync)
             .WithName("AdminResendConfirmation")
@@ -412,6 +416,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         Guid id,
         UserManager<ApplicationUser> userManager,
         IRoleAssignmentService roleAssignmentService,
+        IOptions<PasskeyOptions> passkeyOptions,
         CancellationToken cancellationToken)
     {
         var user = await userManager.Users
@@ -434,7 +439,9 @@ namespace Identity.Base.Admin.Features.AdminUsers;
             .ToList();
 
         var authenticatorKey = await userManager.GetAuthenticatorKeyAsync(user);
-        var passkeyCount = (await userManager.GetPasskeysAsync(user)).Count;
+        var passkeyCount = passkeyOptions.Value.Enabled
+            ? (await userManager.GetPasskeysAsync(user)).Count
+            : 0;
         var isLockedOut = user.LockoutEnabled && user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.UtcNow;
 
         var response = new AdminUserDetailResponse(
@@ -591,6 +598,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         UserManager<ApplicationUser> userManager,
         IRoleAssignmentService roleAssignmentService,
         IOptions<RegistrationOptions> registrationOptions,
+        IOptions<PasskeyOptions> passkeyOptions,
         IAuditLogger auditLogger,
         IUserLifecycleHookDispatcher lifecycleDispatcher,
         CancellationToken cancellationToken)
@@ -722,7 +730,12 @@ namespace Identity.Base.Admin.Features.AdminUsers;
 
         await lifecycleDispatcher.NotifyUserProfileUpdatedAsync(lifecycleContext, cancellationToken);
 
-        return await GetUserAsync(id, userManager, roleAssignmentService, cancellationToken);
+        return await GetUserAsync(
+            id,
+            userManager,
+            roleAssignmentService,
+            passkeyOptions,
+            cancellationToken);
     }
 
     private static async Task<IResult> LockUserAsync(
@@ -1011,6 +1024,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         await using var transaction = dbContext.Database.IsRelational()
             ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
             : null;
+        passkeys = await userManager.GetPasskeysAsync(user);
         foreach (var passkey in passkeys)
         {
             var removal = await userManager.RemovePasskeyAsync(user, passkey.CredentialId);

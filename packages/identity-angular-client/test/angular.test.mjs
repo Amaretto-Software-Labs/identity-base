@@ -11,6 +11,7 @@ import {
   IdentityAuthInterceptor,
   IdentityAdminService,
   IdentityAuthService,
+  IdentityPasskeyService,
   provideIdentityClient,
 } from '../dist/fesm2022/identity-base-angular-client.mjs'
 
@@ -258,6 +259,149 @@ test('IdentityAuthService can run auth code flow in a browser environment', asyn
     const user = await service.handleAuthorizationCallback('code', 'state')
     assert.equal(user.id, '1')
     assert.equal(service.snapshot.user?.id, '1')
+  } finally {
+    if (originalWindow === undefined) {
+      delete globalThis.window
+    } else {
+      globalThis.window = originalWindow
+    }
+  }
+})
+
+test('Angular passkey services forward every supported passkey operation', async () => {
+  const originalWindow = globalThis.window
+  const calls = []
+  const user = {
+    id: '1',
+    email: 'alice@example.com',
+    displayName: 'Alice',
+    emailConfirmed: true,
+    metadata: {},
+    concurrencyStamp: 'user-stamp',
+    createdAt: '',
+    updatedAt: '',
+  }
+  const passkey = {
+    id: 'credential',
+    name: 'Laptop',
+    createdAt: '',
+    transports: ['internal'],
+    isBackupEligible: true,
+    isBackedUp: true,
+    concurrencyStamp: 'passkey-stamp',
+  }
+  const authManager = {
+    addEventListener: () => () => {},
+    isAuthenticated: () => false,
+    getCurrentUser: async () => user,
+    isPasskeySupported: () => true,
+    isConditionalMediationAvailable: async () => true,
+    getPasskeyConfiguration: async () => ({ enabled: true }),
+    loginWithPasskey: async options => {
+      calls.push(['login', options])
+      return { message: 'ok', clientId: 'spa-client' }
+    },
+    beginPasskeySignup: async request => {
+      calls.push(['begin-signup', request])
+      return { correlationId: 'signup' }
+    },
+    confirmPasskeySignupEmail: async request => {
+      calls.push(['confirm-signup', request])
+      return { registrationMode: 'passwordless' }
+    },
+    completePasskeySignup: async request => {
+      calls.push(['complete-signup', request])
+      return { message: 'registered', clientId: 'spa-client' }
+    },
+    listPasskeys: async () => [passkey],
+    registerPasskey: async name => {
+      calls.push(['register', name])
+      return passkey
+    },
+    createPasskey: async name => {
+      calls.push(['create', name])
+      return passkey
+    },
+    renamePasskey: async (id, name, stamp) => {
+      calls.push(['rename', id, name, stamp])
+      return { ...passkey, name }
+    },
+    removePasskey: async id => {
+      calls.push(['remove', id])
+    },
+    beginPasskeyRecovery: async request => {
+      calls.push(['begin-recovery', request])
+      return { correlationId: 'recovery' }
+    },
+    confirmPasskeyRecoveryEmail: async request => {
+      calls.push(['confirm-recovery', request])
+    },
+    completePasskeyRecovery: async request => {
+      calls.push(['complete-recovery', request])
+      return { message: 'recovered', clientId: 'spa-client', recovered: true }
+    },
+  }
+
+  try {
+    globalThis.window = {}
+    const authService = new IdentityAuthService(authManager)
+    assert.equal(authService.isPasskeySupported(), true)
+    assert.equal(await authService.isConditionalMediationAvailable(), true)
+    assert.equal((await authService.loginWithPasskey({ mediation: 'conditional' })).message, 'ok')
+    assert.equal((await authService.beginPasskeySignup({
+      mode: 'passwordless',
+      email: 'alice@example.com',
+    })).correlationId, 'signup')
+    assert.equal((await authService.confirmPasskeySignupEmail({
+      draftId: 'draft',
+      token: 'token',
+    })).registrationMode, 'passwordless')
+    assert.equal((await authService.completePasskeySignup({
+      draftId: 'draft',
+      name: 'Laptop',
+    })).message, 'registered')
+    assert.equal((await authService.listPasskeys()).length, 1)
+    assert.equal((await authService.registerPasskey('Laptop')).id, 'credential')
+    assert.equal((await authService.renamePasskey(passkey, 'Renamed')).name, 'Renamed')
+    await authService.removePasskey('credential')
+    assert.equal((await authService.beginPasskeyRecovery({
+      email: 'alice@example.com',
+    })).correlationId, 'recovery')
+    await authService.confirmPasskeyRecoveryEmail({ draftId: 'recovery', token: 'token' })
+    assert.equal((await authService.completePasskeyRecovery({
+      draftId: 'recovery',
+      name: 'Replacement',
+    })).recovered, true)
+
+    const passkeyService = new IdentityPasskeyService(authManager)
+    assert.equal(passkeyService.isSupported(), true)
+    assert.equal((await passkeyService.getConfiguration()).enabled, true)
+    assert.equal((await passkeyService.login()).message, 'ok')
+    assert.equal((await passkeyService.beginSignup({
+      mode: 'passwordless',
+      email: 'alice@example.com',
+    })).correlationId, 'signup')
+    assert.equal((await passkeyService.confirmSignupEmail({
+      draftId: 'draft',
+      token: 'token',
+    })).registrationMode, 'passwordless')
+    assert.equal((await passkeyService.completeSignup({
+      draftId: 'draft',
+      name: 'Laptop',
+    })).message, 'registered')
+    assert.equal((await passkeyService.list()).length, 1)
+    assert.equal((await passkeyService.create('Laptop')).id, 'credential')
+    assert.equal((await passkeyService.rename(passkey, 'Renamed')).name, 'Renamed')
+    await passkeyService.remove('credential')
+    assert.equal((await passkeyService.beginRecovery({
+      email: 'alice@example.com',
+    })).correlationId, 'recovery')
+    await passkeyService.confirmRecoveryEmail({ draftId: 'recovery', token: 'token' })
+    assert.equal((await passkeyService.completeRecovery({
+      draftId: 'recovery',
+      name: 'Replacement',
+    })).recovered, true)
+    assert.ok(calls.length >= 20)
   } finally {
     if (originalWindow === undefined) {
       delete globalThis.window

@@ -82,6 +82,7 @@ Disabling a principal revokes all credentials and OpenIddict token entries. Rest
 - `POST /admin/users/{id}/lock` / `unlock` — mutate lockout state (`users.lock`).
 - `POST /admin/users/{id}/force-password-reset` — send reset email (`users.reset-password`).
 - `POST /admin/users/{id}/mfa/reset` — clear MFA enrollment (`users.reset-mfa`).
+- `POST /admin/users/{id}/passkeys/revoke-all` — revoke passkeys and invalidate sessions (`users.reset-passkeys`; mapped only when passkeys are enabled).
 - `PUT /admin/users/{id}/roles` — replace role assignments (`users.manage-roles`).
 - `DELETE /admin/users/{id}` — soft delete (`users.delete`).
 - `POST /admin/users/{id}/restore` — restore (`users.delete`).

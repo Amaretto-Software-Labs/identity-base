@@ -84,14 +84,14 @@ public sealed class MailJetTemplateOptions
     public long PasskeyRecoveryConfirmation { get; set; }
 
     /// <summary>
-    /// Optional template identifier for passkey recovery completion.
-    /// Falls back to <see cref="Confirmation"/> when not configured.
+    /// Template identifier for passkey recovery completion notifications.
+    /// The notification is not sent when this template is not configured.
     /// </summary>
     public long PasskeyRecoveryCompleted { get; set; }
 
     /// <summary>
-    /// Optional template identifier for administrative passkey reset notifications.
-    /// Falls back to <see cref="Confirmation"/> when not configured.
+    /// Template identifier for administrative passkey reset notifications.
+    /// The notification is not sent when this template is not configured.
     /// </summary>
     public long PasskeysReset { get; set; }
 }

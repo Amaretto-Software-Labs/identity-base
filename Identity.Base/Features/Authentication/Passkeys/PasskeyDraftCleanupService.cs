@@ -15,6 +15,7 @@ internal sealed class PasskeyDraftCleanupService(
 {
     private static readonly TimeSpan CleanupInterval = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan ConsumedRetention = TimeSpan.FromHours(1);
+    private const int CleanupBatchSize = 500;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -45,10 +46,14 @@ internal sealed class PasskeyDraftCleanupService(
                 await dbContext.PasskeyRegistrationDrafts
                     .Where(draft => draft.ExpiresAt < now ||
                                     (draft.ConsumedAt != null && draft.ConsumedAt < consumedBefore))
+                    .OrderBy(draft => draft.ExpiresAt)
+                    .Take(CleanupBatchSize)
                     .ExecuteDeleteAsync(cancellationToken);
                 await dbContext.PasskeyRecoveryDrafts
                     .Where(draft => draft.ExpiresAt < now ||
                                     (draft.ConsumedAt != null && draft.ConsumedAt < consumedBefore))
+                    .OrderBy(draft => draft.ExpiresAt)
+                    .Take(CleanupBatchSize)
                     .ExecuteDeleteAsync(cancellationToken);
                 return;
             }
@@ -56,10 +61,14 @@ internal sealed class PasskeyDraftCleanupService(
             var registrationDrafts = await dbContext.PasskeyRegistrationDrafts
                 .Where(draft => draft.ExpiresAt < now ||
                                 (draft.ConsumedAt != null && draft.ConsumedAt < consumedBefore))
+                .OrderBy(draft => draft.ExpiresAt)
+                .Take(CleanupBatchSize)
                 .ToListAsync(cancellationToken);
             var recoveryDrafts = await dbContext.PasskeyRecoveryDrafts
                 .Where(draft => draft.ExpiresAt < now ||
                                 (draft.ConsumedAt != null && draft.ConsumedAt < consumedBefore))
+                .OrderBy(draft => draft.ExpiresAt)
+                .Take(CleanupBatchSize)
                 .ToListAsync(cancellationToken);
             dbContext.RemoveRange(registrationDrafts);
             dbContext.RemoveRange(recoveryDrafts);

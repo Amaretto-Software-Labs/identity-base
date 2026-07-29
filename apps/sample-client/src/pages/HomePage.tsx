@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link } from '@identity-base/sample-router'
 
 export default function HomePage() {
   return (

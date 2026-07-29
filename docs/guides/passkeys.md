@@ -89,13 +89,12 @@ await auth.beginPasskeySignup({
   metadata: { displayName: 'Alice' },
 })
 
-// On the email-link route:
-await auth.confirmPasskeySignupEmail({ draftId, token })
+// On the email-link route, use the immutable mode returned by the server:
+const { registrationMode } = await auth.confirmPasskeySignupEmail({ draftId, token })
 await auth.completePasskeySignup({
   draftId,
   name: 'Alice laptop',
-  // Required only for mode: 'passkey-assisted'
-  password,
+  password: registrationMode === 'passkey-assisted' ? password : undefined,
 })
 ```
 
@@ -147,12 +146,42 @@ Templated email senders receive these keys:
 - `passkey.recovery.completed`
 - `passkey.reset`
 
-MailJet and SendGrid may configure dedicated template IDs; when omitted, confirmation flows fall back to the normal confirmation template.
+MailJet and SendGrid may configure dedicated template IDs. Signup and recovery proof
+messages fall back to the normal confirmation template when their dedicated template is
+omitted. Recovery-completed and administrative-reset notices require their dedicated
+templates; when either template is missing, that notice is not sent and the endpoint logs
+the configuration failure without rolling back the completed security operation.
+
+Recovery application cookies include the public
+`PasskeyClaimTypes.Recovery` claim with value `True`. Hosts can use this marker to require
+step-up verification or enforce a cooling-off period for sensitive actions after account
+recovery.
+
+Passkey rate limits are enabled by default and can be tuned per operation:
+
+```json
+{
+  "Passkeys": {
+    "RateLimits": {
+      "Enabled": true,
+      "SignupEmail": { "PermitLimit": 5, "WindowSeconds": 900 },
+      "SignupEmailAddress": { "PermitLimit": 3, "WindowSeconds": 3600 },
+      "RecoveryEmail": { "PermitLimit": 3, "WindowSeconds": 3600 },
+      "RecoveryEmailAddress": { "PermitLimit": 3, "WindowSeconds": 3600 }
+    }
+  }
+}
+```
+
+The other configurable rules are `Configuration`, `AuthenticationOptions`,
+`Authentication`, `SignupEnrollment`, `RecoveryEnrollment`, `Creation`, `Management`,
+and `Admin`, with the same `PermitLimit` and `WindowSeconds` shape. Set
+`Passkeys:RateLimits:Enabled` to `false` only as an explicit host-wide opt-out.
 
 Administrators with `users.reset-passkeys` may call:
 
 ```http
-POST /admin/users/{id}/passkeys/reset
+POST /admin/users/{id}/passkeys/revoke-all
 Content-Type: application/json
 
 { "reason": "Lost device reported by user" }

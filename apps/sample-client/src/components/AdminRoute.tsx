@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Navigate, useLocation } from '@identity-base/sample-router'
 import { useAuth, usePermissions } from '@identity-base/react-client'
 
 const REQUIRED_PERMISSIONS = ['users.read', 'roles.read']

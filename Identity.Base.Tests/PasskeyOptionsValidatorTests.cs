@@ -42,6 +42,36 @@ public sealed class PasskeyOptionsValidatorTests
         result.FailureMessage.ShouldContain("must be empty");
     }
 
+    [Fact]
+    public void Validate_AcceptsExplicitRateLimitOptOut()
+    {
+        var validator = CreateValidator(["http://localhost:5173"]);
+        var options = ValidOptions();
+        options.RateLimits.Enabled = false;
+
+        validator.Validate(null, options).Succeeded.ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData(0, 60, "PermitLimit")]
+    [InlineData(10, 0, "WindowSeconds")]
+    public void Validate_RejectsInvalidRateLimitRules(
+        int permitLimit,
+        int windowSeconds,
+        string expectedSetting)
+    {
+        var validator = CreateValidator(["http://localhost:5173"]);
+        var options = ValidOptions();
+        options.RateLimits.Authentication =
+            new PasskeyRateLimitRule(permitLimit, windowSeconds);
+
+        var result = validator.Validate(null, options);
+
+        result.Failed.ShouldBeTrue();
+        result.FailureMessage.ShouldContain("RateLimits:Authentication");
+        result.FailureMessage.ShouldContain(expectedSetting);
+    }
+
     private static PasskeyOptionsValidator CreateValidator(IReadOnlyList<string> corsOrigins)
     {
         var values = corsOrigins

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from '@identity-base/sample-router'
 import { useAuth, usePasskeyLogin, usePasskeys } from '@identity-base/react-client'
 
 export default function PasskeysPage() {
@@ -58,7 +58,8 @@ export default function PasskeysPage() {
     if (isRecovery) {
       await passkeys.confirmRecoveryEmail({ draftId, token })
     } else {
-      await passkeys.confirmSignupEmail({ draftId, token })
+      const result = await passkeys.confirmSignupEmail({ draftId, token })
+      setSignupMode(result.registrationMode)
     }
     setConfirmed(true)
     setMessage('Email confirmed. Create the passkey to finish.')
@@ -171,14 +172,11 @@ export default function PasskeysPage() {
           ) : (
             <>
               {!isRecovery && (
-                <select
-                  value={signupMode}
-                  onChange={event => setSignupMode(event.target.value as typeof signupMode)}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2"
-                >
-                  <option value="passwordless">Passwordless signup</option>
-                  <option value="passkey-assisted">Password + passkey signup</option>
-                </select>
+                <p className="text-sm text-slate-600">
+                  {signupMode === 'passkey-assisted'
+                    ? 'Complete password + passkey signup.'
+                    : 'Complete passwordless signup.'}
+                </p>
               )}
               {!isRecovery && signupMode === 'passkey-assisted' && (
                 <input

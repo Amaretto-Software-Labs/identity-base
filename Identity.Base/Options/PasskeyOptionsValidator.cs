@@ -20,6 +20,31 @@ internal sealed class PasskeyOptionsValidator(
             return ValidateOptionsResult.Fail("Passkeys:Recovery must be configured.");
         }
 
+        if (options.RateLimits is null)
+        {
+            return ValidateOptionsResult.Fail("Passkeys:RateLimits must be configured.");
+        }
+
+        foreach (var (ruleName, rule) in GetRateLimitRules(options.RateLimits))
+        {
+            if (rule is null)
+            {
+                return ValidateOptionsResult.Fail($"Passkeys:RateLimits:{ruleName} must be configured.");
+            }
+
+            if (rule.PermitLimit is < 1 or > 10_000)
+            {
+                return ValidateOptionsResult.Fail(
+                    $"Passkeys:RateLimits:{ruleName}:PermitLimit must be between 1 and 10000.");
+            }
+
+            if (rule.WindowSeconds is < 1 or > 86_400)
+            {
+                return ValidateOptionsResult.Fail(
+                    $"Passkeys:RateLimits:{ruleName}:WindowSeconds must be between 1 and 86400.");
+            }
+        }
+
         if (options.AllowedOrigins is null)
         {
             return ValidateOptionsResult.Fail("Passkeys:AllowedOrigins must be configured (use an empty array when disabled).");
@@ -186,5 +211,22 @@ internal sealed class PasskeyOptionsValidator(
         return defaultPort
             ? $"{uri.Scheme.ToLowerInvariant()}://{uri.Host.ToLowerInvariant()}"
             : $"{uri.Scheme.ToLowerInvariant()}://{uri.Host.ToLowerInvariant()}:{uri.Port}";
+    }
+
+    private static IEnumerable<(string Name, PasskeyRateLimitRule? Rule)> GetRateLimitRules(
+        PasskeyRateLimitOptions options)
+    {
+        yield return (nameof(options.Configuration), options.Configuration);
+        yield return (nameof(options.AuthenticationOptions), options.AuthenticationOptions);
+        yield return (nameof(options.Authentication), options.Authentication);
+        yield return (nameof(options.SignupEmail), options.SignupEmail);
+        yield return (nameof(options.SignupEnrollment), options.SignupEnrollment);
+        yield return (nameof(options.RecoveryEmail), options.RecoveryEmail);
+        yield return (nameof(options.RecoveryEnrollment), options.RecoveryEnrollment);
+        yield return (nameof(options.Creation), options.Creation);
+        yield return (nameof(options.Management), options.Management);
+        yield return (nameof(options.Admin), options.Admin);
+        yield return (nameof(options.SignupEmailAddress), options.SignupEmailAddress);
+        yield return (nameof(options.RecoveryEmailAddress), options.RecoveryEmailAddress);
     }
 }

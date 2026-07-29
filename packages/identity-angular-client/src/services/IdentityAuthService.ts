@@ -7,6 +7,7 @@ import type {
   PasskeyEmailConfirmation,
   PasskeyLoginOptions,
   PasskeyRecoveryRequest,
+  PasskeySignupConfirmation,
   PasskeySignupRequest,
   PasskeySummary,
   RegisterRequest,
@@ -166,8 +167,8 @@ export class IdentityAuthService {
     return await this.runWithLoading(async () => await this.authManager.beginPasskeySignup(request))
   }
 
-  async confirmPasskeySignupEmail(request: PasskeyEmailConfirmation): Promise<void> {
-    await this.runWithLoading(async () => await this.authManager.confirmPasskeySignupEmail(request))
+  async confirmPasskeySignupEmail(request: PasskeyEmailConfirmation): Promise<PasskeySignupConfirmation> {
+    return await this.runWithLoading(async () => await this.authManager.confirmPasskeySignupEmail(request))
   }
 
   async completePasskeySignup(request: PasskeyCompletionRequest): Promise<LoginResponse> {

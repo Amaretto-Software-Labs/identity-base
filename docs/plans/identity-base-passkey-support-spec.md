@@ -548,7 +548,9 @@ The built-in flow is eligible only when the account is confirmed, active, and ha
 
 Recovery creation options use the existing stable `ApplicationUser.Id` as the user handle and exclude all current credentials. Completion verifies the new passkey, then atomically stores it, removes every older passkey, rotates the security stamp, consumes the draft, and invalidates existing sessions. Only after that verified ceremony may it establish a new non-persistent application cookie with `amr=passkey` and a recovery marker for host step-up/cooling-off policy.
 
-`IPasskeyAccountRecoveryProofProvider` is the host extension point for replacing email proof with stronger evidence. It changes only proof issuance/validation; it cannot bypass new-passkey attestation, account-state checks, session rotation, audit, or atomic replacement.
+The v1 recovery proof is the built-in verified-email flow. Replacing it with a
+host-provided stronger proof mechanism is an explicit follow-up; v1 hosts can disable
+passkeys if email recovery does not meet their assurance requirements.
 
 ### 10.5 Administrator endpoint
 
@@ -678,7 +680,7 @@ Passwordless signup cannot rely on password reset. Identity Base therefore ships
 4. invalidate other application sessions;
 5. emit security audit/lifecycle events and notify the account email.
 
-Clients must mark this as account recovery, not ordinary sign-in, and high-risk host actions may require a configurable cooling-off period. Recovery responses are enumeration-resistant. Hosts needing stronger assurance can replace the built-in email proof through an `IPasskeyAccountRecoveryProofProvider` that requires an external identity provider, recovery code, help-desk proof, or another host-specific factor.
+Clients must mark this as account recovery, not ordinary sign-in, and high-risk host actions may require a configurable cooling-off period. Recovery responses are enumeration-resistant. A host extension point for external identity-provider, recovery-code, help-desk, or other stronger proof is deferred beyond v1.
 
 Documentation must state plainly that email-only recovery lowers the account's effective phishing resistance to the security of the email account. The sample client therefore prompts every passwordless user to register a second passkey and clearly reports whether the first credential is backed up. Existing ASP.NET Identity MFA recovery codes are not presented as passkey-account recovery codes because they recover a second-factor challenge, not ownership of a passkey-only account.
 
@@ -764,7 +766,10 @@ beginPasskeySignup(input: {
   email: string
   metadata: Record<string, string | null>
 }): Promise<{ correlationId: string }>
-confirmPasskeySignupEmail(input: { draftId: string; token: string }): Promise<void>
+confirmPasskeySignupEmail(input: {
+  draftId: string
+  token: string
+}): Promise<{ registrationMode: PasskeySignupMode }>
 completePasskeySignup(input: {
   name: string
   password?: string
@@ -1081,3 +1086,4 @@ These are deliberately not hidden inside v1:
 5. Related Origin Requests or an Identity-hosted login surface for clients on unrelated domains.
 6. Native application passkey association.
 7. Token-level `amr`/`auth_time` policy shared consistently across password, MFA, external, and passkey authentication.
+8. A host-replaceable account-recovery proof provider for assurance stronger than the built-in verified-email flow.

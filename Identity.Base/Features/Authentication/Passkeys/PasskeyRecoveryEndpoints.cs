@@ -1,5 +1,6 @@
 using System.Data;
 using System.Security.Cryptography;
+using System.Security.Claims;
 using Identity.Base.Data;
 using Identity.Base.Identity;
 using Identity.Base.Logging;
@@ -46,6 +47,7 @@ internal static class PasskeyRecoveryEndpoints
         AppDbContext dbContext,
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
+        PasskeyEmailRateLimiter emailRateLimiter,
         PasskeyEmailService emailService,
         IOptions<PasskeyOptions> passkeyOptions,
         ILoggerFactory loggerFactory,
@@ -57,6 +59,17 @@ internal static class PasskeyRecoveryEndpoints
         }
 
         var correlationId = Guid.NewGuid().ToString("N");
+        var normalizedEmail = userManager.NormalizeEmail(request.Email);
+        if (string.IsNullOrWhiteSpace(normalizedEmail))
+        {
+            return Results.Accepted($"/auth/passkeys/recovery/{correlationId}", new { correlationId });
+        }
+
+        if (!emailRateLimiter.TryAcquire("recovery", normalizedEmail))
+        {
+            return Results.StatusCode(StatusCodes.Status429TooManyRequests);
+        }
+
         var user = await userManager.FindByEmailAsync(request.Email);
         if (user is null ||
             !await signInManager.CanSignInAsync(user) ||
@@ -80,14 +93,32 @@ internal static class PasskeyRecoveryEndpoints
             ExpiresAt = now.AddMinutes(passkeyOptions.Value.Recovery.DraftLifetimeMinutes)
         };
 
-        var existing = await dbContext.PasskeyRecoveryDrafts
-            .Where(candidate => candidate.UserId == user.Id)
-            .ToListAsync(cancellationToken);
-        dbContext.PasskeyRecoveryDrafts.RemoveRange(existing);
-        dbContext.PasskeyRecoveryDrafts.Add(draft);
+        await using var transaction = dbContext.Database.IsRelational()
+            ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+            : null;
         try
         {
+            if (dbContext.Database.IsRelational())
+            {
+                await dbContext.PasskeyRecoveryDrafts
+                    .Where(candidate => candidate.UserId == user.Id)
+                    .ExecuteDeleteAsync(cancellationToken);
+            }
+            else
+            {
+                var existing = await dbContext.PasskeyRecoveryDrafts
+                    .Where(candidate => candidate.UserId == user.Id)
+                    .ToListAsync(cancellationToken);
+                dbContext.PasskeyRecoveryDrafts.RemoveRange(existing);
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            dbContext.PasskeyRecoveryDrafts.Add(draft);
             await dbContext.SaveChangesAsync(cancellationToken);
+            if (transaction is not null)
+            {
+                await transaction.CommitAsync(cancellationToken);
+            }
         }
         catch (DbUpdateException exception)
         {
@@ -118,14 +149,24 @@ internal static class PasskeyRecoveryEndpoints
         PasskeyEmailConfirmationRequest request,
         AppDbContext dbContext,
         PasskeyStateProtector stateProtector,
+        PasskeyDraftRateLimiter draftRateLimiter,
         CancellationToken cancellationToken)
     {
         var draft = await dbContext.PasskeyRecoveryDrafts
             .SingleOrDefaultAsync(candidate => candidate.Id == request.DraftId, cancellationToken);
         if (draft is null ||
             draft.ExpiresAt <= DateTimeOffset.UtcNow ||
-            draft.ConsumedAt is not null ||
-            !PasskeyEncoding.TryToken(request.Token, out var token) ||
+            draft.ConsumedAt is not null)
+        {
+            return RecoveryFailed();
+        }
+
+        if (!draftRateLimiter.TryAcquire("recovery", draft.Id))
+        {
+            return Results.StatusCode(StatusCodes.Status429TooManyRequests);
+        }
+
+        if (!PasskeyEncoding.TryToken(request.Token, out var token) ||
             !CryptographicOperations.FixedTimeEquals(
                 draft.ConfirmationTokenHash,
                 SHA256.HashData(token)))
@@ -133,9 +174,18 @@ internal static class PasskeyRecoveryEndpoints
             return RecoveryFailed();
         }
 
-        draft.EmailConfirmedAt ??= DateTimeOffset.UtcNow;
+        draft.EmailConfirmedAt = DateTimeOffset.UtcNow;
+        draft.ConfirmationTokenHash = SHA256.HashData(RandomNumberGenerator.GetBytes(32));
         draft.ConcurrencyStamp = Guid.NewGuid().ToString("N");
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return RecoveryFailed();
+        }
+
         stateProtector.WriteRecovery(
             context.Response,
             new PasskeyDraftState(
@@ -153,9 +203,15 @@ internal static class PasskeyRecoveryEndpoints
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         PasskeyStateProtector stateProtector,
+        PasskeyDraftRateLimiter draftRateLimiter,
         CancellationToken cancellationToken)
     {
         var state = stateProtector.ReadRecovery(context.Request);
+        if (state is not null && !draftRateLimiter.TryAcquire("recovery", state.DraftId))
+        {
+            return Results.StatusCode(StatusCodes.Status429TooManyRequests);
+        }
+
         var draft = state is null
             ? null
             : await dbContext.PasskeyRecoveryDrafts
@@ -192,6 +248,7 @@ internal static class PasskeyRecoveryEndpoints
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         PasskeyStateProtector stateProtector,
+        PasskeyDraftRateLimiter draftRateLimiter,
         PasskeyEmailService emailService,
         IOptions<PasskeyOptions> passkeyOptions,
         IAuditLogger auditLogger,
@@ -200,6 +257,11 @@ internal static class PasskeyRecoveryEndpoints
         CancellationToken cancellationToken)
     {
         var state = stateProtector.ReadRecovery(context.Request);
+        if (state is not null && !draftRateLimiter.TryAcquire("recovery", state.DraftId))
+        {
+            return Results.StatusCode(StatusCodes.Status429TooManyRequests);
+        }
+
         var draft = state is null
             ? null
             : await dbContext.PasskeyRecoveryDrafts
@@ -248,14 +310,15 @@ internal static class PasskeyRecoveryEndpoints
             return RecoveryFailed();
         }
 
-        attestation.Passkey.Name = name;
-        var oldPasskeys = (await userManager.GetPasskeysAsync(user))
-            .Select(passkey => passkey.CredentialId)
-            .ToArray();
-
         await using var transaction = dbContext.Database.IsRelational()
             ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
             : null;
+
+        attestation.Passkey.Name = name;
+        var oldPasskeys = (await userManager.GetPasskeysAsync(user))
+            .Where(passkey => !passkey.CredentialId.SequenceEqual(attestation.Passkey.CredentialId))
+            .Select(passkey => passkey.CredentialId)
+            .ToArray();
 
         var addResult = await userManager.AddOrUpdatePasskeyAsync(user, attestation.Passkey);
         if (!addResult.Succeeded)
@@ -287,7 +350,13 @@ internal static class PasskeyRecoveryEndpoints
         }
 
         stateProtector.ClearRecovery(context.Response);
-        await signInManager.SignInAsync(user, isPersistent: false, authenticationMethod: "passkey");
+        await signInManager.SignInWithClaimsAsync(
+            user,
+            isPersistent: false,
+            [
+                new Claim(ClaimTypes.AuthenticationMethod, "passkey"),
+                new Claim(PasskeyClaimTypes.Recovery, bool.TrueString)
+            ]);
         await auditLogger.LogAsync(
             AuditEventTypes.PasskeyRecoveryCompleted,
             user.Id,

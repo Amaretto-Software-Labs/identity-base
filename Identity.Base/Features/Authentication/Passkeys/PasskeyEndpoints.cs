@@ -16,7 +16,9 @@ namespace Identity.Base.Features.Authentication.Passkeys;
 
 public static class PasskeyEndpoints
 {
-    public static RouteGroupBuilder MapPasskeyAuthenticationEndpoints(this RouteGroupBuilder group)
+    public static RouteGroupBuilder MapPasskeyAuthenticationEndpoints(
+        this RouteGroupBuilder group,
+        bool signupEnabled)
     {
         group.MapGet("/passkeys/configuration", GetConfiguration)
             .WithName("GetPasskeyConfiguration")
@@ -34,7 +36,10 @@ public static class PasskeyEndpoints
             .WithMetadata(new RequestSizeLimitAttribute(64 * 1024))
             .RequireRateLimiting(PasskeyRateLimitPolicies.Authentication);
 
-        group.MapPasskeySignupEndpoints();
+        if (signupEnabled)
+        {
+            group.MapPasskeySignupEndpoints();
+        }
         group.MapPasskeyRecoveryEndpoints();
         return group;
     }

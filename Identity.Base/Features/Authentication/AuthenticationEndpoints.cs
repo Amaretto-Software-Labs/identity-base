@@ -35,9 +35,10 @@ public static class AuthenticationEndpoints
             .WithTags("Authentication");
         group.MapExternalAuthenticationEndpoints();
         group.MapEmailManagementEndpoints();
-        if (endpoints.ServiceProvider.GetRequiredService<IOptions<PasskeyOptions>>().Value.Enabled)
+        var passkeys = endpoints.ServiceProvider.GetRequiredService<IOptions<PasskeyOptions>>().Value;
+        if (passkeys.Enabled)
         {
-            group.MapPasskeyAuthenticationEndpoints();
+            group.MapPasskeyAuthenticationEndpoints(passkeys.Signup.EnabledModes.Count > 0);
         }
 
         return group;
