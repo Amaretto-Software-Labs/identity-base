@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '@identity-base/sample-router'
 import { useAuth, useMfa } from '@identity-base/react-client'
 import QRCode from 'qrcode'
 

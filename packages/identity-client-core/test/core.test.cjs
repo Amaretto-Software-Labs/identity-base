@@ -89,6 +89,48 @@ test('MemoryTokenStorage stores access and refresh tokens', async () => {
   assert.equal(storage.getRefreshToken(), null)
 })
 
+test('passkey helpers convert WebAuthn JSON and serialize credentials without browser toJSON', () => {
+  const {
+    parsePasskeyCreationOptions,
+    parsePasskeyRequestOptions,
+    serializePasskeyCredential,
+  } = require('../dist/index.js')
+
+  const creation = parsePasskeyCreationOptions(JSON.stringify({
+    challenge: 'AQID',
+    rp: { id: 'example.com', name: 'Example' },
+    user: { id: 'BAUG', name: 'alice', displayName: 'Alice' },
+    pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+    excludeCredentials: [{ type: 'public-key', id: 'BwgJ' }],
+  }))
+  assert.deepEqual([...new Uint8Array(creation.challenge)], [1, 2, 3])
+  assert.deepEqual([...new Uint8Array(creation.user.id)], [4, 5, 6])
+  assert.deepEqual([...new Uint8Array(creation.excludeCredentials[0].id)], [7, 8, 9])
+
+  const request = parsePasskeyRequestOptions(JSON.stringify({
+    challenge: 'AQID',
+    allowCredentials: [{ type: 'public-key', id: 'BAUG' }],
+  }))
+  assert.deepEqual([...new Uint8Array(request.allowCredentials[0].id)], [4, 5, 6])
+
+  const credential = serializePasskeyCredential({
+    id: 'credential',
+    rawId: Uint8Array.from([1, 2, 3]).buffer,
+    type: 'public-key',
+    authenticatorAttachment: 'platform',
+    getClientExtensionResults: () => ({}),
+    response: {
+      clientDataJSON: Uint8Array.from([4]).buffer,
+      attestationObject: Uint8Array.from([5]).buffer,
+      getTransports: () => ['internal'],
+    },
+  })
+  assert.equal(credential.rawId, 'AQID')
+  assert.equal(credential.response.clientDataJSON, 'BA')
+  assert.equal(credential.response.attestationObject, 'BQ')
+  assert.deepEqual(credential.response.transports, ['internal'])
+})
+
 test('ApiClient.buildAuthorizationUrl includes PKCE and state', async () => {
   const { ApiClient } = require('../dist/index.js')
   const client = new ApiClient({
@@ -924,6 +966,7 @@ test('IdentityAuthManager returns null for getCurrentUser on 401', async () => {
 test('IdentityAuthManager exposes registration, password, MFA, and admin helpers', async () => {
   const { IdentityAuthManager } = require('../dist/index.js')
   const originalFetch = globalThis.fetch
+  let mfaVerifyRequest = null
 
   globalThis.fetch = async (url, init = {}) => {
     const requestUrl = typeof url === 'string' ? url : url.toString()
@@ -947,6 +990,7 @@ test('IdentityAuthManager exposes registration, password, MFA, and admin helpers
     }
 
     if (pathname === '/auth/mfa/verify' && method === 'POST') {
+      mfaVerifyRequest = JSON.parse(init.body)
       return makeResponse({ status: 200, json: { message: 'verified' } })
     }
 
@@ -1073,8 +1117,19 @@ test('IdentityAuthManager exposes registration, password, MFA, and admin helpers
 
     const challenge = await auth.sendMfaChallenge({ method: 'email', clientId: 'spa-client' })
     assert.equal(challenge.message, 'sent')
-    const verified = await auth.verifyMfa({ method: 'email', code: '123456', clientId: 'spa-client' })
+    const verified = await auth.verifyMfa({
+      method: 'authenticator',
+      code: '123456',
+      clientId: 'spa-client',
+      rememberMachine: true,
+    })
     assert.equal(verified.message, 'verified')
+    assert.deepEqual(mfaVerifyRequest, {
+      method: 'authenticator',
+      code: '123456',
+      clientId: 'spa-client',
+      rememberMachine: true,
+    })
 
     const enrolled = await auth.enrollMfa()
     assert.equal(enrolled.sharedKey, 'k')
@@ -1092,6 +1147,7 @@ test('IdentityAuthManager exposes registration, password, MFA, and admin helpers
     await auth.admin.users.unlock('u2')
     await auth.admin.users.forcePasswordReset('u2')
     await auth.admin.users.resetMfa('u2')
+    await auth.admin.users.resetPasskeys('u2', 'Lost device')
     await auth.admin.users.resendConfirmation('u2')
     await auth.admin.users.getRoles('u2')
     await auth.admin.users.updateRoles('u2', { roleIds: [] })
@@ -1106,6 +1162,224 @@ test('IdentityAuthManager exposes registration, password, MFA, and admin helpers
     await auth.admin.permissions.list({ page: 1 })
   } finally {
     globalThis.fetch = originalFetch
+  }
+})
+
+test('IdentityAuthManager orchestrates passkey login, signup, management, and recovery', async () => {
+  const { IdentityAuthManager } = require('../dist/index.js')
+  const originalFetch = globalThis.fetch
+  const originalWindow = globalThis.window
+  const navigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator')
+  const calls = []
+
+  const assertionCredential = {
+    id: 'assertion',
+    rawId: Uint8Array.from([1, 2, 3]).buffer,
+    type: 'public-key',
+    authenticatorAttachment: 'platform',
+    getClientExtensionResults: () => ({}),
+    response: {
+      authenticatorData: Uint8Array.from([4]).buffer,
+      clientDataJSON: Uint8Array.from([5]).buffer,
+      signature: Uint8Array.from([6]).buffer,
+      userHandle: Uint8Array.from([7]).buffer,
+    },
+  }
+  const attestationCredential = {
+    id: 'attestation',
+    rawId: Uint8Array.from([8, 9]).buffer,
+    type: 'public-key',
+    authenticatorAttachment: 'platform',
+    getClientExtensionResults: () => ({}),
+    response: {
+      attestationObject: Uint8Array.from([10]).buffer,
+      clientDataJSON: Uint8Array.from([11]).buffer,
+      getTransports: () => ['internal'],
+    },
+  }
+  const requestOptions = JSON.stringify({
+    challenge: 'AQID',
+    allowCredentials: [],
+  })
+  const creationOptions = JSON.stringify({
+    challenge: 'AQID',
+    rp: { id: 'example.com', name: 'Example' },
+    user: { id: 'BAUG', name: 'alice@example.com', displayName: 'Alice' },
+    pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+    excludeCredentials: [],
+  })
+  const passkey = {
+    id: 'AQID',
+    name: 'Laptop',
+    createdAt: '2026-07-29T00:00:00Z',
+    transports: ['internal'],
+    isBackupEligible: true,
+    isBackedUp: true,
+    concurrencyStamp: 'stamp-1',
+  }
+  const user = {
+    id: 'u1',
+    email: 'alice@example.com',
+    displayName: 'Alice',
+    emailConfirmed: true,
+    metadata: {},
+    concurrencyStamp: 'user-stamp',
+    createdAt: '',
+    updatedAt: '',
+  }
+
+  class TestPublicKeyCredential {}
+  TestPublicKeyCredential.isConditionalMediationAvailable = async () => true
+  globalThis.window = {
+    isSecureContext: true,
+    PublicKeyCredential: TestPublicKeyCredential,
+  }
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: {
+      credentials: {
+        get: async options => {
+          assert.equal(options.mediation, 'conditional')
+          assert.ok(options.signal instanceof AbortSignal)
+          return assertionCredential
+        },
+        create: async () => attestationCredential,
+      },
+    },
+  })
+
+  globalThis.fetch = async (url, init = {}) => {
+    const requestUrl = typeof url === 'string' ? url : url.toString()
+    const { pathname } = new URL(requestUrl)
+    const method = (init.method || 'GET').toUpperCase()
+    const body = typeof init.body === 'string' ? JSON.parse(init.body) : null
+    calls.push({ pathname, method, body })
+
+    if (pathname === '/auth/passkeys/configuration') {
+      return makeResponse({
+        json: {
+          enabled: true,
+          usernameless: true,
+          conditionalUi: true,
+          userVerification: 'required',
+          signupModes: ['passwordless', 'passkey-assisted'],
+          signupEmailVerificationRequired: true,
+        },
+      })
+    }
+    if (pathname === '/auth/passkeys/authentication/options') {
+      return makeResponse({ text: requestOptions })
+    }
+    if (pathname === '/auth/passkeys/authentication') {
+      return makeResponse({ json: { message: 'ok', clientId: 'spa-client' } })
+    }
+    if (pathname === '/auth/passkeys/registration/begin') {
+      return makeResponse({ status: 202, json: { correlationId: 'signup-1' } })
+    }
+    if (pathname === '/auth/passkeys/registration/confirm-email') {
+      return makeResponse({ json: { registrationMode: 'passkey-assisted' } })
+    }
+    if (pathname === '/auth/passkeys/registration/creation/options') {
+      return makeResponse({ text: creationOptions })
+    }
+    if (pathname === '/auth/passkeys/registration/complete') {
+      return makeResponse({ json: { message: 'registered', clientId: 'spa-client' } })
+    }
+    if (pathname === '/users/me/passkeys/' && method === 'GET') {
+      return makeResponse({ json: [passkey] })
+    }
+    if (pathname === '/users/me/passkeys/creation/options') {
+      return makeResponse({ text: creationOptions })
+    }
+    if (pathname === '/users/me/passkeys/' && method === 'POST') {
+      return makeResponse({ json: passkey })
+    }
+    if (pathname === '/users/me/passkeys/AQID' && method === 'PUT') {
+      return makeResponse({ json: { ...passkey, name: body.name, concurrencyStamp: 'stamp-2' } })
+    }
+    if (pathname === '/users/me/passkeys/AQID' && method === 'DELETE') {
+      return makeResponse({ status: 204 })
+    }
+    if (pathname === '/auth/passkeys/recovery/begin') {
+      return makeResponse({ status: 202, json: { correlationId: 'recovery-1' } })
+    }
+    if (pathname === '/auth/passkeys/recovery/confirm-email') {
+      return makeResponse({ status: 204 })
+    }
+    if (pathname === '/auth/passkeys/recovery/creation/options') {
+      return makeResponse({ text: creationOptions })
+    }
+    if (pathname === '/auth/passkeys/recovery/complete') {
+      return makeResponse({
+        json: { message: 'recovered', clientId: 'spa-client', recovered: true },
+      })
+    }
+    if (pathname === '/users/me') {
+      return makeResponse({ json: user })
+    }
+    return makeResponse({ status: 404, json: { title: 'Not found' } })
+  }
+
+  try {
+    const auth = new IdentityAuthManager({
+      apiBase: 'https://identity.example.com',
+      clientId: 'spa-client',
+      redirectUri: 'https://app.example.com/auth/callback',
+      tokenStorage: 'memory',
+      autoRefresh: false,
+    })
+
+    assert.equal(auth.isPasskeySupported(), true)
+    assert.equal(await auth.isConditionalMediationAvailable(), true)
+    assert.equal((await auth.getPasskeyConfiguration()).enabled, true)
+
+    const controller = new AbortController()
+    assert.equal((await auth.loginWithPasskey({
+      mediation: 'conditional',
+      signal: controller.signal,
+    })).message, 'ok')
+
+    assert.equal((await auth.beginPasskeySignup({
+      mode: 'passkey-assisted',
+      email: 'alice@example.com',
+    })).correlationId, 'signup-1')
+    assert.equal((await auth.confirmPasskeySignupEmail({
+      draftId: 'draft-1',
+      token: 'token-1',
+    })).registrationMode, 'passkey-assisted')
+    assert.equal((await auth.completePasskeySignup({
+      draftId: 'draft-1',
+      name: 'Laptop',
+      password: 'correct horse battery staple',
+    })).message, 'registered')
+
+    assert.equal((await auth.listPasskeys()).length, 1)
+    assert.equal((await auth.createPasskey('Laptop')).id, 'AQID')
+    assert.equal((await auth.registerPasskey('Backup')).id, 'AQID')
+    assert.equal((await auth.renamePasskey('AQID', 'Renamed', 'stamp-1')).name, 'Renamed')
+    await auth.removePasskey('AQID')
+
+    assert.equal((await auth.beginPasskeyRecovery({
+      email: 'alice@example.com',
+    })).correlationId, 'recovery-1')
+    await auth.confirmPasskeyRecoveryEmail({ draftId: 'recovery-draft', token: 'token-2' })
+    const recovered = await auth.completePasskeyRecovery({
+      draftId: 'recovery-draft',
+      name: 'Replacement',
+    })
+    assert.equal(recovered.recovered, true)
+
+    assert.ok(calls.some(call => call.pathname === '/auth/passkeys/authentication'))
+    assert.ok(calls.some(call => call.pathname === '/auth/passkeys/registration/complete'))
+    assert.ok(calls.some(call => call.pathname === '/auth/passkeys/recovery/complete'))
+  } finally {
+    globalThis.fetch = originalFetch
+    globalThis.window = originalWindow
+    if (navigatorDescriptor) {
+      Object.defineProperty(globalThis, 'navigator', navigatorDescriptor)
+    } else {
+      delete globalThis.navigator
+    }
   }
 })
 

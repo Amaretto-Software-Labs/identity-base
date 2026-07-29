@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from '@identity-base/sample-router'
 import { useResetPassword } from '@identity-base/react-client'
 
 export default function ResetPasswordPage() {

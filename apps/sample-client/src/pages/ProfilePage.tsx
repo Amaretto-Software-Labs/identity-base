@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link } from '@identity-base/sample-router'
 import { useAuth, useProfile, useMfa, useIdentityContext } from '@identity-base/react-client'
 import { buildExternalStartUrl } from '../api/auth'
 import { CONFIG } from '../config'

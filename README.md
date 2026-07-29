@@ -8,7 +8,7 @@
 
 # Identity Base
 
-Identity Base is a modular Identity + OpenID Connect platform for .NET 9. It packages ASP.NET Core Identity, provider-agnostic EF Core contexts, OpenIddict server setup, MFA, host-registered external providers, RBAC, organization management, administrative APIs, and managed service principals. Optional Mailjet and SendGrid integrations cover account email delivery, while framework-agnostic, React 18/19, and Angular clients consume the HTTP surfaces. The recommended architecture is a dedicated Identity Host, a fleet of JWT-protected microservices, and one or more browser clients. Hosts configure every enabled DbContext, generate migrations for their chosen provider, and apply them before Identity Base runs its seeders.
+Identity Base is a modular Identity + OpenID Connect platform for .NET 10. It packages ASP.NET Core Identity, provider-agnostic EF Core contexts, OpenIddict server setup, passkeys, MFA, host-registered external providers, RBAC, organization management, administrative APIs, and managed service principals. Optional Mailjet and SendGrid integrations cover account email delivery, while framework-agnostic, React 18/19, and Angular clients consume the HTTP surfaces. The recommended architecture is a dedicated Identity Host, a fleet of JWT-protected microservices, and one or more browser clients. Hosts configure every enabled DbContext, generate migrations for their chosen provider, and apply them before Identity Base runs its seeders.
 
 The project is open source under the MIT License.
 
@@ -207,8 +207,8 @@ export const appConfig = {
 ## Running the Stack Locally
 
 ### Prerequisites
-- .NET 9 SDK
-- PostgreSQL 16 (local or Docker)
+- .NET 10 SDK
+- PostgreSQL 18 (local or Docker)
 - Optional: Mailjet or SendGrid credentials (or MailHog for local stubbing)
 - Node.js 20 / npm 10 if you run the React clients
 

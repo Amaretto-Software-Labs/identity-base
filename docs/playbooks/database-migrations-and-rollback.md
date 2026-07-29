@@ -6,9 +6,9 @@ last_reviewed: 2026-07-26
 tags: [operations, efcore, migrations]
 required_roles: [Developer, Operator]
 prerequisites:
-  dotnet: "9.x"
+  dotnet: "10.x"
   dotnet_ef: "installed (global tool)"
-  database: "PostgreSQL 16"
+  database: "PostgreSQL 18"
   repo_root: "cloned"
   env_files: [".env"]
 required_secrets:

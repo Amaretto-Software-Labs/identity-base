@@ -39,6 +39,7 @@ public static class ApplicationBuilderExtensions
 
         app.UseCors(CorsSettings.PolicyName);
         app.UseAuthentication();
+        app.UseRateLimiter();
         app.UseAuthorization();
 
         return app;

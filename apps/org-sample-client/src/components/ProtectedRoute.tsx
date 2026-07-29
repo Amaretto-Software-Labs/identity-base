@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from 'react-router-dom'
+import { Navigate, useLocation } from '@identity-base/sample-router'
 import { useAuth } from '@identity-base/react-client'
 import type { ReactNode } from 'react'
 
@@ -20,4 +20,3 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
 
   return <>{children}</>
 }
-

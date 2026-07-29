@@ -6,8 +6,8 @@ last_reviewed: 2025-11-05
 tags: [identity, roles, organizations, openiddict]
 required_roles: [Developer]
 prerequisites:
-  dotnet: "9.x"
-  database: "PostgreSQL 16"
+  dotnet: "10.x"
+  database: "PostgreSQL 18"
   repo_root: "cloned"
   env_files: [".env"]
 required_secrets:
@@ -21,8 +21,8 @@ Provision and run Identity Base with Roles and Organizations enabled, verify `/h
 
 # Preconditions
 - Working directory at repo root.
-- .NET 9 installed on PATH.
-- Docker available (for local Postgres and Mailhog) or a reachable PostgreSQL 16 instance.
+- .NET 10 installed on PATH.
+- Docker available (for local Postgres and Mailhog) or a reachable PostgreSQL 18 instance.
 - `.env` present (you can copy `.env.example` and adjust as needed).
 
 # Resources

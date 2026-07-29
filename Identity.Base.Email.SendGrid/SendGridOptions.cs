@@ -60,6 +60,30 @@ public sealed class SendGridTemplateOptions
     /// Template identifier for the MFA challenge email.
     /// </summary>
     public string MfaChallenge { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Optional template identifier for passkey signup confirmation.
+    /// Falls back to <see cref="Confirmation"/> when not configured.
+    /// </summary>
+    public string PasskeySignupConfirmation { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Optional template identifier for passkey recovery confirmation.
+    /// Falls back to <see cref="Confirmation"/> when not configured.
+    /// </summary>
+    public string PasskeyRecoveryConfirmation { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Template identifier for passkey recovery completion notifications.
+    /// The notification is not sent when this template is not configured.
+    /// </summary>
+    public string PasskeyRecoveryCompleted { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Template identifier for administrative passkey reset notifications.
+    /// The notification is not sent when this template is not configured.
+    /// </summary>
+    public string PasskeysReset { get; set; } = string.Empty;
 }
 
 internal sealed class SendGridOptionsValidator : IValidateOptions<SendGridOptions>
@@ -112,4 +136,3 @@ internal sealed class SendGridOptionsValidator : IValidateOptions<SendGridOption
             : ValidateOptionsResult.Success;
     }
 }
-

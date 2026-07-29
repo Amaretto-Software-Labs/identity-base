@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE = 'https://localhost:5000'
+const DEFAULT_API_BASE = import.meta.env.DEV ? '' : 'https://localhost:5000'
 const DEFAULT_SAMPLE_API_BASE = 'https://localhost:8199'
 const EXTERNAL_PROVIDER_SEPARATOR = ','
 

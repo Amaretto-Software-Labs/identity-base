@@ -17,7 +17,7 @@ namespace OrgSampleApi.Hosting.Infrastructure.Migrations.Roles
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.10")
+                .HasAnnotation("ProductVersion", "10.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -125,6 +125,22 @@ namespace OrgSampleApi.Hosting.Infrastructure.Migrations.Roles
                     b.ToTable("OrgSample_RolePermissions", (string)null);
                 });
 
+            modelBuilder.Entity("Identity.Base.Roles.Entities.ServicePrincipalRole", b =>
+                {
+                    b.Property<Guid>("ServicePrincipalId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ServicePrincipalId", "RoleId");
+
+                    b.HasIndex("RoleId")
+                        .HasDatabaseName("IX_OrgSample_ServicePrincipalRoles_RoleId");
+
+                    b.ToTable("OrgSample_ServicePrincipalRoles", (string)null);
+                });
+
             modelBuilder.Entity("Identity.Base.Roles.Entities.UserRole", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -156,6 +172,17 @@ namespace OrgSampleApi.Hosting.Infrastructure.Migrations.Roles
                         .IsRequired();
 
                     b.Navigation("Permission");
+
+                    b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("Identity.Base.Roles.Entities.ServicePrincipalRole", b =>
+                {
+                    b.HasOne("Identity.Base.Roles.Entities.Role", "Role")
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Role");
                 });

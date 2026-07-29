@@ -22,7 +22,7 @@ Required settings:
 
 ## 2. Build the Container Image
 
-The multi-stage Dockerfile publishes the API from a .NET 9 SDK image and runs it as a non-root user inside the ASP.NET runtime image.
+The multi-stage Dockerfile publishes the API from a .NET 10 SDK image and runs it as a non-root user inside the ASP.NET runtime image.
 
 ```bash
 docker build -t identity-base:latest .
@@ -43,8 +43,12 @@ docker compose -f docker-compose.local.yml --env-file .env up --build
 
 Services:
 - `identity-api` – the Identity Base container listening on `http://localhost:8080`.
-- `postgres` – PostgreSQL 16 with data persisted in the `postgres-data` volume.
+- `postgres` – PostgreSQL 18 with data persisted in the `postgres-data` volume.
 - `mailhog` – accessible at `http://localhost:8025` for inspecting email traffic (enable the Mailjet package and set `MailJet:Enabled=true` if you want the host to send real messages).
+
+PostgreSQL major versions cannot reuse the same data directory in place. If your
+`postgres-data` volume was created by PostgreSQL 16, migrate it with `pg_upgrade`
+or a dump/restore; use `down --volumes` only when discarding local data is acceptable.
 
 Stop the stack with:
 

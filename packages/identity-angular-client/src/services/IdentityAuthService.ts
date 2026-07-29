@@ -1,5 +1,18 @@
 import { Inject, Injectable } from '@angular/core'
-import type { IdentityAuthManager, LoginRequest, LoginResponse, RegisterRequest, UserProfile } from '@identity-base/client-core'
+import type {
+  IdentityAuthManager,
+  LoginRequest,
+  LoginResponse,
+  PasskeyCompletionRequest,
+  PasskeyEmailConfirmation,
+  PasskeyLoginOptions,
+  PasskeyRecoveryRequest,
+  PasskeySignupConfirmation,
+  PasskeySignupRequest,
+  PasskeySummary,
+  RegisterRequest,
+  UserProfile,
+} from '@identity-base/client-core'
 import { BehaviorSubject } from 'rxjs'
 import { IDENTITY_AUTH_MANAGER } from '../tokens'
 
@@ -131,5 +144,80 @@ export class IdentityAuthService {
 
   async register(request: RegisterRequest): Promise<{ correlationId: string }> {
     return await this.runWithLoading(async () => await this.authManager.register(request))
+  }
+
+  isPasskeySupported(): boolean {
+    return this.isBrowser && this.authManager.isPasskeySupported()
+  }
+
+  async isConditionalMediationAvailable(): Promise<boolean> {
+    return this.isBrowser && await this.authManager.isConditionalMediationAvailable()
+  }
+
+  async loginWithPasskey(options?: PasskeyLoginOptions): Promise<LoginResponse> {
+    this.ensureBrowserForPasskeys()
+    return await this.runWithLoading(async () => {
+      const response = await this.authManager.loginWithPasskey(options)
+      await this.refreshUserInternal(false)
+      return response
+    })
+  }
+
+  async beginPasskeySignup(request: PasskeySignupRequest) {
+    return await this.runWithLoading(async () => await this.authManager.beginPasskeySignup(request))
+  }
+
+  async confirmPasskeySignupEmail(request: PasskeyEmailConfirmation): Promise<PasskeySignupConfirmation> {
+    return await this.runWithLoading(async () => await this.authManager.confirmPasskeySignupEmail(request))
+  }
+
+  async completePasskeySignup(request: PasskeyCompletionRequest): Promise<LoginResponse> {
+    this.ensureBrowserForPasskeys()
+    return await this.runWithLoading(async () => {
+      const response = await this.authManager.completePasskeySignup(request)
+      await this.refreshUserInternal(false)
+      return response
+    })
+  }
+
+  async listPasskeys(): Promise<PasskeySummary[]> {
+    return await this.runWithLoading(async () => await this.authManager.listPasskeys())
+  }
+
+  async registerPasskey(name: string): Promise<PasskeySummary> {
+    this.ensureBrowserForPasskeys()
+    return await this.runWithLoading(async () => await this.authManager.registerPasskey(name))
+  }
+
+  async renamePasskey(passkey: PasskeySummary, name: string): Promise<PasskeySummary> {
+    return await this.runWithLoading(async () =>
+      await this.authManager.renamePasskey(passkey.id, name, passkey.concurrencyStamp))
+  }
+
+  async removePasskey(id: string): Promise<void> {
+    await this.runWithLoading(async () => await this.authManager.removePasskey(id))
+  }
+
+  async beginPasskeyRecovery(request: PasskeyRecoveryRequest) {
+    return await this.runWithLoading(async () => await this.authManager.beginPasskeyRecovery(request))
+  }
+
+  async confirmPasskeyRecoveryEmail(request: PasskeyEmailConfirmation): Promise<void> {
+    await this.runWithLoading(async () => await this.authManager.confirmPasskeyRecoveryEmail(request))
+  }
+
+  async completePasskeyRecovery(request: Pick<PasskeyCompletionRequest, 'draftId' | 'name'>): Promise<LoginResponse> {
+    this.ensureBrowserForPasskeys()
+    return await this.runWithLoading(async () => {
+      const response = await this.authManager.completePasskeyRecovery(request)
+      await this.refreshUserInternal(false)
+      return response
+    })
+  }
+
+  private ensureBrowserForPasskeys(): void {
+    if (!this.isBrowser) {
+      throw new Error('Passkey ceremonies require a browser environment.')
+    }
   }
 }

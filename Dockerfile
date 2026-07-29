@@ -3,7 +3,7 @@
 # --------------------------------------
 # Build stage
 # --------------------------------------
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # copy project files and restore
@@ -22,7 +22,7 @@ RUN dotnet publish Identity.Base/Identity.Base.csproj \
 # --------------------------------------
 # Runtime stage
 # --------------------------------------
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 
 # create non-root user
 RUN groupadd --gid 2000 app && \

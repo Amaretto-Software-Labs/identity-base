@@ -25,6 +25,8 @@ export { useAdminUser } from './react/hooks/useAdminUser'
 export { useAdminUserRoles } from './react/hooks/useAdminUserRoles'
 export { useAdminRoles } from './react/hooks/useAdminRoles'
 export { useAdminPermissions } from './react/hooks/useAdminPermissions'
+export { usePasskeyLogin } from './react/hooks/usePasskeyLogin'
+export { usePasskeys } from './react/hooks/usePasskeys'
 
 // React components
 export { ProtectedRoute } from './react/components/ProtectedRoute'
@@ -35,6 +37,7 @@ export { generatePkce, randomState, PKCEManager } from './utils/pkce'
 export { createTokenStorage } from './utils/storage'
 export { IdentityError, createError } from './utils/errors'
 export { enableDebugLogging, debugLog } from './utils/logger'
+export { isPasskeySupported } from '@identity-base/client-core'
 
 // Import logger for side effects (sets up __enableIdentityDebug global)
 import './utils/logger'

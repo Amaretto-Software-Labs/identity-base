@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react'
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from '@identity-base/sample-router'
 import { useAdminRoles, useAdminUsers } from '@identity-base/react-client'
 
 function formatDate(value?: string | null) {

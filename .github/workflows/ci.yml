@@ -36,19 +36,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 9.0.x
+          dotnet-version: 10.0.x
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 26.x
 
       - name: Install Nerdbank.GitVersioning tool
         run: dotnet tool update --global nbgv || dotnet tool install --global nbgv
@@ -82,7 +82,7 @@ jobs:
 
       - name: Upload .NET coverage artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dotnet-coverage-${{ github.sha }}
           path: TestResults/**
@@ -112,7 +112,7 @@ jobs:
 
       - name: Upload NuGet artifacts
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nuget-packages-${{ steps.version.outputs.package-version }}
           path: artifacts/*
@@ -137,6 +137,24 @@ jobs:
       - name: Install npm dependencies (angular organizations)
         working-directory: packages/identity-angular-organizations
         run: npm ci
+
+      - name: Install npm dependencies (sample client)
+        working-directory: apps/sample-client
+        run: npm ci
+
+      - name: Install npm dependencies (organization sample client)
+        working-directory: apps/org-sample-client
+        run: npm ci
+
+      - name: Audit npm dependencies
+        run: |
+          npm --prefix packages/identity-client-core audit
+          npm --prefix packages/identity-react-client audit
+          npm --prefix packages/identity-react-organizations audit
+          npm --prefix packages/identity-angular-client audit
+          npm --prefix packages/identity-angular-organizations audit
+          npm --prefix apps/sample-client audit
+          npm --prefix apps/org-sample-client audit
 
       - name: Align npm package version
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -350,37 +368,42 @@ jobs:
         working-directory: packages/identity-angular-organizations
         run: npm run coverage
 
+      - name: Build sample clients
+        run: |
+          npm --prefix apps/sample-client run build
+          npm --prefix apps/org-sample-client run build
+
       - name: Upload React package artifacts
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: identity-react-client-${{ steps.version.outputs.package-version }}
           path: packages/identity-react-client/dist/**
 
       - name: Upload organizations React package artifacts
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: identity-react-organizations-${{ steps.version.outputs.package-version }}
           path: packages/identity-react-organizations/dist/**
 
       - name: Upload client core package artifacts
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: identity-client-core-${{ steps.version.outputs.package-version }}
           path: packages/identity-client-core/dist/**
 
       - name: Upload Angular client package artifacts
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: identity-angular-client-${{ steps.version.outputs.package-version }}
           path: packages/identity-angular-client/dist/**
 
       - name: Upload Angular organizations package artifacts
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: identity-angular-organizations-${{ steps.version.outputs.package-version }}
           path: packages/identity-angular-organizations/dist/**
@@ -393,19 +416,19 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 9.0.x
+          dotnet-version: 10.0.x
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 26.x
           registry-url: 'https://registry.npmjs.org'
 
       - name: Upgrade npm for trusted publishing
@@ -461,7 +484,7 @@ jobs:
 
       - name: Upload .NET coverage artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dotnet-coverage-${{ steps.release-version.outputs.package-version }}
           path: TestResults/**
@@ -480,7 +503,7 @@ jobs:
           dotnet pack Identity.Base.Email.SendGrid/Identity.Base.Email.SendGrid.csproj --configuration Release --no-build -p:ContinuousIntegrationBuild=true -p:PackageVersion=$PACKAGE_VERSION -p:Version=$PACKAGE_VERSION -o artifacts
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nuget-packages-${{ steps.release-version.outputs.package-version }}
           path: artifacts/*
@@ -499,7 +522,7 @@ jobs:
           fi
 
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.release-version.outputs.package-version }}
           name: Identity Base v${{ steps.release-version.outputs.package-version }}
@@ -528,6 +551,14 @@ jobs:
       - name: Install npm dependencies (angular organizations)
         working-directory: packages/identity-angular-organizations
         run: npm ci
+
+      - name: Audit npm dependencies
+        run: |
+          npm --prefix packages/identity-client-core audit
+          npm --prefix packages/identity-react-client audit
+          npm --prefix packages/identity-react-organizations audit
+          npm --prefix packages/identity-angular-client audit
+          npm --prefix packages/identity-angular-organizations audit
 
       - name: Align npm package version
         env:
@@ -737,32 +768,32 @@ jobs:
         run: npm run coverage
 
       - name: Upload React package artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: identity-react-client-${{ steps.release-version.outputs.package-version }}
           path: packages/identity-react-client/dist/**
 
       - name: Upload organizations React package artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: identity-react-organizations-${{ steps.release-version.outputs.package-version }}
           path: packages/identity-react-organizations/dist/**
 
       - name: Upload client core package artifacts
         if: ${{ hashFiles('packages/identity-client-core/package.json') != '' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: identity-client-core-${{ steps.release-version.outputs.package-version }}
           path: packages/identity-client-core/dist/**
 
       - name: Upload Angular client package artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: identity-angular-client-${{ steps.release-version.outputs.package-version }}
           path: packages/identity-angular-client/dist/**
 
       - name: Upload Angular organizations package artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: identity-angular-organizations-${{ steps.release-version.outputs.package-version }}
           path: packages/identity-angular-organizations/dist/**
