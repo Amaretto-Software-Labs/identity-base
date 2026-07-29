@@ -30,6 +30,13 @@ function identityProxy(): ProxyOptions {
 
 export default defineConfig({
   plugins: [react()],
+  optimizeDeps: {
+    // This local package is rebuilt while the sample is running. Loading its
+    // ESM output directly prevents Vite from serving a stale export surface.
+    exclude: ['@identity-base/react-client'],
+    // The linked package's compiled ESM imports React's CommonJS runtime.
+    include: ['react/jsx-runtime'],
+  },
   resolve: {
     preserveSymlinks: true,
     // Local package links also expose the React client's development dependencies.

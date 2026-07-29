@@ -63,6 +63,7 @@ export interface MfaVerifyRequest {
   method: string
   code: string
   clientId: string
+  rememberMachine?: boolean
 }
 
 // Authentication Responses

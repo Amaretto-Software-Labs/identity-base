@@ -136,6 +136,23 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
 
         using var authorizeResponse = await client.GetAsync(authorizeUrl);
         authorizeResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+
+        using (var logoutResponse = await client.PostAsync("/auth/logout", new StringContent(string.Empty)))
+        {
+            logoutResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        using var rememberedLoginResponse = await client.PostAsJsonAsync("/auth/login", new
+        {
+            email,
+            password,
+            clientId = "spa-client"
+        });
+        rememberedLoginResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var rememberedLoginPayload = await rememberedLoginResponse.Content.ReadFromJsonAsync<JsonDocument>();
+        rememberedLoginPayload.ShouldNotBeNull();
+        rememberedLoginPayload!.RootElement.TryGetProperty("requiresTwoFactor", out _).ShouldBeFalse(
+            "a remembered browser should not be challenged for MFA again");
     }
 
     [Fact]

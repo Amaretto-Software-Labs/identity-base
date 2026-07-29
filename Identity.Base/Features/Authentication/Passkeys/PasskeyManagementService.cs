@@ -78,24 +78,34 @@ internal sealed class PasskeyManagementService(
 
         attestation.Passkey.Name = name;
 
-        await using var transaction = dbContext.Database.IsRelational()
-            ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
-            : null;
-
-        if ((await userManager.GetPasskeysAsync(user)).Count >= _options.MaxPasskeysPerUser)
+        var executionStrategy = dbContext.Database.CreateExecutionStrategy();
+        var mutationResult = await executionStrategy.ExecuteAsync(async () =>
         {
-            return PasskeyMutationResult.LimitReached;
-        }
+            await using var transaction = dbContext.Database.IsRelational()
+                ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+                : null;
 
-        var result = await userManager.AddOrUpdatePasskeyAsync(user, attestation.Passkey);
-        if (!result.Succeeded)
-        {
-            return PasskeyMutationResult.Failed;
-        }
+            if ((await userManager.GetPasskeysAsync(user)).Count >= _options.MaxPasskeysPerUser)
+            {
+                return PasskeyMutationResult.LimitReached;
+            }
 
-        if (transaction is not null)
+            var result = await userManager.AddOrUpdatePasskeyAsync(user, attestation.Passkey);
+            if (!result.Succeeded)
+            {
+                return PasskeyMutationResult.Failed;
+            }
+
+            if (transaction is not null)
+            {
+                await transaction.CommitAsync(cancellationToken);
+            }
+
+            return PasskeyMutationResult.Success();
+        });
+        if (mutationResult.Status != PasskeyMutationStatus.Success)
         {
-            await transaction.CommitAsync(cancellationToken);
+            return mutationResult;
         }
 
         var entity = await dbContext.Set<ApplicationUserPasskey>()
@@ -162,37 +172,41 @@ internal sealed class PasskeyManagementService(
         byte[] credentialId,
         CancellationToken cancellationToken)
     {
-        await using var transaction = dbContext.Database.IsRelational()
-            ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
-            : null;
-
-        var passkeys = await userManager.GetPasskeysAsync(user);
-        if (passkeys.All(passkey => !passkey.CredentialId.SequenceEqual(credentialId)))
+        var executionStrategy = dbContext.Database.CreateExecutionStrategy();
+        return await executionStrategy.ExecuteAsync(async () =>
         {
-            return PasskeyMutationResult.NotFound;
-        }
+            await using var transaction = dbContext.Database.IsRelational()
+                ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+                : null;
 
-        var hasOtherLogin =
-            passkeys.Count > 1 ||
-            await userManager.HasPasswordAsync(user) ||
-            (await userManager.GetLoginsAsync(user)).Count > 0;
-        if (!hasOtherLogin)
-        {
-            return PasskeyMutationResult.LoginMethodRequired;
-        }
+            var passkeys = await userManager.GetPasskeysAsync(user);
+            if (passkeys.All(passkey => !passkey.CredentialId.SequenceEqual(credentialId)))
+            {
+                return PasskeyMutationResult.NotFound;
+            }
 
-        var result = await userManager.RemovePasskeyAsync(user, credentialId);
-        if (!result.Succeeded)
-        {
-            return PasskeyMutationResult.Failed;
-        }
+            var hasOtherLogin =
+                passkeys.Count > 1 ||
+                await userManager.HasPasswordAsync(user) ||
+                (await userManager.GetLoginsAsync(user)).Count > 0;
+            if (!hasOtherLogin)
+            {
+                return PasskeyMutationResult.LoginMethodRequired;
+            }
 
-        if (transaction is not null)
-        {
-            await transaction.CommitAsync(cancellationToken);
-        }
+            var result = await userManager.RemovePasskeyAsync(user, credentialId);
+            if (!result.Succeeded)
+            {
+                return PasskeyMutationResult.Failed;
+            }
 
-        return PasskeyMutationResult.Success();
+            if (transaction is not null)
+            {
+                await transaction.CommitAsync(cancellationToken);
+            }
+
+            return PasskeyMutationResult.Success();
+        });
     }
 
     private static PasskeySummary ToSummary(UserPasskeyInfo passkey, string concurrencyStamp)

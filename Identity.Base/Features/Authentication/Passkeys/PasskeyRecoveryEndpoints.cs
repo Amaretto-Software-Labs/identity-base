@@ -96,30 +96,34 @@ internal static class PasskeyRecoveryEndpoints
 
         try
         {
-            await using var transaction = dbContext.Database.IsRelational()
-                ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
-                : null;
-            if (dbContext.Database.IsRelational())
+            var executionStrategy = dbContext.Database.CreateExecutionStrategy();
+            await executionStrategy.ExecuteAsync(async () =>
             {
-                await dbContext.PasskeyRecoveryDrafts
-                    .Where(candidate => candidate.UserId == user.Id)
-                    .ExecuteDeleteAsync(cancellationToken);
-            }
-            else
-            {
-                var existing = await dbContext.PasskeyRecoveryDrafts
-                    .Where(candidate => candidate.UserId == user.Id)
-                    .ToListAsync(cancellationToken);
-                dbContext.PasskeyRecoveryDrafts.RemoveRange(existing);
-                await dbContext.SaveChangesAsync(cancellationToken);
-            }
+                await using var transaction = dbContext.Database.IsRelational()
+                    ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+                    : null;
+                if (dbContext.Database.IsRelational())
+                {
+                    await dbContext.PasskeyRecoveryDrafts
+                        .Where(candidate => candidate.UserId == user.Id)
+                        .ExecuteDeleteAsync(cancellationToken);
+                }
+                else
+                {
+                    var existing = await dbContext.PasskeyRecoveryDrafts
+                        .Where(candidate => candidate.UserId == user.Id)
+                        .ToListAsync(cancellationToken);
+                    dbContext.PasskeyRecoveryDrafts.RemoveRange(existing);
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                }
 
-            dbContext.PasskeyRecoveryDrafts.Add(draft);
-            await dbContext.SaveChangesAsync(cancellationToken);
-            if (transaction is not null)
-            {
-                await transaction.CommitAsync(cancellationToken);
-            }
+                dbContext.PasskeyRecoveryDrafts.Add(draft);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                if (transaction is not null)
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                }
+            });
         }
         catch (Exception exception) when (
             !cancellationToken.IsCancellationRequested &&
@@ -313,44 +317,55 @@ internal static class PasskeyRecoveryEndpoints
             return RecoveryFailed();
         }
 
-        await using var transaction = dbContext.Database.IsRelational()
-            ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
-            : null;
-
-        attestation.Passkey.Name = name;
-        var oldPasskeys = (await userManager.GetPasskeysAsync(user))
-            .Where(passkey => !passkey.CredentialId.SequenceEqual(attestation.Passkey.CredentialId))
-            .Select(passkey => passkey.CredentialId)
-            .ToArray();
-
-        var addResult = await userManager.AddOrUpdatePasskeyAsync(user, attestation.Passkey);
-        if (!addResult.Succeeded)
+        var executionStrategy = dbContext.Database.CreateExecutionStrategy();
+        var transactionResult = await executionStrategy.ExecuteAsync(async () =>
         {
-            return RecoveryFailed();
-        }
+            await using var transaction = dbContext.Database.IsRelational()
+                ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+                : null;
 
-        foreach (var credentialId in oldPasskeys)
-        {
-            var removeResult = await userManager.RemovePasskeyAsync(user, credentialId);
-            if (!removeResult.Succeeded)
+            attestation.Passkey.Name = name;
+            var oldPasskeys = (await userManager.GetPasskeysAsync(user))
+                .Where(passkey => !passkey.CredentialId.SequenceEqual(attestation.Passkey.CredentialId))
+                .Select(passkey => passkey.CredentialId)
+                .ToArray();
+
+            var addResult = await userManager.AddOrUpdatePasskeyAsync(user, attestation.Passkey);
+            if (!addResult.Succeeded)
             {
-                return RecoveryFailed();
+                return (Failure: (IResult?)RecoveryFailed(), OldPasskeys: Array.Empty<byte[]>());
             }
-        }
 
-        var stampResult = await userManager.UpdateSecurityStampAsync(user);
-        if (!stampResult.Succeeded)
-        {
-            return RecoveryFailed();
-        }
+            foreach (var credentialId in oldPasskeys)
+            {
+                var removeResult = await userManager.RemovePasskeyAsync(user, credentialId);
+                if (!removeResult.Succeeded)
+                {
+                    return (Failure: (IResult?)RecoveryFailed(), OldPasskeys: Array.Empty<byte[]>());
+                }
+            }
 
-        draft.ConsumedAt = DateTimeOffset.UtcNow;
-        draft.ConcurrencyStamp = Guid.NewGuid().ToString("N");
-        await dbContext.SaveChangesAsync(cancellationToken);
-        if (transaction is not null)
+            var stampResult = await userManager.UpdateSecurityStampAsync(user);
+            if (!stampResult.Succeeded)
+            {
+                return (Failure: (IResult?)RecoveryFailed(), OldPasskeys: Array.Empty<byte[]>());
+            }
+
+            draft.ConsumedAt = DateTimeOffset.UtcNow;
+            draft.ConcurrencyStamp = Guid.NewGuid().ToString("N");
+            await dbContext.SaveChangesAsync(cancellationToken);
+            if (transaction is not null)
+            {
+                await transaction.CommitAsync(cancellationToken);
+            }
+
+            return (Failure: (IResult?)null, OldPasskeys: oldPasskeys);
+        });
+        if (transactionResult.Failure is not null)
         {
-            await transaction.CommitAsync(cancellationToken);
+            return transactionResult.Failure;
         }
+        var oldPasskeys = transactionResult.OldPasskeys;
 
         stateProtector.ClearRecovery(context.Response);
         await signInManager.SignInWithClaimsAsync(

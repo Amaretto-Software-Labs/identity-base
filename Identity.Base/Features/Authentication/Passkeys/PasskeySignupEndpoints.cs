@@ -127,30 +127,34 @@ internal static class PasskeySignupEndpoints
 
         try
         {
-            await using var transaction = dbContext.Database.IsRelational()
-                ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
-                : null;
-            if (dbContext.Database.IsRelational())
+            var executionStrategy = dbContext.Database.CreateExecutionStrategy();
+            await executionStrategy.ExecuteAsync(async () =>
             {
-                await dbContext.PasskeyRegistrationDrafts
-                    .Where(existing => existing.NormalizedEmail == normalizedEmail)
-                    .ExecuteDeleteAsync(cancellationToken);
-            }
-            else
-            {
-                var existingDrafts = await dbContext.PasskeyRegistrationDrafts
-                    .Where(existing => existing.NormalizedEmail == normalizedEmail)
-                    .ToListAsync(cancellationToken);
-                dbContext.PasskeyRegistrationDrafts.RemoveRange(existingDrafts);
-                await dbContext.SaveChangesAsync(cancellationToken);
-            }
+                await using var transaction = dbContext.Database.IsRelational()
+                    ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+                    : null;
+                if (dbContext.Database.IsRelational())
+                {
+                    await dbContext.PasskeyRegistrationDrafts
+                        .Where(existing => existing.NormalizedEmail == normalizedEmail)
+                        .ExecuteDeleteAsync(cancellationToken);
+                }
+                else
+                {
+                    var existingDrafts = await dbContext.PasskeyRegistrationDrafts
+                        .Where(existing => existing.NormalizedEmail == normalizedEmail)
+                        .ToListAsync(cancellationToken);
+                    dbContext.PasskeyRegistrationDrafts.RemoveRange(existingDrafts);
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                }
 
-            dbContext.PasskeyRegistrationDrafts.Add(draft);
-            await dbContext.SaveChangesAsync(cancellationToken);
-            if (transaction is not null)
-            {
-                await transaction.CommitAsync(cancellationToken);
-            }
+                dbContext.PasskeyRegistrationDrafts.Add(draft);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                if (transaction is not null)
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                }
+            });
         }
         catch (Exception exception) when (
             !cancellationToken.IsCancellationRequested &&
@@ -442,45 +446,55 @@ internal static class PasskeySignupEndpoints
             return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
         }
 
-        await using var transaction = dbContext.Database.IsRelational()
-            ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
-            : null;
-
-        if (await userManager.FindByEmailAsync(draft.Email) is not null)
+        var executionStrategy = dbContext.Database.CreateExecutionStrategy();
+        var transactionFailure = await executionStrategy.ExecuteAsync(async () =>
         {
-            return PasskeyEndpoints.Problem(
-                "passkey_registration_failed",
-                "Passkey registration failed.");
-        }
+            await using var transaction = dbContext.Database.IsRelational()
+                ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+                : null;
 
-        var createResult = draft.Mode == PasskeySignupModes.Assisted
-            ? await userManager.CreateAsync(user, request.Password!)
-            : await userManager.CreateAsync(user);
-        if (!createResult.Succeeded)
-        {
-            return Results.ValidationProblem(createResult.ToDictionary());
-        }
-
-        attestation.Passkey.Name = name;
-        var addResult = await userManager.AddOrUpdatePasskeyAsync(user, attestation.Passkey);
-        if (!addResult.Succeeded)
-        {
-            if (transaction is null)
+            if (await userManager.FindByEmailAsync(draft.Email) is not null)
             {
-                await userManager.DeleteAsync(user);
+                return (IResult?)PasskeyEndpoints.Problem(
+                    "passkey_registration_failed",
+                    "Passkey registration failed.");
             }
 
-            return PasskeyEndpoints.Problem(
-                "passkey_registration_failed",
-                "Passkey registration failed.");
-        }
+            var createResult = draft.Mode == PasskeySignupModes.Assisted
+                ? await userManager.CreateAsync(user, request.Password!)
+                : await userManager.CreateAsync(user);
+            if (!createResult.Succeeded)
+            {
+                return Results.ValidationProblem(createResult.ToDictionary());
+            }
 
-        draft.ConsumedAt = DateTimeOffset.UtcNow;
-        draft.ConcurrencyStamp = Guid.NewGuid().ToString("N");
-        await dbContext.SaveChangesAsync(cancellationToken);
-        if (transaction is not null)
+            attestation.Passkey.Name = name;
+            var addResult = await userManager.AddOrUpdatePasskeyAsync(user, attestation.Passkey);
+            if (!addResult.Succeeded)
+            {
+                if (transaction is null)
+                {
+                    await userManager.DeleteAsync(user);
+                }
+
+                return PasskeyEndpoints.Problem(
+                    "passkey_registration_failed",
+                    "Passkey registration failed.");
+            }
+
+            draft.ConsumedAt = DateTimeOffset.UtcNow;
+            draft.ConcurrencyStamp = Guid.NewGuid().ToString("N");
+            await dbContext.SaveChangesAsync(cancellationToken);
+            if (transaction is not null)
+            {
+                await transaction.CommitAsync(cancellationToken);
+            }
+
+            return null;
+        });
+        if (transactionFailure is not null)
         {
-            await transaction.CommitAsync(cancellationToken);
+            return transactionFailure;
         }
 
         stateProtector.ClearRegistration(context.Response);

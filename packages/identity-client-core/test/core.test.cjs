@@ -966,6 +966,7 @@ test('IdentityAuthManager returns null for getCurrentUser on 401', async () => {
 test('IdentityAuthManager exposes registration, password, MFA, and admin helpers', async () => {
   const { IdentityAuthManager } = require('../dist/index.js')
   const originalFetch = globalThis.fetch
+  let mfaVerifyRequest = null
 
   globalThis.fetch = async (url, init = {}) => {
     const requestUrl = typeof url === 'string' ? url : url.toString()
@@ -989,6 +990,7 @@ test('IdentityAuthManager exposes registration, password, MFA, and admin helpers
     }
 
     if (pathname === '/auth/mfa/verify' && method === 'POST') {
+      mfaVerifyRequest = JSON.parse(init.body)
       return makeResponse({ status: 200, json: { message: 'verified' } })
     }
 
@@ -1115,8 +1117,19 @@ test('IdentityAuthManager exposes registration, password, MFA, and admin helpers
 
     const challenge = await auth.sendMfaChallenge({ method: 'email', clientId: 'spa-client' })
     assert.equal(challenge.message, 'sent')
-    const verified = await auth.verifyMfa({ method: 'email', code: '123456', clientId: 'spa-client' })
+    const verified = await auth.verifyMfa({
+      method: 'authenticator',
+      code: '123456',
+      clientId: 'spa-client',
+      rememberMachine: true,
+    })
     assert.equal(verified.message, 'verified')
+    assert.deepEqual(mfaVerifyRequest, {
+      method: 'authenticator',
+      code: '123456',
+      clientId: 'spa-client',
+      rememberMachine: true,
+    })
 
     const enrolled = await auth.enrollMfa()
     assert.equal(enrolled.sharedKey, 'k')

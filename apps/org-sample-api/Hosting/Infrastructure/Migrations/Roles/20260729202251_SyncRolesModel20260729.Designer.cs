@@ -3,6 +3,7 @@ using System;
 using Identity.Base.Roles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace OrgSampleApi.Hosting.Infrastructure.Migrations.Roles
 {
     [DbContext(typeof(IdentityRolesDbContext))]
-    partial class IdentityRolesDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260729202251_SyncRolesModel20260729")]
+    partial class SyncRolesModel20260729
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
