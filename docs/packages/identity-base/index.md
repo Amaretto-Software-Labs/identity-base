@@ -1,11 +1,12 @@
 # Identity.Base
 
 ## Overview
-`Identity.Base` turns an ASP.NET Core 9 web application into a fully-fledged identity authority. It wires ASP.NET Identity, EF Core, and OpenIddict together, exposes Minimal APIs for account lifecycle (registration, login, logout, MFA, profile management), and offers a fluent builder (`IdentityBaseBuilder`) for composing optional integrations such as external providers or custom email senders. All other Identity Base packages rely on this foundation.
+`Identity.Base` turns an ASP.NET Core 10 web application into a fully-fledged identity authority. It wires ASP.NET Identity, EF Core, and OpenIddict together, exposes Minimal APIs for account lifecycle (registration, login, logout, passkeys, MFA, profile management), and offers a fluent builder (`IdentityBaseBuilder`) for composing optional integrations such as external providers or custom email senders. All other Identity Base packages rely on this foundation.
 
 Key capabilities:
 - **OpenIddict hosting** – authorization-code PKCE, refresh tokens, and configurable signing/encryption keys.
 - **Identity workflows** – registration, login, logout, email confirmation, password reset, profile updates, MFA enrollment/challenge, recovery codes.
+- **Passkeys** – usernameless sign-in, existing-user management, passwordless or password-assisted signup, and verified-email recovery.
 - **Operational readiness** – `/healthz` JSON health checks, opinionated middleware pipeline via `UseApiPipeline`, and seed callbacks for post-migration provisioning.
 
 ## Installation & Wiring
@@ -86,6 +87,7 @@ Options are bound automatically from `IConfiguration`. The sections below are th
 | `Registration` (`RegistrationOptions`) | `ConfirmationUrlTemplate`, `PasswordResetUrlTemplate`, `ProfileFields` | Empty | Controls email templates and which metadata fields are collected and validated during registration. |
 | `Authentication:External` (`ExternalAuthenticationOptions`) | `AutoLinkByEmailOnLogin`, `RequireVerifiedEmailForAutoLinkByEmail`, `PersistedClaimTypes` | Auto-link enabled; verified email required; no persisted claims | Controls external account association. Configured provider claim types are synchronized to the local user claim store after successful login/link, including removal of stale values. |
 | `Mfa` (`MfaOptions`) | `Issuer`, `Email.Enabled`, `Sms.Enabled`, `Sms.AccountSid`, `Sms.AuthToken`, `Sms.FromPhoneNumber` | Email enabled, SMS disabled | SMS validation requires Twilio credentials. Tokens are issued with the configured `Issuer`. |
+| `Passkeys` (`PasskeyOptions`) | `Enabled`, `ServerDomain`, `AllowedOrigins`, `Signup.EnabledModes`, `Recovery` | Disabled | Requires .NET 10 Identity schema v3 and a host migration. See the passkey guide. |
 | `OpenIddict` (`OpenIddictOptions`) | `Applications`, `Scopes`, token lifetimes | SPA (`spa-client`) and confidential (`test-client`) seeded | Configure additional client ids/redirect URIs or adjust lifetimes. |
 | `OpenIddict:ServerKeys` (`OpenIddictServerKeyOptions`) | Signing/encryption key descriptors | Runtime-generated | Override to use persisted keys or external key stores. |
 | `Cors` (`CorsSettings`) | `AllowedOrigins`, `AllowCredentials` | Empty | `UseApiPipeline` consumes this to create the default CORS policy for Minimal APIs. |
@@ -122,6 +124,7 @@ identity.AfterIdentitySeed(async (sp, ct) =>
 | Area | Routes | Behaviour |
 | --- | --- | --- |
 | Authentication | `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/profile-schema` | `/auth/register` → `202 Accepted` with `{ correlationId }` once the confirmation email is queued. `/auth/login` → `200 OK` with `{ message, clientId }`, or `{ requiresTwoFactor: true, methods: [...] }` when MFA is required. `/auth/logout` clears the Identity cookie. `/auth/profile-schema` returns the configured registration fields. |
+| Passkeys | `/auth/passkeys/*`, `/users/me/passkeys/*` | Usernameless authentication, resumable assisted/passwordless signup, verified-email recovery, and self-service passkey management. |
 | MFA | `/auth/mfa/enroll`, `/auth/mfa/verify`, `/auth/mfa/challenge`, `/auth/mfa/disable`, `/auth/mfa/recovery-codes` | Enrollment returns the shared key + otpauth URI. Verify accepts authenticator/email/SMS/recovery codes, subject to `MfaOptions`. Challenge dispatches an email/SMS challenge when that channel is enabled. Recovery codes returns a fresh array of codes. |
 | Email workflows | `/auth/confirm-email`, `/auth/resend-confirmation`, `/auth/forgot-password`, `/auth/reset-password` | Tokens (`token`, `userId`) are Base64URL encoded. Resend confirmation is idempotent and returns `202 Accepted` even for unknown email addresses. Forgot password returns `202 Accepted`; reset returns `200 OK` on success. |
 | External providers | `/auth/external/{provider}/start`, `/auth/external/{provider}/callback`, `DELETE /auth/external/{provider}` | Provider-agnostic. Hosts register any OAuth/OIDC scheme(s) and map route keys via `AddExternalAuthProvider(...)`. `IExternalReturnUrlValidator` guards against open redirects; override for custom whitelists. |
@@ -148,7 +151,7 @@ identity.AfterIdentitySeed(async (sp, ct) =>
 - **Notification augmentors** – customize email/SMS payloads before they hit the transport by registering `INotificationContextAugmentor<TContext>` implementations (confirmation, password reset, MFA challenge).
 
 ## Dependencies & Compatibility
-- Requires .NET 9 / ASP.NET Core 9 and EF Core 9.
+- Requires .NET 10 / ASP.NET Core 10 and EF Core 10.
 - Forms the basis for all other packages: RBAC (`Identity.Base.Roles`), organizations, admin, MailJet, ASP.NET helpers, React clients.
 - Compatible with PostgreSQL, SQL Server, and in-memory providers via standard EF Core configuration.
 
@@ -162,6 +165,7 @@ identity.AfterIdentitySeed(async (sp, ct) =>
 ## Examples & Guides
 - [Getting Started](../../guides/getting-started.md)
 - [Full-stack Integration Guide](../../guides/full-stack-integration-guide.md)
+- [Passkeys](../../guides/passkeys.md)
 - [Identity Base Public API Reference](../../reference/identity-base-public-api.md)
 - Sample host implementation: `Identity.Base.Host/Program.cs`
 

@@ -38,12 +38,26 @@ import type {
   AdminServicePrincipalIssueCredentialRequest,
   AdminServicePrincipalIssuedCredential,
   UserPermissionsResponse,
+  PasskeyConfiguration,
+  PasskeySummary,
+  PasskeySignupRequest,
+  PasskeyEmailConfirmation,
+  PasskeyCompletionRequest,
+  PasskeyRecoveryRequest,
+  PasskeyLoginOptions,
 } from './types'
 import { ApiClient } from './ApiClient'
 import { TokenManager } from './TokenManager'
 import { PKCEManager, generatePkce, randomState } from '../utils/pkce'
 import { createError } from '../utils/errors'
 import { debugLog } from '../utils/logger'
+import {
+  isPasskeySupported,
+  isConditionalMediationAvailable,
+  parsePasskeyCreationOptions,
+  parsePasskeyRequestOptions,
+  serializePasskeyCredential,
+} from '../utils/passkeys'
 
 export class IdentityAuthManager {
   private config: IdentityConfig
@@ -61,6 +75,7 @@ export class IdentityAuthManager {
       unlock: (id: string) => Promise<void>
       forcePasswordReset: (id: string) => Promise<void>
       resetMfa: (id: string) => Promise<void>
+      resetPasskeys: (id: string, reason?: string) => Promise<void>
       resendConfirmation: (id: string) => Promise<void>
       getRoles: (id: string) => Promise<AdminUserRolesResponse>
       updateRoles: (id: string, payload: AdminUserRolesUpdateRequest) => Promise<void>
@@ -140,6 +155,13 @@ export class IdentityAuthManager {
         resetMfa: async (id: string): Promise<void> => {
           const encodedId = encodeURIComponent(id)
           return await this.authorizedFetch<void>(`/admin/users/${encodedId}/mfa/reset`, { method: 'POST' })
+        },
+        resetPasskeys: async (id: string, reason?: string): Promise<void> => {
+          const encodedId = encodeURIComponent(id)
+          return await this.authorizedFetch<void>(`/admin/users/${encodedId}/passkeys/reset`, {
+            method: 'POST',
+            body: JSON.stringify({ reason }),
+          })
         },
         resendConfirmation: async (id: string): Promise<void> => {
           const encodedId = encodeURIComponent(id)
@@ -323,6 +345,184 @@ export class IdentityAuthManager {
     }
 
     return response
+  }
+
+  isPasskeySupported(): boolean {
+    return isPasskeySupported()
+  }
+
+  async isConditionalMediationAvailable(): Promise<boolean> {
+    return await isConditionalMediationAvailable()
+  }
+
+  async getPasskeyConfiguration(): Promise<PasskeyConfiguration> {
+    return await this.apiClient.fetch<PasskeyConfiguration>('/auth/passkeys/configuration')
+  }
+
+  async loginWithPasskey(options: PasskeyLoginOptions = {}): Promise<LoginResponse> {
+    this.ensurePasskeysSupported()
+    const optionsJson = await this.apiClient.fetch<string>('/auth/passkeys/authentication/options', {
+      method: 'POST',
+      body: JSON.stringify({ clientId: this.config.clientId }),
+      parse: 'text',
+    })
+    const credential = await navigator.credentials.get({
+      publicKey: parsePasskeyRequestOptions(optionsJson),
+      mediation: options.mediation ?? 'required',
+      signal: options.signal,
+    }) as PublicKeyCredential | null
+    if (!credential) {
+      throw createError('Passkey authentication was cancelled.')
+    }
+
+    const response = await this.apiClient.fetch<LoginResponse>('/auth/passkeys/authentication', {
+      method: 'POST',
+      body: JSON.stringify({
+        clientId: this.config.clientId,
+        credential: serializePasskeyCredential(credential),
+      }),
+    })
+    const user = await this.getCurrentUser()
+    if (user) {
+      this.emit({ type: 'login', user })
+    }
+    return response
+  }
+
+  async beginPasskeySignup(request: PasskeySignupRequest): Promise<{ correlationId: string }> {
+    return await this.apiClient.fetch<{ correlationId: string }>('/auth/passkeys/registration/begin', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...request,
+        metadata: request.metadata ?? {},
+        clientId: this.config.clientId,
+      }),
+    })
+  }
+
+  async confirmPasskeySignupEmail(request: PasskeyEmailConfirmation): Promise<void> {
+    await this.apiClient.fetch('/auth/passkeys/registration/confirm-email', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    })
+  }
+
+  async completePasskeySignup(request: PasskeyCompletionRequest): Promise<LoginResponse> {
+    this.ensurePasskeysSupported()
+    const optionsJson = await this.apiClient.fetch<string>('/auth/passkeys/registration/creation/options', {
+      method: 'POST',
+      body: JSON.stringify({ draftId: request.draftId }),
+      parse: 'text',
+    })
+    const credential = await navigator.credentials.create({
+      publicKey: parsePasskeyCreationOptions(optionsJson),
+    }) as PublicKeyCredential | null
+    if (!credential) {
+      throw createError('Passkey creation was cancelled.')
+    }
+
+    const response = await this.apiClient.fetch<LoginResponse>('/auth/passkeys/registration/complete', {
+      method: 'POST',
+      body: JSON.stringify({
+        draftId: request.draftId,
+        name: request.name,
+        password: request.password,
+        credential: serializePasskeyCredential(credential),
+      }),
+    })
+    const user = await this.getCurrentUser()
+    if (user) {
+      this.emit({ type: 'login', user })
+    }
+    return response
+  }
+
+  async listPasskeys(): Promise<PasskeySummary[]> {
+    return await this.authorizedFetch<PasskeySummary[]>('/users/me/passkeys/')
+  }
+
+  async createPasskey(name: string): Promise<PasskeySummary> {
+    this.ensurePasskeysSupported()
+    const optionsJson = await this.authorizedFetch<string>('/users/me/passkeys/creation/options', {
+      method: 'POST',
+      parse: 'text',
+    })
+    const credential = await navigator.credentials.create({
+      publicKey: parsePasskeyCreationOptions(optionsJson),
+    }) as PublicKeyCredential | null
+    if (!credential) {
+      throw createError('Passkey creation was cancelled.')
+    }
+    return await this.authorizedFetch<PasskeySummary>('/users/me/passkeys/', {
+      method: 'POST',
+      body: JSON.stringify({ name, credential: serializePasskeyCredential(credential) }),
+    })
+  }
+
+  async registerPasskey(name: string): Promise<PasskeySummary> {
+    return await this.createPasskey(name)
+  }
+
+  async renamePasskey(id: string, name: string, concurrencyStamp: string): Promise<PasskeySummary> {
+    return await this.authorizedFetch<PasskeySummary>(`/users/me/passkeys/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name, concurrencyStamp }),
+    })
+  }
+
+  async removePasskey(id: string): Promise<void> {
+    await this.authorizedFetch<void>(`/users/me/passkeys/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async beginPasskeyRecovery(request: PasskeyRecoveryRequest): Promise<{ correlationId: string }> {
+    return await this.apiClient.fetch<{ correlationId: string }>('/auth/passkeys/recovery/begin', {
+      method: 'POST',
+      body: JSON.stringify({ ...request, clientId: this.config.clientId }),
+    })
+  }
+
+  async confirmPasskeyRecoveryEmail(request: PasskeyEmailConfirmation): Promise<void> {
+    await this.apiClient.fetch('/auth/passkeys/recovery/confirm-email', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    })
+  }
+
+  async completePasskeyRecovery(request: Pick<PasskeyCompletionRequest, 'draftId' | 'name'>): Promise<LoginResponse> {
+    this.ensurePasskeysSupported()
+    const optionsJson = await this.apiClient.fetch<string>('/auth/passkeys/recovery/creation/options', {
+      method: 'POST',
+      body: JSON.stringify({ draftId: request.draftId }),
+      parse: 'text',
+    })
+    const credential = await navigator.credentials.create({
+      publicKey: parsePasskeyCreationOptions(optionsJson),
+    }) as PublicKeyCredential | null
+    if (!credential) {
+      throw createError('Passkey creation was cancelled.')
+    }
+
+    const response = await this.apiClient.fetch<LoginResponse>('/auth/passkeys/recovery/complete', {
+      method: 'POST',
+      body: JSON.stringify({
+        draftId: request.draftId,
+        name: request.name,
+        credential: serializePasskeyCredential(credential),
+      }),
+    })
+    const user = await this.getCurrentUser()
+    if (user) {
+      this.emit({ type: 'login', user })
+    }
+    return response
+  }
+
+  private ensurePasskeysSupported(): void {
+    if (!isPasskeySupported()) {
+      throw createError('Passkeys are not supported in this browser.')
+    }
   }
 
   async logout(): Promise<void> {

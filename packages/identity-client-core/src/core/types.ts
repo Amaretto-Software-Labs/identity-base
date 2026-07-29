@@ -73,6 +73,53 @@ export interface LoginResponse {
   methods?: string[]
 }
 
+export type PasskeySignupMode = 'passkey-assisted' | 'passwordless'
+
+export interface PasskeyConfiguration {
+  enabled: boolean
+  usernameless: boolean
+  conditionalUi: boolean
+  userVerification: 'required'
+  signupModes: PasskeySignupMode[]
+  signupEmailVerificationRequired: boolean
+}
+
+export interface PasskeySummary {
+  id: string
+  name: string
+  createdAt: string
+  transports: string[]
+  isBackupEligible: boolean
+  isBackedUp: boolean
+  concurrencyStamp: string
+}
+
+export interface PasskeySignupRequest {
+  mode: PasskeySignupMode
+  email: string
+  metadata?: Record<string, string | null>
+}
+
+export interface PasskeyEmailConfirmation {
+  draftId: string
+  token: string
+}
+
+export interface PasskeyCompletionRequest {
+  draftId: string
+  name: string
+  password?: string
+}
+
+export interface PasskeyRecoveryRequest {
+  email: string
+}
+
+export interface PasskeyLoginOptions {
+  mediation?: 'required' | 'conditional'
+  signal?: AbortSignal
+}
+
 export interface TokenResponse {
   access_token: string
   refresh_token?: string
@@ -174,6 +221,7 @@ export interface AdminUserDetail {
   roles: string[]
   externalLogins: AdminUserExternalLogin[]
   authenticatorConfigured: boolean
+  passkeyCount: number
   isDeleted: boolean
 }
 
@@ -337,4 +385,3 @@ export interface AuthState {
   isLoading: boolean
   error: ApiError | null
 }
-

@@ -8,7 +8,7 @@ required_roles: [Developer, Operator]
 prerequisites:
   dotnet: "9.x"
   dotnet_ef: "installed (global tool)"
-  database: "PostgreSQL 16"
+  database: "PostgreSQL 18"
   repo_root: "cloned"
   env_files: [".env"]
 required_secrets:

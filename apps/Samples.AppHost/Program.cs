@@ -26,7 +26,7 @@ var sampleApi = builder.AddProject("sample-api", "../sample-api/SampleApi.csproj
     .WithExternalHttpEndpoints()
     .WaitFor(identityHost);
 
-var orgSampleApp = builder.AddNpmApp("org-sample-client", "../org-sample-client", "dev")
+var orgSampleApp = builder.AddViteApp("org-sample-client", "../org-sample-client", "dev")
     .WithEnvironment("VITE_API_BASE", "https://localhost:8182")
     .WithEnvironment("VITE_CLIENT_ID", "org-sample-client")
     .WithEnvironment("VITE_AUTHORIZE_REDIRECT", "http://localhost:5173/auth/callback")
@@ -37,7 +37,7 @@ var orgSampleApp = builder.AddNpmApp("org-sample-client", "../org-sample-client"
     .WithExternalHttpEndpoints()
     .WaitFor(orgSampleApi);
 
-builder.AddNpmApp("sample-client", "../sample-client", "dev")
+builder.AddViteApp("sample-client", "../sample-client", "dev")
     .WithEnvironment("VITE_API_BASE", "https://localhost:8181")
     .WithEnvironment("VITE_SAMPLE_API_BASE", "https://localhost:8199")
     .WithEnvironment("VITE_CLIENT_ID", "spa-client")

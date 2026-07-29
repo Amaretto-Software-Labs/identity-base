@@ -24,6 +24,9 @@ export default function Layout() {
             <NavLink to="/login" className={navLinkClass}>
               Login
             </NavLink>
+            <NavLink to="/passkeys" className={navLinkClass}>
+              Passkeys
+            </NavLink>
             <NavLink to="/mfa" className={navLinkClass}>
               MFA
             </NavLink>

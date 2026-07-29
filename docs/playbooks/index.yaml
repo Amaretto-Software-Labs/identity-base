@@ -4,7 +4,7 @@ playbooks:
     goal: "Run Identity Base with Roles and Organizations, verify health, run tests"
     prerequisites:
       dotnet: "9.x"
-      database: "PostgreSQL 16"
+      database: "PostgreSQL 18"
       docker: "Available (optional)"
     required_secrets:
       - CONNECTIONSTRINGS__PRIMARY
@@ -29,7 +29,7 @@ playbooks:
     goal: "Seed admin user, configure RBAC permissions, create default organization via /admin/organizations, and assign membership"
     prerequisites:
       dotnet: "9.x"
-      database: "PostgreSQL 16"
+      database: "PostgreSQL 18"
     required_secrets:
       - CONNECTIONSTRINGS__PRIMARY
     tags: [roles, organizations, seeding]
@@ -39,7 +39,7 @@ playbooks:
     goal: "Run Identity Host, verify health, obtain token, and exercise endpoints"
     prerequisites:
       dotnet: "9.x"
-      database: "PostgreSQL 16"
+      database: "PostgreSQL 18"
     required_secrets:
       - CONNECTIONSTRINGS__PRIMARY
     tags: [smoke, verification]
@@ -49,7 +49,7 @@ playbooks:
     goal: "Create, retrieve, and claim an organization invitation; verify membership"
     prerequisites:
       dotnet: "9.x"
-      database: "PostgreSQL 16"
+      database: "PostgreSQL 18"
     required_secrets:
       - CONNECTIONSTRINGS__PRIMARY
     tags: [organizations, invitations]
@@ -68,7 +68,7 @@ playbooks:
     goal: "Smoke test admin endpoints: permissions, users, roles, lock/unlock, delete/restore"
     prerequisites:
       dotnet: "9.x"
-      database: "PostgreSQL 16"
+      database: "PostgreSQL 18"
     required_secrets:
       - CONNECTIONSTRINGS__PRIMARY
     tags: [admin, roles, users]
@@ -79,7 +79,7 @@ playbooks:
     prerequisites:
       dotnet: "9.x"
       dotnet_ef: "installed"
-      database: "PostgreSQL 16"
+      database: "PostgreSQL 18"
     required_secrets:
       - CONNECTIONSTRINGS__PRIMARY
     tags: [operations, efcore, migrations]

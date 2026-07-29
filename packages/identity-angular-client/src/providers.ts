@@ -4,6 +4,7 @@ import type { IdentityAngularClientConfig } from './public-types'
 import { IDENTITY_AUTH_MANAGER, IDENTITY_CLIENT_CONFIG } from './tokens'
 import { IdentityAuthService } from './services/IdentityAuthService'
 import { IdentityAdminService } from './services/IdentityAdminService'
+import { IdentityPasskeyService } from './services/IdentityPasskeyService'
 
 function normalizeConfig(config: IdentityAngularClientConfig): IdentityAngularClientConfig {
   return {
@@ -25,5 +26,6 @@ export function provideIdentityClient(config: IdentityAngularClientConfig): Prov
     { provide: IDENTITY_AUTH_MANAGER, useFactory: createAuthManager, deps: [IDENTITY_CLIENT_CONFIG] },
     IdentityAuthService,
     IdentityAdminService,
+    IdentityPasskeyService,
   ]
 }

@@ -7,7 +7,7 @@ tags: [admin, roles, users]
 required_roles: [Developer]
 prerequisites:
   dotnet: "9.x"
-  database: "PostgreSQL 16"
+  database: "PostgreSQL 18"
   repo_root: "cloned"
 required_secrets:
   - CONNECTIONSTRINGS__PRIMARY

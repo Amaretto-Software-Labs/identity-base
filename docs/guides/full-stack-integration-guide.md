@@ -1,4 +1,4 @@
-# Full Stack Integration Guide (.NET 9 + React 19)
+# Full Stack Integration Guide (.NET 10 + React 19)
 
 This guide describes how to bootstrap the recommended Identity Base architecture: a dedicated Identity Host responsible for every authentication concern, a fleet of ASP.NET Core microservices that expose protected APIs, and a React 19 SPA that drives end-user experiences. Follow the steps in order; each section builds on the previous one.
 

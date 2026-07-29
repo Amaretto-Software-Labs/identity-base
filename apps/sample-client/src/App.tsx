@@ -20,6 +20,7 @@ import { CONFIG } from './config'
 import AdminUsersPage from './pages/admin/AdminUsersPage'
 import AdminUserDetailPage from './pages/admin/AdminUserDetailPage'
 import AdminRolesPage from './pages/admin/AdminRolesPage'
+import PasskeysPage from './pages/PasskeysPage'
 
 export default function App() {
   return (
@@ -37,6 +38,9 @@ export default function App() {
           <Route index element={<HomePage />} />
           <Route path="register" element={<RegisterPage />} />
           <Route path="login" element={<LoginPage />} />
+          <Route path="passkeys" element={<PasskeysPage />} />
+          <Route path="register/passkey" element={<PasskeysPage />} />
+          <Route path="recover/passkey" element={<PasskeysPage />} />
           <Route path="forgot-password" element={<ForgotPasswordPage />} />
           <Route path="reset-password" element={<ResetPasswordPage />} />
           <Route path="mfa" element={<MfaPage />} />

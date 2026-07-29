@@ -4,12 +4,14 @@ using Identity.Base.Features.Authentication.EmailManagement;
 using Identity.Base.Features.Authentication.Logout;
 using Identity.Base.Features.Authentication.Mfa;
 using Identity.Base.Features.Authentication.Register;
+using Identity.Base.Features.Authentication.Passkeys;
 using Identity.Base.Features.Security;
 using Identity.Base.Options;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.DependencyInjection;
 using System.Linq;
 
 namespace Identity.Base.Features.Authentication;
@@ -33,6 +35,10 @@ public static class AuthenticationEndpoints
             .WithTags("Authentication");
         group.MapExternalAuthenticationEndpoints();
         group.MapEmailManagementEndpoints();
+        if (endpoints.ServiceProvider.GetRequiredService<IOptions<PasskeyOptions>>().Value.Enabled)
+        {
+            group.MapPasskeyAuthenticationEndpoints();
+        }
 
         return group;
     }

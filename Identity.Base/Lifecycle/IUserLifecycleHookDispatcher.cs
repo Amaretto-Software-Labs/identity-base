@@ -61,6 +61,26 @@ public interface IUserLifecycleHookDispatcher
 
     Task NotifyRecoveryCodesGeneratedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default);
 
+    Task EnsureCanRegisterPasskeyAsync(UserLifecycleContext context, CancellationToken cancellationToken = default);
+
+    Task NotifyPasskeyRegisteredAsync(UserLifecycleContext context, CancellationToken cancellationToken = default);
+
+    Task EnsureCanRenamePasskeyAsync(UserLifecycleContext context, CancellationToken cancellationToken = default);
+
+    Task NotifyPasskeyRenamedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default);
+
+    Task EnsureCanRemovePasskeyAsync(UserLifecycleContext context, CancellationToken cancellationToken = default);
+
+    Task NotifyPasskeyRemovedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default);
+
+    Task EnsureCanResetPasskeysAsync(UserLifecycleContext context, CancellationToken cancellationToken = default);
+
+    Task NotifyPasskeysResetAsync(UserLifecycleContext context, CancellationToken cancellationToken = default);
+
+    Task EnsureCanCompletePasskeyRecoveryAsync(UserLifecycleContext context, CancellationToken cancellationToken = default);
+
+    Task NotifyPasskeyRecoveryCompletedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default);
+
     Task EnsureCanDeleteUserAsync(UserLifecycleContext context, CancellationToken cancellationToken = default);
 
     Task NotifyUserDeletedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default);

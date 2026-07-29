@@ -20,6 +20,11 @@ public enum UserLifecycleEvent
     MfaDisabled,
     MfaReset,
     MfaRecoveryCodesGenerated,
+    PasskeyRegistered,
+    PasskeyRenamed,
+    PasskeyRemoved,
+    PasskeysReset,
+    PasskeyRecoveryCompleted,
     Deleted,
     Restored
 }

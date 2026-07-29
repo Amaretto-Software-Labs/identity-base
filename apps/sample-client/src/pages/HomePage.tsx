@@ -23,6 +23,11 @@ export default function HomePage() {
           to="/login"
         />
         <ActionCard
+          title="Use Passkeys"
+          description="Try passkey sign-in, passwordless or assisted signup, recovery, and credential management."
+          to="/passkeys"
+        />
+        <ActionCard
           title="Forgot Password"
           description="Request and complete the password reset flow using the email templates configured in Identity Base."
           to="/forgot-password"

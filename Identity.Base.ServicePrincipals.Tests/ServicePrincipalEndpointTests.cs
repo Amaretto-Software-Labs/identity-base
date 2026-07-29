@@ -396,8 +396,8 @@ public sealed class ServicePrincipalEndpointTests
         return app;
     }
 
-    private static bool AuditRolesMatch(object details, params string[] expectedRoles) =>
-        details.GetType().GetProperty("Roles")?.GetValue(details) is IEnumerable<string> roles
+    private static bool AuditRolesMatch(object? details, params string[] expectedRoles) =>
+        details?.GetType().GetProperty("Roles")?.GetValue(details) is IEnumerable<string> roles
         && roles.SequenceEqual(expectedRoles);
 
     private sealed class ToggleConcurrencyExceptionInterceptor : SaveChangesInterceptor

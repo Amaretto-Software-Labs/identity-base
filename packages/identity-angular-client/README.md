@@ -43,3 +43,23 @@ export const routes: Routes = [
 ```
 
 The package exports `IDENTITY_AUTH_MANAGER` for direct access to the full client-core surface, including `admin.servicePrincipals`.
+
+## Passkeys
+
+`IdentityPasskeyService` is registered by `provideIdentityClient`:
+
+```ts
+const passkeys = inject(IdentityPasskeyService)
+
+if (passkeys.isSupported()) {
+  await passkeys.login()
+}
+
+await passkeys.beginSignup({
+  mode: 'passkey-assisted', // or 'passwordless'
+  email,
+  metadata: { displayName },
+})
+```
+
+The service also exposes email confirmation, signup completion, passwordless recovery, and list/create/rename/remove methods. See the [passkey guide](../../docs/guides/passkeys.md).

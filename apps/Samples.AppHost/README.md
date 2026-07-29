@@ -8,7 +8,7 @@ This Aspire app host runs the entire sample landscape:
 - `sample-api` & `sample-client` – the lightweight API/SPA pair that ships with the repository.
 
 ## Prerequisites
-- .NET 9 SDK installed.
+- .NET 10 SDK installed.
 - Node.js ≥ 18 available on your PATH.
 - Run `npm install` once inside `apps/org-sample-client` and `apps/sample-client` before starting the host so the dev servers have their dependencies.
 - A PostgreSQL instance that matches the connection string expected by the samples (defaults to `Host=localhost;Port=5432;Database=identity_org_sample;Username=postgres;Password=P@ssword123`). Edit `ConnectionStrings:Primary` in `Samples.AppHost` settings or set the environment variable before launching if you use a different server/container.

@@ -89,6 +89,48 @@ test('MemoryTokenStorage stores access and refresh tokens', async () => {
   assert.equal(storage.getRefreshToken(), null)
 })
 
+test('passkey helpers convert WebAuthn JSON and serialize credentials without browser toJSON', () => {
+  const {
+    parsePasskeyCreationOptions,
+    parsePasskeyRequestOptions,
+    serializePasskeyCredential,
+  } = require('../dist/index.js')
+
+  const creation = parsePasskeyCreationOptions(JSON.stringify({
+    challenge: 'AQID',
+    rp: { id: 'example.com', name: 'Example' },
+    user: { id: 'BAUG', name: 'alice', displayName: 'Alice' },
+    pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+    excludeCredentials: [{ type: 'public-key', id: 'BwgJ' }],
+  }))
+  assert.deepEqual([...new Uint8Array(creation.challenge)], [1, 2, 3])
+  assert.deepEqual([...new Uint8Array(creation.user.id)], [4, 5, 6])
+  assert.deepEqual([...new Uint8Array(creation.excludeCredentials[0].id)], [7, 8, 9])
+
+  const request = parsePasskeyRequestOptions(JSON.stringify({
+    challenge: 'AQID',
+    allowCredentials: [{ type: 'public-key', id: 'BAUG' }],
+  }))
+  assert.deepEqual([...new Uint8Array(request.allowCredentials[0].id)], [4, 5, 6])
+
+  const credential = serializePasskeyCredential({
+    id: 'credential',
+    rawId: Uint8Array.from([1, 2, 3]).buffer,
+    type: 'public-key',
+    authenticatorAttachment: 'platform',
+    getClientExtensionResults: () => ({}),
+    response: {
+      clientDataJSON: Uint8Array.from([4]).buffer,
+      attestationObject: Uint8Array.from([5]).buffer,
+      getTransports: () => ['internal'],
+    },
+  })
+  assert.equal(credential.rawId, 'AQID')
+  assert.equal(credential.response.clientDataJSON, 'BA')
+  assert.equal(credential.response.attestationObject, 'BQ')
+  assert.deepEqual(credential.response.transports, ['internal'])
+})
+
 test('ApiClient.buildAuthorizationUrl includes PKCE and state', async () => {
   const { ApiClient } = require('../dist/index.js')
   const client = new ApiClient({
@@ -1092,6 +1134,7 @@ test('IdentityAuthManager exposes registration, password, MFA, and admin helpers
     await auth.admin.users.unlock('u2')
     await auth.admin.users.forcePasswordReset('u2')
     await auth.admin.users.resetMfa('u2')
+    await auth.admin.users.resetPasskeys('u2', 'Lost device')
     await auth.admin.users.resendConfirmation('u2')
     await auth.admin.users.getRoles('u2')
     await auth.admin.users.updateRoles('u2', { roleIds: [] })

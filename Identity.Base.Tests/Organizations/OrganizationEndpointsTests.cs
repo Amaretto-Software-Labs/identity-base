@@ -978,7 +978,7 @@ public class OrganizationEndpointsTests : IClassFixture<OrganizationApiFactory>
         }
 
         var permissionEntities = await roleContext.Permissions
-            .Where(permission => permissions.Contains(permission.Name, StringComparer.OrdinalIgnoreCase))
+            .Where(permission => permissions.Contains(permission.Name))
             .ToListAsync();
 
         if (permissionEntities.Count != permissions.Length)

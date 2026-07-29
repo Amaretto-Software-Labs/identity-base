@@ -8,4 +8,10 @@ export { generatePkce, randomState, PKCEManager } from './utils/pkce'
 export { createTokenStorage, LocalStorageTokenStorage, SessionStorageTokenStorage, MemoryTokenStorage } from './utils/storage'
 export { IdentityError, createError } from './utils/errors'
 export { enableDebugLogging, debugLog } from './utils/logger'
-
+export {
+  isPasskeySupported,
+  isConditionalMediationAvailable,
+  parsePasskeyCreationOptions,
+  parsePasskeyRequestOptions,
+  serializePasskeyCredential,
+} from './utils/passkeys'

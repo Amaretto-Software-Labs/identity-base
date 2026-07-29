@@ -10,6 +10,7 @@ using Identity.Base.Features.Authentication.EmailManagement;
 using Identity.Base.Features.Authentication.External;
 using Identity.Base.Features.Authentication.Login;
 using Identity.Base.Features.Authentication.Mfa;
+using Identity.Base.Features.Authentication.Passkeys;
 using Identity.Base.Features.Authentication.Register;
 using Identity.Base.Features.Email;
 using Identity.Base.Features.Notifications;
@@ -88,6 +89,7 @@ public sealed class IdentityBaseBuilder
         ConfigureDatabase();
         ConfigureIdentity();
         RegisterHostedServices();
+        Services.AddPasskeyRateLimiting();
         ConfigureCorsAndHttpClients();
         ConfigureOpenIddict();
         ConfigureAuthentication();
@@ -265,6 +267,11 @@ public sealed class IdentityBaseBuilder
                 options.Lockout.AllowedForNewUsers = true;
 
                 options.User.RequireUniqueEmail = true;
+
+                if (Configuration.GetValue<bool>($"{PasskeyOptions.SectionName}:Enabled"))
+                {
+                    options.Stores.SchemaVersion = IdentitySchemaVersions.Version3;
+                }
             })
             .AddRoles<ApplicationRole>()
             .AddEntityFrameworkStores<AppDbContext>()
@@ -284,6 +291,7 @@ public sealed class IdentityBaseBuilder
         Services.AddHostedService<IdentitySeedHostedService>();
         Services.AddScoped<OpenIddictSeeder>();
         Services.AddHostedService<OpenIddictSeederHostedService>();
+        Services.AddHostedService<PasskeyDraftCleanupService>();
     }
 
     private void ConfigureCorsAndHttpClients()
@@ -412,9 +420,14 @@ public sealed class IdentityBaseBuilder
         Services.AddSingleton<IExternalCallbackUriFactory, ExternalCallbackUriFactory>();
         Services.TryAddScoped<ITemplatedEmailSender, NoOpTemplatedEmailSender>();
         Services.AddScoped<IAccountEmailService, AccountEmailService>();
+        Services.AddScoped<PasskeyClientValidator>();
+        Services.AddScoped<PasskeyManagementService>();
+        Services.AddScoped<PasskeyEmailService>();
+        Services.AddSingleton<PasskeyStateProtector>();
         Services.TryAddScoped(typeof(INotificationContextPipeline<>), typeof(NotificationContextPipeline<>));
         Services.AddScoped<ExternalAuthenticationService>();
         Services.AddScoped<IAuditLogger, AuditLogger>();
+        Services.AddSingleton<IConfigureOptions<IdentityPasskeyOptions>, PasskeyIdentityOptionsConfigurator>();
         Services.AddOptions<LifecycleHookOptions>();
         Services.AddScoped<IUserLifecycleHookDispatcher, UserLifecycleHookDispatcher>();
         Services.TryAddEnumerable(ServiceDescriptor.Scoped<IUserLifecycleListener, LegacyUserLifecycleListener>());
@@ -514,11 +527,18 @@ public sealed class IdentityBaseBuilder
                 .AddOptions<ExternalAuthenticationOptions>()
                 .BindConfiguration(ExternalAuthenticationOptions.SectionName);
 
+            services
+                .AddOptions<PasskeyOptions>()
+                .BindConfiguration(PasskeyOptions.SectionName)
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
+
             services.AddSingleton<IValidateOptions<RegistrationOptions>, RegistrationOptionsValidator>();
             services.AddSingleton<IValidateOptions<MfaOptions>, MfaOptionsValidator>();
             services.AddSingleton<IValidateOptions<OpenIddictOptions>, OpenIddictOptionsValidator>();
             services.AddSingleton<IValidateOptions<OpenIddictServerKeyOptions>, OpenIddictServerKeyOptionsValidator>();
             services.AddSingleton<IValidateOptions<CorsSettings>, CorsSettingsValidator>();
+            services.AddSingleton<IValidateOptions<PasskeyOptions>, PasskeyOptionsValidator>();
         }
     }
 

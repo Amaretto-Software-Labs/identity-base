@@ -7,7 +7,7 @@ tags: [email, mailjet, configuration]
 required_roles: [Developer]
 prerequisites:
   dotnet: "9.x"
-  database: "PostgreSQL 16"
+  database: "PostgreSQL 18"
   repo_root: "cloned"
   env_files: [".env"]
 required_secrets:

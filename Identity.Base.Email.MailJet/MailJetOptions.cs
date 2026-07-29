@@ -70,6 +70,30 @@ public sealed class MailJetTemplateOptions
     /// Template identifier for the MFA challenge email.
     /// </summary>
     public long MfaChallenge { get; set; }
+
+    /// <summary>
+    /// Optional template identifier for passkey signup confirmation.
+    /// Falls back to <see cref="Confirmation"/> when not configured.
+    /// </summary>
+    public long PasskeySignupConfirmation { get; set; }
+
+    /// <summary>
+    /// Optional template identifier for passkey recovery confirmation.
+    /// Falls back to <see cref="Confirmation"/> when not configured.
+    /// </summary>
+    public long PasskeyRecoveryConfirmation { get; set; }
+
+    /// <summary>
+    /// Optional template identifier for passkey recovery completion.
+    /// Falls back to <see cref="Confirmation"/> when not configured.
+    /// </summary>
+    public long PasskeyRecoveryCompleted { get; set; }
+
+    /// <summary>
+    /// Optional template identifier for administrative passkey reset notifications.
+    /// Falls back to <see cref="Confirmation"/> when not configured.
+    /// </summary>
+    public long PasskeysReset { get; set; }
 }
 
 /// <summary>

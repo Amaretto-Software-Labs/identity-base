@@ -143,13 +143,33 @@ internal sealed class SendGridEmailSender(
     {
         var isKnownKey = templateKey is TemplatedEmailKeys.AccountConfirmation
             or TemplatedEmailKeys.PasswordReset
-            or TemplatedEmailKeys.EmailMfaChallenge;
+            or TemplatedEmailKeys.EmailMfaChallenge
+            or TemplatedEmailKeys.PasskeySignupConfirmation
+            or TemplatedEmailKeys.PasskeyRecoveryConfirmation
+            or TemplatedEmailKeys.PasskeyRecoveryCompleted
+            or TemplatedEmailKeys.PasskeysReset;
 
         var templateId = templateKey switch
         {
             TemplatedEmailKeys.AccountConfirmation => _options.Templates.Confirmation,
             TemplatedEmailKeys.PasswordReset => _options.Templates.PasswordReset,
             TemplatedEmailKeys.EmailMfaChallenge => _options.Templates.MfaChallenge,
+            TemplatedEmailKeys.PasskeySignupConfirmation =>
+                string.IsNullOrWhiteSpace(_options.Templates.PasskeySignupConfirmation)
+                    ? _options.Templates.Confirmation
+                    : _options.Templates.PasskeySignupConfirmation,
+            TemplatedEmailKeys.PasskeyRecoveryConfirmation =>
+                string.IsNullOrWhiteSpace(_options.Templates.PasskeyRecoveryConfirmation)
+                    ? _options.Templates.Confirmation
+                    : _options.Templates.PasskeyRecoveryConfirmation,
+            TemplatedEmailKeys.PasskeyRecoveryCompleted =>
+                string.IsNullOrWhiteSpace(_options.Templates.PasskeyRecoveryCompleted)
+                    ? _options.Templates.Confirmation
+                    : _options.Templates.PasskeyRecoveryCompleted,
+            TemplatedEmailKeys.PasskeysReset =>
+                string.IsNullOrWhiteSpace(_options.Templates.PasskeysReset)
+                    ? _options.Templates.Confirmation
+                    : _options.Templates.PasskeysReset,
             _ => string.Empty
         };
 
