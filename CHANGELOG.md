@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.5
+
+- Dispatch registration lifecycle hooks for users created through external authentication providers.
+- Compensate newly created external users when associating the provider login fails.
+
 ## [Unreleased]
 - External email-based auto-linking now requires a verified provider email by default to prevent unverified or self-asserted email claims from attaching to existing accounts.
 - External authentication can synchronize configured provider claims into the local user claim store through `Authentication:External:PersistedClaimTypes`, removing stale configured values on later login/link operations.

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Identity.Base.Identity;
+using Identity.Base.Lifecycle;
 using Identity.Base.Logging;
 using Identity.Base.Options;
 using Microsoft.AspNetCore.Authentication;
@@ -23,6 +24,7 @@ internal sealed class ExternalAuthenticationService
     private readonly IExternalReturnUrlValidator _returnUrlValidator;
     private readonly IExternalCallbackUriFactory _callbackUriFactory;
     private readonly ExternalAuthenticationOptions _externalAuthenticationOptions;
+    private readonly IUserLifecycleHookDispatcher _lifecycleDispatcher;
 
     public ExternalAuthenticationService(
         IAuthenticationSchemeProvider authenticationSchemeProvider,
@@ -33,7 +35,8 @@ internal sealed class ExternalAuthenticationService
         IAuditLogger auditLogger,
         IExternalReturnUrlValidator returnUrlValidator,
         IExternalCallbackUriFactory callbackUriFactory,
-        IOptions<ExternalAuthenticationOptions> externalAuthenticationOptions)
+        IOptions<ExternalAuthenticationOptions> externalAuthenticationOptions,
+        IUserLifecycleHookDispatcher lifecycleDispatcher)
     {
         _authenticationSchemeProvider = authenticationSchemeProvider;
         _providerRegistry = providerRegistry;
@@ -44,6 +47,7 @@ internal sealed class ExternalAuthenticationService
         _returnUrlValidator = returnUrlValidator;
         _callbackUriFactory = callbackUriFactory;
         _externalAuthenticationOptions = externalAuthenticationOptions.Value;
+        _lifecycleDispatcher = lifecycleDispatcher;
     }
 
     public async Task<IResult> StartAsync(HttpContext httpContext, string provider, string? returnUrl, string mode, CancellationToken cancellationToken)
@@ -358,12 +362,47 @@ internal sealed class ExternalAuthenticationService
                 methods: null);
         }
 
-        // Attempt to link or create a user based on external login information.
-        var user = await FindOrCreateUserFromExternalLoginAsync(info, existingByEmail, cancellationToken);
+        var user = existingByEmail;
+        UserLifecycleContext? registrationContext = null;
         if (user is null)
         {
-            await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
-            return CreateLoginResponse(returnUrl, "error", "Unable to create or locate user for external login.", requiresTwoFactor: false, methods: null);
+            var userName = externalEmail ?? $"{info.LoginProvider}_{info.ProviderKey}";
+            user = new ApplicationUser
+            {
+                UserName = userName,
+                Email = externalEmail,
+                EmailConfirmed = !string.IsNullOrWhiteSpace(externalEmail) && IsExternalEmailVerified(info.Principal),
+                DisplayName = info.Principal.FindFirstValue(ClaimTypes.Name) ?? userName
+            };
+
+            registrationContext = new UserLifecycleContext(
+                UserLifecycleEvent.Registration,
+                user,
+                Source: nameof(ExternalAuthenticationService),
+                Items: new Dictionary<string, object?>
+                {
+                    ["Provider"] = info.LoginProvider,
+                    ["ProviderKey"] = info.ProviderKey
+                });
+
+            try
+            {
+                await _lifecycleDispatcher.EnsureCanRegisterAsync(registrationContext, cancellationToken);
+            }
+            catch (LifecycleHookRejectedException exception)
+            {
+                await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+                return CreateLoginResponse(returnUrl, "error", exception.Message, requiresTwoFactor: false, methods: null);
+            }
+
+            var createResult = await _userManager.CreateAsync(user);
+            if (!createResult.Succeeded)
+            {
+                var description = string.Join(", ", createResult.Errors.Select(error => error.Description));
+                _logger.LogWarning("Failed to create user for external login {Provider}: {Errors}", info.LoginProvider, description);
+                await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+                return CreateLoginResponse(returnUrl, "error", "Unable to create or locate user for external login.", requiresTwoFactor: false, methods: null);
+            }
         }
 
         if (!await _userManager.IsEmailConfirmedAsync(user))
@@ -383,49 +422,42 @@ internal sealed class ExternalAuthenticationService
             await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
             var description = string.Join(", ", addLoginResult.Errors.Select(error => error.Description));
             _logger.LogWarning("Failed to associate external login {Provider} for user {UserId}: {Errors}", info.LoginProvider, user.Id, description);
+
+            if (registrationContext is not null)
+            {
+                var deleteResult = await _userManager.DeleteAsync(user);
+                if (!deleteResult.Succeeded)
+                {
+                    _logger.LogError(
+                        "Failed to compensate external registration for user {UserId}: {Errors}",
+                        user.Id,
+                        string.Join(", ", deleteResult.Errors.Select(error => error.Description)));
+                }
+            }
+
             return CreateLoginResponse(returnUrl, "error", "Unable to associate external login.", requiresTwoFactor: false, methods: null);
         }
 
         await SyncConfiguredExternalClaimsAsync(user, info.Principal, cancellationToken);
+        if (registrationContext is not null)
+        {
+            await _lifecycleDispatcher.NotifyUserRegisteredAsync(registrationContext, cancellationToken);
+        }
+
         await _signInManager.SignInAsync(user, isPersistent: false);
         await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
-        _logger.LogInformation("User {UserId} created via {Provider} external login", user.Id, info.LoginProvider);
-        await _auditLogger.LogAsync(AuditEventTypes.ExternalLogin, user.Id, new { Provider = info.LoginProvider, Created = true }, cancellationToken);
+        _logger.LogInformation(
+            registrationContext is null
+                ? "User {UserId} linked and signed in via {Provider} external login"
+                : "User {UserId} created via {Provider} external login",
+            user.Id,
+            info.LoginProvider);
+        await _auditLogger.LogAsync(
+            AuditEventTypes.ExternalLogin,
+            user.Id,
+            new { Provider = info.LoginProvider, Created = registrationContext is not null },
+            cancellationToken);
         return CreateLoginResponse(returnUrl, "success", null, requiresTwoFactor: false, methods: null);
-    }
-
-    private async Task<ApplicationUser?> FindOrCreateUserFromExternalLoginAsync(
-        ExternalLoginInfo info,
-        ApplicationUser? existingByEmail,
-        CancellationToken cancellationToken)
-    {
-        if (existingByEmail is not null)
-        {
-            return existingByEmail;
-        }
-
-        var email = info.Principal.FindFirstValue(ClaimTypes.Email);
-
-        var userName = email ?? $"{info.LoginProvider}_{info.ProviderKey}";
-        var displayName = info.Principal.FindFirstValue(ClaimTypes.Name) ?? userName;
-
-        var user = new ApplicationUser
-        {
-            UserName = userName,
-            Email = email,
-            EmailConfirmed = !string.IsNullOrWhiteSpace(email) && IsExternalEmailVerified(info.Principal),
-            DisplayName = displayName
-        };
-
-        var createResult = await _userManager.CreateAsync(user);
-        if (!createResult.Succeeded)
-        {
-            var description = string.Join(", ", createResult.Errors.Select(error => error.Description));
-            _logger.LogWarning("Failed to create user for external login {Provider}: {Errors}", info.LoginProvider, description);
-            return null;
-        }
-
-        return user;
     }
 
     private async Task SyncConfiguredExternalClaimsAsync(ApplicationUser user, ClaimsPrincipal externalPrincipal, CancellationToken cancellationToken)

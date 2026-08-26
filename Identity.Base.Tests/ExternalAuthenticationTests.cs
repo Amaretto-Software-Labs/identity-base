@@ -8,7 +8,9 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using Shouldly;
+using Identity.Base.Abstractions;
 using Identity.Base.Identity;
+using Identity.Base.Lifecycle;
 using Identity.Base.Options;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
@@ -75,6 +77,90 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
         var logins = await userManager.GetLoginsAsync(user!);
         logins.ShouldContain(login => login.LoginProvider == IdentityApiFactory.FakeGoogleScheme);
         logins.Count(login => login.LoginProvider == IdentityApiFactory.FakeGoogleScheme).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ExternalLogin_DispatchesRegistrationLifecycleHooks_WhenNew()
+    {
+        var probe = new ExternalRegistrationLifecycleProbe();
+        using var factory = CreateLifecycleFactory<RecordingExternalRegistrationListener>(probe);
+        var email = $"external-lifecycle-{Guid.NewGuid():N}@example.com";
+        var providerKey = $"external-lifecycle-{Guid.NewGuid():N}";
+
+        var query = await CompleteExternalLoginAsync(factory, email, providerKey);
+
+        query["status"].ToString().ShouldBe("success");
+        probe.BeforeRegistrationCalls.ShouldBe(1);
+        probe.AfterRegistrationCalls.ShouldBe(1);
+        probe.LastContext.ShouldNotBeNull();
+        probe.LastContext!.Source.ShouldBe("ExternalAuthenticationService");
+        probe.LastContext.Items!["Provider"].ShouldBe(IdentityApiFactory.FakeGoogleScheme);
+        probe.LastContext.Items["ProviderKey"].ShouldBe(providerKey);
+    }
+
+    [Fact]
+    public async Task ExternalLogin_DoesNotDispatchRegistrationLifecycleHooks_WhenAutoLinkingExistingUser()
+    {
+        var probe = new ExternalRegistrationLifecycleProbe();
+        using var factory = CreateLifecycleFactory<RecordingExternalRegistrationListener>(probe);
+        var email = $"external-existing-{Guid.NewGuid():N}@example.com";
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var createResult = await userManager.CreateAsync(new ApplicationUser
+            {
+                Email = email,
+                UserName = email,
+                EmailConfirmed = true,
+                DisplayName = "Existing External User"
+            });
+            createResult.Succeeded.ShouldBeTrue();
+        }
+
+        var query = await CompleteExternalLoginAsync(factory, email, $"external-existing-{Guid.NewGuid():N}");
+
+        query["status"].ToString().ShouldBe("success");
+        probe.BeforeRegistrationCalls.ShouldBe(0);
+        probe.AfterRegistrationCalls.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ExternalLogin_RejectedRegistrationLifecycleHook_PreventsUserCreation()
+    {
+        var probe = new ExternalRegistrationLifecycleProbe();
+        using var factory = CreateLifecycleFactory<RejectingExternalRegistrationListener>(probe);
+        var email = $"external-rejected-{Guid.NewGuid():N}@example.com";
+
+        var query = await CompleteExternalLoginAsync(factory, email, $"external-rejected-{Guid.NewGuid():N}");
+
+        query["status"].ToString().ShouldBe("error");
+        query["message"].ToString().ShouldContain("External registration disabled");
+        probe.BeforeRegistrationCalls.ShouldBe(1);
+        probe.AfterRegistrationCalls.ShouldBe(0);
+
+        using var scope = factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        (await userManager.FindByEmailAsync(email)).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task ExternalLogin_FailedAssociation_DoesNotDispatchAfterHookOrLeaveCreatedUser()
+    {
+        var probe = new ExternalRegistrationLifecycleProbe();
+        using var factory = CreateLifecycleFactory<ConflictingExternalLoginRegistrationListener>(probe);
+        var email = $"external-association-failure-{Guid.NewGuid():N}@example.com";
+
+        var query = await CompleteExternalLoginAsync(factory, email, $"external-conflict-{Guid.NewGuid():N}");
+
+        query["status"].ToString().ShouldBe("error");
+        query["message"].ToString().ShouldContain("associate external login");
+        probe.BeforeRegistrationCalls.ShouldBe(1);
+        probe.AfterRegistrationCalls.ShouldBe(0);
+
+        using var scope = factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        (await userManager.FindByEmailAsync(email)).ShouldBeNull();
     }
 
     [Fact]
@@ -710,6 +796,43 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
                 services.AddSingleton<IStartupFilter, CurrentExternalClaimsStartupFilter>());
         });
 
+    private WebApplicationFactory<Program> CreateLifecycleFactory<TListener>(ExternalRegistrationLifecycleProbe probe)
+        where TListener : class, IUserLifecycleListener
+        => _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.AddSingleton(probe);
+                services.AddScoped<TListener>();
+                services.AddScoped<IUserLifecycleListener>(provider => provider.GetRequiredService<TListener>());
+            });
+        });
+
+    private static async Task<Dictionary<string, Microsoft.Extensions.Primitives.StringValues>> CompleteExternalLoginAsync(
+        WebApplicationFactory<Program> factory,
+        string email,
+        string providerKey)
+    {
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        client.BaseAddress = new Uri("https://localhost");
+
+        var startResponse = await client.GetAsync(
+            $"/auth/external/google/start?returnUrl=/client/callback&email={Uri.EscapeDataString(email)}&name=External%20Lifecycle&key={Uri.EscapeDataString(providerKey)}");
+        startResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        startResponse.Headers.Location.ShouldNotBeNull();
+
+        var callbackResponse = await client.GetAsync(startResponse.Headers.Location);
+        callbackResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        callbackResponse.Headers.Location.ShouldNotBeNull();
+
+        var uri = new Uri(client.BaseAddress, callbackResponse.Headers.Location);
+        return QueryHelpers.ParseQuery(uri.Query);
+    }
+
     private sealed class CurrentExternalClaimsStartupFilter : IStartupFilter
     {
         public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
@@ -743,6 +866,92 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
 
                 next(application);
             };
+    }
+
+    private sealed class ExternalRegistrationLifecycleProbe
+    {
+        public int BeforeRegistrationCalls { get; set; }
+        public int AfterRegistrationCalls { get; set; }
+        public UserLifecycleContext? LastContext { get; set; }
+    }
+
+    private sealed class RecordingExternalRegistrationListener(ExternalRegistrationLifecycleProbe probe) : IUserLifecycleListener
+    {
+        public ValueTask<LifecycleHookResult> BeforeUserRegisteredAsync(
+            UserLifecycleContext context,
+            CancellationToken cancellationToken = default)
+        {
+            probe.BeforeRegistrationCalls++;
+            probe.LastContext = context;
+            return ValueTask.FromResult(LifecycleHookResult.Continue());
+        }
+
+        public ValueTask AfterUserRegisteredAsync(
+            UserLifecycleContext context,
+            CancellationToken cancellationToken = default)
+        {
+            probe.AfterRegistrationCalls++;
+            probe.LastContext = context;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class RejectingExternalRegistrationListener(ExternalRegistrationLifecycleProbe probe) : IUserLifecycleListener
+    {
+        public ValueTask<LifecycleHookResult> BeforeUserRegisteredAsync(
+            UserLifecycleContext context,
+            CancellationToken cancellationToken = default)
+        {
+            probe.BeforeRegistrationCalls++;
+            return ValueTask.FromResult(LifecycleHookResult.Fail("External registration disabled."));
+        }
+
+        public ValueTask AfterUserRegisteredAsync(
+            UserLifecycleContext context,
+            CancellationToken cancellationToken = default)
+        {
+            probe.AfterRegistrationCalls++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class ConflictingExternalLoginRegistrationListener(
+        ExternalRegistrationLifecycleProbe probe,
+        UserManager<ApplicationUser> userManager) : IUserLifecycleListener
+    {
+        public async ValueTask<LifecycleHookResult> BeforeUserRegisteredAsync(
+            UserLifecycleContext context,
+            CancellationToken cancellationToken = default)
+        {
+            probe.BeforeRegistrationCalls++;
+            var blockerEmail = $"external-login-conflict-{Guid.NewGuid():N}@example.com";
+            var blocker = new ApplicationUser
+            {
+                Email = blockerEmail,
+                UserName = blockerEmail,
+                EmailConfirmed = true,
+                DisplayName = "External Login Conflict"
+            };
+            var createResult = await userManager.CreateAsync(blocker);
+            createResult.Succeeded.ShouldBeTrue();
+
+            var provider = context.Items!["Provider"].ShouldBeOfType<string>();
+            var providerKey = context.Items["ProviderKey"].ShouldBeOfType<string>();
+            var addLoginResult = await userManager.AddLoginAsync(
+                blocker,
+                new UserLoginInfo(provider, providerKey, provider));
+            addLoginResult.Succeeded.ShouldBeTrue();
+
+            return LifecycleHookResult.Continue();
+        }
+
+        public ValueTask AfterUserRegisteredAsync(
+            UserLifecycleContext context,
+            CancellationToken cancellationToken = default)
+        {
+            probe.AfterRegistrationCalls++;
+            return ValueTask.CompletedTask;
+        }
     }
 
     private async Task SeedUserAsync(string email, string password, WebApplicationFactory<Program>? factory = null)
