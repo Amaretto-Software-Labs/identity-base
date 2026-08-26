@@ -279,7 +279,10 @@ internal sealed class ExternalAuthenticationService
             if (existing is not null)
             {
                 await SyncConfiguredExternalClaimsAsync(existing, info.Principal, cancellationToken);
-                await _signInManager.RefreshSignInAsync(existing);
+                await _signInManager.SignInWithClaimsAsync(
+                    existing,
+                    isPersistent: false,
+                    [new Claim(ClaimTypes.AuthenticationMethod, info.LoginProvider)]);
                 await _auditLogger.LogAsync(AuditEventTypes.ExternalLogin, existing.Id, new { Provider = info.LoginProvider }, cancellationToken);
             }
             return CreateLoginResponse(returnUrl, "success", null, requiresTwoFactor: false, methods: null);
