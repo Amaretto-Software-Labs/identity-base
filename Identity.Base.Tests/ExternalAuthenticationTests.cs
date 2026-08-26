@@ -4,11 +4,16 @@ using System.Linq;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using Shouldly;
 using Identity.Base.Identity;
 using Identity.Base.Options;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.WebUtilities;
@@ -201,6 +206,20 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
 
         var repeatCallbackResponse = await repeatClient.GetAsync(repeatCallbackLocation);
         repeatCallbackResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+
+        using var currentClaimsResponse = await repeatClient.GetAsync("/test/current-external-claims");
+        currentClaimsResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using var currentClaimsDocument = JsonDocument.Parse(await currentClaimsResponse.Content.ReadAsStringAsync());
+        var currentClaims = currentClaimsDocument.RootElement
+            .GetProperty("externalClaims")
+            .EnumerateArray()
+            .Select(element => element.GetString())
+            .ToArray();
+        currentClaims.ShouldBe(["Updated Workspace"]);
+        currentClaimsDocument.RootElement
+            .GetProperty("authenticationMethod")
+            .GetString()
+            .ShouldBe(IdentityApiFactory.FakeGoogleScheme);
 
         using (var scope = claimsFactory.Services.CreateScope())
         {
@@ -687,7 +706,44 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
                 };
                 configurationBuilder.AddInMemoryCollection(overrides);
             });
+            builder.ConfigureServices(services =>
+                services.AddSingleton<IStartupFilter, CurrentExternalClaimsStartupFilter>());
         });
+
+    private sealed class CurrentExternalClaimsStartupFilter : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
+            => application =>
+            {
+                application.Use(async (context, pipelineNext) =>
+                {
+                    if (context.Request.Path != "/test/current-external-claims")
+                    {
+                        await pipelineNext();
+                        return;
+                    }
+
+                    var authentication = await context.AuthenticateAsync(IdentityConstants.ApplicationScheme);
+                    if (!authentication.Succeeded || authentication.Principal is null)
+                    {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        return;
+                    }
+
+                    await context.Response.WriteAsJsonAsync(new
+                    {
+                        externalClaims = authentication.Principal
+                            .FindAll(ExternalWorkspaceClaimType)
+                            .Select(claim => claim.Value)
+                            .ToArray(),
+                        authenticationMethod = authentication.Principal
+                            .FindFirstValue(ClaimTypes.AuthenticationMethod)
+                    });
+                });
+
+                next(application);
+            };
+    }
 
     private async Task SeedUserAsync(string email, string password, WebApplicationFactory<Program>? factory = null)
     {
