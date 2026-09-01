@@ -38,7 +38,9 @@ const authManager = new IdentityAuthManager({
 | Registration and recovery | `register`, `requestPasswordReset`, `resetPassword`, `getProfileSchema` |
 | MFA | `sendMfaChallenge`, `verifyMfa`, `enrollMfa`, `disableMfa`, `regenerateRecoveryCodes` |
 | Profile and authorization | `updateProfile`, `getUserPermissions` |
-| External providers | `buildExternalStartUrl`, `unlinkExternalProvider` |
+| External providers | `buildExternalStartUrl`, `startExternalLink`, `unlinkExternalProvider` |
+
+Use `startExternalLink` for account linking. It first aligns the Identity application session with the current bearer-token user, then navigates to the provider. `buildExternalStartUrl` remains the URL builder for login flows and cookie-authenticated hosts.
 | Events | `addEventListener` for login, logout, refresh, and error events |
 
 All HTTP requests include `credentials: 'include'`, allowing same-origin Identity cookies to work. Authorized methods attach a bearer token when available and otherwise retain cookie-only behavior. Successful mutation responses may be `204 No Content`; the client returns `undefined` rather than attempting JSON parsing.

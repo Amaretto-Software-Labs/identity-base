@@ -26,7 +26,7 @@ public static class MfaEndpoints
         var mfaGroup = group.MapGroup("/mfa");
 
         mfaGroup.MapPost("/enroll", EnrollAsync)
-            .RequireAuthorization(new AuthorizeAttribute { AuthenticationSchemes = IdentityConstants.ApplicationScheme })
+            .RequireAuthorization(new AuthorizeAttribute { AuthenticationSchemes = IdentityBaseAuthenticationSchemes.Account })
             .WithName("EnrollMfa")
             .WithSummary("Starts authenticator app enrollment and returns the shared key and otpauth URI.")
             .Produces(StatusCodes.Status200OK)
@@ -47,7 +47,7 @@ public static class MfaEndpoints
             .WithTags("Authentication");
 
         mfaGroup.MapPost("/disable", DisableAsync)
-            .RequireAuthorization(new AuthorizeAttribute { AuthenticationSchemes = IdentityConstants.ApplicationScheme })
+            .RequireAuthorization(new AuthorizeAttribute { AuthenticationSchemes = IdentityBaseAuthenticationSchemes.Account })
             .WithName("DisableMfa")
             .WithSummary("Disables authenticator MFA for the current user.")
             .Produces(StatusCodes.Status200OK)
@@ -55,7 +55,7 @@ public static class MfaEndpoints
             .WithTags("Authentication");
 
         mfaGroup.MapPost("/recovery-codes", RegenerateRecoveryCodesAsync)
-            .RequireAuthorization(new AuthorizeAttribute { AuthenticationSchemes = IdentityConstants.ApplicationScheme })
+            .RequireAuthorization(new AuthorizeAttribute { AuthenticationSchemes = IdentityBaseAuthenticationSchemes.Account })
             .WithName("RegenerateRecoveryCodes")
             .WithSummary("Generates new recovery codes for the current user.")
             .Produces(StatusCodes.Status200OK)
@@ -128,7 +128,7 @@ public static class MfaEndpoints
             return Results.Problem("Email MFA challenge is disabled.", statusCode: StatusCodes.Status400BadRequest);
         }
 
-        var authenticateResult = await context.AuthenticateAsync(IdentityConstants.ApplicationScheme);
+        var authenticateResult = await context.AuthenticateAsync(IdentityBaseAuthenticationSchemes.Account);
         if (authenticateResult.Succeeded && authenticateResult.Principal is not null && authenticateResult.Principal.Identity?.IsAuthenticated == true)
         {
             var user = await userManager.GetUserAsync(authenticateResult.Principal);
@@ -365,7 +365,7 @@ public static class MfaEndpoints
 
         ApplicationUser? user = null;
 
-        var authenticated = await context.AuthenticateAsync(IdentityConstants.ApplicationScheme);
+        var authenticated = await context.AuthenticateAsync(IdentityBaseAuthenticationSchemes.Account);
         if (authenticated.Succeeded && authenticated.Principal?.Identity?.IsAuthenticated == true)
         {
             user = await userManager.GetUserAsync(authenticated.Principal);

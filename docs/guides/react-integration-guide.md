@@ -154,7 +154,7 @@ Implement the following pages/components.
 - Submit changes via `authManager.updateProfile({ metadata, concurrencyStamp })`.
 
 ### 5.7 External provider linking
-- Provide buttons to link (call `buildExternalStartUrl(provider, 'link', returnUrl, { email, name })`) and unlink (`authManager.unlinkExternalProvider(provider)`).
+- Provide buttons to link (call `await authManager.startExternalLink(provider, returnUrl, { email, name })`) and unlink (`authManager.unlinkExternalProvider(provider)`). The link helper first binds the Identity application session to the bearer-token user so a stale cookie cannot link the provider to another account.
 
 ### 5.8 Authorization Code flow (optional)
 - Use `authManager.startAuthorization()` to send users to `/connect/authorize`.

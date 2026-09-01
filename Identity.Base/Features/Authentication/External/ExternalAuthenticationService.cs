@@ -72,11 +72,7 @@ internal sealed class ExternalAuthenticationService
         string? userId = null;
         if (normalizedMode == ExternalAuthenticationConstants.ModeLink)
         {
-            var authenticateResult = await httpContext.AuthenticateAsync(IdentityConstants.ApplicationScheme);
-            if (!authenticateResult.Succeeded || authenticateResult.Principal is null)
-            {
-                authenticateResult = await httpContext.AuthenticateAsync(OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme);
-            }
+            var authenticateResult = await httpContext.AuthenticateAsync(IdentityBaseAuthenticationSchemes.Account);
 
             if (!authenticateResult.Succeeded || authenticateResult.Principal is null)
             {
@@ -110,6 +106,22 @@ internal sealed class ExternalAuthenticationService
         await httpContext.SignOutAsync(IdentityConstants.ExternalScheme);
 
         return Results.Challenge(properties, new[] { scheme });
+    }
+
+    public async Task<IResult> PrepareLinkSessionAsync(
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var user = await ResolveCurrentUserAsync(httpContext.User);
+        if (user is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        await _signInManager.SignInAsync(user, isPersistent: false);
+        return Results.NoContent();
     }
 
     public async Task<IResult> HandleCallbackAsync(HttpContext httpContext, string provider, CancellationToken cancellationToken)

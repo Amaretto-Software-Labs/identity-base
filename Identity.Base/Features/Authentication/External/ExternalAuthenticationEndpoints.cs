@@ -13,6 +13,17 @@ public static class ExternalAuthenticationEndpoints
     {
         var external = group.MapGroup("/external");
 
+        external.MapPost("/link-session", PrepareLinkSessionAsync)
+            .RequireAuthorization(new AuthorizeAttribute
+            {
+                AuthenticationSchemes = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme
+            })
+            .WithName("PrepareExternalAuthenticationLinkSession")
+            .WithSummary("Aligns the Identity application session with the bearer user before external account linking.")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .WithTags("Authentication");
+
         external.MapGet("/{provider}/start", StartAsync)
             .WithName("StartExternalAuthentication")
             .WithSummary("Starts an external authentication challenge for the specified provider.")
@@ -31,7 +42,7 @@ public static class ExternalAuthenticationEndpoints
         external.MapDelete("/{provider}", UnlinkAsync)
             .RequireAuthorization(new AuthorizeAttribute
             {
-                AuthenticationSchemes = $"{IdentityConstants.ApplicationScheme},{OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme}"
+                AuthenticationSchemes = IdentityBaseAuthenticationSchemes.Account
             })
             .WithName("UnlinkExternalAuthentication")
             .WithSummary("Removes a linked external authentication provider from the current user.")
@@ -51,6 +62,14 @@ public static class ExternalAuthenticationEndpoints
         CancellationToken cancellationToken)
     {
         return service.StartAsync(context, provider, request.ReturnUrl, request.Mode, cancellationToken);
+    }
+
+    private static Task<IResult> PrepareLinkSessionAsync(
+        HttpContext context,
+        ExternalAuthenticationService service,
+        CancellationToken cancellationToken)
+    {
+        return service.PrepareLinkSessionAsync(context, cancellationToken);
     }
 
     private static Task<IResult> CallbackAsync(

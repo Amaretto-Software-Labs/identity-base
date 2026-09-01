@@ -502,6 +502,18 @@ export class IdentityAuthManager {
     return this.apiClient.buildUrl(`/auth/external/${provider}/start`, params)
   }
 
+  async startExternalLink(
+    provider: string,
+    returnUrl: string,
+    extras?: Record<string, string>,
+  ): Promise<void> {
+    await this.authorizedFetch<void>('/auth/external/link-session', {
+      method: 'POST',
+    })
+
+    window.location.assign(this.buildExternalStartUrl(provider, 'link', returnUrl, extras))
+  }
+
   async unlinkExternalProvider(provider: string): Promise<{ message: string }> {
     const token = await this.tokenManager.ensureValidToken()
     const headers: Record<string, string> = {}
