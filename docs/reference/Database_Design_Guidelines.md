@@ -1,5 +1,5 @@
 # Database Design & Migration Guidelines
-**Scope:** Platform API services (.NET 9 minimal APIs) using EF Core with PostgreSQL or SQL Server (PostgreSQL is still the default reference stack).
+**Scope:** Platform API services (.NET 10 minimal APIs) using EF Core with PostgreSQL or SQL Server (PostgreSQL is still the default reference stack).
 
 ---
 

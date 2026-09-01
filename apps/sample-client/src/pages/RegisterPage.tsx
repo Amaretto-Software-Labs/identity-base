@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Dispatch, FormEvent, SetStateAction } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '@identity-base/sample-router'
 import { registerUser } from '../api/auth'
 import type { ProfileSchemaField } from '../api/types'
 import { useProfileSchema } from '../hooks/useProfileSchema'

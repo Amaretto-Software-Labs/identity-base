@@ -1,5 +1,6 @@
 using Identity.Base.Features.Authentication;
 using Identity.Base.Features.Authentication.Authorize;
+using Identity.Base.Features.Authentication.Passkeys;
 using Identity.Base.Features.Email;
 using Identity.Base.Features.Users;
 using Microsoft.AspNetCore.Builder;
@@ -7,6 +8,9 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Identity.Base.Options;
 using System.Linq;
 using System.Text.Json;
 
@@ -44,6 +48,10 @@ public static class EndpointRouteBuilderExtensions
         endpoints.MapAuthorizeEndpoint();
         endpoints.MapUserEndpoints();
         endpoints.MapEmailEndpoints();
+        if (endpoints.ServiceProvider.GetRequiredService<IOptions<PasskeyOptions>>().Value.Enabled)
+        {
+            endpoints.MapPasskeyManagementEndpoints();
+        }
 
         return endpoints;
     }

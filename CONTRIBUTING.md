@@ -34,7 +34,7 @@ Thanks for your interest in contributing to Identity Base! We welcome bug report
 - Keep discussions respectful and aligned with the Code of Conduct.
 
 ## Development Tips
-- The solution targets .NET 9.0. Install the matching SDK.
+- The solution targets .NET 10.0. Install the matching SDK.
 - The reference host is `Identity.Base.Host`. Use `dotnet run --project Identity.Base.Host/Identity.Base.Host.csproj` to exercise the full stack locally.
 - Use the provided GitHub Actions workflow (`CI`) to pack preview NuGet packages via the manual **Run workflow** trigger when you want to verify distribution artefacts.
 

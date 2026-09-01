@@ -6,8 +6,8 @@ last_reviewed: 2025-11-05
 tags: [smoke, full-stack, verification]
 required_roles: [Developer]
 prerequisites:
-  dotnet: "9.x"
-  database: "PostgreSQL 16"
+  dotnet: "10.x"
+  database: "PostgreSQL 18"
   repo_root: "cloned"
   env_files: [".env"]
 required_secrets:

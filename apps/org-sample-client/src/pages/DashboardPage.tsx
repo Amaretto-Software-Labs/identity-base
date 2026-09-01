@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from '@identity-base/sample-router'
 import { useOrganizations, useOrganizationSwitcher } from '@identity-base/react-organizations'
 import { getOrganizationPermissions, getOrganizationRoles } from '../api/organizations'
 import type { OrganizationRole } from '../api/types'

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from '@identity-base/sample-router'
 import { IdentityProvider, useIdentityContext } from '@identity-base/react-client'
 import { OrganizationsProvider } from '@identity-base/react-organizations'
 import AppLayout from './components/AppLayout'

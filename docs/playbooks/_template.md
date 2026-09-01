@@ -6,9 +6,9 @@ last_reviewed: 2025-11-05
 tags: [playbook, template]
 required_roles: [Developer]
 prerequisites:
-  dotnet: "9.x"
+  dotnet: "10.x"
   node: "20.x (optional)"
-  database: "PostgreSQL 16"
+  database: "PostgreSQL 18"
   repo_root: "cloned"
   env_files: [".env"]
 required_secrets:
@@ -23,7 +23,7 @@ Describe the objective in one sentence (machine-readable intent).
 # Preconditions
 - Repo location: cloned and working directory at repo root.
 - .NET SDK: 9.x installed and on PATH.
-- Database: PostgreSQL 16 available (Docker or local).
+- Database: PostgreSQL 18 available (Docker or local).
 - Secrets: listed in front matter are available (dotenv or environment).
 
 # Resources

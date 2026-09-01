@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction, type FormEvent } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from '@identity-base/sample-router'
 import { registerUser, registerUserWithInvitation } from '../api/auth'
 import type { ProfileSchemaField, InvitationDetailsResponse } from '../api/types'
 import { useProfileSchema } from '../hooks/useProfileSchema'

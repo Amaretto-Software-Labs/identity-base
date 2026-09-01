@@ -8,7 +8,7 @@ required_roles: [Frontend, Developer]
 prerequisites:
   node: "20.x"
   npm: "10.x"
-  dotnet: "9.x"
+  dotnet: "10.x"
   repo_root: "cloned"
 required_secrets:
   - CONNECTIONSTRINGS__PRIMARY (for running the host)

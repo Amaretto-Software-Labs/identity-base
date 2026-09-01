@@ -63,6 +63,7 @@ export interface MfaVerifyRequest {
   method: string
   code: string
   clientId: string
+  rememberMachine?: boolean
 }
 
 // Authentication Responses
@@ -71,6 +72,58 @@ export interface LoginResponse {
   clientId: string
   requiresTwoFactor?: boolean
   methods?: string[]
+  recovered?: boolean
+}
+
+export type PasskeySignupMode = 'passkey-assisted' | 'passwordless'
+
+export interface PasskeyConfiguration {
+  enabled: boolean
+  usernameless: boolean
+  conditionalUi: boolean
+  userVerification: 'required'
+  signupModes: PasskeySignupMode[]
+  signupEmailVerificationRequired: boolean
+}
+
+export interface PasskeySummary {
+  id: string
+  name: string
+  createdAt: string
+  transports: string[]
+  isBackupEligible: boolean
+  isBackedUp: boolean
+  concurrencyStamp: string
+}
+
+export interface PasskeySignupRequest {
+  mode: PasskeySignupMode
+  email: string
+  metadata?: Record<string, string | null>
+}
+
+export interface PasskeyEmailConfirmation {
+  draftId: string
+  token: string
+}
+
+export interface PasskeySignupConfirmation {
+  registrationMode: PasskeySignupMode
+}
+
+export interface PasskeyCompletionRequest {
+  draftId: string
+  name: string
+  password?: string
+}
+
+export interface PasskeyRecoveryRequest {
+  email: string
+}
+
+export interface PasskeyLoginOptions {
+  mediation?: 'required' | 'conditional'
+  signal?: AbortSignal
 }
 
 export interface TokenResponse {
@@ -174,6 +227,7 @@ export interface AdminUserDetail {
   roles: string[]
   externalLogins: AdminUserExternalLogin[]
   authenticatorConfigured: boolean
+  passkeyCount: number
   isDeleted: boolean
 }
 
@@ -337,4 +391,3 @@ export interface AuthState {
   isLoading: boolean
   error: ApiError | null
 }
-

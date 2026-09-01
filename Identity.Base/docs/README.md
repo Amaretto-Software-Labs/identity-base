@@ -5,7 +5,7 @@ Identity Base is a .NET 9 minimal API that centralises authentication, user mana
 
 ## Prerequisites
 - .NET SDK 9.0+
-- PostgreSQL 16 (local or containerised) reachable with the connection string in `appsettings.Development.json`
+- PostgreSQL 18 (local or containerised) reachable with the connection string in `appsettings.Development.json`
 - Optional: Docker for running the provided PostgreSQL compose snippet
 
 ## Getting Started

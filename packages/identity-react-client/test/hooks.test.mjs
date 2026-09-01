@@ -10,6 +10,8 @@ import {
   IdentityProvider,
   ProtectedRoute,
   useLogin,
+  usePasskeyLogin,
+  usePasskeys,
   usePermissions,
   useProfile,
 } from '../dist/index.mjs'
@@ -33,6 +35,11 @@ function createStorage() {
 async function flush() {
   await new Promise(resolve => setTimeout(resolve, 0))
 }
+
+test('exports the public passkey hooks', () => {
+  assert.equal(typeof usePasskeyLogin, 'function')
+  assert.equal(typeof usePasskeys, 'function')
+})
 
 test('ProtectedRoute redirects to /login when unauthenticated', async () => {
   const previousFetch = globalThis.fetch

@@ -90,6 +90,36 @@ public interface IUserLifecycleListener
     ValueTask AfterRecoveryCodesGeneratedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
         => ValueTask.CompletedTask;
 
+    ValueTask<LifecycleHookResult> BeforePasskeyRegisteredAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(LifecycleHookResult.Continue());
+
+    ValueTask AfterPasskeyRegisteredAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ValueTask.CompletedTask;
+
+    ValueTask<LifecycleHookResult> BeforePasskeyRenamedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(LifecycleHookResult.Continue());
+
+    ValueTask AfterPasskeyRenamedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ValueTask.CompletedTask;
+
+    ValueTask<LifecycleHookResult> BeforePasskeyRemovedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(LifecycleHookResult.Continue());
+
+    ValueTask AfterPasskeyRemovedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ValueTask.CompletedTask;
+
+    ValueTask<LifecycleHookResult> BeforePasskeysResetAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(LifecycleHookResult.Continue());
+
+    ValueTask AfterPasskeysResetAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ValueTask.CompletedTask;
+
+    ValueTask<LifecycleHookResult> BeforePasskeyRecoveryCompletedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(LifecycleHookResult.Continue());
+
+    ValueTask AfterPasskeyRecoveryCompletedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ValueTask.CompletedTask;
+
     ValueTask<LifecycleHookResult> BeforeUserDeletedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
         => ValueTask.FromResult(LifecycleHookResult.Continue());
 

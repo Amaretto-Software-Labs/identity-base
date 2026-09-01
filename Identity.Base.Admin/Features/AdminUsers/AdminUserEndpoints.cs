@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Data;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Text.RegularExpressions;
@@ -14,11 +15,14 @@ using Identity.Base.Admin.Options;
 using Identity.Base.Data;
 using Identity.Base.Extensions;
 using Identity.Base.Features.Authentication.EmailManagement;
+using Identity.Base.Features.Email;
+using Identity.Base.Features.Notifications;
 using Identity.Base.Abstractions;
 using Identity.Base.Identity;
 using Identity.Base.Logging;
 using Identity.Base.Lifecycle;
 using Identity.Base.Options;
+using Identity.Base.Features.Authentication.Passkeys;
 using Identity.Base.Roles.Abstractions;
 using Identity.Base.Roles.Services;
 using Microsoft.AspNetCore.Builder;
@@ -27,6 +31,8 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -109,6 +115,19 @@ namespace Identity.Base.Admin.Features.AdminUsers;
             .Produces(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .RequireAuthorization(policy => policy.RequireAdminPermission("users.reset-mfa"));
+
+        if (endpoints.ServiceProvider.GetRequiredService<IOptions<PasskeyOptions>>().Value.Enabled)
+        {
+            group.MapPost("/{id:guid}/passkeys/revoke-all", ResetPasskeysAsync)
+                .WithName("AdminResetPasskeys")
+                .WithSummary("Revokes every passkey for the user and invalidates existing sessions.")
+                .Produces(StatusCodes.Status204NoContent)
+                .ProducesValidationProblem()
+                .Produces(StatusCodes.Status404NotFound)
+                .ProducesProblem(StatusCodes.Status403Forbidden)
+                .RequireRateLimiting(PasskeyRateLimitPolicies.Admin)
+                .RequireAuthorization(policy => policy.RequireAdminPermission("users.reset-passkeys"));
+        }
 
         group.MapPost("/{id:guid}/resend-confirmation", ResendConfirmationEmailAsync)
             .WithName("AdminResendConfirmation")
@@ -397,6 +416,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         Guid id,
         UserManager<ApplicationUser> userManager,
         IRoleAssignmentService roleAssignmentService,
+        IOptions<PasskeyOptions> passkeyOptions,
         CancellationToken cancellationToken)
     {
         var user = await userManager.Users
@@ -419,6 +439,9 @@ namespace Identity.Base.Admin.Features.AdminUsers;
             .ToList();
 
         var authenticatorKey = await userManager.GetAuthenticatorKeyAsync(user);
+        var passkeyCount = passkeyOptions.Value.Enabled
+            ? (await userManager.GetPasskeysAsync(user)).Count
+            : 0;
         var isLockedOut = user.LockoutEnabled && user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.UtcNow;
 
         var response = new AdminUserDetailResponse(
@@ -438,6 +461,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
             roles,
             loginDtos,
             !string.IsNullOrEmpty(authenticatorKey),
+            passkeyCount,
             IsSoftDeleted(user));
 
         return Results.Ok(response);
@@ -574,6 +598,7 @@ namespace Identity.Base.Admin.Features.AdminUsers;
         UserManager<ApplicationUser> userManager,
         IRoleAssignmentService roleAssignmentService,
         IOptions<RegistrationOptions> registrationOptions,
+        IOptions<PasskeyOptions> passkeyOptions,
         IAuditLogger auditLogger,
         IUserLifecycleHookDispatcher lifecycleDispatcher,
         CancellationToken cancellationToken)
@@ -705,7 +730,12 @@ namespace Identity.Base.Admin.Features.AdminUsers;
 
         await lifecycleDispatcher.NotifyUserProfileUpdatedAsync(lifecycleContext, cancellationToken);
 
-        return await GetUserAsync(id, userManager, roleAssignmentService, cancellationToken);
+        return await GetUserAsync(
+            id,
+            userManager,
+            roleAssignmentService,
+            passkeyOptions,
+            cancellationToken);
     }
 
     private static async Task<IResult> LockUserAsync(
@@ -945,6 +975,105 @@ namespace Identity.Base.Admin.Features.AdminUsers;
             cancellationToken).ConfigureAwait(false);
 
         return Results.Accepted($"/admin/users/{user.Id:D}/resend-confirmation");
+    }
+
+    private static async Task<IResult> ResetPasskeysAsync(
+        Guid id,
+        AdminPasskeyResetRequest request,
+        AppDbContext dbContext,
+        UserManager<ApplicationUser> userManager,
+        IAuditLogger auditLogger,
+        IUserLifecycleHookDispatcher lifecycleDispatcher,
+        INotificationContextPipeline<PasskeysResetNotificationContext> notificationPipeline,
+        ITemplatedEmailSender emailSender,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        if (request.Reason?.Trim().Length > 500)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                [nameof(request.Reason)] = ["The reason cannot exceed 500 characters."]
+            });
+        }
+
+        var user = await userManager.FindByIdAsync(id.ToString());
+        if (user is null)
+        {
+            return Results.NotFound();
+        }
+
+        var passkeys = await userManager.GetPasskeysAsync(user);
+        var lifecycleContext = new UserLifecycleContext(
+            UserLifecycleEvent.PasskeysReset,
+            user,
+            Source: nameof(ResetPasskeysAsync),
+            Items: new Dictionary<string, object?>
+            {
+                ["RevokedCount"] = passkeys.Count
+            });
+        try
+        {
+            await lifecycleDispatcher.EnsureCanResetPasskeysAsync(lifecycleContext, cancellationToken);
+        }
+        catch (LifecycleHookRejectedException exception)
+        {
+            return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        await using var transaction = dbContext.Database.IsRelational()
+            ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+            : null;
+        passkeys = await userManager.GetPasskeysAsync(user);
+        foreach (var passkey in passkeys)
+        {
+            var removal = await userManager.RemovePasskeyAsync(user, passkey.CredentialId);
+            var issue = EnsureSuccess(removal);
+            if (issue is not null)
+            {
+                return issue;
+            }
+        }
+
+        var securityStampResult = await userManager.UpdateSecurityStampAsync(user);
+        var securityStampIssue = EnsureSuccess(securityStampResult);
+        if (securityStampIssue is not null)
+        {
+            return securityStampIssue;
+        }
+
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        await auditLogger.LogAsync(
+            AuditEventTypes.AdminUserPasskeysReset,
+            user.Id,
+            new
+            {
+                RevokedCount = passkeys.Count,
+                Reason = request.Reason?.Trim()
+            },
+            cancellationToken).ConfigureAwait(false);
+        await lifecycleDispatcher.NotifyPasskeysResetAsync(lifecycleContext, cancellationToken);
+
+        if (passkeys.Count > 0 && !string.IsNullOrWhiteSpace(user.Email))
+        {
+            try
+            {
+                var notification = new PasskeysResetNotificationContext(user, passkeys.Count);
+                await notificationPipeline.RunAsync(notification, cancellationToken);
+                await emailSender.SendAsync(notification.ToTemplatedEmail(), cancellationToken);
+            }
+            catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                loggerFactory.CreateLogger(typeof(AdminUserEndpoints).FullName!)
+                    .LogError(exception, "Failed to send passkey reset notification for user {UserId}.", user.Id);
+            }
+        }
+
+        return Results.NoContent();
     }
 
     private static async Task<IResult> GetUserRolesAsync(
@@ -1321,6 +1450,7 @@ internal sealed record AdminUserDetailResponse(
     IReadOnlyList<string> Roles,
     IReadOnlyList<AdminUserExternalLogin> ExternalLogins,
     bool AuthenticatorConfigured,
+    int PasskeyCount,
     bool IsDeleted);
 
 internal sealed record AdminUserExternalLogin(
@@ -1357,6 +1487,11 @@ internal sealed class AdminUserUpdateRequest
 internal sealed class AdminUserLockRequest
 {
     public int? Minutes { get; init; }
+}
+
+internal sealed class AdminPasskeyResetRequest
+{
+    public string? Reason { get; init; }
 }
 
 internal sealed record AdminUserRolesResponse(IReadOnlyList<string> Roles);

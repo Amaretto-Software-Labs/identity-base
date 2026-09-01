@@ -173,6 +173,18 @@ internal sealed class MailJetEmailSender : ITemplatedEmailSender
             TemplatedEmailKeys.AccountConfirmation => _options.Templates.Confirmation,
             TemplatedEmailKeys.PasswordReset => _options.Templates.PasswordReset,
             TemplatedEmailKeys.EmailMfaChallenge => _options.Templates.MfaChallenge,
+            TemplatedEmailKeys.PasskeySignupConfirmation =>
+                _options.Templates.PasskeySignupConfirmation > 0
+                    ? _options.Templates.PasskeySignupConfirmation
+                    : _options.Templates.Confirmation,
+            TemplatedEmailKeys.PasskeyRecoveryConfirmation =>
+                _options.Templates.PasskeyRecoveryConfirmation > 0
+                    ? _options.Templates.PasskeyRecoveryConfirmation
+                    : _options.Templates.Confirmation,
+            TemplatedEmailKeys.PasskeyRecoveryCompleted =>
+                _options.Templates.PasskeyRecoveryCompleted,
+            TemplatedEmailKeys.PasskeysReset =>
+                _options.Templates.PasskeysReset,
             _ => 0
         };
 

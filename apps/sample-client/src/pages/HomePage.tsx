@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link } from '@identity-base/sample-router'
 
 export default function HomePage() {
   return (
@@ -21,6 +21,11 @@ export default function HomePage() {
           title="Sign In"
           description="Authenticate with email + password and complete MFA challenges when required."
           to="/login"
+        />
+        <ActionCard
+          title="Use Passkeys"
+          description="Try passkey sign-in, passwordless or assisted signup, recovery, and credential management."
+          to="/passkeys"
         />
         <ActionCard
           title="Forgot Password"

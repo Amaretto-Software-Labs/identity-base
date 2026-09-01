@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from '@identity-base/sample-router'
 import { useMfa } from '@identity-base/react-client'
 import type { MfaVerifyRequest } from '../api/types'
 

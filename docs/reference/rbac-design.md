@@ -45,6 +45,7 @@ This document captures the RBAC model that underpins the upcoming `Identity.Base
 | `users.lock` | Lock/unlock accounts |
 | `users.reset-password` | Force password reset email |
 | `users.reset-mfa` | Reset MFA enrollment |
+| `users.reset-passkeys` | Revoke every passkey and invalidate sessions |
 | `users.delete` | Soft delete & restore users |
 | `users.manage-roles` | Assign/remove roles for users |
 | `roles.read` | View role catalog |
@@ -72,7 +73,8 @@ Add new permissions as features evolve. Permissions should be expressed as lower
         "users.read",
         "users.lock",
         "users.reset-password",
-        "users.reset-mfa"
+        "users.reset-mfa",
+        "users.reset-passkeys"
       ]
     },
     {
@@ -85,6 +87,7 @@ Add new permissions as features evolve. Permissions should be expressed as lower
         "users.lock",
         "users.reset-password",
         "users.reset-mfa",
+        "users.reset-passkeys",
         "users.delete",
         "users.manage-roles",
         "roles.read",

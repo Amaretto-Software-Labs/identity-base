@@ -67,8 +67,10 @@ public static class OpenIddictServerBuilderExtensions
                 "Configure a persisted key provider such as 'FileSystem' or 'AzureKeyVault' instead.");
         }
 
-        builder.AddDevelopmentSigningCertificate();
-        builder.AddDevelopmentEncryptionCertificate();
+        // Ephemeral development keys avoid machine keychain dependencies in test hosts and
+        // containers. Production is already required to select a persisted provider.
+        builder.AddEphemeralSigningKey();
+        builder.AddEphemeralEncryptionKey();
     }
 
     private static void ConfigureFileSystemKeys(OpenIddictServerBuilder builder, OpenIddictServerKeyOptions options, IHostEnvironment environment)

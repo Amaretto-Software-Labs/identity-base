@@ -44,3 +44,56 @@ public sealed class EmailMfaChallengeNotificationContext : NotificationContext
 
     public string Code { get; set; }
 }
+
+public sealed class PasskeySignupConfirmationNotificationContext : NotificationContext
+{
+    public PasskeySignupConfirmationNotificationContext(ApplicationUser user, string confirmationUrl, string mode)
+        : base(TemplatedEmailKeys.PasskeySignupConfirmation, user)
+    {
+        ConfirmationUrl = confirmationUrl;
+        Mode = mode;
+        Variables["email"] = user.Email;
+        Variables["displayName"] = user.DisplayName ?? user.Email;
+        Variables["confirmationUrl"] = confirmationUrl;
+        Variables["registrationMode"] = mode;
+    }
+
+    public string ConfirmationUrl { get; set; }
+
+    public string Mode { get; }
+}
+
+public sealed class PasskeyRecoveryConfirmationNotificationContext : NotificationContext
+{
+    public PasskeyRecoveryConfirmationNotificationContext(ApplicationUser user, string confirmationUrl)
+        : base(TemplatedEmailKeys.PasskeyRecoveryConfirmation, user)
+    {
+        ConfirmationUrl = confirmationUrl;
+        Variables["email"] = user.Email;
+        Variables["displayName"] = user.DisplayName ?? user.Email;
+        Variables["confirmationUrl"] = confirmationUrl;
+    }
+
+    public string ConfirmationUrl { get; set; }
+}
+
+public sealed class PasskeyRecoveryCompletedNotificationContext : NotificationContext
+{
+    public PasskeyRecoveryCompletedNotificationContext(ApplicationUser user)
+        : base(TemplatedEmailKeys.PasskeyRecoveryCompleted, user)
+    {
+        Variables["email"] = user.Email;
+        Variables["displayName"] = user.DisplayName ?? user.Email;
+    }
+}
+
+public sealed class PasskeysResetNotificationContext : NotificationContext
+{
+    public PasskeysResetNotificationContext(ApplicationUser user, int revokedCount)
+        : base(TemplatedEmailKeys.PasskeysReset, user)
+    {
+        Variables["email"] = user.Email;
+        Variables["displayName"] = user.DisplayName ?? user.Email;
+        Variables["revokedCount"] = revokedCount;
+    }
+}

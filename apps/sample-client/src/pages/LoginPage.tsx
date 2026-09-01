@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { useLogin, useIdentityContext } from '@identity-base/react-client'
+import { useNavigate, Link } from '@identity-base/sample-router'
+import { useLogin, useIdentityContext, usePasskeyLogin } from '@identity-base/react-client'
 import { CONFIG } from '../config'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const { authManager } = useIdentityContext()
+  const passkey = usePasskeyLogin()
   const { login, isLoading, error } = useLogin({
     onSuccess: (response) => {
       if (response.requiresTwoFactor) {
@@ -24,8 +25,23 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
+  useEffect(() => {
+    let active = true
+    void passkey.isConditionalMediationAvailable().then(available => {
+      if (!active || !available) return
+      void passkey.login({ mediation: 'conditional' })
+        .then(() => navigate('/', { replace: true }))
+        .catch(() => undefined)
+    })
+    return () => {
+      active = false
+      passkey.cancel()
+    }
+  }, [navigate, passkey.cancel])
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    passkey.cancel()
     await login({ email, password })
   }
 
@@ -51,6 +67,7 @@ export default function LoginPage() {
               key={provider}
               type="button"
               onClick={() => {
+                passkey.cancel()
                 const url = authManager.buildExternalStartUrl(provider, 'login', window.location.origin)
                 window.location.href = url
               }}
@@ -83,7 +100,7 @@ export default function LoginPage() {
             id="email"
             type="email"
             required
-            autoComplete="email"
+            autoComplete="username webauthn"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             disabled={isLoading}
@@ -115,6 +132,14 @@ export default function LoginPage() {
           className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
         >
           {isLoading ? 'Signing in…' : 'Sign in'}
+        </button>
+        <button
+          type="button"
+          disabled={!passkey.isSupported || passkey.isLoading}
+          onClick={() => void passkey.login().then(() => navigate('/', { replace: true }))}
+          className="w-full rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-60"
+        >
+          Sign in with a passkey
         </button>
       </form>
 

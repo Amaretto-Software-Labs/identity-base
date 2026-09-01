@@ -2,6 +2,7 @@ using Identity.Base.Data;
 using Identity.Base.Host.Extensions;
 using Identity.Base.OpenIddict;
 using Identity.Base.Options;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
@@ -34,6 +35,8 @@ internal sealed class HostAppDbContextFactory : IDesignTimeDbContextFactory<AppD
         {
             TablePrefix = TablePrefix
         }));
+        services.Configure<IdentityOptions>(options =>
+            options.Stores.SchemaVersion = IdentitySchemaVersions.Version3);
 
         // Register OpenIddict to ensure model matches runtime configuration
         services.AddOpenIddict()
@@ -63,6 +66,7 @@ internal sealed class HostAppDbContextFactory : IDesignTimeDbContextFactory<AppD
 
         var builder = new DbContextOptionsBuilder<AppDbContext>()
             .UseInternalServiceProvider(serviceProvider)
+            .UseApplicationServiceProvider(serviceProvider)
             .UseHostProvider(configuration, migrationsAssembly);
 
         return new AppDbContext(builder.Options);

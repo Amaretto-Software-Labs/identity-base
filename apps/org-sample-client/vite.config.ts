@@ -8,6 +8,10 @@ function parsePort(value: string | undefined, fallback: number) {
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    preserveSymlinks: true,
+    dedupe: ['react', 'react-dom', '@identity-base/react-client'],
+  },
   server: {
     host: process.env.HOST ?? 'localhost',
     port: parsePort(process.env.PORT ?? process.env.VITE_PORT, 5173),

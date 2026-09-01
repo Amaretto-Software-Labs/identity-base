@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams } from '@identity-base/sample-router'
 import { useAuth } from '@identity-base/react-client'
 import { useOrganizations } from '@identity-base/react-organizations'
 import { claimInvitation } from '../api/organizations'

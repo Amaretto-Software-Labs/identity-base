@@ -28,6 +28,22 @@ await auth.startAuthorization()
 const principals = await auth.admin.servicePrincipals.list({ page: 1, pageSize: 25 })
 ```
 
+Passkeys are orchestrated end-to-end in the browser:
+
+```ts
+if (auth.isPasskeySupported()) {
+  await auth.loginWithPasskey()
+}
+
+await auth.beginPasskeySignup({
+  mode: 'passwordless', // or 'passkey-assisted'
+  email: 'alice@example.com',
+  metadata: { displayName: 'Alice' },
+})
+```
+
+The same manager exposes email confirmation, signup completion, passwordless recovery, and `listPasskeys`/`createPasskey`/`renamePasskey`/`removePasskey`. See the [passkey guide](../../docs/guides/passkeys.md).
+
 `tokenStorage` defaults to `sessionStorage` and `autoRefresh` defaults to `true`. Requests include credentials, attach bearer tokens when available, accept Problem Details or plain-text errors, and handle empty `204` responses.
 
 Full documentation: [docs/packages/identity-base-client-core/index.md](../../docs/packages/identity-base-client-core/index.md).

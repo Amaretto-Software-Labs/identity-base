@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from '@identity-base/sample-router'
 import { useAuthorization } from '@identity-base/react-client'
 
 export default function AuthorizeCallbackPage() {

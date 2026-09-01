@@ -42,6 +42,15 @@ public static class AuditEventTypes
     public const string AdminServicePrincipalCredentialRevoked = "admin.service-principal.credential-revoked";
     public const string AdminServicePrincipalCredentialsRevoked = "admin.service-principal.credentials-revoked";
     public const string PasswordChanged = "password.changed";
+    public const string PasskeyRegistered = "passkey.registered";
+    public const string PasskeyRenamed = "passkey.renamed";
+    public const string PasskeyRemoved = "passkey.removed";
+    public const string PasskeyAuthenticated = "passkey.authenticated";
+    public const string PasskeyAuthenticationFailed = "passkey.authentication-failed";
+    public const string PasskeySignupStarted = "passkey.signup-started";
+    public const string PasskeySignupCompleted = "passkey.signup-completed";
+    public const string PasskeyRecoveryCompleted = "passkey.recovery-completed";
+    public const string AdminUserPasskeysReset = "admin.user.passkeys-reset";
 }
 
 internal sealed class AuditLogger : IAuditLogger

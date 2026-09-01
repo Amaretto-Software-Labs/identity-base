@@ -311,6 +311,49 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
     }
 
     [Fact]
+    public async Task RevokeAllPasskeys_IsIdempotent_AndRotatesSecurityStamp()
+    {
+        var (_, token) = await CreateAdminUserAndTokenAsync(
+            "admin-passkey-reset@example.com",
+            "AdminPass!2345",
+            includeAdminScope: true);
+        Guid targetUserId;
+        string? originalSecurityStamp;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var targetEmail = $"passkey-reset-target-{Guid.NewGuid():N}@example.com";
+            var target = new ApplicationUser
+            {
+                Email = targetEmail,
+                UserName = targetEmail,
+                EmailConfirmed = true
+            };
+            var create = await userManager.CreateAsync(target, "TargetPass!2345");
+            create.Succeeded.ShouldBeTrue(create.Errors.FirstOrDefault()?.Description);
+            targetUserId = target.Id;
+            originalSecurityStamp = target.SecurityStamp;
+        }
+
+        using var client = CreateAuthorizedClient(token);
+        using var response = await client.PostAsJsonAsync(
+            $"/admin/users/{targetUserId:D}/passkeys/revoke-all",
+            new { reason = "Lost device" });
+        using var repeatedResponse = await client.PostAsJsonAsync(
+            $"/admin/users/{targetUserId:D}/passkeys/revoke-all",
+            new { reason = "Lost device" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        repeatedResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        using var verificationScope = _factory.Services.CreateScope();
+        var verificationUserManager =
+            verificationScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var updated = await verificationUserManager.FindByIdAsync(targetUserId.ToString());
+        updated.ShouldNotBeNull();
+        updated!.SecurityStamp.ShouldNotBe(originalSecurityStamp);
+    }
+
+    [Fact]
     public async Task ResendConfirmation_SendsEmail_WhenNotConfirmed()
     {
         var (_, token) = await CreateAdminUserAndTokenAsync("admin-confirm@example.com", "AdminPass!2345", includeAdminScope: true);
@@ -489,7 +532,7 @@ public class AdminUserEndpointsTests : IClassFixture<IdentityApiFactory>
 
     private sealed record AdminUserSummaryDto(Guid Id, string? Email, string? DisplayName, bool EmailConfirmed, bool IsLockedOut, DateTimeOffset CreatedAt, bool MfaEnabled, List<string> Roles, bool IsDeleted);
 
-    private sealed record AdminUserDetailDto(Guid Id, string? Email, bool EmailConfirmed, string? DisplayName, DateTimeOffset CreatedAt, bool LockoutEnabled, bool IsLockedOut, DateTimeOffset? LockoutEnd, bool TwoFactorEnabled, bool PhoneNumberConfirmed, string? PhoneNumber, Dictionary<string, string?> Metadata, string ConcurrencyStamp, List<string> Roles, List<AdminUserExternalLoginDto> ExternalLogins, bool AuthenticatorConfigured, bool IsDeleted);
+    private sealed record AdminUserDetailDto(Guid Id, string? Email, bool EmailConfirmed, string? DisplayName, DateTimeOffset CreatedAt, bool LockoutEnabled, bool IsLockedOut, DateTimeOffset? LockoutEnd, bool TwoFactorEnabled, bool PhoneNumberConfirmed, string? PhoneNumber, Dictionary<string, string?> Metadata, string ConcurrencyStamp, List<string> Roles, List<AdminUserExternalLoginDto> ExternalLogins, bool AuthenticatorConfigured, int PasskeyCount, bool IsDeleted);
 
     private sealed record AdminUserExternalLoginDto(string Provider, string DisplayName, string Key);
 

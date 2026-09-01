@@ -108,6 +108,36 @@ internal sealed class UserLifecycleHookDispatcher : IUserLifecycleHookDispatcher
     public Task NotifyRecoveryCodesGeneratedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
         => ExecuteAfterAsync(context, static (listener, ctx, token) => listener.AfterRecoveryCodesGeneratedAsync(ctx, token), nameof(IUserLifecycleListener.AfterRecoveryCodesGeneratedAsync), cancellationToken);
 
+    public Task EnsureCanRegisterPasskeyAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteBeforeAsync(context, static (listener, ctx, token) => listener.BeforePasskeyRegisteredAsync(ctx, token), nameof(IUserLifecycleListener.BeforePasskeyRegisteredAsync), cancellationToken);
+
+    public Task NotifyPasskeyRegisteredAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteAfterAsync(context, static (listener, ctx, token) => listener.AfterPasskeyRegisteredAsync(ctx, token), nameof(IUserLifecycleListener.AfterPasskeyRegisteredAsync), cancellationToken);
+
+    public Task EnsureCanRenamePasskeyAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteBeforeAsync(context, static (listener, ctx, token) => listener.BeforePasskeyRenamedAsync(ctx, token), nameof(IUserLifecycleListener.BeforePasskeyRenamedAsync), cancellationToken);
+
+    public Task NotifyPasskeyRenamedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteAfterAsync(context, static (listener, ctx, token) => listener.AfterPasskeyRenamedAsync(ctx, token), nameof(IUserLifecycleListener.AfterPasskeyRenamedAsync), cancellationToken);
+
+    public Task EnsureCanRemovePasskeyAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteBeforeAsync(context, static (listener, ctx, token) => listener.BeforePasskeyRemovedAsync(ctx, token), nameof(IUserLifecycleListener.BeforePasskeyRemovedAsync), cancellationToken);
+
+    public Task NotifyPasskeyRemovedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteAfterAsync(context, static (listener, ctx, token) => listener.AfterPasskeyRemovedAsync(ctx, token), nameof(IUserLifecycleListener.AfterPasskeyRemovedAsync), cancellationToken);
+
+    public Task EnsureCanResetPasskeysAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteBeforeAsync(context, static (listener, ctx, token) => listener.BeforePasskeysResetAsync(ctx, token), nameof(IUserLifecycleListener.BeforePasskeysResetAsync), cancellationToken);
+
+    public Task NotifyPasskeysResetAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteAfterAsync(context, static (listener, ctx, token) => listener.AfterPasskeysResetAsync(ctx, token), nameof(IUserLifecycleListener.AfterPasskeysResetAsync), cancellationToken);
+
+    public Task EnsureCanCompletePasskeyRecoveryAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteBeforeAsync(context, static (listener, ctx, token) => listener.BeforePasskeyRecoveryCompletedAsync(ctx, token), nameof(IUserLifecycleListener.BeforePasskeyRecoveryCompletedAsync), cancellationToken);
+
+    public Task NotifyPasskeyRecoveryCompletedAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
+        => ExecuteAfterAsync(context, static (listener, ctx, token) => listener.AfterPasskeyRecoveryCompletedAsync(ctx, token), nameof(IUserLifecycleListener.AfterPasskeyRecoveryCompletedAsync), cancellationToken);
+
     public Task EnsureCanDeleteUserAsync(UserLifecycleContext context, CancellationToken cancellationToken = default)
         => ExecuteBeforeAsync(context, static (listener, ctx, token) => listener.BeforeUserDeletedAsync(ctx, token), nameof(IUserLifecycleListener.BeforeUserDeletedAsync), cancellationToken);
 

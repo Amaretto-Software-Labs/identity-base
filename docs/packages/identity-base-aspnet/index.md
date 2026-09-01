@@ -86,7 +86,7 @@ builder.Services.AddIdentityBaseAuthentication(
 - **Verbose logging** – `UseIdentityBaseRequestLogging(true)` records token contents and validation steps. Enable only in development to avoid leaking sensitive data in production logs.
 
 ## Dependencies & Compatibility
-- Targets ASP.NET Core 9 (minimal APIs and MVC controllers).
+- Targets ASP.NET Core 10 (minimal APIs and MVC controllers).
 - Intended for APIs that trust an Identity Base authority hosted separately.
 - Compatible with `Identity.Base.Roles`/`Identity.Base.Organizations` tokens that include permission and organization claims.
 

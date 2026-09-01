@@ -295,6 +295,7 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                 options.Definitions.Add(new PermissionDefinition { Name = "users.lock", Description = "Lock and unlock accounts" });
                 options.Definitions.Add(new PermissionDefinition { Name = "users.reset-password", Description = "Force password reset" });
                 options.Definitions.Add(new PermissionDefinition { Name = "users.reset-mfa", Description = "Reset MFA enrollment" });
+                options.Definitions.Add(new PermissionDefinition { Name = "users.reset-passkeys", Description = "Revoke passkeys" });
                 options.Definitions.Add(new PermissionDefinition { Name = "users.manage-roles", Description = "Assign roles" });
                 options.Definitions.Add(new PermissionDefinition { Name = "users.delete", Description = "Soft delete users" });
                 options.Definitions.Add(new PermissionDefinition { Name = "roles.read", Description = "View role definitions" });
@@ -343,6 +344,7 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
                         "users.lock",
                         "users.reset-password",
                         "users.reset-mfa",
+                        "users.reset-passkeys",
                         "users.manage-roles",
                         "users.delete",
                         "roles.read",

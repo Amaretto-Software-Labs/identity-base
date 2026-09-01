@@ -16,6 +16,7 @@ Built on (and depends on) `@identity-base/client-core`.
 - ⚡ **Stateful provider** - Explicit loading/error state and safe reinitialization when authority configuration changes
 - 📦 **TypeScript first** - Complete type definitions
 - 🪝 **React hooks** - Clean, composable API
+- 🔑 **Passkeys** - Usernameless login, both signup modes, recovery, and credential management
 
 ## Installation
 
@@ -171,6 +172,15 @@ interface IdentityConfig {
 - Auto-refresh applies regardless of storage backend (`localStorage`, `sessionStorage`, or in-memory) and requires a refresh token to be available.
 
 ## Hooks API
+
+### usePasskeyLogin() and usePasskeys()
+
+```tsx
+const { isSupported, login, beginSignup, completeSignup } = usePasskeyLogin()
+const { passkeys, create, rename, remove } = usePasskeys()
+```
+
+`beginSignup` accepts either `passwordless` or `passkey-assisted`; the server configuration decides which choices are allowed. See the [passkey guide](../../docs/guides/passkeys.md).
 
 ### useAuth()
 ```tsx
