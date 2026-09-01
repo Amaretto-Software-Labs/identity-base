@@ -666,6 +666,49 @@ public class ExternalAuthenticationTests : IClassFixture<IdentityApiFactory>
     }
 
     [Fact]
+    public async Task ExternalLink_PreparesBearerSessionBeforeBrowserNavigation()
+    {
+        const string cookieEmail = "link-cookie-user@example.com";
+        const string bearerEmail = "link-bearer-user-navigation@example.com";
+        const string password = "StrongPass!2345";
+
+        await SeedUserAsync(cookieEmail, password);
+        await SeedUserAsync(bearerEmail, password);
+
+        using var client = await CreateAuthenticatedClientAsync(cookieEmail, password);
+        var accessToken = await _factory.CreateAccessTokenAsync(
+            bearerEmail,
+            password,
+            _factory,
+            "openid profile email offline_access identity.api");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        using var prepareResponse = await client.PostAsync("/auth/external/link-session", null);
+        prepareResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        client.DefaultRequestHeaders.Authorization = null;
+        var linkStart = await client.GetAsync(
+            "/auth/external/google/start?mode=link&returnUrl=/link/result&email=navigation-provider@example.com&name=Navigation%20Linked");
+        linkStart.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        var callback = linkStart.Headers.Location;
+        callback.ShouldNotBeNull();
+
+        var callbackResponse = await client.GetAsync(callback);
+        callbackResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+
+        using var scope = _factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var cookieUser = await userManager.FindByEmailAsync(cookieEmail);
+        var bearerUser = await userManager.FindByEmailAsync(bearerEmail);
+        cookieUser.ShouldNotBeNull();
+        bearerUser.ShouldNotBeNull();
+        (await userManager.GetLoginsAsync(cookieUser!))
+            .ShouldNotContain(login => login.LoginProvider == IdentityApiFactory.FakeGoogleScheme);
+        (await userManager.GetLoginsAsync(bearerUser!))
+            .ShouldContain(login => login.LoginProvider == IdentityApiFactory.FakeGoogleScheme);
+    }
+
+    [Fact]
     public async Task ExternalLink_StartRejectsClientCredentialsBearerToken()
     {
         using var tokenClient = _factory.CreateClient(new WebApplicationFactoryClientOptions

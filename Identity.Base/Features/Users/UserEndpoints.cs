@@ -4,6 +4,7 @@ using Identity.Base.Identity;
 using Identity.Base.Logging;
 using Identity.Base.Options;
 using Identity.Base.Lifecycle;
+using Identity.Base.Features.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
@@ -22,7 +23,7 @@ public static class UserEndpoints
             .MapGroup("/users")
             .RequireAuthorization(new AuthorizeAttribute
             {
-                AuthenticationSchemes = $"{IdentityConstants.ApplicationScheme},{OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme}"
+                AuthenticationSchemes = IdentityBaseAuthenticationSchemes.Account
             });
 
         group.MapGet("/me", GetCurrentUserAsync)

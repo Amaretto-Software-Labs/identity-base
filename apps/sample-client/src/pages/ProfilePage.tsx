@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth, useProfile, useMfa, useIdentityContext } from '@identity-base/react-client'
-import { buildExternalStartUrl } from '../api/auth'
 import { CONFIG } from '../config'
 
 export default function ProfilePage() {
@@ -167,12 +166,19 @@ export default function ProfilePage() {
               <div key={provider} className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     setLinking(provider)
-                    const url = buildExternalStartUrl(provider, 'link', `${window.location.origin}/external-result`, {
-                      email: user.email ?? '',
-                    })
-                    window.location.assign(url)
+                    setError(null)
+                    try {
+                      await authManager.startExternalLink(
+                        provider,
+                        `${window.location.origin}/external-result`,
+                        { email: user.email ?? '' },
+                      )
+                    } catch (err) {
+                      setError(renderError(err))
+                      setLinking(null)
+                    }
                   }}
                   className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-100"
                 >

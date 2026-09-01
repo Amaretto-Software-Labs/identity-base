@@ -644,6 +644,10 @@ test('IdentityAuthManager supports auth code flow and authorized calls', async (
       return makeResponse({ status: 200, json: { message: 'ok' } })
     }
 
+    if (pathname === '/auth/external/link-session' && method === 'POST') {
+      return makeResponse({ status: 204 })
+    }
+
     if (pathname === '/admin/users' && method === 'GET') {
       return makeResponse({ status: 200, json: { page: 1, pageSize: 25, totalCount: 0, items: [] } })
     }
@@ -717,6 +721,12 @@ test('IdentityAuthManager supports auth code flow and authorized calls', async (
     assert.equal(parsed.searchParams.get('returnUrl'), 'https://app.example.com/return')
     assert.equal(parsed.searchParams.get('prompt'), 'select_account')
 
+    await auth.startExternalLink('google', 'https://app.example.com/account')
+    const linkLocation = new URL(assigned.at(-1))
+    assert.equal(linkLocation.pathname, '/auth/external/google/start')
+    assert.equal(linkLocation.searchParams.get('mode'), 'link')
+    assert.equal(linkLocation.searchParams.get('returnUrl'), 'https://app.example.com/account')
+
     await auth.unlinkExternalProvider('google')
 
     await auth.admin.users.list({ page: 2, search: ' alice ', sort: ['createdAt:desc', 'email:asc'] })
@@ -736,6 +746,10 @@ test('IdentityAuthManager supports auth code flow and authorized calls', async (
     assert.ok(unlinkCall)
     assert.ok(typeof unlinkCall.headers.Authorization === 'string')
     assert.ok(unlinkCall.headers.Authorization.startsWith('Bearer '))
+
+    const linkSessionCall = calls.find(c => c.pathname === '/auth/external/link-session' && c.method === 'POST')
+    assert.ok(linkSessionCall)
+    assert.ok(linkSessionCall.headers.Authorization.startsWith('Bearer '))
   } finally {
     globalThis.fetch = originalFetch
     globalThis.window = originalWindow

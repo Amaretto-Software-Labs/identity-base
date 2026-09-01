@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
@@ -60,6 +61,34 @@ public class MfaEndpointsTests : IClassFixture<IdentityApiFactory>
         codesElement.GetArrayLength().ShouldBe(10);
 
         (await GetUserAsync(email)).TwoFactorEnabled.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Enroll_UsesBearerUser_WhenCookieBelongsToAnotherAccount()
+    {
+        const string cookieEmail = "mfa-cookie-user@example.com";
+        const string bearerEmail = "mfa-bearer-user@example.com";
+        const string password = "StrongPass!2345";
+
+        await SeedUserAsync(cookieEmail, password, confirmEmail: true);
+        await SeedUserAsync(bearerEmail, password, confirmEmail: true);
+
+        using var client = await CreateAuthenticatedClientAsync(cookieEmail, password);
+        var accessToken = await _factory.CreateAccessTokenAsync(
+            bearerEmail,
+            password,
+            scope: "openid profile email identity.api");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        using var enrollResponse = await client.PostAsync("/auth/mfa/enroll", null);
+
+        enrollResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var payload = await enrollResponse.Content.ReadFromJsonAsync<JsonDocument>();
+        payload.ShouldNotBeNull();
+        var authenticatorUri = payload!.RootElement.GetProperty("authenticatorUri").GetString();
+        authenticatorUri.ShouldNotBeNull();
+        Uri.UnescapeDataString(authenticatorUri!).ShouldContain(bearerEmail);
+        Uri.UnescapeDataString(authenticatorUri).ShouldNotContain(cookieEmail);
     }
 
     [Fact]

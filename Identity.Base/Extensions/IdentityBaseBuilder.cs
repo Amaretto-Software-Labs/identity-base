@@ -8,6 +8,7 @@ using Identity.Base.Abstractions.MultiTenancy;
 using Identity.Base.Data;
 using Identity.Base.Features.Authentication.EmailManagement;
 using Identity.Base.Features.Authentication.External;
+using Identity.Base.Features.Authentication;
 using Identity.Base.Features.Authentication.Login;
 using Identity.Base.Features.Authentication.Mfa;
 using Identity.Base.Features.Authentication.Register;
@@ -371,6 +372,11 @@ public sealed class IdentityBaseBuilder
                 }
             };
         });
+
+        AuthenticationBuilder.AddPolicyScheme(
+            IdentityBaseAuthenticationSchemes.Account,
+            "Identity Base account authentication",
+            options => options.ForwardDefaultSelector = IdentityBaseAuthenticationSchemes.SelectAccountScheme);
 
         AuthenticationBuilder.AddCookie(IdentityConstants.ExternalScheme, options =>
         {
